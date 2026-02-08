@@ -1,72 +1,104 @@
 import React from 'react';
 import { AppSettings } from '../types';
+import { TRANSLATIONS } from '../constants';
+import { Menu } from 'lucide-react';
 
 interface Props {
   settings: AppSettings;
   setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
+  onLoadTestData?: () => void;
+  onMobileMenuOpen?: () => void;
 }
 
-export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
-  
+export const Settings: React.FC<Props> = ({ settings, setSettings, onLoadTestData, onMobileMenuOpen }) => {
+  const [tempSettings, setTempSettings] = React.useState<AppSettings>(settings);
+  const [hasChanges, setHasChanges] = React.useState(false);
+
+  const t = (key: string) => TRANSLATIONS[tempSettings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
+
+  // Sync tempSettings if prop changes (though rarely happens in this app structure)
+  React.useEffect(() => {
+    setTempSettings(settings);
+    setHasChanges(false);
+  }, [settings]);
+
   const handleChange = (key: keyof AppSettings, value: any) => {
-    setSettings(prev => ({
-      ...prev,
-      [key]: value
-    }));
+    setTempSettings(prev => {
+      const next = { ...prev, [key]: value };
+      setHasChanges(JSON.stringify(next) !== JSON.stringify(settings));
+      return next;
+    });
+  };
+
+  const handleSave = () => {
+    setSettings(tempSettings);
+    setHasChanges(false);
+  };
+
+  const handleCancel = () => {
+    setTempSettings(settings);
+    setHasChanges(false);
   };
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">System Settings</h2>
-        <p className="text-slate-500 dark:text-slate-400">Configure global application preferences.</p>
+    <div className="p-8 max-w-3xl mx-auto pb-24">
+      <div className="mb-8 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          {onMobileMenuOpen && (
+            <button
+              onClick={onMobileMenuOpen}
+              className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden"
+              title="Open Menu"
+            >
+              <Menu className="w-6 h-6 text-slate-600 dark:text-slate-300" />
+            </button>
+          )}
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{t('nav.settings')}</h2>
+            <p className="text-slate-500 dark:text-slate-400">{t('settings.general')}</p>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 space-y-8">
-        
+
         {/* Localization */}
         <section>
           <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
-            Localization
+            {t('nav.section.localization')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Default Language
+                {t('label.default_lang')}
               </label>
-              <select 
+              <select
                 className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                value={settings.language}
+                value={tempSettings.language}
                 onChange={(e) => handleChange('language', e.target.value)}
               >
                 <option value="en-US">English (United States)</option>
-                <option value="en-GB">English (United Kingdom)</option>
-                <option value="es-ES">Spanish</option>
-                <option value="fr-FR">French</option>
-                <option value="de-DE">German</option>
-                <option value="he-IL">Hebrew</option>
+                <option value="he-IL">עברית (Hebrew)</option>
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Time Zone
+                {t('label.timezone')}
               </label>
-              <select 
+              <select
                 className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                value={settings.timeZone}
+                value={tempSettings.timeZone}
                 onChange={(e) => handleChange('timeZone', e.target.value)}
               >
-                 {/* Simplified List of Common Timezones */}
-                 <option value={Intl.DateTimeFormat().resolvedOptions().timeZone}>System Default ({Intl.DateTimeFormat().resolvedOptions().timeZone})</option>
-                 <option value="UTC">UTC</option>
-                 <option value="America/New_York">Eastern Time (US & Canada)</option>
-                 <option value="America/Chicago">Central Time (US & Canada)</option>
-                 <option value="America/Denver">Mountain Time (US & Canada)</option>
-                 <option value="America/Los_Angeles">Pacific Time (US & Canada)</option>
-                 <option value="Europe/London">London</option>
-                 <option value="Europe/Paris">Paris</option>
-                 <option value="Asia/Tokyo">Tokyo</option>
+                {/* Simplified List of Common Timezones */}
+                <option value={Intl.DateTimeFormat().resolvedOptions().timeZone}>{t('label.system_default')} ({Intl.DateTimeFormat().resolvedOptions().timeZone})</option>
+                <option value="UTC">UTC</option>
+                <option value="Asia/Jerusalem">Jerusalem (Israel)</option>
+                <option value="America/New_York">Eastern Time (US & Canada)</option>
+                <option value="America/Los_Angeles">Pacific Time (US & Canada)</option>
+                <option value="Europe/London">London</option>
+                <option value="Europe/Paris">Paris</option>
               </select>
             </div>
           </div>
@@ -75,16 +107,16 @@ export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
         {/* Date & Time */}
         <section>
           <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
-            Date & Time
+            {t('nav.section.date_time')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <div>
+            <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Date Format
+                {t('label.date_format')}
               </label>
-              <select 
+              <select
                 className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                value={settings.dateFormat}
+                value={tempSettings.dateFormat}
                 onChange={(e) => handleChange('dateFormat', e.target.value)}
               >
                 <option value="MM/DD/YYYY">MM/DD/YYYY (04/16/2026)</option>
@@ -95,11 +127,11 @@ export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
 
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Time Format
+                {t('label.time_format')}
               </label>
-              <select 
+              <select
                 className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                value={settings.timeFormat}
+                value={tempSettings.timeFormat}
                 onChange={(e) => handleChange('timeFormat', e.target.value)}
               >
                 <option value="12h">12-hour (1:00 PM)</option>
@@ -112,45 +144,111 @@ export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
         {/* Calendar Defaults */}
         <section>
           <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
-            Calendar Defaults
+            {t('label.calendar_defaults')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Default Event Duration (minutes)
+                {t('label.default_duration')}
               </label>
-              <input 
+              <input
                 type="number"
                 min="15"
                 step="15"
                 className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                value={settings.defaultEventDuration}
+                value={tempSettings.defaultEventDuration}
                 onChange={(e) => handleChange('defaultEventDuration', parseInt(e.target.value) || 60)}
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Week Number Display
+                {t('label.week_numbers')}
               </label>
-              <select 
+              <select
                 className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                value={settings.weekNumberDisplay}
+                value={tempSettings.weekNumberDisplay}
                 onChange={(e) => handleChange('weekNumberDisplay', e.target.value)}
               >
-                <option value="none">None</option>
-                <option value="week-number">Week Number (1-52)</option>
-                <option value="week-of">"Week of [Date]"</option>
+                <option value="none">Hidden</option>
+                <option value="week-number">Week Number</option>
+                <option value="week-of">Week of...</option>
               </select>
             </div>
           </div>
         </section>
 
-        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg text-sm text-blue-700 dark:text-blue-300">
-           Note: Settings are saved automatically to your local browser storage.
-        </div>
+        {/* Integrations (Google Calendar) */}
+        <section>
+          <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+            {t('settings.integrations')}
+          </h3>
+          <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="bg-white p-2 rounded-full shadow-sm">
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M22 6V19C22 20.6569 20.6569 22 19 22H5C3.34315 22 2 20.6569 2 19V6" stroke="#4285F4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M2 6L12 13L2 6" stroke="#4285F4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M2 6C2 4.34315 3.34315 3 5 3H19C20.6569 3 22 4.34315 22 6" stroke="#4285F4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <text x="8" y="16" fontSize="8" fill="#4285F4" fontWeight="bold">GCal</text>
+                </svg>
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-900 dark:text-white">Google Calendar</h4>
+                <p className="text-xs text-slate-500">Sync events with external calendars.</p>
+              </div>
+            </div>
+            <button disabled className="px-3 py-1.5 bg-slate-200 text-slate-500 rounded text-xs font-bold cursor-not-allowed">
+              {t('label.coming_soon')}
+            </button>
+          </div>
+        </section>
 
+        {/* Developer Tools */}
+        <section>
+          <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+            {t('settings.dev_tools')}
+          </h3>
+          <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg border border-amber-200 dark:border-amber-700/50 flex items-center justify-between">
+            <div>
+              <h4 className="font-bold text-slate-900 dark:text-white">{t('settings.generate_data')}</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{t('settings.generate_data_desc')}</p>
+            </div>
+            <button
+              onClick={() => {
+                if (window.confirm(t('alert.confirm_generate'))) {
+                  onLoadTestData?.();
+                  window.alert(t('alert.data_generated'));
+                }
+              }}
+              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded text-xs font-bold transition-colors shadow-sm"
+            >
+              {t('settings.generate_btn')}
+            </button>
+          </div>
+        </section>
       </div>
+
+      {/* Floating Save Bar */}
+      {hasChanges && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-6 z-50 animate-in slide-in-from-bottom-4">
+          <span className="font-medium">{t('settings.unsaved')}</span>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleCancel}
+              className="px-4 py-2 hover:bg-slate-800 rounded-lg transition-colors text-sm font-medium"
+            >
+              {t('btn.cancel')}
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg shadow-lg transition-all text-sm font-bold"
+            >
+              {t('btn.save')}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

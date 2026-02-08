@@ -15,7 +15,7 @@ export const COLORS = [
 
 export const INITIAL_SETTINGS: AppSettings = {
   language: 'en-US',
-  dateFormat: 'MM/DD/YYYY',
+  dateFormat: 'DD/MM/YYYY',
   timeFormat: '12h',
   timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   defaultEventDuration: 60,
@@ -26,6 +26,179 @@ export const INITIAL_LISTS: ListsState = {
   positions: ['Piano Instructor', 'Voice Coach', 'Violin Teacher', 'Choir Director', 'Theory Teacher'],
   tags: ['Piano Dept', 'Strings Dept', 'Vocal Dept', 'Senior Staff', 'Junior Staff'],
   classifications: Object.values(Classification) as string[]
+};
+
+export const HEBREW_CALENDAR_OPTIONS = {
+  // Config for Hebcal if needed
+};
+
+export const TRANSLATIONS: Record<string, Record<string, string>> = {
+  'en-US': {
+    'app.title': 'Music Center Calendar',
+    'app.subtitle': 'Management System',
+    'nav.calendar': 'Smart Calendar',
+    'settings.general': 'General Settings',
+    'settings.integrations': 'Integrations',
+    'settings.dev_tools': 'Developer Tools',
+    'settings.generate_data': 'Generate Test Data',
+    'settings.generate_data_desc': 'Populate the calendar with 20 teachers and random events.',
+    'settings.generate_btn': 'Generate Data',
+    'settings.unsaved': 'You have unsaved changes',
+    'alert.confirm_generate': 'This will overwrite existing teachers and events. Continue?',
+    'alert.data_generated': 'Test data generated!',
+    'alert.delete_event': 'Are you sure you want to delete this event?',
+    'alert.delete_gantt': 'Delete this Gantt block? This may affect blackouts.',
+    'alert.end_time_error': 'End time must be after start time',
+    'label.default_lang': 'Default Language',
+    'label.system_default': 'System Default',
+    'label.coming_soon': 'Coming Soon',
+    'nav.gantt': 'Gantt & Blackout',
+    'nav.teachers': 'Teachers',
+    'nav.rooms': 'Rooms',
+    'nav.lists': 'Manage Lists',
+    'nav.manage': 'Manage',
+    'nav.financial': 'Financial Dashboard',
+    'nav.settings': 'Settings',
+    'nav.power_tools': 'Power Tools',
+    'ops': 'Operations',
+    'admin': 'Administration',
+    'analytics': 'Analytics',
+    'today': 'TODAY',
+    'btn.add': 'Add',
+    'btn.create': 'Create',
+    'btn.save': 'Save',
+    'btn.cancel': 'Cancel',
+    'btn.delete': 'Delete',
+    'btn.close': 'Close',
+    'mode.day': 'DAY',
+    'mode.week': 'WEEK',
+    'mode.month': 'MONTH',
+    'filter.teacher': 'Teacher: All',
+    'filter.room': 'Room: All',
+    'filter.type': 'Type: All',
+    'filter.show_canceled': 'Show Canceled',
+    'filter.show_blackouts': 'Show Blackouts',
+    'modal.add_event': 'Add Event',
+    'modal.edit_event': 'Edit Event',
+    'label.name': 'Event Name',
+    'label.desc': 'Description',
+    'label.teacher': 'Teacher',
+    'label.room': 'Room',
+    'label.type': 'Type',
+    'label.start': 'Start',
+    'label.end': 'End',
+    'label.recurrence': 'Recurrence',
+    'label.timezone': 'Time Zone',
+    'label.date_format': 'Date Format',
+    'label.time_format': 'Time Format',
+    'label.calendar_defaults': 'Calendar Defaults',
+    'label.default_duration': 'Default Event Duration (minutes)',
+    'label.week_numbers': 'Week Number Display',
+    'nav.section.localization': 'Localization',
+    'nav.section.date_time': 'Date & Time',
+    'nav.section.analytics': 'Analytics',
+    'nav.section.operations': 'Operations',
+    'nav.section.admin': 'Administration',
+    'recurrence.none': 'Does not repeat',
+    'recurrence.daily': 'Daily',
+    'recurrence.weekly': 'Weekly',
+    'recurrence.monthly': 'Monthly',
+    'recurrence.yearly': 'Yearly',
+    'recurrence.until': 'Until',
+    'role.admin': 'Admin',
+    'role.viewer': 'Viewer',
+    'pt.bulk_delete': 'Bulk Delete',
+    'pt.date_range': 'Date Range',
+    'pt.criteria': 'Filter Criteria',
+    'pt.preview': 'Preview',
+    'pt.delete_all': 'Delete All Matches',
+    'pt.confirm_delete': 'Please confirm deletion of {count} events.',
+    'pt.success': 'Successfully deleted {count} events.',
+    'pt.no_matches': 'No matching events found.',
+  },
+  'he-IL': {
+    'app.title': 'מרכז המוזיקה אלפרט',
+    'app.subtitle': 'מערכת ניהול',
+    'nav.calendar': 'לוח שנה חכם',
+    'settings.general': 'הגדרות כלליות',
+    'settings.integrations': 'אינטגרציות',
+    'settings.dev_tools': 'כלי מפתח',
+    'settings.generate_data': 'יצירת נתוני בדיקה',
+    'settings.generate_data_desc': 'אכלוס הלוח עם 20 מורים ואירועים אקראיים.',
+    'settings.generate_btn': 'צור נתונים',
+    'settings.unsaved': 'ישנם שינויים שלא נשמרו',
+    'alert.confirm_generate': 'פעולה זו תדרוס מורים ואירועים קיימים. להמשיך?',
+    'alert.data_generated': 'נתונים נוצרו בהצלחה!',
+    'alert.delete_event': 'האם למחוק את האירוע?',
+    'alert.delete_gantt': 'למחוק בלוק זה? הפעולה עשויה להשפיע על חסימות.',
+    'alert.end_time_error': 'שעת הסיום חייבת להיות אחרי שעת ההתחלה',
+    'label.default_lang': 'שפת מערכת',
+    'label.system_default': 'ברירת מחדל של המערכת',
+    'label.coming_soon': 'בקרוב',
+    'nav.gantt': 'גאנט וחסימות',
+    'nav.teachers': 'מורים',
+    'nav.rooms': 'חדרים',
+    'nav.lists': 'ניהול רשימות',
+    'nav.manage': 'ניהול',
+    'nav.financial': 'דשבורד פיננסי',
+    'nav.settings': 'הגדרות',
+    'nav.power_tools': 'כלים מתקדמים', // Added
+    'ops': 'תפעול',
+    'admin': 'ניהול',
+    'analytics': 'אנליטיקה',
+    'today': 'היום',
+    'btn.add': 'הוסף',
+    'btn.create': 'צור', // Added
+    'btn.save': 'שמור',
+    'btn.cancel': 'ביטול',
+    'btn.delete': 'מחק',
+    'btn.close': 'סגור', // Added help
+    'mode.day': 'יום',
+    'mode.week': 'שבוע',
+    'mode.month': 'חודש',
+    'filter.teacher': 'מורה: הכל',
+    'filter.room': 'חדר: הכל',
+    'filter.type': 'סוג: הכל',
+    'filter.show_canceled': 'הצג אירועים מבוטלים', // Added
+    'filter.show_blackouts': 'הצג חסימות', // Added
+    'modal.add_event': 'הוסף אירוע',
+    'modal.edit_event': 'ערוך אירוע',
+    'label.name': 'שם האירוע',
+    'label.desc': 'תיאור',
+    'label.teacher': 'מורה',
+    'label.room': 'חדר',
+    'label.type': 'סוג',
+    'label.start': 'התחלה',
+    'label.end': 'סיום',
+    'label.recurrence': 'חזרתיות',
+    'label.timezone': 'אזור זמן',
+    'label.date_format': 'פורמט תאריך',
+    'label.time_format': 'פורמט שעה',
+    'label.calendar_defaults': 'הגדרות יומן ברירת מחדל',
+    'label.default_duration': 'משך אירוע ברירת מחדל (דקות)',
+    'label.week_numbers': 'תצוגת מספרי שבועות',
+    'nav.section.localization': 'לוקליזציה',
+    'nav.section.date_time': 'תאריך ושעה',
+    'nav.section.analytics': 'אנליטיקה',
+    'nav.section.operations': 'תפעול',
+    'nav.section.admin': 'ניהול',
+    'recurrence.none': 'ללא חזרה',
+    'recurrence.daily': 'יומי',
+    'recurrence.weekly': 'שבועי',
+    'recurrence.monthly': 'חודשי',
+    'recurrence.yearly': 'שנתי',
+    'recurrence.until': 'עד תאריך',
+    'role.admin': 'מנהל',
+    'role.viewer': 'צופה',
+    'pt.bulk_delete': 'מחיקה מרוכזת', // Power Tools
+    'pt.date_range': 'טווח תאריכים',
+    'pt.criteria': 'קריטריונים לסינון',
+    'pt.preview': 'תצוגה מקדימה',
+    'pt.delete_all': 'מחק הכל',
+    'pt.confirm_delete': 'נא לאשר מחיקה של {count} אירועים.',
+    'pt.success': 'נמחקו {count} אירועים בהצלחה.',
+    'pt.no_matches': 'לא נמצאו אירועים מתאימים.',
+  }
 };
 
 export const INITIAL_TEACHERS: Teacher[] = [
@@ -107,4 +280,16 @@ export const formatDateForInput = (isoString: string) => {
   const offset = date.getTimezoneOffset();
   const localDate = new Date(date.getTime() - (offset * 60 * 1000));
   return localDate.toISOString().slice(0, 16);
+};
+
+export const formatDate = (date: Date, format: string) => {
+  const d = date.getDate().toString().padStart(2, '0');
+  const m = (date.getMonth() + 1).toString().padStart(2, '0');
+  const y = date.getFullYear();
+
+  switch (format) {
+    case 'DD/MM/YYYY': return `${d}/${m}/${y}`;
+    case 'YYYY-MM-DD': return `${y}-${m}-${d}`;
+    default: return `${m}/${d}/${y}`; // MM/DD/YYYY
+  }
 };

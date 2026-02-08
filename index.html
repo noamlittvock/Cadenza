@@ -1,54 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Music Center Management</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-      }
-    </script>
-    <style>
-      /* Custom scrollbar for better aesthetics */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #f1f1f1; 
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #cbd5e1; 
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8; 
-      }
-      .canceled-stripe {
-        background-image: repeating-linear-gradient(
-          45deg,
-          rgba(0, 0, 0, 0.05),
-          rgba(0, 0, 0, 0.05) 10px,
-          rgba(0, 0, 0, 0.1) 10px,
-          rgba(0, 0, 0, 0.1) 20px
-        );
-      }
-    </style>
-  <script type="importmap">
-{
-  "imports": {
-    "recharts": "https://esm.sh/recharts@^3.6.0",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0"
-  }
-}
-</script>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Music Center Calendar</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+    }
+  </script>
+  <!-- Blocking script to apply dark mode and disable initial transitions -->
+  <script>
+      (function () {
+        // Apply dark mode immediately
+        if (localStorage.getItem('darkMode') === 'true') {
+          document.documentElement.classList.add('dark');
+        }
+        // Disable all transitions initially to prevent mount flash
+        document.documentElement.classList.add('no-transitions');
+        // Re-enable transitions after React has finished mounting (500ms delay)
+        setTimeout(function () {
+          document.documentElement.classList.remove('no-transitions');
+        }, 500);
+      })();
+  </script>
+  <style>
+    /* Custom scrollbar for better aesthetics */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    .canceled-stripe {
+      background-image: repeating-linear-gradient(45deg,
+          rgba(255, 255, 255, 0.5),
+          rgba(255, 255, 255, 0.5) 10px,
+          rgba(148, 163, 184, 0.2) 10px,
+          /* slate-400 equivalent */
+          rgba(148, 163, 184, 0.2) 20px);
+      background-color: #e2e8f0 !important;
+      /* slate-200 */
+      opacity: 0.8;
+      color: #64748b !important;
+      /* slate-500 text */
+    }
+
+    /* Disable ALL transitions during initial page load to prevent flash */
+    .no-transitions,
+    .no-transitions *,
+    .no-transitions *::before,
+    .no-transitions *::after {
+      transition: none !important;
+    }
+
+    /* Global Dark Mode Transitions - Synchronized interpolation for ALL elements */
+    /* Using !important to ensure this overrides any Tailwind utilities */
+    /* Only apply when NOT in no-transitions mode */
+    html:not(.no-transitions) *:not(.no-theme-transition):not([class*="animate-"]) {
+      transition: background-color 300ms ease-in-out, border-color 300ms ease-in-out, color 300ms ease-in-out, fill 300ms ease-in-out, stroke 300ms ease-in-out, box-shadow 300ms ease-in-out !important;
+    }
+
+    /* Allow transform/opacity to still work for UI interactions */
+    html:not(.no-transitions) [class*="transition-transform"],
+    html:not(.no-transitions) [class*="transition-opacity"],
+    html:not(.no-transitions) [class*="translate-"],
+    html:not(.no-transitions) [class*="scale-"],
+    html:not(.no-transitions) [class*="rotate-"] {
+      transition: transform 300ms ease-in-out, opacity 300ms ease-in-out, background-color 300ms ease-in-out, border-color 300ms ease-in-out, color 300ms ease-in-out !important;
+    }
+
+    /* Ensure dividers (common sources of white flash) have neutral borders */
+    .divide-slate-100>*+*,
+    .divide-slate-200>*+*,
+    .divide-slate-800>*+* {
+      border-color: rgba(148, 163, 184, 0.2) !important;
+    }
+  </style>
 </head>
-  <body>
-    <div id="root"></div>
-  </body>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
 </html>

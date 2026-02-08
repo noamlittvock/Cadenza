@@ -1,22 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ListsState } from '../types';
-import { Plus, X, Tag, Briefcase, Bookmark } from 'lucide-react';
+import { Plus, X, Tag, Briefcase, Bookmark, Download, Upload, FileDown, CheckCircle2, Menu } from 'lucide-react';
 
 interface Props {
   lists: ListsState;
   setLists: React.Dispatch<React.SetStateAction<ListsState>>;
+  onMobileMenuOpen?: () => void;
+  embedded?: boolean;
 }
 
-const ListEditor = ({ 
-  title, 
-  items, 
-  onAdd, 
-  onRemove, 
-  icon: Icon 
-}: { 
-  title: string; 
-  items: string[]; 
-  onAdd: (item: string) => void; 
+const ListEditor = ({
+  title,
+  items,
+  onAdd,
+  onRemove,
+  icon: Icon
+}: {
+  title: string;
+  items: string[];
+  onAdd: (item: string) => void;
   onRemove: (item: string) => void;
   icon: React.ElementType;
 }) => {
@@ -33,21 +35,21 @@ const ListEditor = ({
     <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 flex flex-col h-full">
       <div className="flex items-center space-x-3 mb-4">
         <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400">
-            <Icon size={20} />
+          <Icon size={20} />
         </div>
         <h3 className="font-bold text-lg text-slate-800 dark:text-white">{title}</h3>
       </div>
-      
+
       <div className="flex gap-2 mb-4">
-        <input 
-          type="text" 
+        <input
+          type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
           placeholder={`Add ${title}...`}
           className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
         />
-        <button 
+        <button
           onClick={handleAdd}
           disabled={!input.trim()}
           className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-2 rounded-lg"
@@ -59,13 +61,13 @@ const ListEditor = ({
       <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar max-h-[300px]">
         {items.map((item, idx) => (
           <div key={idx} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-lg border border-slate-100 dark:border-slate-700 group">
-             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{item}</span>
-             <button 
-               onClick={() => onRemove(item)}
-               className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-             >
-               <X size={16} />
-             </button>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{item}</span>
+            <button
+              onClick={() => onRemove(item)}
+              className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <X size={16} />
+            </button>
           </div>
         ))}
         {items.length === 0 && (
@@ -76,8 +78,11 @@ const ListEditor = ({
   );
 };
 
-export const ManageLists: React.FC<Props> = ({ lists, setLists }) => {
-  
+export const ManageLists: React.FC<Props> = ({ lists, setLists, onMobileMenuOpen, embedded = false }) => {
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [candidates, setCandidates] = useState<{ positions: string[], tags: string[], classifications: string[] }>({ positions: [], tags: [], classifications: [] });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const addItem = (key: keyof ListsState, item: string) => {
     setLists(prev => ({
       ...prev,
@@ -87,43 +92,194 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists }) => {
 
   const removeItem = (key: keyof ListsState, item: string) => {
     if (window.confirm(`Remove "${item}" from lists? Existing records using this will not be updated.`)) {
-        setLists(prev => ({
+      setLists(prev => ({
         ...prev,
         [key]: prev[key].filter(i => i !== item)
-        }));
+      }));
     }
   };
 
+  const handleDownloadTemplate = () => {
+    const headers = "Type (Position/Tag/Classification),Value";
+    const example = "Position,Senior Instructor\nTag,Piano\nClassification,Private Lesson";
+    const blob = new Blob([`${headers}\n${example}`], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'lists_import_template.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target?.result as string;
+      const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+
+      const newPositions = new Set<string>();
+      const newTags = new Set<string>();
+      const newClassifications = new Set<string>();
+
+      // Skip header if present
+      const startIdx = lines[0].toLowerCase().includes('value') ? 1 : 0;
+
+      for (let i = startIdx; i < lines.length; i++) {
+        const parts = lines[i].split(',');
+        if (parts.length < 2) continue;
+        const type = parts[0].trim().toLowerCase();
+        const value = parts[1].trim();
+
+        if (!value) continue;
+
+        if (type.includes('position')) {
+          if (!lists.positions.includes(value)) newPositions.add(value);
+        } else if (type.includes('tag')) {
+          if (!lists.tags.includes(value)) newTags.add(value);
+        } else if (type.includes('class')) {
+          if (!lists.classifications.includes(value)) newClassifications.add(value);
+        }
+      }
+
+      setCandidates({
+        positions: Array.from(newPositions),
+        tags: Array.from(newTags),
+        classifications: Array.from(newClassifications)
+      });
+      setIsImportModalOpen(true);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const confirmImport = () => {
+    setLists(prev => ({
+      positions: [...prev.positions, ...candidates.positions],
+      tags: [...prev.tags, ...candidates.tags],
+      classifications: [...prev.classifications, ...candidates.classifications]
+    }));
+    setIsImportModalOpen(false);
+    setCandidates({ positions: [], tags: [], classifications: [] });
+  };
+
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Manage Lists</h2>
-        <p className="text-slate-500 dark:text-slate-400">Configure global dropdown options for Positions, Tags, and Classifications.</p>
-      </div>
+    <div className={`${embedded ? 'h-full overflow-auto' : ''} p-8 max-w-7xl mx-auto relative`}>
+      {!embedded && (
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+          <div className="flex items-center gap-3">
+            {onMobileMenuOpen && (
+              <button
+                onClick={onMobileMenuOpen}
+                className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden"
+                title="Open Menu"
+              >
+                <Menu className="w-6 h-6 text-slate-600 dark:text-slate-300" />
+              </button>
+            )}
+            <div>
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Manage Lists</h2>
+              <p className="text-slate-500 dark:text-slate-400">Configure global dropdown options for Positions, Tags, and Classifications.</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handleDownloadTemplate} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700">
+              <FileDown size={16} className="mr-2" /> Template
+            </button>
+            <button onClick={() => fileInputRef.current?.click()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm">
+              <Upload size={16} className="mr-2" /> Import CSV
+            </button>
+            <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
+          </div>
+        </div>
+      )}
+      {embedded && (
+        <div className="flex justify-end gap-2 mb-6">
+          <button onClick={handleDownloadTemplate} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700">
+            <FileDown size={16} className="mr-2" /> Template
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm">
+            <Upload size={16} className="mr-2" /> Import CSV
+          </button>
+          <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <ListEditor 
-          title="Positions" 
+        <ListEditor
+          title="Positions"
           icon={Briefcase}
           items={lists.positions}
           onAdd={(item) => addItem('positions', item)}
           onRemove={(item) => removeItem('positions', item)}
         />
-        <ListEditor 
-          title="Tags" 
+        <ListEditor
+          title="Tags"
           icon={Tag}
           items={lists.tags}
           onAdd={(item) => addItem('tags', item)}
           onRemove={(item) => removeItem('tags', item)}
         />
-        <ListEditor 
-          title="Classifications" 
+        <ListEditor
+          title="Classifications"
           icon={Bookmark}
           items={lists.classifications}
           onAdd={(item) => addItem('classifications', item)}
           onRemove={(item) => removeItem('classifications', item)}
         />
       </div>
+
+      {isImportModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg p-6 border border-slate-200 dark:border-slate-800">
+            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">Import Preview</h3>
+            <p className="text-sm text-slate-500 mb-4">Found {candidates.positions.length + candidates.tags.length + candidates.classifications.length} new unique items.</p>
+
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto mb-6">
+              {candidates.positions.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">New Positions</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {candidates.positions.map(i => <span key={i} className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-xs border border-slate-200 dark:border-slate-700">{i}</span>)}
+                  </div>
+                </div>
+              )}
+              {candidates.tags.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">New Tags</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {candidates.tags.map(i => <span key={i} className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded text-xs border border-blue-100 dark:border-blue-800">{i}</span>)}
+                  </div>
+                </div>
+              )}
+              {candidates.classifications.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">New Classifications</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {candidates.classifications.map(i => <span key={i} className="bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-2 py-1 rounded text-xs border border-purple-100 dark:border-purple-800">{i}</span>)}
+                  </div>
+                </div>
+              )}
+              {(candidates.positions.length + candidates.tags.length + candidates.classifications.length) === 0 && (
+                <p className="text-sm text-amber-500">No new unique items found in the CSV. Make sure you used the template format.</p>
+              )}
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <button onClick={() => setIsImportModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
+              <button
+                onClick={confirmImport}
+                disabled={(candidates.positions.length + candidates.tags.length + candidates.classifications.length) === 0}
+                className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg disabled:opacity-50"
+              >
+                Import All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
