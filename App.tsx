@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState } from './types';
-import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS } from './constants';
+import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, migrateTeacher } from './constants';
 import { generateTestData } from './utils/dataGenerator';
 import { Layout } from './components/Layout';
 import { CalendarView } from './components/CalendarView';
@@ -81,7 +81,7 @@ function AppContent() {
   const [teachers, setTeachers] = useState<Teacher[]>(() => {
     const saved = localStorage.getItem('teachers');
     const parsed = saved ? JSON.parse(saved) : INITIAL_TEACHERS;
-    return parsed.map((t: any) => ({ ...t, tags: t.tags || [] }));
+    return parsed.map((t: any) => migrateTeacher(t));
   });
 
   const [rooms, setRooms] = useState<Room[]>(() => {

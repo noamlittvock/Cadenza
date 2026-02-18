@@ -488,12 +488,14 @@ export const CalendarView: React.FC<Props> = ({
     const defaultEnd = new Date(defaultStart);
     defaultEnd.setMinutes(defaultStart.getMinutes() + settings.defaultEventDuration);
 
+    const defaultTeacher = teachers[0];
     setEditingEvent(evt || {
       start: defaultStart.toISOString(),
       end: defaultEnd.toISOString(),
       classification: activeLists.classifications[0], // Use activeLists
-      teacherId: teachers[0]?.id,
-      roomId: rooms[0]?.id
+      teacherId: defaultTeacher?.id,
+      roomId: rooms[0]?.id,
+      positionId: defaultTeacher?.positionAssignments?.[0]?.id || undefined,
     });
     setIsModalOpen(true);
     setDetailItem(null);
@@ -1378,9 +1380,39 @@ export const CalendarView: React.FC<Props> = ({
             <form onSubmit={saveEvent} className="space-y-4">
               <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Event Name</label><input required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" value={editingEvent.name || ''} onChange={e => setEditingEvent({ ...editingEvent, name: e.target.value })} placeholder="e.g. Piano Lesson" /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Teacher</label><select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.teacherId} onChange={e => setEditingEvent({ ...editingEvent, teacherId: e.target.value })}>{teachers.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}</select></div>
+                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Teacher</label><select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.teacherId} onChange={e => {
+                  const newTeacher = teachers.find(t => t.id === e.target.value);
+                  setEditingEvent({
+                    ...editingEvent,
+                    teacherId: e.target.value,
+                    positionId: newTeacher?.positionAssignments?.[0]?.id || undefined,
+                  });
+                }}>{teachers.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}</select></div>
                 <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Room</label><select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.roomId} onChange={e => setEditingEvent({ ...editingEvent, roomId: e.target.value })}>{rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></div>
               </div>
+              {/* Position Assignment Dropdown */}
+              {(() => {
+                const selectedTeacher = teachers.find(t => t.id === editingEvent.teacherId);
+                const assignments = selectedTeacher?.positionAssignments || [];
+                if (assignments.length === 0) return null;
+                return (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Position</label>
+                    <select
+                      className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+                      value={editingEvent.positionId || ''}
+                      onChange={e => setEditingEvent({ ...editingEvent, positionId: e.target.value || undefined })}
+                    >
+                      <option value="">— No position —</option>
+                      {assignments.map(pa => (
+                        <option key={pa.id} value={pa.id}>
+                          {pa.positionName} ({pa.rateType === 'HOURLY' ? `₪${pa.rateValue}/hr` : `₪${pa.rateValue.toLocaleString()}/mo`})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })()}
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Start Time</label><input type="datetime-local" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.start ? new Date(new Date(editingEvent.start).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setEditingEvent({ ...editingEvent, start: new Date(e.target.value).toISOString() })} /></div>
                 <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">End Time</label><input type="datetime-local" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.end ? new Date(new Date(editingEvent.end).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setEditingEvent({ ...editingEvent, end: new Date(e.target.value).toISOString() })} /></div>

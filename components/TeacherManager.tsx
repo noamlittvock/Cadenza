@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Teacher, ListsState } from '../types';
+import { Teacher, ListsState, PositionAssignment, RateType } from '../types';
 import { generateId, COLORS, INITIAL_LISTS } from '../constants';
-import { Plus, Edit2, Trash2, Search, CheckCircle2, Palette, X, Download, Upload, FileDown, Tag, Briefcase, Menu } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, CheckCircle2, Palette, X, Download, Upload, FileDown, Tag, Briefcase, Menu, DollarSign, Clock, CalendarDays, ChevronDown, ToggleLeft, ToggleRight } from 'lucide-react';
 
 interface Props {
   teachers: Teacher[];
@@ -16,17 +16,26 @@ interface ImportCandidate {
   id: string; // Temporary ID
   fullName: string;
   positions: string[];
+  positionAssignments: PositionAssignment[];
   tags: string[];
   phone: string;
   email: string;
   selected: boolean;
 }
 
+// Helper to create a new empty position assignment
+const createEmptyAssignment = (): PositionAssignment => ({
+  id: generateId(),
+  positionName: '',
+  category: 'Individual Lesson',
+  rateType: 'HOURLY',
+  rateValue: 0,
+});
+
 export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, setLists, onMobileMenuOpen, embedded = false }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<Partial<Teacher>>({ positions: [], tags: [] });
-  const [positionInput, setPositionInput] = useState('');
+  const [formData, setFormData] = useState<Partial<Teacher>>({ positions: [], positionAssignments: [], tags: [] });
   const [tagInput, setTagInput] = useState('');
 
   // Safe Fallback
@@ -49,35 +58,66 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
   // Bulk Selection State
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<Set<string>>(new Set());
 
+  // --- Position Assignment Helpers ---
+
+  const syncPositionsFromAssignments = (assignments: PositionAssignment[]): string[] => {
+    return assignments.map(pa => pa.positionName).filter(name => name.trim() !== '');
+  };
+
+  const addPositionAssignment = () => {
+    const newAssignment = createEmptyAssignment();
+    const newAssignments = [...(formData.positionAssignments || []), newAssignment];
+    setFormData({
+      ...formData,
+      positionAssignments: newAssignments,
+      positions: syncPositionsFromAssignments(newAssignments),
+    });
+  };
+
+  const removePositionAssignment = (assignmentId: string) => {
+    const newAssignments = (formData.positionAssignments || []).filter(pa => pa.id !== assignmentId);
+    setFormData({
+      ...formData,
+      positionAssignments: newAssignments,
+      positions: syncPositionsFromAssignments(newAssignments),
+    });
+  };
+
+  const updatePositionAssignment = (assignmentId: string, updates: Partial<PositionAssignment>) => {
+    const newAssignments = (formData.positionAssignments || []).map(pa =>
+      pa.id === assignmentId ? { ...pa, ...updates } : pa
+    );
+    setFormData({
+      ...formData,
+      positionAssignments: newAssignments,
+      positions: syncPositionsFromAssignments(newAssignments),
+    });
+  };
+
   // --- Main Teacher Management ---
 
   const handleOpenModal = (teacher?: Teacher) => {
     setError(null);
     if (teacher) {
       setEditingId(teacher.id);
-      setFormData(teacher);
+      setFormData({
+        ...teacher,
+        positionAssignments: teacher.positionAssignments || [],
+      });
     } else {
       setEditingId(null);
       // Pick first available color or default
       const usedColors = teachers.map(t => t.color);
       const availableColor = COLORS.find(c => !usedColors.includes(c)) || COLORS[0];
 
-      setFormData({ positions: [], tags: [], color: availableColor });
+      setFormData({
+        positions: [],
+        positionAssignments: [createEmptyAssignment()], // Start with one empty slot
+        tags: [],
+        color: availableColor,
+      });
     }
     setIsModalOpen(true);
-  };
-
-  const handleAddPosition = (e: React.KeyboardEvent | React.MouseEvent) => {
-    if ((e.type === 'keydown' && (e as React.KeyboardEvent).key !== 'Enter') || !positionInput.trim()) return;
-    e.preventDefault();
-    if (formData.positions && !formData.positions.includes(positionInput.trim())) {
-      setFormData({ ...formData, positions: [...(formData.positions || []), positionInput.trim()] });
-    }
-    setPositionInput('');
-  };
-
-  const removePosition = (posToRemove: string) => {
-    setFormData({ ...formData, positions: formData.positions?.filter(p => p !== posToRemove) });
   };
 
   const handleAddTag = (e: React.KeyboardEvent | React.MouseEvent) => {
@@ -105,6 +145,13 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
 
     if (!formData.fullName || !formData.email || !formData.color) return;
 
+    // Validation: must have at least one position with a name
+    const validAssignments = (formData.positionAssignments || []).filter(pa => pa.positionName.trim() !== '');
+    if (validAssignments.length === 0) {
+      setError('Please add at least one position with a name.');
+      return;
+    }
+
     // Validation: Check if color is taken by another teacher
     const colorTaken = teachers.some(t =>
       t.color.toLowerCase() === formData.color!.toLowerCase() && t.id !== editingId
@@ -115,13 +162,21 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
       return;
     }
 
+    const finalPositions = syncPositionsFromAssignments(validAssignments);
+
     if (editingId) {
-      setTeachers(prev => prev.map(t => t.id === editingId ? { ...t, ...formData } as Teacher : t));
+      setTeachers(prev => prev.map(t => t.id === editingId ? {
+        ...t,
+        ...formData,
+        positionAssignments: validAssignments,
+        positions: finalPositions,
+      } as Teacher : t));
     } else {
       const newTeacher: Teacher = {
         id: generateId(),
         fullName: formData.fullName!,
-        positions: formData.positions || [],
+        positions: finalPositions,
+        positionAssignments: validAssignments,
         tags: formData.tags || [],
         phone: formData.phone || '',
         email: formData.email!,
@@ -129,15 +184,31 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
       };
       setTeachers(prev => [...prev, newTeacher]);
     }
+
+    // Auto-populate new positions into lists
+    if (setLists) {
+      const allPositions = new Set(activeLists.positions || []);
+      let changed = false;
+      finalPositions.forEach(p => {
+        if (p && !allPositions.has(p)) {
+          allPositions.add(p);
+          changed = true;
+        }
+      });
+      if (changed) {
+        setLists(prev => ({ ...prev, positions: Array.from(allPositions) }));
+      }
+    }
+
     setIsModalOpen(false);
   };
 
   // --- CSV Import / Export ---
-  // ... (Code mostly same as before, updated to include Tags in CSV structure)
 
   const handleDownloadTemplate = () => {
-    const headers = "FullName,Email,Phone,Positions(semicolon sep),Tags(semicolon sep)";
-    const blob = new Blob([headers], { type: 'text/csv' });
+    const headers = "FullName,Email,Phone,Position,Category,RateType (HOURLY / GLOBAL_MONTHLY),RateValue,Tags(semicolon sep)";
+    const exampleRow = "Jane Doe,jane@music.com,555-0199,Piano Instructor,Individual Lesson,HOURLY,150,Piano Dept;Senior Staff";
+    const blob = new Blob([headers + '\n' + exampleRow], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -147,10 +218,17 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
   };
 
   const handleExportTeachers = () => {
-    const headers = "ID,FullName,Email,Phone,Color,Positions,Tags";
-    const rows = teachers.map(t =>
-      `"${t.id}","${t.fullName}","${t.email}","${t.phone}","${t.color}","${t.positions.join(';')}","${t.tags.join(';')}"`
-    );
+    const headers = "TeacherName,Email,Phone,Color,Position,Category,RateType,RateValue,Tags";
+    const rows: string[] = [];
+    teachers.forEach(t => {
+      if (t.positionAssignments.length === 0) {
+        rows.push(`"${t.fullName}","${t.email}","${t.phone}","${t.color}","","","","","${t.tags.join(';')}"`);
+      } else {
+        t.positionAssignments.forEach(pa => {
+          rows.push(`"${t.fullName}","${t.email}","${t.phone}","${t.color}","${pa.positionName}","${pa.category}","${pa.rateType}","${pa.rateValue}","${t.tags.join(';')}"`);
+        });
+      }
+    });
     const csvContent = [headers, ...rows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -169,7 +247,6 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
     setUploadProgress(0);
 
     const reader = new FileReader();
-    console.log("Starting file read...");
 
     reader.onprogress = (event) => {
       if (event.lengthComputable) {
@@ -181,7 +258,6 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
     reader.onload = (evt) => {
       const text = evt.target?.result as string;
       setUploadProgress(100);
-      // Give UI a moment to show 100% before parsing
       setTimeout(() => {
         parseCSV(text);
         setIsAnalyzing(false);
@@ -195,28 +271,22 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
       setUploadProgress(0);
     };
 
-    // 'UTF-8' is default but explicit for clarity regarding Hebrew support
     reader.readAsText(file, 'UTF-8');
     e.target.value = '';
   };
 
   const parseCSV = (csvText: string) => {
-    console.log("Parsing CSV...", csvText.substring(0, 100)); // Log first 100 chars
     const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
-    // More robust header detection: check if first line looks like header
     const firstLineCols = lines[0].toLowerCase().split(',');
     const hasHeader = firstLineCols.some(c => c.includes('email') || c.includes('name'));
     const startIdx = hasHeader ? 1 : 0;
 
-    const candidates: ImportCandidate[] = [];
+    // Group rows by teacher email for multi-position support
+    const teacherMap: Record<string, ImportCandidate> = {};
 
     for (let i = startIdx; i < lines.length; i++) {
-      // Handle potentially quoted CSV fields if simple split fails, but simple split is usually okay for simple exports.
-      // We will stick to split(',') but trim extra quotes.
       const cols = lines[i].split(',').map(c => c.replace(/^"|"$/g, '').trim());
 
-      // Filter out garbage rows (e.g. ",,,," or empty strings)
-      // Check if at least Name OR Email is present and has length > 1
       const name = cols[0];
       const email = cols[1];
 
@@ -224,21 +294,57 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
         continue;
       }
 
-      if (teachers.some(t => t.email.toLowerCase() === email.toLowerCase())) continue;
+      const key = (email || name).toLowerCase();
 
-      candidates.push({
-        id: generateId(),
-        fullName: name || 'Unknown',
-        email: email || '',
-        phone: cols[2] || '',
-        positions: cols[3] ? cols[3].split(';').map(p => p.trim()).filter(p => p) : [],
-        tags: cols[4] ? cols[4].split(';').map(p => p.trim()).filter(p => p) : [],
-        selected: true
+      // Parse position data from CSV columns
+      const positionName = cols[3] || '';
+      const category = cols[4] || 'Individual Lesson';
+      const rateType: RateType = (cols[5]?.toUpperCase() === 'GLOBAL_MONTHLY' ? 'GLOBAL_MONTHLY' : 'HOURLY');
+      const rateValue = parseFloat(cols[6]) || 0;
+      const tags = cols[7] ? cols[7].split(';').map(t => t.trim()).filter(t => t) : [];
+
+      if (!teacherMap[key]) {
+        // Check if already exists in current teachers
+        if (teachers.some(t => t.email.toLowerCase() === (email || '').toLowerCase())) continue;
+
+        teacherMap[key] = {
+          id: generateId(),
+          fullName: name || 'Unknown',
+          email: email || '',
+          phone: cols[2] || '',
+          positions: [],
+          positionAssignments: [],
+          tags,
+          selected: true,
+        };
+      }
+
+      // Add position assignment if position name is provided
+      if (positionName) {
+        teacherMap[key].positionAssignments.push({
+          id: generateId(),
+          positionName,
+          category,
+          rateType,
+          rateValue,
+        });
+        if (!teacherMap[key].positions.includes(positionName)) {
+          teacherMap[key].positions.push(positionName);
+        }
+      }
+
+      // Merge tags
+      tags.forEach(tag => {
+        if (!teacherMap[key].tags.includes(tag)) {
+          teacherMap[key].tags.push(tag);
+        }
       });
     }
 
+    const candidates = Object.values(teacherMap);
+
     if (candidates.length === 0) {
-      alert("No valid or new unique teachers found in CSV.\nPlease ensure the file contains columns: Name, Email, Phone, Positions, Tags");
+      alert("No valid or new unique teachers found in CSV.\nPlease ensure the file contains columns: Name, Email, Phone, Position, Category, RateType, RateValue, Tags");
       return;
     }
     setImportCandidates(candidates);
@@ -246,7 +352,6 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
   };
 
   const confirmImport = (autoAssignColors: boolean) => {
-    // ... (Color assignment logic same as before)
     const selected = importCandidates.filter(c => c.selected);
     if (selected.length === 0) return;
 
@@ -277,12 +382,18 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
       }
       usedColors.add(color.toLowerCase());
 
+      // Ensure at least one position assignment
+      const assignments = c.positionAssignments.length > 0
+        ? c.positionAssignments
+        : [{ id: generateId(), positionName: 'Instructor', category: 'Individual Lesson', rateType: 'HOURLY' as RateType, rateValue: 0 }];
+
       return {
         id: generateId(),
         fullName: c.fullName,
         email: c.email,
         phone: c.phone,
-        positions: c.positions.length > 0 ? c.positions : ['Instructor'],
+        positions: assignments.map(a => a.positionName),
+        positionAssignments: assignments,
         tags: c.tags,
         color: color
       };
@@ -295,14 +406,12 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
       let changed = false;
 
       newTeachers.forEach(t => {
-        // Check Positions
         t.positions.forEach(p => {
           if (p && !allNewPositions.has(p)) {
             allNewPositions.add(p);
             changed = true;
           }
         });
-        // Check Tags
         t.tags.forEach(tag => {
           if (tag && !allNewTags.has(tag)) {
             allNewTags.add(tag);
@@ -355,7 +464,6 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      // Select all currently filtered teachers
       const allIds = new Set(filteredTeachers.map(t => t.id));
       setSelectedTeacherIds(allIds);
     } else {
@@ -372,6 +480,14 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
 
   const isAllSelected = filteredTeachers.length > 0 && filteredTeachers.every(t => selectedTeacherIds.has(t.id));
   const isIndeterminate = selectedTeacherIds.size > 0 && !isAllSelected;
+
+  // --- Rate formatting helpers ---
+  const formatRate = (pa: PositionAssignment) => {
+    if (pa.rateValue === 0) return '—';
+    return pa.rateType === 'HOURLY'
+      ? `₪${pa.rateValue}/hr`
+      : `₪${pa.rateValue.toLocaleString()}/mo`;
+  };
 
   return (
     <div className={`${embedded ? 'h-full overflow-auto' : ''} p-8 max-w-6xl mx-auto pb-24 relative`}>
@@ -390,7 +506,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
             )}
             <div>
               <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Teacher Management</h2>
-              <p className="text-slate-500 dark:text-slate-400">Manage instructor profiles, positions, and tags.</p>
+              <p className="text-slate-500 dark:text-slate-400">Manage instructor profiles, positions, rates, and tags.</p>
             </div>
           </div>
 
@@ -486,7 +602,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                   />
                 </th>
                 <th className="px-6 py-4">Name</th>
-                <th className="px-6 py-4">Positions</th>
+                <th className="px-6 py-4">Positions & Rates</th>
                 <th className="px-6 py-4">Tags</th>
                 <th className="px-6 py-4">Contact</th>
                 <th className="px-6 py-4 text-right">Actions</th>
@@ -513,8 +629,26 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                     {teacher.fullName}
                   </td>
                   <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
-                    <div className="flex flex-wrap gap-1">
-                      {teacher.positions.map((pos, i) => (
+                    <div className="flex flex-col gap-1.5">
+                      {(teacher.positionAssignments || []).map((pa, i) => (
+                        <div key={pa.id || i} className="flex items-center gap-1.5">
+                          <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-xs border border-slate-200 dark:border-slate-700 font-medium">
+                            {pa.positionName}
+                          </span>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${pa.rateType === 'HOURLY'
+                            ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                            : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                            }`}>
+                            {pa.rateType === 'HOURLY' ? (
+                              <span className="flex items-center gap-0.5"><Clock size={9} /> {formatRate(pa)}</span>
+                            ) : (
+                              <span className="flex items-center gap-0.5"><CalendarDays size={9} /> {formatRate(pa)}</span>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                      {/* Fallback for teachers without assignments */}
+                      {(!teacher.positionAssignments || teacher.positionAssignments.length === 0) && teacher.positions.map((pos, i) => (
                         <span key={i} className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-xs border border-slate-200 dark:border-slate-700">
                           {pos}
                         </span>
@@ -548,19 +682,19 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
         </div>
       </div>
 
-      {/* Edit/Add Teacher Modal */}
+      {/* Edit/Add Teacher Modal — Enhanced with Position Assignments */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg p-6 border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-2xl p-6 border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{editingId ? 'Edit Teacher' : 'Add New Teacher'}</h3>
             {error && <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg border border-red-200 dark:border-red-800">{error}</div>}
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Name + Color Row */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Full Name</label>
                   <input required type="text" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.fullName || ''} onChange={e => setFormData({ ...formData, fullName: e.target.value })} />
                 </div>
-                {/* Color Picker (Simplified for brevity, same as previous) */}
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Teacher Color</label>
                   <div className="flex gap-2 mb-2">
@@ -572,39 +706,146 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                 </div>
               </div>
 
-              {/* Positions Input */}
+              {/* === Position Assignments Section === */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Positions</label>
-                <div className="flex gap-2 mb-2">
-                  <select
-                    className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
-                    onChange={(e) => {
-                      if (e.target.value && !formData.positions?.includes(e.target.value)) {
-                        setFormData({ ...formData, positions: [...(formData.positions || []), e.target.value] });
-                      }
-                      e.target.value = '';
-                    }}
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                    <Briefcase size={16} />
+                    Position Assignments
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addPositionAssignment}
+                    className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors shadow-sm"
                   >
-                    <option value="">Select from list...</option>
-                    {activeLists.positions.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                  <input
-                    type="text"
-                    className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
-                    value={positionInput}
-                    onChange={e => setPositionInput(e.target.value)}
-                    onKeyDown={handleAddPosition}
-                    placeholder="Or type new..."
-                  />
-                  <button type="button" onClick={handleAddPosition} className="bg-slate-200 dark:bg-slate-700 px-3 py-2 rounded-lg">Add</button>
+                    <Plus size={12} /> Add Position
+                  </button>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {formData.positions?.map((pos, idx) => (
-                    <span key={idx} className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-xs flex items-center border border-slate-200 dark:border-slate-700 dark:text-slate-300">
-                      {pos} <button type="button" onClick={() => removePosition(pos)} className="ml-1 hover:text-red-500"><X size={12} /></button>
-                    </span>
+
+                <div className="space-y-3">
+                  {(formData.positionAssignments || []).map((pa, idx) => (
+                    <div
+                      key={pa.id}
+                      className="relative bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 transition-all hover:border-blue-300 dark:hover:border-blue-700"
+                    >
+                      {/* Remove button */}
+                      {(formData.positionAssignments || []).length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removePositionAssignment(pa.id)}
+                          className="absolute top-2 right-2 text-slate-400 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                          title="Remove position"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+
+                      {/* Position Header: Number badge */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 text-[10px] font-bold flex items-center justify-center">
+                          {idx + 1}
+                        </span>
+                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Position Assignment</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* Position Name */}
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Position Name</label>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              list={`position-options-${pa.id}`}
+                              placeholder="e.g. Piano Instructor"
+                              className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                              value={pa.positionName}
+                              onChange={e => updatePositionAssignment(pa.id, { positionName: e.target.value })}
+                            />
+                            <datalist id={`position-options-${pa.id}`}>
+                              {activeLists.positions.map(p => <option key={p} value={p} />)}
+                            </datalist>
+                          </div>
+                        </div>
+
+                        {/* Category */}
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Category</label>
+                          <select
+                            className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                            value={pa.category}
+                            onChange={e => updatePositionAssignment(pa.id, { category: e.target.value })}
+                          >
+                            {activeLists.classifications.map(c => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Rate Type Toggle */}
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Rate Type</label>
+                          <button
+                            type="button"
+                            onClick={() => updatePositionAssignment(pa.id, {
+                              rateType: pa.rateType === 'HOURLY' ? 'GLOBAL_MONTHLY' : 'HOURLY'
+                            })}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm font-medium transition-all ${pa.rateType === 'HOURLY'
+                              ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300'
+                              : 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300'
+                              }`}
+                          >
+                            <span className="flex items-center gap-1.5">
+                              {pa.rateType === 'HOURLY' ? (
+                                <><Clock size={14} /> Hourly</>
+                              ) : (
+                                <><CalendarDays size={14} /> Global Monthly</>
+                              )}
+                            </span>
+                            {pa.rateType === 'HOURLY' ? (
+                              <ToggleLeft size={18} className="text-blue-400" />
+                            ) : (
+                              <ToggleRight size={18} className="text-emerald-400" />
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Rate Value */}
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                            {pa.rateType === 'HOURLY' ? 'Rate (₪/hour)' : 'Monthly Fee (₪)'}
+                          </label>
+                          <div className="relative">
+                            <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                              type="number"
+                              min={0}
+                              step={pa.rateType === 'HOURLY' ? 10 : 100}
+                              placeholder={pa.rateType === 'HOURLY' ? '150' : '5000'}
+                              className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                              value={pa.rateValue || ''}
+                              onChange={e => updatePositionAssignment(pa.id, { rateValue: parseFloat(e.target.value) || 0 })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   ))}
                 </div>
+
+                {/* Empty state */}
+                {(formData.positionAssignments || []).length === 0 && (
+                  <div className="text-center py-6 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+                    <Briefcase size={24} className="mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+                    <p className="text-sm text-slate-400 dark:text-slate-500">No positions assigned yet.</p>
+                    <button
+                      type="button"
+                      onClick={addPositionAssignment}
+                      className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      + Add first position
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Tags Input */}
@@ -671,7 +912,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                     <th className="p-3 text-slate-500 font-medium">Name</th>
                     <th className="p-3 text-slate-500 font-medium">Email</th>
                     <th className="p-3 text-slate-500 font-medium">Positions</th>
-                    <th className="p-3 text-slate-500 font-medium">Tags</th>
+                    <th className="p-3 text-slate-500 font-medium">Rates</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -680,8 +921,12 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                       <td className="p-3"><input type="checkbox" checked={c.selected} onChange={e => setImportCandidates(prev => prev.map(p => p.id === c.id ? { ...p, selected: e.target.checked } : p))} /></td>
                       <td className="p-3 font-medium text-slate-900 dark:text-white">{c.fullName}</td>
                       <td className="p-3 text-slate-500">{c.email}</td>
-                      <td className="p-3 text-slate-500">{c.positions.join(', ')}</td>
-                      <td className="p-3 text-slate-500">{c.tags.join(', ')}</td>
+                      <td className="p-3 text-slate-500">{c.positionAssignments.map(pa => pa.positionName).join(', ') || c.positions.join(', ')}</td>
+                      <td className="p-3 text-slate-500">
+                        {c.positionAssignments.map(pa =>
+                          `${pa.rateType === 'HOURLY' ? '⏱' : '📅'} ₪${pa.rateValue}`
+                        ).join(', ') || '—'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -689,7 +934,6 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
             </div>
 
             <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
-              {/* Auto Assign Colors Checkbox - Mocked as always active or handled by confirm for simplicity, but could add state if needed. Passing true for now. */}
               <div className="text-xs text-slate-400">
                 * Colors will be auto-assigned
               </div>

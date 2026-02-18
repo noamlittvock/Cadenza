@@ -8,11 +8,23 @@ export enum Classification {
   OTHER = 'Other'
 }
 
+// Rate assignment types for position-based billing
+export type RateType = 'HOURLY' | 'GLOBAL_MONTHLY';
+
+export interface PositionAssignment {
+  id: string;               // Unique ID for this assignment
+  positionName: string;      // e.g. "Piano Instructor"
+  category: string;          // e.g. "Individual Lesson", "Group Lesson", "Administrative"
+  rateType: RateType;        // HOURLY or GLOBAL_MONTHLY
+  rateValue: number;         // Rate amount (per-hour or flat monthly fee)
+}
+
 export interface Teacher {
   id: string;
   fullName: string;
-  positions: string[];
-  tags: string[]; // New: Tags like "Piano Dept", "Conductor"
+  positions: string[];                    // Derived from positionAssignments for backward compat
+  positionAssignments: PositionAssignment[]; // Source of truth for positions + rates
+  tags: string[];
   phone: string;
   email: string;
   color: string; // Hex code
@@ -43,6 +55,7 @@ export interface CalendarEvent {
   description: string;
   teacherId: string;
   roomId: string;
+  positionId?: string;       // Links to a PositionAssignment.id on the teacher
   classification: string;
   start: string; // ISO Date String
   end: string;   // ISO Date String
@@ -100,4 +113,6 @@ export interface TeacherFinancialSummary {
   activeHours: number;
   canceledHours: number;
   breakdown: Record<string, number>;
+  hourlyTotal: number;
+  globalMonthlyTotal: number;
 }

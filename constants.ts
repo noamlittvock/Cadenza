@@ -1,4 +1,4 @@
-import { Teacher, Room, CalendarEvent, GanttBlock, Classification, AppSettings, ListsState } from './types';
+import { Teacher, Room, CalendarEvent, GanttBlock, Classification, AppSettings, ListsState, PositionAssignment } from './types';
 
 export const COLORS = [
   '#3b82f6', // blue
@@ -12,6 +12,34 @@ export const COLORS = [
   '#f97316', // orange
   '#64748b', // slate
 ];
+
+// --- Migration helper: ensure old teacher data gets positionAssignments ---
+export const migrateTeacher = (t: any): Teacher => {
+  // If positionAssignments already exists and has data, just ensure positions is synced
+  if (t.positionAssignments && t.positionAssignments.length > 0) {
+    return {
+      ...t,
+      tags: t.tags || [],
+      positions: t.positionAssignments.map((pa: PositionAssignment) => pa.positionName),
+    };
+  }
+
+  // Legacy migration: create positionAssignments from old positions[] array
+  const assignments: PositionAssignment[] = (t.positions || []).map((posName: string, idx: number) => ({
+    id: `${t.id}_PA${idx}`,
+    positionName: posName,
+    category: 'Individual Lesson',  // Safe default
+    rateType: 'HOURLY' as const,
+    rateValue: 0,                   // Unknown until user sets it
+  }));
+
+  return {
+    ...t,
+    tags: t.tags || [],
+    positionAssignments: assignments,
+    positions: t.positions || [],
+  };
+};
 
 export const INITIAL_SETTINGS: AppSettings = {
   language: 'en-US',
@@ -202,9 +230,31 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
 };
 
 export const INITIAL_TEACHERS: Teacher[] = [
-  { id: 'T1', fullName: 'John Smith', positions: ['Piano Instructor'], tags: ['Piano Dept', 'Senior Staff'], phone: '555-0101', email: 'john@music.com', color: '#3b82f6' },
-  { id: 'T2', fullName: 'Sarah Jones', positions: ['Voice Coach', 'Choir Director'], tags: ['Vocal Dept'], phone: '555-0102', email: 'sarah@music.com', color: '#ef4444' },
-  { id: 'T3', fullName: 'Michael Brown', positions: ['Violin Teacher'], tags: ['Strings Dept'], phone: '555-0103', email: 'mike@music.com', color: '#10b981' },
+  {
+    id: 'T1', fullName: 'John Smith',
+    positions: ['Piano Instructor'],
+    positionAssignments: [
+      { id: 'T1_PA0', positionName: 'Piano Instructor', category: 'Individual Lesson', rateType: 'HOURLY', rateValue: 150 },
+    ],
+    tags: ['Piano Dept', 'Senior Staff'], phone: '555-0101', email: 'john@music.com', color: '#3b82f6'
+  },
+  {
+    id: 'T2', fullName: 'Sarah Jones',
+    positions: ['Voice Coach', 'Choir Director'],
+    positionAssignments: [
+      { id: 'T2_PA0', positionName: 'Voice Coach', category: 'Individual Lesson', rateType: 'HOURLY', rateValue: 120 },
+      { id: 'T2_PA1', positionName: 'Choir Director', category: 'Group Lesson', rateType: 'GLOBAL_MONTHLY', rateValue: 5000 },
+    ],
+    tags: ['Vocal Dept'], phone: '555-0102', email: 'sarah@music.com', color: '#ef4444'
+  },
+  {
+    id: 'T3', fullName: 'Michael Brown',
+    positions: ['Violin Teacher'],
+    positionAssignments: [
+      { id: 'T3_PA0', positionName: 'Violin Teacher', category: 'Individual Lesson', rateType: 'HOURLY', rateValue: 130 },
+    ],
+    tags: ['Strings Dept'], phone: '555-0103', email: 'mike@music.com', color: '#10b981'
+  },
 ];
 
 export const INITIAL_ROOMS: Room[] = [
@@ -229,6 +279,7 @@ export const INITIAL_EVENTS: CalendarEvent[] = [
     description: 'Weekly lesson',
     teacherId: 'T1',
     roomId: 'R1',
+    positionId: 'T1_PA0',
     classification: Classification.INDIVIDUAL,
     start: getIso(0, 10),
     end: getIso(0, 11),
@@ -241,6 +292,7 @@ export const INITIAL_EVENTS: CalendarEvent[] = [
     description: 'Prep for recital',
     teacherId: 'T2',
     roomId: 'R2',
+    positionId: 'T2_PA0',
     classification: Classification.INDIVIDUAL,
     start: getIso(0, 10), // INTENTIONAL CONFLICT with time, different room
     end: getIso(0, 11),
@@ -253,6 +305,7 @@ export const INITIAL_EVENTS: CalendarEvent[] = [
     description: 'Beginner theory',
     teacherId: 'T1', // INTENTIONAL CONFLICT: T1 is also in E1 at this time
     roomId: 'R3',
+    positionId: 'T1_PA0',
     classification: Classification.GROUP,
     start: getIso(0, 10),
     end: getIso(0, 11),
