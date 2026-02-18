@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ViewState } from '../types';
-import { Calendar, Users, Home, BarChart3, AlertOctagon, Music, Sun, Moon, ChevronLeft, ChevronRight, Settings, List, Zap, Plus, Menu, Smartphone, Sliders } from 'lucide-react';
+import { Calendar, Users, Home, BarChart3, AlertOctagon, Music, Sun, Moon, ChevronLeft, ChevronRight, Settings, List, Zap, Plus, Menu, Smartphone, Sliders, LineChart } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
 import { AppSettings } from '../types';
@@ -71,7 +71,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
   // Redirect Viewers from Admin Pages
   useEffect(() => {
     if (currentUser?.role === 'VIEWER') {
-      const adminViews: ViewState[] = ['GANTT', 'POWER_TOOLS', 'MANAGE', 'SETTINGS'];
+      const adminViews: ViewState[] = ['GANTT', 'POWER_TOOLS', 'MANAGE', 'SETTINGS', 'FINANCIAL_ANALYSIS'];
       if (adminViews.includes(currentView)) {
         setView('CALENDAR');
       }
@@ -177,10 +177,17 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 </div>
               )}
               <NavItem
-                active={currentView === 'FINANCIAL'}
+                active={currentView === 'FINANCIAL' || currentView === 'FINANCIAL_ANALYSIS'}
                 onClick={() => { setView('FINANCIAL'); setIsMobileMenuOpen(false); }}
                 icon={BarChart3}
                 label={t('nav.financial')}
+                collapsed={isCollapsed}
+              />
+              <NavItem
+                active={currentView === 'FINANCIAL_ANALYSIS'}
+                onClick={() => { setView('FINANCIAL_ANALYSIS'); setIsMobileMenuOpen(false); }}
+                icon={LineChart}
+                label="Analysis"
                 collapsed={isCollapsed}
               />
 

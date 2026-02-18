@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState } from './types';
+import { ChartConfiguration } from './types/chartBuilder';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, migrateTeacher } from './constants';
 import { generateTestData } from './utils/dataGenerator';
 import { Layout } from './components/Layout';
 import { CalendarView } from './components/CalendarView';
 import { GanttManager } from './components/GanttManager';
 import { FinancialDashboard } from './components/FinancialDashboard';
+import { FinancialAnalysis } from './components/FinancialAnalysis';
 import { PowerTools } from './components/PowerTools';
 import { Settings } from './components/Settings';
 import { ManageHub } from './components/ManageHub';
@@ -109,6 +111,12 @@ function AppContent() {
     return saved ? JSON.parse(saved) : INITIAL_LISTS;
   });
 
+  // Custom Chart Builder State
+  const [savedCharts, setSavedCharts] = useState<ChartConfiguration[]>(() => {
+    const saved = localStorage.getItem('customCharts');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   // Marquee Selection State (Lifted)
   const [selectionMode, setSelectionMode] = useState<'NORMAL' | 'MARQUEE'>('NORMAL');
   const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
@@ -125,6 +133,7 @@ function AppContent() {
   useEffect(() => localStorage.setItem('ganttBlocks', JSON.stringify(ganttBlocks)), [ganttBlocks]);
   useEffect(() => localStorage.setItem('settings', JSON.stringify(settings)), [settings]);
   useEffect(() => localStorage.setItem('lists', JSON.stringify(lists)), [lists]);
+  useEffect(() => localStorage.setItem('customCharts', JSON.stringify(savedCharts)), [savedCharts]);
 
   // Sync Language to DOM
   useEffect(() => {
@@ -254,7 +263,9 @@ function AppContent() {
           />
         );
       case 'FINANCIAL':
-        return <FinancialDashboard events={events} teachers={teachers} settings={settings} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} />;
+        return <FinancialDashboard events={events} teachers={teachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} onNavigateToAnalysis={() => setCurrentView('FINANCIAL_ANALYSIS')} />;
+      case 'FINANCIAL_ANALYSIS':
+        return <FinancialAnalysis events={events} teachers={teachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} onNavigateBack={() => setCurrentView('FINANCIAL')} />;
       case 'SETTINGS':
         return (
           <Settings
