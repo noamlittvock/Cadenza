@@ -134,9 +134,17 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
         {blocks.map(block => (
           <div key={block.id} className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700 flex flex-col group relative">
             <div className="flex items-start justify-between">
+              <button
+                onClick={() => handleDelete(block)}
+                className="text-slate-400 hover:text-red-500 transition-colors mr-2 flex-shrink-0"
+                title="Delete"
+              >
+                <Trash2 size={14} />
+              </button>
+
               <div
                 onClick={() => handleOpenModal(block)}
-                className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
+                className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity flex-1"
               >
                 <div
                   className="w-2 h-2 rounded-full flex-shrink-0"
@@ -147,14 +155,6 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
                 </h3>
                 <Edit2 size={10} className="opacity-0 group-hover:opacity-100 text-slate-400" />
               </div>
-
-              <button
-                onClick={() => handleDelete(block)}
-                className="text-slate-400 hover:text-red-500 transition-colors"
-                title="Delete"
-              >
-                <Trash2 size={14} />
-              </button>
             </div>
 
             <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 mt-2 ml-4">

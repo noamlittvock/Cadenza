@@ -100,13 +100,19 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       {/* Sidebar */}
       <div
         className={`
+          sidebar-transition
           fixed inset-y-0 left-0 z-[110] lg:relative lg:z-50
-          ${isMobile ? 'w-64 shadow-2xl' : (isCollapsed ? 'w-20' : 'w-[25vw] max-w-[300px]')}
+          ${isMobile ? 'shadow-2xl' : ''}
           ${isMobile ? (isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full') : 'translate-x-0'}
           bg-slate-900 dark:bg-slate-950 text-white flex flex-col shadow-xl 
-          ${isRtl ? 'border-l' : 'border-r'} border-slate-800 transition-all duration-300 ease-in-out
+          ${isRtl ? 'border-l' : 'border-r'} border-slate-800
           overflow-visible
         `}
+        style={{
+          width: isMobile ? '256px' : (isCollapsed ? '80px' : 'min(25vw, 300px)'),
+          transition: 'width 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+          willChange: 'width, transform'
+        }}
       >
         <div className={`p-2 flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3 rtl:space-x-reverse'} border-b border-slate-800 h-16 transition-all overflow-hidden`}>
           <div className={`${isCollapsed ? 'p-1 mx-auto' : 'p-2'} bg-blue-500 rounded-lg flex-shrink-0 transition-all`}>

@@ -24,6 +24,19 @@ export interface Room {
   itinerary: string;
 }
 
+export type DayOfWeek = 'SU' | 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA';
+
+export interface RecurrenceRule {
+  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  interval: number;
+  byDay?: DayOfWeek[];
+  byMonthDay?: number;
+  bySetPos?: number;
+  byDayOfWeek?: DayOfWeek;
+  untilDate?: string;
+  count?: number;
+}
+
 export interface CalendarEvent {
   id: string;
   name: string;
@@ -37,9 +50,11 @@ export interface CalendarEvent {
   isHidden: boolean;
   canceledByBlackoutId?: string;
   // Recurrence
-  recurrenceRule?: string; // RRULE string
-  recurrenceId?: string; // ID of the original series event
-  exceptions?: string[]; // Dates to skip (ISO strings)
+  recurrenceRule?: RecurrenceRule;
+  recurrenceId?: string; // ID of the parent series event
+  exceptions?: string[]; // Date strings (YYYY-MM-DD) to skip
+  isExceptionEdit?: boolean;
+  originalStart?: string; // Original occurrence date before modification
 }
 
 export interface ExternalCalendar {

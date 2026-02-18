@@ -13,6 +13,7 @@ import { ManageHub } from './components/ManageHub';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { UserRole } from './context/AuthContext';
 
+
 interface ErrorBoundaryProps {
   children: React.ReactNode;
 }
@@ -116,6 +117,7 @@ function AppContent() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'DAY' | 'WEEK' | 'MONTH'>('WEEK');
 
+
   // Persistence Effects
   useEffect(() => localStorage.setItem('teachers', JSON.stringify(teachers)), [teachers]);
   useEffect(() => localStorage.setItem('rooms', JSON.stringify(rooms)), [rooms]);
@@ -177,48 +179,58 @@ function AppContent() {
       const showSidebar = currentView !== 'CALENDAR';
 
       return (
-        <div className="flex w-full h-full overflow-hidden">
+        <div className="relative w-full h-full overflow-hidden">
           {/* Main Calendar Area */}
-          <div className="flex-1 relative overflow-hidden transition-all duration-300 ease-in-out">
+          <div
+            className="sidebar-transition h-full overflow-hidden"
+            style={{
+              marginRight: showSidebar ? '384px' : '0px',
+              transition: 'margin-right 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+            }}
+          >
             {CalendarComponent}
           </div>
 
-          {/* Secondary Sidebar - Animates Width */}
+          {/* Secondary Sidebar - always rendered, slides in/out */}
           <div
-            className={`
-              bg-white dark:bg-slate-900 shadow-xl z-20 flex flex-col overflow-hidden 
-              transition-all duration-300 ease-in-out
-              ${showSidebar ? 'w-96 border-l border-slate-200 dark:border-slate-800' : 'w-0 border-l-0'}
-            `}
+            className="sidebar-transition absolute top-0 right-0 h-full bg-white dark:bg-slate-900 shadow-xl z-20 flex flex-col border-l border-slate-200 dark:border-slate-700"
+            style={{
+              width: '384px',
+              transform: showSidebar ? 'translateX(0)' : 'translateX(100%)',
+              transition: 'transform 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+              willChange: 'transform',
+            }}
           >
-            <div className="flex-1 overflow-y-auto w-96"> {/* Fixed width content container to prevent squishing during collapse */}
-              {currentView === 'GANTT' && (
-                <div className="p-4">
-                  <GanttManager
-                    blocks={ganttBlocks}
-                    setBlocks={setGanttBlocks}
+            <div className="flex-1 overflow-y-auto">
+              <div className="h-full overflow-y-auto">
+                {currentView === 'GANTT' && (
+                  <div className="p-4">
+                    <GanttManager
+                      blocks={ganttBlocks}
+                      setBlocks={setGanttBlocks}
+                      events={events}
+                      setEvents={setEvents}
+                      settings={settings}
+                    />
+                  </div>
+                )}
+                {currentView === 'POWER_TOOLS' && (
+                  <PowerTools
                     events={events}
                     setEvents={setEvents}
+                    teachers={teachers}
+                    rooms={rooms}
                     settings={settings}
+                    lists={lists}
+                    selectionMode={selectionMode}
+                    setSelectionMode={setSelectionMode}
+                    selectedEventIds={selectedEventIds}
+                    setSelectedEventIds={setSelectedEventIds}
+                    ganttBlocks={ganttBlocks}
+                    setGanttBlocks={setGanttBlocks}
                   />
-                </div>
-              )}
-              {currentView === 'POWER_TOOLS' && (
-                <PowerTools
-                  events={events}
-                  setEvents={setEvents}
-                  teachers={teachers}
-                  rooms={rooms}
-                  settings={settings}
-                  lists={lists}
-                  selectionMode={selectionMode}
-                  setSelectionMode={setSelectionMode}
-                  selectedEventIds={selectedEventIds}
-                  setSelectedEventIds={setSelectedEventIds}
-                  ganttBlocks={ganttBlocks}
-                  setGanttBlocks={setGanttBlocks}
-                />
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>

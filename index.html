@@ -27,23 +27,17 @@
       })();
   </script>
   <style>
-    /* Custom scrollbar for better aesthetics */
-    ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
+    /* Global scrollbar hiding for seamless aesthetic */
+    * {
+      scrollbar-width: none;
+      /* Firefox */
+      -ms-overflow-style: none;
+      /* IE/Edge */
     }
 
-    ::-webkit-scrollbar-track {
-      background: #f1f1f1;
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background: #94a3b8;
+    *::-webkit-scrollbar {
+      display: none;
+      /* Chrome/Safari/Opera */
     }
 
     .canceled-stripe {
@@ -71,16 +65,22 @@
     /* Global Dark Mode Transitions - Synchronized interpolation for ALL elements */
     /* Using !important to ensure this overrides any Tailwind utilities */
     /* Only apply when NOT in no-transitions mode */
-    html:not(.no-transitions) *:not(.no-theme-transition):not([class*="animate-"]) {
+    html:not(.no-transitions) *:not(.no-theme-transition):not([class*="animate-"]):not(.sidebar-transition) {
       transition: background-color 300ms ease-in-out, border-color 300ms ease-in-out, color 300ms ease-in-out, fill 300ms ease-in-out, stroke 300ms ease-in-out, box-shadow 300ms ease-in-out !important;
     }
 
+    /* Allow sidebar elements to use their own custom transitions */
+    .sidebar-transition {
+      transition: inherit;
+      /* Allow inline styles to control transition - not overridden by global rule */
+    }
+
     /* Allow transform/opacity to still work for UI interactions */
-    html:not(.no-transitions) [class*="transition-transform"],
-    html:not(.no-transitions) [class*="transition-opacity"],
-    html:not(.no-transitions) [class*="translate-"],
-    html:not(.no-transitions) [class*="scale-"],
-    html:not(.no-transitions) [class*="rotate-"] {
+    html:not(.no-transitions) [class*="transition-transform"]:not(.sidebar-transition),
+    html:not(.no-transitions) [class*="transition-opacity"]:not(.sidebar-transition),
+    html:not(.no-transitions) [class*="translate-"]:not(.sidebar-transition),
+    html:not(.no-transitions) [class*="scale-"]:not(.sidebar-transition),
+    html:not(.no-transitions) [class*="rotate-"]:not(.sidebar-transition) {
       transition: transform 300ms ease-in-out, opacity 300ms ease-in-out, background-color 300ms ease-in-out, border-color 300ms ease-in-out, color 300ms ease-in-out !important;
     }
 
@@ -89,6 +89,80 @@
     .divide-slate-200>*+*,
     .divide-slate-800>*+* {
       border-color: rgba(148, 163, 184, 0.2) !important;
+    }
+
+    /* Status Toggle Switch */
+    .status-toggle-track {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      transition: background-color 200ms ease !important;
+      flex-shrink: 0;
+    }
+
+    .status-toggle-thumb {
+      display: block;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      transition: transform 200ms ease !important;
+    }
+
+    .dark .status-toggle-track {
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Uniform Filter Select Boxes */
+    .filter-select-uniform {
+      appearance: none;
+      -webkit-appearance: none;
+      background-color: #f8fafc;
+      font-size: 12px;
+      font-weight: 500;
+      color: #334155;
+      border-radius: 8px;
+      padding: 6px 28px 6px 12px;
+      outline: none;
+      cursor: pointer;
+      border: 1px solid #e2e8f0;
+      width: 150px;
+      min-width: 150px;
+      max-width: 150px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      transition: border-color 200ms ease, box-shadow 200ms ease !important;
+    }
+
+    .filter-select-uniform:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+    }
+
+    .filter-select-uniform:hover {
+      border-color: #94a3b8;
+    }
+
+    .dark .filter-select-uniform {
+      background-color: #1e293b;
+      color: #e2e8f0;
+      border-color: #334155;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    }
+
+    .dark .filter-select-uniform:hover {
+      border-color: #475569;
+    }
+
+    .dark .filter-select-uniform:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
     }
   </style>
 </head>

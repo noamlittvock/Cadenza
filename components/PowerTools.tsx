@@ -149,9 +149,37 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                 const newBlocks: Omit<GanttBlock, 'id'>[] = [];
                 results.data.forEach((row: any) => {
                     const title = row['Title'] || row['title'];
-                    const startData = row['StartDate (YYYY-MM-DD)'] || row['StartDate'] || row['start'];
-                    const endData = row['EndDate (YYYY-MM-DD)'] || row['EndDate'] || row['end'];
+                    const startRaw = row['StartDate (YYYY-MM-DD)'] || row['StartDate'] || row['start'] || row['Start Date'];
+                    const endRaw = row['EndDate (YYYY-MM-DD)'] || row['EndDate'] || row['end'] || row['End Date'];
                     const isBlackoutRaw = row['Is Blackout (Yes/No)'] || row['IsBlackout'] || row['blackout'];
+
+                    const parseDate = (d: any) => {
+                        if (!d) return null;
+                        const s = String(d).trim();
+                        // Try YYYY-MM-DD
+                        if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.split('T')[0];
+                        // Try DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
+                        const parts = s.split(/[\/\-\.]/);
+                        if (parts.length === 3) {
+                            // Assume DD/MM/YYYY for non-ISO
+                            const day = parseInt(parts[0], 10);
+                            const month = parseInt(parts[1], 10);
+                            const year = parseInt(parts[2], 10);
+                            if (year < 100) { // Handle 2-digit year logic if needed, but let's assume 4
+                                // 20xx ?
+                            }
+                            if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+                                return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                            }
+                        }
+                        // Fallback to JS Date
+                        const date = new Date(s);
+                        if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
+                        return null;
+                    };
+
+                    const startData = parseDate(startRaw);
+                    const endData = parseDate(endRaw);
 
                     if (title && startData && endData) {
                         const isBlackout = isBlackoutRaw?.toString().toLowerCase().startsWith('y') || isBlackoutRaw === 'true' || isBlackoutRaw === true;
@@ -159,17 +187,22 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                         // Auto-assign color
                         const colorKeys = Object.keys(COLORS) as (keyof typeof COLORS)[];
                         const randomColorKey = colorKeys[Math.floor(Math.random() * colorKeys.length)];
-                        const color = isBlackout ? '#fee2e2' : COLORS[randomColorKey]; // Default blackout color (Red-100) or Random
+                        const color = isBlackout ? '#fee2e2' : COLORS[randomColorKey];
 
                         newBlocks.push({
                             title: String(title),
-                            startDate: String(startData),
-                            endDate: String(endData),
+                            startDate: startData,
+                            endDate: endData,
                             isBlackout: isBlackout,
-                            color: isBlackout ? '#fee2e2' : String(color) // Ensure valid color
+                            color: isBlackout ? '#fee2e2' : String(color)
                         });
                     }
                 });
+
+                if (newBlocks.length === 0 && results.data.length > 0) {
+                    alert("No valid rows found. Please ensure dates are in YYYY-MM-DD or DD/MM/YYYY format.");
+                }
+
                 setGanttPreview(newBlocks);
                 setIsGanttImporting(false);
             },
