@@ -95,6 +95,7 @@ export interface AppSettings {
   timeZone: string;
   defaultEventDuration: number;
   weekNumberDisplay: 'none' | 'week-number' | 'week-of';
+  currency: string;
 }
 
 export interface ListsState {

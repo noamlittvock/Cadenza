@@ -263,7 +263,7 @@ function AppContent() {
           />
         );
       case 'FINANCIAL':
-        return <FinancialDashboard events={events} teachers={teachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} onNavigateToAnalysis={() => setCurrentView('FINANCIAL_ANALYSIS')} />;
+        return <FinancialDashboard events={events} teachers={teachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} />;
       case 'FINANCIAL_ANALYSIS':
         return <FinancialAnalysis events={events} teachers={teachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} onNavigateBack={() => setCurrentView('FINANCIAL')} />;
       case 'SETTINGS':
@@ -274,7 +274,7 @@ function AppContent() {
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
             onLoadTestData={() => {
               console.log("Generating data...");
-              const data = generateTestData();
+              const data = generateTestData(settings.currency);
               setTeachers(data.teachers);
               setEvents(data.events);
               setRooms(data.rooms);

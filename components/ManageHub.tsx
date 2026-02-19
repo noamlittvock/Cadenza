@@ -115,6 +115,7 @@ export const ManageHub: React.FC<Props> = ({
                         setLists={setLists}
                         onMobileMenuOpen={onMobileMenuOpen}
                         embedded={true}
+                        settings={settings}
                     />
                 )}
                 {activeTab === 'rooms' && (

@@ -21,7 +21,7 @@ import { ChartConfiguration, MetricSelection } from '../types/chartBuilder';
 import { aggregateByDimension, AggregationConfig } from '../utils/financialAggregator';
 import { DIMENSION_REGISTRY, METRIC_REGISTRY } from '../chartBuilder/smartDefaults';
 import { ChevronDown, ChevronUp, TrendingUp, TrendingDown } from 'lucide-react';
-import { formatHours } from '../utils/formatters';
+import { formatHours, formatCurrency } from '../utils/formatters';
 
 // ── Color palette matching existing dashboard style ──
 
@@ -58,14 +58,17 @@ function formatValue(val: number): string {
     return val.toLocaleString('en-US', { maximumFractionDigits: 1 });
 }
 
-/** Smart format: use H:MM for hour metrics, decimal for others */
-function formatValueForKey(val: number, dataKey: string, metrics?: MetricSelection[]): string {
+/** Smart format: use H:MM for hour metrics, currency formatting for cost metrics, decimal for others */
+
+/** Smart format: use H:MM for hour metrics, currency formatting for cost metrics, decimal for others */
+function formatValueForKey(val: number, dataKey: string, metrics?: MetricSelection[], currencySymbol: string = '₪'): string {
     if (metrics) {
         for (const m of metrics) {
             const displayKey = metricDisplayKey(m);
             if (dataKey === displayKey || dataKey.endsWith(`__${displayKey}`)) {
                 const meta = METRIC_REGISTRY[m.metricId];
                 if (meta?.unit === 'hours') return formatHours(val);
+                if (meta?.unit === 'currency') return formatCurrency(val, currencySymbol);
             }
         }
     }
@@ -155,9 +158,10 @@ interface HighlightTooltipProps {
     label?: string;
     minMax: MinMaxMap;
     configMetrics?: MetricSelection[];
+    currencySymbol?: string;
 }
 
-const HighlightTooltip: React.FC<HighlightTooltipProps> = ({ active, payload, label, minMax, configMetrics }) => {
+const HighlightTooltip: React.FC<HighlightTooltipProps> = ({ active, payload, label, minMax, configMetrics, currencySymbol }) => {
     if (!active || !payload?.length) return null;
     return (
         <div style={TOOLTIP_STYLE}>
@@ -179,7 +183,7 @@ const HighlightTooltip: React.FC<HighlightTooltipProps> = ({ active, payload, la
                             display: 'inline-block', width: 8, height: 8,
                             borderRadius: '50%', backgroundColor: entry.color,
                         }} />
-                        {entry.name}: {formatValueForKey(entry.value, entry.dataKey, configMetrics)}
+                        {entry.name}: {formatValueForKey(entry.value, entry.dataKey, configMetrics, currencySymbol)}
                         {isMax && ' ▲'}
                         {isMin && ' ▼'}
                     </p>
@@ -264,9 +268,10 @@ interface InternalChartProps {
     height: number;
     config: ChartConfiguration;
     minMax: MinMaxMap;
+    currencySymbol?: string;
 }
 
-const BarChartRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys, colors, height, config, minMax }) => {
+const BarChartRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys, colors, height, config, minMax, currencySymbol }) => {
     const typo = getTypography(chartData.length, height);
 
     return (
@@ -294,7 +299,7 @@ const BarChartRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys,
                 />
                 <Tooltip
                     cursor={{ fill: 'rgba(148,163,184,0.08)' }}
-                    content={<HighlightTooltip minMax={minMax} configMetrics={config.metrics} />}
+                    content={<HighlightTooltip minMax={minMax} configMetrics={config.metrics} currencySymbol={currencySymbol} />}
                 />
                 <Legend
                     wrapperStyle={{ fontSize: `${typo.legend}px`, paddingTop: '8px' }}
@@ -326,7 +331,7 @@ const BarChartRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys,
     );
 };
 
-const LineChartRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys, colors, height, config, minMax }) => {
+const LineChartRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys, colors, height, config, minMax, currencySymbol }) => {
     const typo = getTypography(chartData.length, height);
 
     return (
@@ -351,7 +356,7 @@ const LineChartRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys
                     axisLine={false}
                     width={50}
                 />
-                <Tooltip content={<HighlightTooltip minMax={minMax} configMetrics={config.metrics} />} />
+                <Tooltip content={<HighlightTooltip minMax={minMax} configMetrics={config.metrics} currencySymbol={currencySymbol} />} />
                 <Legend
                     wrapperStyle={{ fontSize: `${typo.legend}px`, paddingTop: '8px' }}
                     iconSize={10}
@@ -373,7 +378,7 @@ const LineChartRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys
     );
 };
 
-const PieChartRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys, height, minMax }) => {
+const PieChartRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys, height, minMax, config, currencySymbol }) => {
     const metricKey = metricKeys[0];
     const outerRadius = Math.min(height * 0.35, 130);
     const isCompact = height < 300;
@@ -414,7 +419,7 @@ const PieChartRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys,
                         );
                     })}
                 </Pie>
-                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value) => formatValueForKey(value as number, metricKey, config.metrics, currencySymbol)} />
                 <Legend
                     wrapperStyle={{ fontSize: isCompact ? '10px' : '12px', paddingTop: '4px' }}
                     iconSize={10}
@@ -425,7 +430,7 @@ const PieChartRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys,
     );
 };
 
-const TableRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys, config, minMax }) => {
+const TableRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys, config, minMax, currencySymbol }) => {
     const [sortCol, setSortCol] = React.useState<string | null>(null);
     const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('desc');
 
@@ -500,7 +505,7 @@ const TableRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys, co
                                 return (
                                     <td key={k} className={`px-4 py-2.5 text-right tabular-nums ${cellClass}`}>
                                         <span className="inline-flex items-center gap-1">
-                                            {typeof row[k] === 'number' ? formatValueForKey(row[k] as number, k, config.metrics) : row[k]}
+                                            {typeof row[k] === 'number' ? formatValueForKey(row[k] as number, k, config.metrics, currencySymbol) : row[k]}
                                             {isMax && <TrendingUp size={12} className="text-emerald-500" />}
                                             {isMin && <TrendingDown size={12} className="text-red-500" />}
                                         </span>
@@ -518,7 +523,7 @@ const TableRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys, co
                             const total = sorted.reduce((sum, row) => sum + (typeof row[k] === 'number' ? row[k] as number : 0), 0);
                             return (
                                 <td key={k} className="px-4 py-3 text-right text-slate-800 dark:text-white tabular-nums">
-                                    {formatValueForKey(total, k, config.metrics)}
+                                    {formatValueForKey(total, k, config.metrics, currencySymbol)}
                                 </td>
                             );
                         })}
@@ -542,6 +547,7 @@ interface ChartRendererProps {
     roomNameLookup?: Map<string, string>;
     /** Chart container height in px (default: 350) */
     height?: number;
+    currencySymbol?: string;
 }
 
 export const ChartRenderer: React.FC<ChartRendererProps> = ({
@@ -550,6 +556,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({
     teachers,
     roomNameLookup,
     height = 350,
+    currencySymbol = '₪',
 }) => {
     // ── Run the aggregation engine (Phase 1) ──
     const aggregationConfig: AggregationConfig = useMemo(() => ({
@@ -611,6 +618,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({
         height,
         config,
         minMax,
+        currencySymbol,
     };
 
     // ── Render the correct visualization ──

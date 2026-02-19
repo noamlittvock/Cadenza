@@ -177,7 +177,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 </div>
               )}
               <NavItem
-                active={currentView === 'FINANCIAL' || currentView === 'FINANCIAL_ANALYSIS'}
+                active={currentView === 'FINANCIAL'}
                 onClick={() => { setView('FINANCIAL'); setIsMobileMenuOpen(false); }}
                 icon={BarChart3}
                 label={t('nav.financial')}

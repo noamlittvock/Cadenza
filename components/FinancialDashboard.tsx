@@ -15,7 +15,6 @@ interface Props {
   savedCharts: ChartConfiguration[];
   setSavedCharts: React.Dispatch<React.SetStateAction<ChartConfiguration[]>>;
   onMobileMenuOpen: () => void;
-  onNavigateToAnalysis: () => void;
 }
 
 type DateFilterType = 'WEEK' | 'MONTH' | 'CUSTOM' | 'ALL';
@@ -98,7 +97,7 @@ type SortColumn = 'name' | 'activeHrs' | 'canceledHrs' | 'canceledEvents' | 'tot
 
 // ---- Main Component ----
 
-export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings, savedCharts, setSavedCharts, onMobileMenuOpen, onNavigateToAnalysis }) => {
+export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings, savedCharts, setSavedCharts, onMobileMenuOpen }) => {
   const [dateFilterType, setDateFilterType] = useState<DateFilterType>('MONTH');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
@@ -346,7 +345,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
 
   // --- Export ---
   const handleExport = () => {
-    const headers = ['Teacher', 'Position', 'Rate Type', 'Rate (₪)', 'Active Hours', 'Canceled Hours', 'Hourly Cost (₪)', 'Global Cost (₪)', 'Total Cost (₪)'];
+    const headers = ['Teacher', 'Position', 'Rate Type', `Rate (${settings.currency})`, 'Active Hours', 'Canceled Hours', `Hourly Cost (${settings.currency})`, `Global Cost (${settings.currency})`, `Total Cost (${settings.currency})`];
     const rows: string[][] = [];
     reportData.forEach(r => {
       if (r.positions.length === 0) {
@@ -437,12 +436,6 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
             <button onClick={handleExport} className="hidden md:flex bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg items-center shadow-sm text-sm">
               <Download size={16} className="mr-2" /> Export
             </button>
-
-            <button onClick={onNavigateToAnalysis}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors shadow-sm">
-              <BarChart3 size={16} /> Analysis
-              <ArrowRight size={14} />
-            </button>
           </div>
         </div>
 
@@ -493,7 +486,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
               <DollarSign size={16} className="opacity-80" />
               <h3 className="text-xs font-semibold uppercase tracking-wider opacity-80">Grand Total</h3>
             </div>
-            <p className="text-2xl font-bold">{formatCurrency(totals.grandTotal)}</p>
+            <p className="text-2xl font-bold">{formatCurrency(totals.grandTotal, settings.currency)}</p>
             <p className="text-xs opacity-70 mt-1">{monthsInRange} month{monthsInRange > 1 ? 's' : ''}</p>
           </div>
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
@@ -501,14 +494,14 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
               <Clock size={14} className="text-blue-500" />
               <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Hourly Fees</h3>
             </div>
-            <p className="text-xl font-bold text-slate-900 dark:text-white">{formatCurrency(totals.hourlyCost)}</p>
+            <p className="text-xl font-bold text-slate-900 dark:text-white">{formatCurrency(totals.hourlyCost, settings.currency)}</p>
           </div>
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-2 mb-1">
               <CalendarDays size={14} className="text-emerald-500" />
               <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Global Monthly</h3>
             </div>
-            <p className="text-xl font-bold text-slate-900 dark:text-white">{formatCurrency(totals.globalCost)}</p>
+            <p className="text-xl font-bold text-slate-900 dark:text-white">{formatCurrency(totals.globalCost, settings.currency)}</p>
           </div>
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-2 mb-1">
@@ -556,13 +549,13 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                         Canc. Events <SortIcon col="canceledEvents" />
                       </th>
                       <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('hourlyCost')}>
-                        <span className="flex items-center justify-end gap-1"><Clock size={11} /> Hourly (₪)</span> <SortIcon col="hourlyCost" />
+                        <span className="flex items-center justify-end gap-1"><Clock size={11} /> Hourly ({settings.currency})</span> <SortIcon col="hourlyCost" />
                       </th>
                       <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('globalCost')}>
-                        <span className="flex items-center justify-end gap-1"><CalendarDays size={11} /> Global (₪)</span> <SortIcon col="globalCost" />
+                        <span className="flex items-center justify-end gap-1"><CalendarDays size={11} /> Global ({settings.currency})</span> <SortIcon col="globalCost" />
                       </th>
                       <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none font-bold" onClick={() => handleSort('total')}>
-                        Total (₪) <SortIcon col="total" />
+                        Total ({settings.currency}) <SortIcon col="total" />
                       </th>
                     </tr>
                   </thead>
@@ -583,9 +576,9 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                           <td className="px-4 py-4 text-right font-medium text-blue-600 dark:text-blue-400 tabular-nums">{formatHours(r.totalActiveHours)}</td>
                           <td className="px-4 py-4 text-right text-red-500 tabular-nums">{formatHours(r.totalCanceledHours)}</td>
                           <td className="px-4 py-4 text-right text-red-500 tabular-nums">{r.canceledEventCount}</td>
-                          <td className="px-4 py-4 text-right text-blue-600 dark:text-blue-400 font-medium tabular-nums">{formatCurrency(r.hourlyCostTotal)}</td>
-                          <td className="px-4 py-4 text-right text-emerald-600 dark:text-emerald-400 font-medium tabular-nums">{formatCurrency(r.globalCostTotal)}</td>
-                          <td className="px-4 py-4 text-right font-bold text-slate-900 dark:text-white tabular-nums">{formatCurrency(r.grandTotal)}</td>
+                          <td className="px-4 py-4 text-right text-blue-600 dark:text-blue-400 font-medium tabular-nums">{formatCurrency(r.hourlyCostTotal, settings.currency)}</td>
+                          <td className="px-4 py-4 text-right text-emerald-600 dark:text-emerald-400 font-medium tabular-nums">{formatCurrency(r.globalCostTotal, settings.currency)}</td>
+                          <td className="px-4 py-4 text-right font-bold text-slate-900 dark:text-white tabular-nums">{formatCurrency(r.grandTotal, settings.currency)}</td>
                         </tr>
                         {expandedTeachers.has(r.teacherId) && r.positions.map(p => (
                           <tr key={p.positionId} className="bg-slate-50/50 dark:bg-slate-800/30">
@@ -597,7 +590,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                                   ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
                                   : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                                   }`}>
-                                  {p.rateType === 'HOURLY' ? `₪${p.rateValue}/hr` : `${formatCurrency(p.rateValue)}/mo`}
+                                  {p.rateType === 'HOURLY' ? `${settings.currency}${p.rateValue}/hr` : `${formatCurrency(p.rateValue, settings.currency)}/mo`}
                                 </span>
                                 <span className="text-[9px] text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{p.category}</span>
                               </div>
@@ -605,9 +598,9 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                             <td className="px-4 py-3 text-right text-xs text-slate-500 tabular-nums">{formatHours(p.activeHours)}</td>
                             <td className="px-4 py-3 text-right text-xs text-slate-500 tabular-nums">{formatHours(p.canceledHours)}</td>
                             <td className="px-4 py-3 text-right text-xs text-slate-400">—</td>
-                            <td className="px-4 py-3 text-right text-xs text-blue-500 tabular-nums">{p.hourlyCost > 0 ? formatCurrency(p.hourlyCost) : '—'}</td>
-                            <td className="px-4 py-3 text-right text-xs text-emerald-500 tabular-nums">{p.globalCost > 0 ? formatCurrency(p.globalCost) : '—'}</td>
-                            <td className="px-4 py-3 text-right text-xs font-medium text-slate-700 dark:text-slate-300 tabular-nums">{formatCurrency(p.hourlyCost + p.globalCost)}</td>
+                            <td className="px-4 py-3 text-right text-xs text-blue-500 tabular-nums">{p.hourlyCost > 0 ? formatCurrency(p.hourlyCost, settings.currency) : '—'}</td>
+                            <td className="px-4 py-3 text-right text-xs text-emerald-500 tabular-nums">{p.globalCost > 0 ? formatCurrency(p.globalCost, settings.currency) : '—'}</td>
+                            <td className="px-4 py-3 text-right text-xs font-medium text-slate-700 dark:text-slate-300 tabular-nums">{formatCurrency(p.hourlyCost + p.globalCost, settings.currency)}</td>
                           </tr>
                         ))}
                       </React.Fragment>
@@ -619,9 +612,9 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                       <td className="px-4 py-4 text-right text-blue-600 dark:text-blue-400 tabular-nums">{formatHours(totals.activeHours)}</td>
                       <td className="px-4 py-4 text-right text-red-500 tabular-nums">{formatHours(totals.canceledHours)}</td>
                       <td className="px-4 py-4 text-right text-red-500 tabular-nums">{totals.canceledEvents}</td>
-                      <td className="px-4 py-4 text-right text-blue-600 dark:text-blue-400 tabular-nums">{formatCurrency(totals.hourlyCost)}</td>
-                      <td className="px-4 py-4 text-right text-emerald-600 dark:text-emerald-400 tabular-nums">{formatCurrency(totals.globalCost)}</td>
-                      <td className="px-4 py-4 text-right text-slate-900 dark:text-white text-lg tabular-nums">{formatCurrency(totals.grandTotal)}</td>
+                      <td className="px-4 py-4 text-right text-blue-600 dark:text-blue-400 tabular-nums">{formatCurrency(totals.hourlyCost, settings.currency)}</td>
+                      <td className="px-4 py-4 text-right text-emerald-600 dark:text-emerald-400 tabular-nums">{formatCurrency(totals.globalCost, settings.currency)}</td>
+                      <td className="px-4 py-4 text-right text-slate-900 dark:text-white text-lg tabular-nums">{formatCurrency(totals.grandTotal, settings.currency)}</td>
                     </tr>
                   </tbody>
                 </table>

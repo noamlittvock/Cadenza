@@ -32,12 +32,12 @@ export const METRIC_REGISTRY: Record<string, { id: string; label: string; unit: 
     activeHours: { id: 'activeHours', label: 'Active Hours', unit: 'hours' },
     canceledHours: { id: 'canceledHours', label: 'Canceled Hours', unit: 'hours' },
     totalHours: { id: 'totalHours', label: 'Total Hours', unit: 'hours' },
-    hourlyCost: { id: 'hourlyCost', label: 'Hourly Cost', unit: '₪' },
-    globalCost: { id: 'globalCost', label: 'Global Cost', unit: '₪' },
-    totalCost: { id: 'totalCost', label: 'Total Cost', unit: '₪' },
+    hourlyCost: { id: 'hourlyCost', label: 'Hourly Cost', unit: 'currency' },
+    globalCost: { id: 'globalCost', label: 'Global Cost', unit: 'currency' },
+    totalCost: { id: 'totalCost', label: 'Total Cost', unit: 'currency' },
     eventCount: { id: 'eventCount', label: 'Event Count', unit: '' },
     teacherCount: { id: 'teacherCount', label: 'Teacher Count', unit: '' },
-    avgRate: { id: 'avgRate', label: 'Average Rate', unit: '₪' },
+    avgRate: { id: 'avgRate', label: 'Average Rate', unit: 'currency' },
 };
 
 /**

@@ -254,6 +254,7 @@ export interface ChartBuilderModalProps {
         selectedRateTypes: Set<string>;
     };
     editingChart?: ChartConfiguration | null;
+    currencySymbol?: string;
 }
 
 // ══════════════════════════════════════════════
@@ -261,7 +262,7 @@ export interface ChartBuilderModalProps {
 // ══════════════════════════════════════════════
 
 export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
-    isOpen, onClose, onSave, filteredEvents, allEvents, teachers, currentFilters, editingChart,
+    isOpen, onClose, onSave, filteredEvents, allEvents, teachers, currentFilters, editingChart, currencySymbol = '₪',
 }) => {
     // ── Draft state ──
     const [title, setTitle] = useState('');
@@ -999,6 +1000,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                         ]}
                                         teachers={teachers}
                                         height={380}
+                                        currencySymbol={currencySymbol}
                                     />
                                 </div>
                             </div>
@@ -1021,6 +1023,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                             height={compareEnabled && comparisons.length > 0
                                                 ? Math.max(200, 380 - comparisons.length * 80)
                                                 : 380}
+                                            currencySymbol={currencySymbol}
                                         />
                                     </div>
                                 </div>
@@ -1041,6 +1044,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                                 events={cmpResult.events}
                                                 teachers={teachers}
                                                 height={Math.max(180, 260 - (comparisons.length - 1) * 40)}
+                                                currencySymbol={currencySymbol}
                                             />
                                         </div>
                                     </div>

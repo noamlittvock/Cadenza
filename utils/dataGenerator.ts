@@ -88,7 +88,7 @@ const pickUnique = <T>(arr: T[], count: number): T[] => {
 
 // ---- Main Generator ----
 
-export const generateTestData = () => {
+export const generateTestData = (currencySymbol: string = '₪') => {
     const teachers: Teacher[] = [];
     const events: CalendarEvent[] = [];
     const usedNames = new Set<string>();
@@ -110,8 +110,8 @@ export const generateTestData = () => {
         const positionAssignments: PositionAssignment[] = chosenPositions.map((pos, idx) => {
             // Diverse rate types: ~60% hourly, ~40% global monthly
             const rateType: RateType = Math.random() > 0.4 ? 'HOURLY' : 'GLOBAL_MONTHLY';
-            // Hourly: ₪100-150 in steps of 10 (round numbers)
-            // Global Monthly: ₪2,000-8,000 in steps of 500 (round numbers)
+            // Hourly: 100-150 in steps of 10 (round numbers)
+            // Global Monthly: 2,000-8,000 in steps of 500 (round numbers)
             const rateValue = rateType === 'HOURLY'
                 ? (randomInt(10, 15) * 10)      // 100, 110, 120, 130, 140, 150
                 : (randomInt(4, 16) * 500);     // 2000, 2500, 3000, ..., 8000
@@ -209,7 +209,7 @@ export const generateTestData = () => {
         events.push({
             id: `GEN_${generateId()}_${i}`,
             name: eventName,
-            description: `${pa.positionName} (${duration} min) — ${pa.rateType === 'HOURLY' ? `₪${pa.rateValue}/hr` : `₪${pa.rateValue}/mo global`}`,
+            description: `${pa.positionName} (${duration} min) — ${pa.rateType === 'HOURLY' ? `${currencySymbol}${pa.rateValue}/hr` : `${currencySymbol}${pa.rateValue}/mo global`}`,
             teacherId: teacher.id,
             roomId: room.id,
             positionId: pa.id,

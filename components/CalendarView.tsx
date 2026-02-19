@@ -1406,7 +1406,7 @@ export const CalendarView: React.FC<Props> = ({
                       <option value="">— No position —</option>
                       {assignments.map(pa => (
                         <option key={pa.id} value={pa.id}>
-                          {pa.positionName} ({pa.rateType === 'HOURLY' ? `₪${pa.rateValue}/hr` : `₪${pa.rateValue.toLocaleString()}/mo`})
+                          {pa.positionName} ({pa.rateType === 'HOURLY' ? `${settings.currency}${pa.rateValue}/hr` : `${settings.currency}${pa.rateValue.toLocaleString()}/mo`})
                         </option>
                       ))}
                     </select>

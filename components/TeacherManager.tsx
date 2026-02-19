@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Teacher, ListsState, PositionAssignment, RateType } from '../types';
+import { Teacher, ListsState, PositionAssignment, RateType, AppSettings } from '../types';
 import { generateId, COLORS, INITIAL_LISTS } from '../constants';
 import { Plus, Edit2, Trash2, Search, CheckCircle2, Palette, X, Download, Upload, FileDown, Tag, Briefcase, Menu, DollarSign, Clock, CalendarDays, ChevronDown, ToggleLeft, ToggleRight } from 'lucide-react';
 
@@ -10,6 +10,7 @@ interface Props {
   setLists?: React.Dispatch<React.SetStateAction<ListsState>>;
   onMobileMenuOpen?: () => void;
   embedded?: boolean;
+  settings: AppSettings;
 }
 
 interface ImportCandidate {
@@ -32,7 +33,7 @@ const createEmptyAssignment = (): PositionAssignment => ({
   rateValue: 0,
 });
 
-export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, setLists, onMobileMenuOpen, embedded = false }) => {
+export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, setLists, onMobileMenuOpen, embedded = false, settings }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Teacher>>({ positions: [], positionAssignments: [], tags: [] });
@@ -485,8 +486,8 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
   const formatRate = (pa: PositionAssignment) => {
     if (pa.rateValue === 0) return '—';
     return pa.rateType === 'HOURLY'
-      ? `₪${pa.rateValue}/hr`
-      : `₪${pa.rateValue.toLocaleString()}/mo`;
+      ? `${settings.currency}${pa.rateValue}/hr`
+      : `${settings.currency}${pa.rateValue.toLocaleString()}/mo`;
   };
 
   return (
@@ -812,7 +813,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                         {/* Rate Value */}
                         <div>
                           <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                            {pa.rateType === 'HOURLY' ? 'Rate (₪/hour)' : 'Monthly Fee (₪)'}
+                            {pa.rateType === 'HOURLY' ? `Rate (${settings.currency}/hour)` : `Monthly Fee (${settings.currency})`}
                           </label>
                           <div className="relative">
                             <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -924,7 +925,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                       <td className="p-3 text-slate-500">{c.positionAssignments.map(pa => pa.positionName).join(', ') || c.positions.join(', ')}</td>
                       <td className="p-3 text-slate-500">
                         {c.positionAssignments.map(pa =>
-                          `${pa.rateType === 'HOURLY' ? '⏱' : '📅'} ₪${pa.rateValue}`
+                          `${pa.rateType === 'HOURLY' ? '⏱' : '📅'} ${settings.currency}${pa.rateValue}`
                         ).join(', ') || '—'}
                       </td>
                     </tr>

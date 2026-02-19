@@ -47,7 +47,8 @@ export const INITIAL_SETTINGS: AppSettings = {
   timeFormat: '12h',
   timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   defaultEventDuration: 60,
-  weekNumberDisplay: 'none'
+  weekNumberDisplay: 'none',
+  currency: '₪'
 };
 
 export const INITIAL_LISTS: ListsState = {

@@ -28,10 +28,11 @@ export function formatHours(decimalHours: number | null | undefined): string {
 
 /**
  * Format a currency number with thousands separators (no decimals).
+ * @param currencySymbol - The currency symbol to prepend (e.g. '₪', '$', '€')
  */
-export function formatCurrency(n: number | null | undefined): string {
-    if (n == null || isNaN(n)) return '₪0';
-    return `₪${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+export function formatCurrency(n: number | null | undefined, currencySymbol: string = '₪'): string {
+    if (n == null || isNaN(n)) return `${currencySymbol}0`;
+    return `${currencySymbol}${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
 /**

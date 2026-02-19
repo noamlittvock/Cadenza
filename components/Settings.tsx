@@ -104,7 +104,33 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onLoadTestDat
           </div>
         </section>
 
-        {/* Date & Time */}
+        {/* Currency */}
+        <section>
+          <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+            Currency
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Currency Symbol
+              </label>
+              <select
+                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                value={tempSettings.currency}
+                onChange={(e) => handleChange('currency', e.target.value)}
+              >
+                <option value="₪">₪ — Israeli New Shekel (ILS)</option>
+                <option value="$">$ — US Dollar (USD)</option>
+                <option value="€">€ — Euro (EUR)</option>
+                <option value="£">£ — British Pound (GBP)</option>
+                <option value="¥">¥ — Japanese Yen (JPY)</option>
+                <option value="₹">₹ — Indian Rupee (INR)</option>
+                <option value="₿">₿ — Bitcoin (BTC)</option>
+              </select>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">This symbol will appear next to all cost values in the financial dashboard, analysis, and exports.</p>
+            </div>
+          </div>
+        </section>
         <section>
           <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
             {t('nav.section.date_time')}

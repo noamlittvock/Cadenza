@@ -24,7 +24,7 @@ import { ChartConfiguration, MetricSelection } from '../types/chartBuilder';
 import { aggregateByDimension, AggregationConfig } from '../utils/financialAggregator';
 import { DIMENSION_REGISTRY, METRIC_REGISTRY } from '../chartBuilder/smartDefaults';
 import { ChevronDown, ChevronUp, TrendingUp, TrendingDown } from 'lucide-react';
-import { formatHours } from '../utils/formatters';
+import { formatHours, formatCurrency } from '../utils/formatters';
 
 // ── Types ──
 
@@ -41,6 +41,7 @@ interface MergedChartRendererProps {
     teachers: Teacher[];
     roomNameLookup?: Map<string, string>;
     height?: number;
+    currencySymbol?: string;
 }
 
 // ── Helpers ──
@@ -58,6 +59,12 @@ function isHourMetric(metricId: string): boolean {
     return meta?.unit === 'hours';
 }
 
+/** Check if a metric key references a currency-unit metric */
+function isCurrencyMetric(metricId: string): boolean {
+    const meta = METRIC_REGISTRY[metricId];
+    return meta?.unit === 'currency';
+}
+
 /** Check if a series key (dataset__metricKey) references an hour-unit metric */
 function isHourSeriesKey(key: string, metrics: MetricSelection[]): boolean {
     // key format is either "metricKey" or "datasetLabel__metricKey"
@@ -70,12 +77,24 @@ function isHourSeriesKey(key: string, metrics: MetricSelection[]): boolean {
     return false;
 }
 
+/** Check if a series key references a currency-unit metric */
+function isCurrencySeriesKey(key: string, metrics: MetricSelection[]): boolean {
+    for (const m of metrics) {
+        const displayKey = metricDisplayKey(m);
+        if (key === displayKey || key.endsWith(`__${displayKey}`)) {
+            return isCurrencyMetric(m.metricId);
+        }
+    }
+    return false;
+}
+
 function formatValue(val: number): string {
     return val.toLocaleString('en-US', { maximumFractionDigits: 1 });
 }
 
-function formatValueSmart(val: number, key: string, metrics: MetricSelection[]): string {
+function formatValueSmart(val: number, key: string, metrics: MetricSelection[], currencySymbol: string = '₪'): string {
     if (isHourSeriesKey(key, metrics)) return formatHours(val);
+    if (isCurrencySeriesKey(key, metrics)) return formatCurrency(val, currencySymbol);
     return formatValue(val);
 }
 
@@ -138,7 +157,7 @@ function getTypography(dataPointCount: number, height: number) {
 // ── Main Component ──
 
 export const MergedChartRenderer: React.FC<MergedChartRendererProps> = ({
-    config, datasets, teachers, roomNameLookup, height = 380,
+    config, datasets, teachers, roomNameLookup, height = 380, currencySymbol = '₪',
 }) => {
     // ── State ──
     const [hoveredDataset, setHoveredDataset] = useState<string | null>(null);
@@ -285,7 +304,7 @@ export const MergedChartRenderer: React.FC<MergedChartRendererProps> = ({
                             <span style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {entry.name}
                             </span>
-                            : {formatValueSmart(val, key, config.metrics)}
+                            : {formatValueSmart(val, key, config.metrics, currencySymbol)}
                             {mMax && ' ▲'}
                             {mMin && ' ▼'}
                         </p>
@@ -550,6 +569,7 @@ export const MergedChartRenderer: React.FC<MergedChartRendererProps> = ({
                                     hoveredDataset={hoveredDataset}
                                     setHoveredDataset={setHoveredDataset}
                                     metrics={config.metrics}
+                                    currencySymbol={currencySymbol}
                                 />
                             </>
                         );
@@ -573,11 +593,12 @@ interface MergedTableRendererProps {
     hoveredDataset: string | null;
     setHoveredDataset: (ds: string | null) => void;
     metrics: MetricSelection[];
+    currencySymbol: string;
 }
 
 const MergedTableRenderer: React.FC<MergedTableRendererProps> = ({
     dimLabel, mergedData, seriesKeys, seriesColors, seriesDatasetMap,
-    minMaxMap, hoveredDataset, setHoveredDataset, metrics,
+    minMaxMap, hoveredDataset, setHoveredDataset, metrics, currencySymbol,
 }) => {
     const [sortCol, setSortCol] = useState<string | null>(null);
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -651,7 +672,7 @@ const MergedTableRenderer: React.FC<MergedTableRendererProps> = ({
                                             color: mMax ? '#22c55e' : mMin ? '#ef4444' : undefined,
                                         }}>
                                         <span className="inline-flex items-center gap-0.5">
-                                            {formatValueSmart(val, k, metrics)}
+                                            {formatValueSmart(val, k, metrics, currencySymbol)}
                                             {mMax && <TrendingUp size={10} className="text-emerald-500" />}
                                             {mMin && <TrendingDown size={10} className="text-red-500" />}
                                         </span>
@@ -669,7 +690,7 @@ const MergedTableRenderer: React.FC<MergedTableRendererProps> = ({
                             return (
                                 <td key={k} className="px-3 py-2 text-right text-slate-800 dark:text-white tabular-nums"
                                     style={{ opacity: hoveredDataset && hoveredDataset !== seriesDatasetMap[k] ? 0.3 : 1 }}>
-                                    {formatValueSmart(total, k, metrics)}
+                                    {formatValueSmart(total, k, metrics, currencySymbol)}
                                 </td>
                             );
                         })}
