@@ -331,6 +331,13 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
             setChartFilterTags(new Set(cf?.tags ?? []));
             setChartFilterCategories(new Set(cf?.categories ?? []));
             setChartFilterRateTypes(new Set(cf?.rateTypes ?? []));
+            // Restore comparison mode
+            setCompareEnabled(editingChart.compareEnabled ?? false);
+            setCompareLayout(editingChart.compareLayout ?? 'merged');
+            setComparisons((editingChart.comparisons ?? []).map(c => ({
+                id: c.id, specificDate: c.specificDate ?? '',
+                customStart: c.customStart ?? '', customEnd: c.customEnd ?? '',
+            })));
         } else {
             setTitle(''); setDimension('teacher');
             setMetrics([{ metricId: 'totalCost', aggregation: 'SUM' }]);
@@ -560,6 +567,15 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
             } : undefined,
             sort: sortBy !== 'dimension' || sortDir !== 'desc' ? { by: sortBy, direction: sortDir } : undefined,
             limit: topN > 0 ? { topN, otherLabel: 'Other' } : undefined,
+            // Comparison mode data
+            compareEnabled: compareEnabled && comparisons.length > 0 ? true : undefined,
+            compareLayout: compareEnabled && comparisons.length > 0 ? compareLayout : undefined,
+            comparisons: compareEnabled && comparisons.length > 0 ? comparisons.map(c => ({
+                id: c.id, timeframe: derivedCompareTimeframe,
+                specificDate: c.specificDate || undefined,
+                customStart: c.customStart || undefined,
+                customEnd: c.customEnd || undefined,
+            })) : undefined,
             createdAt: editingChart?.createdAt ?? now, updatedAt: now,
         };
         onSave(config);

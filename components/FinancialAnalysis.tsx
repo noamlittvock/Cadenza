@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { ChartBuilderModal } from './ChartBuilderModal';
 import { ChartRenderer } from './ChartRenderer';
+import { MergedChartRenderer, DatasetInput } from './MergedChartRenderer';
 
 // ---- Financial data structures ----
 interface PositionFinancials {
@@ -32,6 +33,63 @@ interface TeacherReport {
 }
 
 type DateFilterType = 'WEEK' | 'MONTH' | 'CUSTOM' | 'ALL';
+
+// ---- Comparison helpers for saved charts ----
+const COMPARE_COLORS = ['#f97316', '#8b5cf6', '#ec4899', '#14b8a6', '#eab308'];
+
+function computeDateRangeForComparison(
+    timeframe: string,
+    specificDate?: string,
+    customStart?: string,
+    customEnd?: string,
+): { start: Date; end: Date } {
+    const now = new Date();
+    switch (timeframe) {
+        case 'currentWeek': {
+            const day = now.getDay();
+            const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+            const s = new Date(now.getFullYear(), now.getMonth(), diff); s.setHours(0, 0, 0, 0);
+            const e = new Date(s); e.setDate(e.getDate() + 6); e.setHours(23, 59, 59, 999);
+            return { start: s, end: e };
+        }
+        case 'currentMonth': {
+            const s = new Date(now.getFullYear(), now.getMonth(), 1);
+            const e = new Date(now.getFullYear(), now.getMonth() + 1, 0); e.setHours(23, 59, 59, 999);
+            return { start: s, end: e };
+        }
+        case 'specificDay': {
+            const d = specificDate ? new Date(specificDate) : now;
+            const s = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            const e = new Date(s); e.setHours(23, 59, 59, 999);
+            return { start: s, end: e };
+        }
+        case 'specificWeek': {
+            const d = specificDate ? new Date(specificDate) : now;
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+            const s = new Date(d.getFullYear(), d.getMonth(), diff); s.setHours(0, 0, 0, 0);
+            const e = new Date(s); e.setDate(e.getDate() + 6); e.setHours(23, 59, 59, 999);
+            return { start: s, end: e };
+        }
+        case 'specificMonth': {
+            const d = specificDate ? new Date(specificDate + '-01') : now;
+            const s = new Date(d.getFullYear(), d.getMonth(), 1);
+            const e = new Date(d.getFullYear(), d.getMonth() + 1, 0); e.setHours(23, 59, 59, 999);
+            return { start: s, end: e };
+        }
+        case 'customRange': {
+            const s = customStart ? new Date(customStart) : new Date(now.getFullYear(), now.getMonth(), 1);
+            const e = customEnd ? new Date(customEnd) : new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            e.setHours(23, 59, 59, 999);
+            return { start: s, end: e };
+        }
+        default: {
+            const s = new Date(now.getFullYear(), now.getMonth(), 1);
+            const e = new Date(now.getFullYear(), now.getMonth() + 1, 0); e.setHours(23, 59, 59, 999);
+            return { start: s, end: e };
+        }
+    }
+}
 
 // ---- Filter section ----
 interface FilterSectionProps {
@@ -440,10 +498,52 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                                     </div>
                                 </div>
                                 {/* Body */}
-                                <div className="p-4"><ChartRenderer config={chart} events={filteredEvents} teachers={teachers} height={280} currencySymbol={settings.currency} /></div>
+                                <div className="p-4">
+                                    {chart.compareEnabled && chart.comparisons && chart.comparisons.length > 0 ? (
+                                        (() => {
+                                            // Build datasets for comparison rendering
+                                            const compDatasets: DatasetInput[] = [
+                                                { label: 'Primary', color: '#3b82f6', events: filteredEvents, isPrimary: true },
+                                                ...chart.comparisons.map((cmp, idx) => {
+                                                    const { start, end } = computeDateRangeForComparison(
+                                                        cmp.timeframe, cmp.specificDate, cmp.customStart, cmp.customEnd
+                                                    );
+                                                    const cmpEvents = events.filter(e => {
+                                                        if (e.isHidden) return false;
+                                                        const eStart = new Date(e.start);
+                                                        return eStart >= start && eStart <= end;
+                                                    });
+                                                    return {
+                                                        label: cmp.specificDate || `Comparison ${idx + 1}`,
+                                                        color: COMPARE_COLORS[idx % COMPARE_COLORS.length],
+                                                        events: cmpEvents,
+                                                    };
+                                                }),
+                                            ];
+                                            if (chart.compareLayout === 'merged' || !chart.compareLayout) {
+                                                return <MergedChartRenderer config={chart} datasets={compDatasets} teachers={teachers} height={280} currencySymbol={settings.currency} />;
+                                            } else {
+                                                // Side-by-side layout
+                                                return (
+                                                    <div className="space-y-3">
+                                                        <ChartRenderer config={chart} events={filteredEvents} teachers={teachers} height={200} currencySymbol={settings.currency} />
+                                                        {compDatasets.slice(1).map((ds, idx) => (
+                                                            <div key={idx} className="border-t border-slate-100 dark:border-slate-800 pt-3">
+                                                                <p className="text-[10px] font-medium mb-1" style={{ color: ds.color }}>{ds.label}</p>
+                                                                <ChartRenderer config={chart} events={ds.events} teachers={teachers} height={160} currencySymbol={settings.currency} />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            }
+                                        })()
+                                    ) : (
+                                        <ChartRenderer config={chart} events={filteredEvents} teachers={teachers} height={280} currencySymbol={settings.currency} />
+                                    )}
+                                </div>
                                 {/* Footer */}
                                 <div className="px-4 py-2 bg-slate-50/50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 flex items-center justify-between">
-                                    <span>{chart.dimension} × {chart.metrics.length} metric{chart.metrics.length > 1 ? 's' : ''} → {chart.visualization}</span>
+                                    <span>{chart.dimension} × {chart.metrics.length} metric{chart.metrics.length > 1 ? 's' : ''} → {chart.visualization}{chart.compareEnabled ? ' (compare)' : ''}</span>
                                     <span>Updated {new Date(chart.updatedAt).toLocaleDateString()}</span>
                                 </div>
                             </div>

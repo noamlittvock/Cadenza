@@ -156,7 +156,24 @@ export interface ChartConfiguration {
      */
     chartFilters?: ChartFilters;
 
+    /**
+     * Comparison mode configuration.
+     * When enabled, the chart also renders secondary datasets from comparison periods.
+     */
+    compareEnabled?: boolean;
+    compareLayout?: 'side-by-side' | 'merged';
+    comparisons?: ComparisonPeriod[];
+
     /** Creation/modification timestamps */
     createdAt: string;
     updatedAt: string;
+}
+
+/** A single comparison period definition */
+export interface ComparisonPeriod {
+    id: string;
+    timeframe: 'currentWeek' | 'currentMonth' | 'specificDay' | 'specificWeek' | 'specificMonth' | 'customRange';
+    specificDate?: string;
+    customStart?: string;
+    customEnd?: string;
 }

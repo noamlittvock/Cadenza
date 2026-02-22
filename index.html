@@ -27,17 +27,50 @@
       })();
   </script>
   <style>
-    /* Global scrollbar hiding for seamless aesthetic */
+    /* Sleek custom scrollbars — visible on hover, thin profile */
     * {
-      scrollbar-width: none;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
       /* Firefox */
-      -ms-overflow-style: none;
-      /* IE/Edge */
     }
 
+    *:hover {
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    }
+
+    .dark * {
+      scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
+    }
+
+    .dark *:hover {
+      scrollbar-color: rgba(100, 116, 139, 0.5) transparent;
+    }
+
+    /* Webkit (Chrome/Safari/Edge) */
     *::-webkit-scrollbar {
-      display: none;
-      /* Chrome/Safari/Opera */
+      width: 6px;
+      height: 6px;
+    }
+
+    *::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    *::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.3);
+      border-radius: 3px;
+    }
+
+    *::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.55);
+    }
+
+    .dark *::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.3);
+    }
+
+    .dark *::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.55);
     }
 
     .canceled-stripe {
@@ -134,36 +167,41 @@
       width: 150px;
       min-width: 150px;
       max-width: 150px;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 8px center;
-      transition: border-color 200ms ease, box-shadow 200ms ease !important;
-    }
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0
+ 0 24 24' fill=' none' stroke=' %2394a3b8' stroke-width=' 2' stroke-linecap=' round' stroke-linejoin=' round'%3E%3Cpolyline
+ points='6 9 12 15 18 9' %3E%3C/polyline%3E%3C/svg%3E");
+ background-repeat: no-repeat;
+          background-position: right 8px center;
+          transition: border-color 200ms ease, box-shadow 200ms ease !important;
+      }
 
-    .filter-select-uniform:focus {
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
-    }
+      .filter-select-uniform:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+      }
 
-    .filter-select-uniform:hover {
-      border-color: #94a3b8;
-    }
+      .filter-select-uniform:hover {
+        border-color: #94a3b8;
+      }
 
-    .dark .filter-select-uniform {
-      background-color: #1e293b;
-      color: #e2e8f0;
-      border-color: #334155;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    }
+      .dark .filter-select-uniform {
+        background-color: #1e293b;
+        color: #e2e8f0;
+        border-color: #334155;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0
+ 0 24 24' fill=' none' stroke=' %2364748b' stroke-width=' 2' stroke-linecap=' round' stroke-linejoin=' round'%3E%3Cpolyline
+ points='6 9 12 15 18 9' %3E%3C/polyline%3E%3C/svg%3E");
 
-    .dark .filter-select-uniform:hover {
-      border-color: #475569;
-    }
+        }
 
-    .dark .filter-select-uniform:focus {
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
-    }
+        .dark .filter-select-uniform:hover {
+          border-color: #475569;
+        }
+
+        .dark .filter-select-uniform:focus {
+          border-color: #3b82f6;
+          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+        }
   </style>
 </head>
 

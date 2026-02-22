@@ -32,15 +32,21 @@ const NavItem = ({
   <button
     onClick={onClick}
     title={collapsed ? label : undefined}
-    className={`flex items-center w-full py-3 rounded-lg transition-colors text-left ${collapsed ? 'justify-center px-3' : 'px-4 space-x-2'} ${active
+    className={`flex items-center w-full py-3 rounded-lg text-left ${collapsed ? 'justify-center px-3' : 'px-4 space-x-2'} ${active
       ? 'bg-blue-600 text-white'
       : 'text-slate-400 hover:text-white hover:bg-slate-800'
       }`}
+    style={{ transition: 'padding 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94), background-color 200ms ease' }}
   >
     <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-      <Icon size={24} className="transition-all" />
+      <Icon size={24} />
     </div>
-    {!collapsed && <span className="font-medium whitespace-nowrap overflow-hidden transition-all">{label}</span>}
+    <span className="font-medium whitespace-nowrap overflow-hidden"
+      style={{
+        opacity: collapsed ? 0 : 1,
+        maxWidth: collapsed ? 0 : 200,
+        transition: 'opacity 300ms ease, max-width 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+      }}>{label}</span>
   </button>
 );
 
@@ -114,16 +120,21 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
           willChange: 'width, transform'
         }}
       >
-        <div className={`p-2 flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3 rtl:space-x-reverse'} border-b border-slate-800 h-16 transition-all overflow-hidden`}>
-          <div className={`${isCollapsed ? 'p-1 mx-auto' : 'p-2'} bg-blue-500 rounded-lg flex-shrink-0 transition-all`}>
-            <Music size={24} className="text-white transform transition-transform" />
+        <div className={`p-2 flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3 rtl:space-x-reverse'} border-b border-slate-800 h-16 overflow-hidden`}
+          style={{ transition: 'all 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
+          <div className={`${isCollapsed ? 'p-1 mx-auto' : 'p-2'} bg-blue-500 rounded-lg flex-shrink-0`}
+            style={{ transition: 'all 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
+            <Music size={24} className="text-white" />
           </div>
-          {!isCollapsed && (
-            <div className="overflow-hidden whitespace-nowrap flex flex-col justify-center">
-              <h1 className="text-base font-bold leading-tight">Music Center</h1>
-              <h1 className="text-base font-bold leading-tight">Calendar</h1>
-            </div>
-          )}
+          <div className="overflow-hidden whitespace-nowrap flex flex-col justify-center"
+            style={{
+              opacity: isCollapsed ? 0 : 1,
+              maxWidth: isCollapsed ? 0 : 200,
+              transition: 'opacity 300ms ease, max-width 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+            }}>
+            <h1 className="text-base font-bold leading-tight">Music Center</h1>
+            <h1 className="text-base font-bold leading-tight">Calendar</h1>
+          </div>
           {isMobile && (
             <button onClick={() => setIsMobileMenuOpen(false)} className="ml-auto p-2 text-slate-400 hover:text-white">
               <ChevronLeft size={24} />
@@ -134,11 +145,15 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
         <nav className="flex-1 p-3 space-y-2 overflow-y-auto overflow-x-hidden pt-4">
 
 
-          {!isCollapsed && (
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-4 truncate">
-              {t('nav.section.operations')}
-            </div>
-          )}
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 truncate overflow-hidden"
+            style={{
+              opacity: isCollapsed ? 0 : 1,
+              maxHeight: isCollapsed ? 0 : 24,
+              marginBottom: isCollapsed ? 0 : 8,
+              transition: 'opacity 200ms ease, max-height 400ms ease, margin-bottom 400ms ease',
+            }}>
+            {t('nav.section.operations')}
+          </div>
 
           <NavItem
             active={['CALENDAR', 'GANTT', 'POWER_TOOLS'].includes(currentView)}
@@ -153,8 +168,15 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
           {isAdmin && (
             <>
-              {!isCollapsed && !isMobile && (
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-6 px-4 truncate">
+              {!isMobile && (
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 truncate overflow-hidden"
+                  style={{
+                    opacity: isCollapsed ? 0 : 1,
+                    maxHeight: isCollapsed ? 0 : 24,
+                    marginBottom: isCollapsed ? 0 : 8,
+                    marginTop: isCollapsed ? 0 : 24,
+                    transition: 'opacity 200ms ease, max-height 400ms ease, margin-bottom 400ms ease, margin-top 400ms ease',
+                  }}>
                   {t('nav.section.admin')}
                 </div>
               )}
@@ -171,11 +193,16 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
 
 
-              {!isCollapsed && (
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-6 px-4 truncate">
-                  {t('nav.section.analytics')}
-                </div>
-              )}
+              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 truncate overflow-hidden"
+                style={{
+                  opacity: isCollapsed ? 0 : 1,
+                  maxHeight: isCollapsed ? 0 : 24,
+                  marginBottom: isCollapsed ? 0 : 8,
+                  marginTop: isCollapsed ? 0 : 24,
+                  transition: 'opacity 200ms ease, max-height 400ms ease, margin-bottom 400ms ease, margin-top 400ms ease',
+                }}>
+                {t('nav.section.analytics')}
+              </div>
               <NavItem
                 active={currentView === 'FINANCIAL'}
                 onClick={() => { setView('FINANCIAL'); setIsMobileMenuOpen(false); }}
@@ -222,24 +249,28 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
         <div className={`p-4 border-t border-slate-800 flex flex-col ${isCollapsed ? 'items-center px-2' : 'items-stretch'}`}>
 
-          {!isCollapsed && (
-            <div className="flex flex-col gap-2 w-full mb-4">
-              <div className="flex gap-1 text-xs bg-slate-800 p-1 rounded-lg">
-                <button
-                  onClick={() => login('ADMIN')}
-                  className={`flex-1 py-1 rounded transition-colors ${currentUser?.role === 'ADMIN' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
-                >
-                  Admin
-                </button>
-                <button
-                  onClick={() => login('VIEWER')}
-                  className={`flex-1 py-1 rounded transition-colors ${currentUser?.role === 'VIEWER' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
-                >
-                  Viewer
-                </button>
-              </div>
+          <div className="flex flex-col gap-2 w-full mb-4 overflow-hidden"
+            style={{
+              opacity: isCollapsed ? 0 : 1,
+              maxHeight: isCollapsed ? 0 : 60,
+              marginBottom: isCollapsed ? 0 : 16,
+              transition: 'opacity 200ms ease, max-height 400ms ease, margin-bottom 400ms ease',
+            }}>
+            <div className="flex gap-1 text-xs bg-slate-800 p-1 rounded-lg">
+              <button
+                onClick={() => login('ADMIN')}
+                className={`flex-1 py-1 rounded transition-colors ${currentUser?.role === 'ADMIN' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+              >
+                Admin
+              </button>
+              <button
+                onClick={() => login('VIEWER')}
+                className={`flex-1 py-1 rounded transition-colors ${currentUser?.role === 'VIEWER' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+              >
+                Viewer
+              </button>
             </div>
-          )}
+          </div>
 
           <button
             onClick={toggleDarkMode}
@@ -249,7 +280,13 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
             </div>
-            {!isCollapsed && <span className="ml-2">{darkMode ? 'Light Mode' : 'Dark Mode'}</span>}
+            <span className="overflow-hidden whitespace-nowrap"
+              style={{
+                opacity: isCollapsed ? 0 : 1,
+                maxWidth: isCollapsed ? 0 : 150,
+                marginLeft: isCollapsed ? 0 : 8,
+                transition: 'opacity 300ms ease, max-width 500ms ease, margin-left 500ms ease',
+              }}>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
           </button>
 
           {!isMobile && (
@@ -263,15 +300,25 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
                 <Smartphone size={18} />
               </div>
-              {!isCollapsed && <span className="ml-2">Mobile Access</span>}
+              <span className="overflow-hidden whitespace-nowrap"
+                style={{
+                  opacity: isCollapsed ? 0 : 1,
+                  maxWidth: isCollapsed ? 0 : 150,
+                  marginLeft: isCollapsed ? 0 : 8,
+                  transition: 'opacity 300ms ease, max-width 500ms ease, margin-left 500ms ease',
+                }}>Mobile Access</span>
             </a>
           )}
 
-          {!isCollapsed && (
-            <div className="text-xs text-slate-500 text-center mt-2">
-              &copy; 2026 Music Center
-            </div>
-          )}
+          <div className="text-xs text-slate-500 text-center mt-2 overflow-hidden"
+            style={{
+              opacity: isCollapsed ? 0 : 1,
+              maxHeight: isCollapsed ? 0 : 24,
+              marginTop: isCollapsed ? 0 : 8,
+              transition: 'opacity 200ms ease, max-height 400ms ease, margin-top 400ms ease',
+            }}>
+            &copy; 2026 Music Center
+          </div>
         </div>
       </div>
 

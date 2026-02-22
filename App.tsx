@@ -103,7 +103,8 @@ function AppContent() {
 
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem('settings');
-    return saved ? JSON.parse(saved) : INITIAL_SETTINGS;
+    // Merge with defaults so newly added fields (e.g. currency) are never undefined
+    return saved ? { ...INITIAL_SETTINGS, ...JSON.parse(saved) } : INITIAL_SETTINGS;
   });
 
   const [lists, setLists] = useState<ListsState>(() => {
