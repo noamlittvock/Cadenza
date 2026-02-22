@@ -331,10 +331,10 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
   };
 
   const SortIcon: React.FC<{ col: SortColumn }> = ({ col }) => {
-    if (sortCol !== col) return <ArrowUpDown size={10} className="opacity-30 ml-0.5 inline" />;
+    if (sortCol !== col) return <ArrowUpDown size={10} className="text-slate-400 dark:text-slate-500 ml-0.5 inline" />;
     return sortDir === 'asc'
-      ? <ChevronUp size={10} className="text-blue-500 ml-0.5 inline" />
-      : <ChevronDown size={10} className="text-blue-500 ml-0.5 inline" />;
+      ? <ChevronUp size={10} className="text-blue-500 dark:text-blue-400 ml-0.5 inline" />
+      : <ChevronDown size={10} className="text-blue-500 dark:text-blue-400 ml-0.5 inline" />;
   };
 
   const toggleExpandTeacher = (id: string) => {
@@ -564,7 +564,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                       <React.Fragment key={r.teacherId}>
                         <tr className="hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors" onClick={() => toggleExpandTeacher(r.teacherId)}>
                           <td className="px-4 py-4">
-                            <ChevronDown size={14} className={`text-slate-400 transition-transform ${expandedTeachers.has(r.teacherId) ? 'rotate-180' : ''}`} />
+                            <ChevronDown size={14} className={`text-slate-400 dark:text-slate-500 transition-transform ${expandedTeachers.has(r.teacherId) ? 'rotate-180' : ''}`} />
                           </td>
                           <td className="px-4 py-4 font-medium text-slate-900 dark:text-white">
                             <div className="flex items-center gap-2">

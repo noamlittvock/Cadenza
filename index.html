@@ -87,6 +87,22 @@
       /* slate-500 text */
     }
 
+    .dark .canceled-stripe {
+      background-image: repeating-linear-gradient(45deg,
+          rgba(30, 41, 59, 0.5),
+          rgba(30, 41, 59, 0.5) 10px,
+          rgba(51, 65, 85, 0.4) 10px,
+          rgba(51, 65, 85, 0.4) 20px);
+      background-color: #1e293b !important;
+      opacity: 0.8;
+      color: #94a3b8 !important;
+    }
+
+    /* Fix native UI elements like inputs, selects, and arrows in dark mode */
+    .dark {
+      color-scheme: dark;
+    }
+
     /* Disable ALL transitions during initial page load to prevent flash */
     .no-transitions,
     .no-transitions *,

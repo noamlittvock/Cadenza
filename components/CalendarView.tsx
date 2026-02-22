@@ -951,7 +951,7 @@ export const CalendarView: React.FC<Props> = ({
 
   const renderMonthView = () => {
     const days = getMonthDays(currentDate);
-    const weeks = [];
+    const weeks: Date[][] = [];
     for (let i = 0; i < days.length; i += 7) {
       weeks.push(days.slice(i, i + 7));
     }
@@ -966,131 +966,202 @@ export const CalendarView: React.FC<Props> = ({
         </div>
         <div className="flex-1 grid grid-rows-6 min-h-0">
           {weeks.map((week, wIdx) => {
+            const isBottomRow = wIdx >= 4;
+
             const weekStart = new Date(week[0]);
             weekStart.setHours(0, 0, 0, 0);
             const weekEnd = new Date(week[6]);
             weekEnd.setHours(23, 59, 59, 999);
-            const overlappingBlocks = ganttBlocks.filter(b => {
+
+            const weekGantts = ganttBlocks.filter(b => {
               const bStart = new Date(b.startDate);
               const bEnd = new Date(b.endDate);
               return bStart <= weekEnd && bEnd >= weekStart;
             }).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-            const lanes: GanttBlock[][] = [];
-            overlappingBlocks.forEach(block => {
-              let placed = false;
-              for (let i = 0; i < lanes.length; i++) {
-                const overlapInLane = lanes[i].some(existing => {
-                  const eStart = new Date(existing.startDate).getTime();
-                  const eEnd = new Date(existing.endDate).getTime();
-                  const bStart = new Date(block.startDate).getTime();
-                  const bEnd = new Date(block.endDate).getTime();
-                  return Math.max(eStart, weekStart.getTime()) <= Math.min(bEnd, weekEnd.getTime()) &&
-                    Math.max(bStart, weekStart.getTime()) <= Math.min(eEnd, weekEnd.getTime());
-                });
-                if (!overlapInLane) {
-                  lanes[i].push(block);
-                  placed = true;
+
+            const lanes: (string | null)[][] = [];
+            const ganttLanes = new Map<string, number>();
+
+            weekGantts.forEach(block => {
+              const bStart = new Date(block.startDate); bStart.setHours(0, 0, 0, 0);
+              const bEnd = new Date(block.endDate); bEnd.setHours(23, 59, 59, 999);
+
+              let startIdx = week.findIndex(d => {
+                const dStart = new Date(d); dStart.setHours(0, 0, 0, 0);
+                return dStart.getTime() === bStart.getTime();
+              });
+              let endIdx = week.findIndex(d => {
+                const dStart = new Date(d); dStart.setHours(0, 0, 0, 0);
+                return dStart.getTime() === bEnd.getTime();
+              });
+
+              if (startIdx === -1) startIdx = 0;
+              if (endIdx === -1) endIdx = 6;
+              if (startIdx > 6) startIdx = 6;
+              if (endIdx > 6) endIdx = 6;
+
+              let laneIdx = 0;
+              while (true) {
+                if (!lanes[laneIdx]) lanes[laneIdx] = Array(7).fill(null);
+                let overlap = false;
+                for (let i = startIdx; i <= endIdx; i++) {
+                  if (lanes[laneIdx][i] !== null) { overlap = true; break; }
+                }
+                if (!overlap) {
+                  for (let i = startIdx; i <= endIdx; i++) {
+                    lanes[laneIdx][i] = block.id;
+                  }
+                  ganttLanes.set(block.id, laneIdx);
                   break;
                 }
+                laneIdx++;
               }
-              if (!placed) lanes.push([block]);
             });
-            const totalGanttHeight = 24;
-            const barHeight = Math.max(4, Math.min(18, totalGanttHeight / lanes.length - 1));
+
             return (
-              <div key={wIdx} className="grid grid-cols-7 border-b border-slate-100 dark:border-slate-800 last:border-0 h-full relative">
-                <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none" style={{ height: `${totalGanttHeight}px` }}>
-                  {lanes.map((lane, laneIdx) => (
-                    lane.map(block => {
-                      const bStart = new Date(block.startDate);
-                      const bEnd = new Date(block.endDate);
-                      const startInWeek = Math.max(bStart.getTime(), weekStart.getTime());
-                      const endInWeek = Math.min(bEnd.getTime(), weekEnd.getTime());
-                      const dayMs = 24 * 60 * 60 * 1000;
-                      const startOffsetDays = (startInWeek - weekStart.getTime()) / dayMs;
-                      const durationDays = (endInWeek - startInWeek) / dayMs + 1;
-                      const leftPct = (startOffsetDays / 7) * 100;
-                      const widthPct = (Math.max(0, durationDays) / 7) * 100;
+              <div key={wIdx} className="relative min-h-0 border-b border-slate-100 dark:border-slate-800 last:border-0 h-full group/week">
+                {/* Layer 1: Background & Day Click (z-0) */}
+                <div className="absolute inset-0 grid grid-cols-7 pointer-events-none">
+                  {week.map((day) => {
+                    const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+                    return (
+                      <div
+                        key={day.toISOString()}
+                        className={`border-r border-slate-100 dark:border-slate-800 last:border-0 pointer-events-auto cursor-pointer ${!isCurrentMonth ? 'bg-slate-50/50 dark:bg-slate-950/50' : 'bg-transparent'}`}
+                        onClick={() => { setCurrentDate(day); setViewMode('DAY'); }}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* Layer 2: Gantt Overlay (z-10) */}
+                <div className="absolute top-[32px] bottom-0 left-0 right-0 overflow-y-auto custom-scrollbar pointer-events-none z-10">
+                  <div className="grid grid-cols-7 gap-y-1 relative pointer-events-auto pb-1" style={{ gridAutoRows: 'min-content' }}>
+                    {weekGantts.map(block => {
+                      const bStart = new Date(block.startDate); bStart.setHours(0, 0, 0, 0);
+                      const bEnd = new Date(block.endDate); bEnd.setHours(23, 59, 59, 999);
+
+                      let startIdx = week.findIndex(d => {
+                        const dStart = new Date(d); dStart.setHours(0, 0, 0, 0);
+                        return dStart.getTime() === bStart.getTime();
+                      });
+                      let endIdx = week.findIndex(d => {
+                        const dStart = new Date(d); dStart.setHours(0, 0, 0, 0);
+                        return dStart.getTime() === bEnd.getTime();
+                      });
+
+                      if (startIdx === -1) startIdx = 0;
+                      if (endIdx === -1) endIdx = 6;
+
+                      const colStart = startIdx + 1;
+                      const colSpan = endIdx - startIdx + 1;
+                      const laneIdx = ganttLanes.get(block.id)!;
+
+                      const isStartCut = bStart < weekStart;
+                      const isEndCut = bEnd > weekEnd;
+
+                      let roundedClass = 'rounded';
+                      let marginClass = 'mx-1';
+                      let bdrClass = 'border border-black/10 dark:border-white/10';
+
+                      if (isStartCut && isEndCut) {
+                        roundedClass = 'rounded-none';
+                        marginClass = 'mx-0';
+                        bdrClass = 'border-y border-black/10 dark:border-white/10';
+                      } else if (isStartCut) {
+                        roundedClass = 'rounded-r';
+                        marginClass = 'mr-1 ml-0';
+                        bdrClass = 'border border-l-0 border-black/10 dark:border-white/10';
+                      } else if (isEndCut) {
+                        roundedClass = 'rounded-l';
+                        marginClass = 'ml-1 mr-0';
+                        bdrClass = 'border border-r-0 border-black/10 dark:border-white/10';
+                      }
+
                       return (
                         <div
                           key={block.id}
                           onClick={(e) => { e.stopPropagation(); setDetailItem({ type: 'GANTT', data: block }); }}
-                          className="absolute rounded-sm opacity-90 flex items-center px-1 text-[9px] text-white font-medium truncate pointer-events-auto cursor-pointer hover:shadow-md hover:z-20 border border-white/20"
+                          className={`px-2 py-0.5 text-[10px] text-white font-medium truncate cursor-pointer hover:opacity-90 flex-shrink-0 ${roundedClass} ${marginClass} ${bdrClass}`}
                           style={{
-                            left: `${leftPct}%`,
-                            width: `${widthPct}%`,
-                            top: `${laneIdx * (barHeight + 1)}px`,
-                            height: `${barHeight}px`,
+                            gridColumn: `${colStart} / span ${colSpan}`,
+                            gridRow: laneIdx + 1,
                             backgroundColor: block.color,
                           }}
                           title={block.title}
                         >
-                          {barHeight > 10 && (
-                            <span className="truncate w-full">{block.title}</span>
-                          )}
+                          {block.title}
                         </div>
                       )
-                    })
-                  ))}
+                    })}
+                  </div>
                 </div>
-                {week.map(day => {
-                  const isCurrentMonth = day.getMonth() === currentDate.getMonth();
-                  const isToday = day.toDateString() === new Date().toDateString();
-                  const dayEvents = displayEvents.filter(e => {
-                    const d = new Date(e.start);
-                    return d.getDate() === day.getDate() && d.getMonth() === day.getMonth();
-                  }).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-                  return (
-                    <div
-                      key={day.toISOString()}
-                      className={`border-r border-slate-100 dark:border-slate-800 last:border-0 p-1 flex flex-col ${!isCurrentMonth ? 'bg-slate-50/50 dark:bg-slate-950/50' : ''}`}
-                      onClick={() => {
-                        setCurrentDate(day);
-                        setViewMode('DAY');
-                      }}
-                    >
-                      <div style={{ height: `${lanes.length > 0 ? totalGanttHeight : 0}px` }} className="transition-all duration-200"></div>
-                      <div className="flex justify-between items-start">
-                        <span className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white' : 'text-slate-700 dark:text-slate-300'}`}>
-                          {day.getDate()}
-                        </span>
-                        <button onClick={(e) => { e.stopPropagation(); handleSlotClick(day, 10); }} className="text-slate-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
+
+                {/* Layer 3: Date Headers & Popups (z-20) */}
+                <div className="absolute top-0 left-0 right-0 h-[32px] grid grid-cols-7 pointer-events-none z-20">
+                  {week.map((day, dIdx) => {
+                    const isToday = day.toDateString() === new Date().toDateString();
+                    const isRightEdge = dIdx >= 5;
+                    const dayEvents = displayEvents.filter(e => {
+                      const d = new Date(e.start);
+                      return d.getDate() === day.getDate() && d.getMonth() === day.getMonth();
+                    }).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
+                    return (
+                      <div key={day.toISOString()} className="p-1 flex justify-between items-start pointer-events-auto group/cell">
+                        <div className="group relative z-30">
+                          <span className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full cursor-default ${isToday ? 'bg-blue-600 text-white' : 'text-slate-700 dark:text-slate-300'}`}>
+                            {day.getDate()}
+                          </span>
+
+                          {/* Hover Popup Wrapper with Bridge */}
+                          <div
+                            className={`absolute ${isBottomRow ? 'bottom-full pb-1' : 'top-full pt-1'} ${isRightEdge ? '-right-2' : '-left-2'} z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all`}
+                          >
+                            <div className="w-48 max-h-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                              <div className="p-2 border-b border-slate-100 dark:border-slate-700 font-bold text-xs sticky top-0 bg-white dark:bg-slate-800 z-10 text-slate-800 dark:text-slate-200">
+                                {day.toLocaleDateString(settings.language, { weekday: 'short', month: 'short', day: 'numeric' })}
+                              </div>
+                              <div className="overflow-y-auto p-1.5 space-y-1 custom-scrollbar">
+                                {dayEvents.length === 0 ? (
+                                  <div className="text-xs text-slate-400 p-2 text-center">No events</div>
+                                ) : (
+                                  dayEvents.map(evt => {
+                                    const baseColor = getTeacherColor(evt.teacherId);
+                                    return (
+                                      <div
+                                        key={evt.id}
+                                        onClick={(e) => { e.stopPropagation(); setDetailItem({ type: 'EVENT', data: evt }); }}
+                                        className={`text-[10px] text-left px-1.5 py-1 rounded cursor-pointer border-l-2 ${evt.isCanceled
+                                          ? 'bg-slate-100 text-slate-400 line-through dark:bg-slate-800 dark:text-slate-600 border-slate-400'
+                                          : 'hover:opacity-90'
+                                          }`}
+                                        style={!evt.isCanceled ? {
+                                          backgroundColor: hexToRgba(baseColor, 0.1),
+                                          borderColor: baseColor,
+                                          color: 'inherit'
+                                        } : {}}
+                                      >
+                                        <span style={{ color: !evt.isCanceled ? baseColor : undefined }} className="font-bold block brightness-75 dark:brightness-100">
+                                          {formatTime(new Date(evt.start))}
+                                        </span>
+                                        <span className="font-medium text-slate-800 dark:text-slate-200 block truncate">{evt.name}</span>
+                                      </div>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button onClick={(e) => { e.stopPropagation(); handleSlotClick(day, 10); }} className="text-slate-300 hover:text-blue-500 opacity-0 group-hover/cell:opacity-100 transition-opacity">
                           <Plus size={14} />
                         </button>
                       </div>
-                      <div className="flex-1 overflow-y-auto mt-1 space-y-1 custom-scrollbar group">
-                        {dayEvents.slice(0, 4).map(evt => {
-                          const baseColor = getTeacherColor(evt.teacherId);
-                          return (
-                            <div
-                              key={evt.id}
-                              onClick={(e) => { e.stopPropagation(); setDetailItem({ type: 'EVENT', data: evt }); }}
-                              className={`text-[10px] truncate px-1.5 py-0.5 rounded cursor-pointer border-l-2 mb-1 shadow-sm transition-all ${evt.isCanceled
-                                ? 'bg-slate-100 text-slate-400 line-through dark:bg-slate-800 dark:text-slate-600 border-slate-400'
-                                : 'hover:opacity-90 hover:scale-[1.02]'
-                                }`}
-                              style={!evt.isCanceled ? {
-                                backgroundColor: hexToRgba(baseColor, 0.2),
-                                borderColor: baseColor,
-                                color: 'inherit'
-                              } : {}}
-                            >
-                              <span style={{ color: !evt.isCanceled ? baseColor : undefined }} className="font-bold brightness-75 dark:brightness-100">
-                                {new Date(evt.start).toLocaleTimeString(settings.language, { hour: 'numeric', minute: '2-digit', hour12: settings.timeFormat === '12h' })}
-                              </span>
-                              <span className="ml-1 font-medium text-slate-800 dark:text-slate-200">{evt.name}</span>
-                            </div>
-                          )
-                        })}
-                        {dayEvents.length > 4 && (
-                          <div className="text-[10px] text-slate-400 pl-1">
-                            + {dayEvents.length - 4} more
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             );
           })}

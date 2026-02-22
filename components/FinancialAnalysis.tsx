@@ -13,7 +13,8 @@ import {
     Download, Filter, Calendar as CalIcon, ChevronDown, Menu, Clock, CalendarDays, DollarSign,
     TrendingUp, X, SlidersHorizontal, Tag, User, Briefcase, ToggleLeft, Plus, Pencil, Trash2,
     Copy, BarChart3, Zap, Camera, ArrowLeft, LineChart as LineChartIcon,
-    Award, AlertTriangle, TrendingDown, Percent, Target, CreditCard, Users as UsersIcon, Activity
+    Award, AlertTriangle, TrendingDown, Percent, Target, CreditCard, Users as UsersIcon, Activity,
+    Settings as SettingsIcon, Check, Eye, EyeOff, RotateCcw
 } from 'lucide-react';
 import { ChartBuilderModal } from './ChartBuilderModal';
 import { ChartRenderer } from './ChartRenderer';
@@ -30,6 +31,12 @@ interface TeacherReport {
     teacherId: string; teacherName: string; teacherColor: string;
     positions: PositionFinancials[]; totalActiveHours: number; totalCanceledHours: number;
     totalHours: number; hourlyCostTotal: number; globalCostTotal: number; grandTotal: number;
+}
+
+interface CustomInsightInfo {
+    id: string; title: string;
+    metric: 'totalActiveHours' | 'totalCanceledHours' | 'hourlyCostTotal' | 'globalCostTotal' | 'grandTotal' | 'avgActiveHours' | 'avgGrandTotal' | 'cancellationRate' | 'maxEarner' | 'minEarner';
+    teacherId?: string;
 }
 
 type DateFilterType = 'WEEK' | 'MONTH' | 'CUSTOM' | 'ALL';
@@ -125,6 +132,7 @@ interface InsightTile {
     id: string; title: string; icon: React.ReactNode; value: string;
     entity?: string; entityColor?: string; context?: string;
     highlight: 'max' | 'min' | 'neutral' | 'warning'; gradient: string;
+    isCustom?: boolean;
 }
 
 const InsightCard: React.FC<{ tile: InsightTile }> = ({ tile }) => {
@@ -176,6 +184,77 @@ const DeleteConfirmModal: React.FC<{ chartTitle: string; onConfirm: () => void; 
     </div>
 );
 
+// ---- Custom Insight Builder Modal ----
+interface CustomInsightModalProps {
+    teachers: Teacher[];
+    onClose: () => void;
+    onSave: (info: CustomInsightInfo) => void;
+}
+
+const CustomInsightModal: React.FC<CustomInsightModalProps> = ({ teachers, onClose, onSave }) => {
+    const [title, setTitle] = useState('');
+    const [metric, setMetric] = useState<CustomInsightInfo['metric']>('totalActiveHours');
+    const [teacherId, setTeacherId] = useState('');
+
+    const handleSave = () => {
+        if (!title.trim()) return;
+        onSave({ id: `ci_${Date.now()}`, title: title.trim(), metric, teacherId: teacherId || undefined });
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-sm w-full border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                    <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        <Zap size={18} className="text-amber-500" /> New Insight
+                    </h3>
+                    <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
+                        <X size={16} className="text-slate-400" />
+                    </button>
+                </div>
+                <div className="p-5 space-y-4">
+                    <div>
+                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">Insight Title</label>
+                        <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Piano Revenue" autoFocus className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-blue-500" />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">Metric</label>
+                        <select value={metric} onChange={e => setMetric(e.target.value as any)} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-blue-500">
+                            <optgroup label="Totals">
+                                <option value="totalActiveHours">Total Active Hours</option>
+                                <option value="totalCanceledHours">Total Canceled Hours</option>
+                                <option value="hourlyCostTotal">Hourly Payroll</option>
+                                <option value="globalCostTotal">Global Payroll</option>
+                                <option value="grandTotal">Grand Total Payroll</option>
+                            </optgroup>
+                            <optgroup label="Averages & Rates">
+                                <option value="avgActiveHours">Avg Hours per Teacher</option>
+                                <option value="avgGrandTotal">Avg Payroll per Teacher</option>
+                                <option value="cancellationRate">Cancellation Rate</option>
+                            </optgroup>
+                            <optgroup label="Extremes">
+                                <option value="maxEarner">Highest Earner</option>
+                                <option value="minEarner">Lowest Earner</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">Filter by Teacher (Optional)</label>
+                        <select value={teacherId} onChange={e => setTeacherId(e.target.value)} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-blue-500">
+                            <option value="">All Teachers</option>
+                            {teachers.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}
+                        </select>
+                    </div>
+                </div>
+                <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-end gap-2">
+                    <button onClick={onClose} className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
+                    <button onClick={handleSave} disabled={!title.trim()} className="px-4 py-2 text-xs font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors">Save Insight</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // ---- Main Component ----
 interface Props {
     events: CalendarEvent[]; teachers: Teacher[]; settings: AppSettings;
@@ -197,6 +276,66 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
     const [isChartModalOpen, setIsChartModalOpen] = useState(false);
     const [editingChart, setEditingChart] = useState<ChartConfiguration | null>(null);
     const [deletingChartId, setDeletingChartId] = useState<string | null>(null);
+    const [isInsightPickerOpen, setIsInsightPickerOpen] = useState(false);
+    const [isCustomInsightModalOpen, setIsCustomInsightModalOpen] = useState(false);
+
+    // Custom Insights State
+    const CUSTOM_INSIGHTS_KEY = 'financial-analysis-custom-insights';
+    const [customInsights, setCustomInsights] = useState<CustomInsightInfo[]>(() => {
+        try {
+            const saved = localStorage.getItem(CUSTOM_INSIGHTS_KEY);
+            if (saved) return JSON.parse(saved);
+        } catch { /* ignore */ }
+        return [];
+    });
+
+    const saveCustomInsights = (insights: CustomInsightInfo[]) => {
+        setCustomInsights(insights);
+        localStorage.setItem(CUSTOM_INSIGHTS_KEY, JSON.stringify(insights));
+    };
+
+    const handleDeleteCustomInsight = (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        const updated = customInsights.filter(c => c.id !== id);
+        saveCustomInsights(updated);
+        // Also remove from visible list if needed
+        if (visibleInsightIds.has(id)) {
+            toggleInsightVisibility(id);
+        }
+    };
+
+    // Insight visibility — persisted in localStorage
+    const INSIGHT_STORAGE_KEY = 'financial-analysis-visible-insights';
+    const [visibleInsightIds, setVisibleInsightIds] = useState<Set<string>>(() => {
+        try {
+            const saved = localStorage.getItem(INSIGHT_STORAGE_KEY);
+            if (saved) { const arr: string[] = JSON.parse(saved); return new Set(arr); }
+        } catch { /* ignore */ }
+        return new Set<string>(); // empty = show all (default)
+    });
+    const [insightShowAll, setInsightShowAll] = useState(() => {
+        try { return !localStorage.getItem(INSIGHT_STORAGE_KEY); } catch { return true; }
+    });
+
+    const saveInsightPrefs = (ids: Set<string>, showAll: boolean) => {
+        setVisibleInsightIds(ids);
+        setInsightShowAll(showAll);
+        if (showAll) {
+            localStorage.removeItem(INSIGHT_STORAGE_KEY);
+        } else {
+            localStorage.setItem(INSIGHT_STORAGE_KEY, JSON.stringify(Array.from(ids)));
+        }
+    };
+
+    const toggleInsightVisibility = (id: string) => {
+        const newIds = new Set<string>(visibleInsightIds);
+        if (newIds.has(id)) newIds.delete(id); else newIds.add(id);
+        saveInsightPrefs(newIds, false);
+    };
+
+    const resetInsightsToDefault = () => {
+        saveInsightPrefs(new Set<string>(), true);
+    };
 
     React.useEffect(() => {
         const check = () => setIsMobile(window.innerWidth < 768);
@@ -330,7 +469,55 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
             { id: 'most-positions', title: 'Most Positions', icon: <UsersIcon size={16} />, value: `${mostPos.positions.length}`, entity: mostPos.teacherName, entityColor: mostPos.teacherColor, context: mostPos.positions.map(p => p.positionName).join(', '), highlight: 'neutral', gradient: 'bg-gradient-to-r from-pink-400 to-rose-600' },
             { id: 'active-teachers', title: 'Active Teachers', icon: <Activity size={16} />, value: `${activeCount}`, context: `Out of ${teachers.length} total`, highlight: 'neutral', gradient: 'bg-gradient-to-r from-sky-400 to-blue-600' },
         ];
-    }, [reportData, totals, teachers]);
+    }, [reportData, totals, teachers, settings.currency]);
+
+    const customInsightTiles: InsightTile[] = useMemo(() => {
+        return customInsights.map(ci => {
+            let valueStr = '';
+            let entity = ci.teacherId ? teachers.find(t => t.id === ci.teacherId)?.fullName : 'All Teachers';
+
+            const ds = ci.teacherId ? reportData.filter(r => r.teacherId === ci.teacherId) : reportData;
+            const totalHrs = ds.reduce((s, r) => s + r.totalActiveHours, 0);
+            const cancHrs = ds.reduce((s, r) => s + r.totalCanceledHours, 0);
+            const grandTot = ds.reduce((s, r) => s + r.grandTotal, 0);
+            const hrTot = ds.reduce((s, r) => s + r.hourlyCostTotal, 0);
+            const glTot = ds.reduce((s, r) => s + r.globalCostTotal, 0);
+            const count = ds.length || 1;
+
+            if (ci.metric === 'totalActiveHours') valueStr = formatHours(totalHrs);
+            else if (ci.metric === 'totalCanceledHours') valueStr = formatHours(cancHrs);
+            else if (ci.metric === 'hourlyCostTotal') valueStr = formatCurrency(hrTot, settings.currency);
+            else if (ci.metric === 'globalCostTotal') valueStr = formatCurrency(glTot, settings.currency);
+            else if (ci.metric === 'grandTotal') valueStr = formatCurrency(grandTot, settings.currency);
+            else if (ci.metric === 'avgActiveHours') valueStr = formatHours(totalHrs / count);
+            else if (ci.metric === 'avgGrandTotal') valueStr = formatCurrency(grandTot / count, settings.currency);
+            else if (ci.metric === 'cancellationRate') valueStr = `${(((cancHrs) / Math.max(totalHrs + cancHrs, 1)) * 100).toFixed(1)}%`;
+            else if (ci.metric === 'maxEarner') {
+                const max = [...ds].sort((a, b) => b.grandTotal - a.grandTotal)[0];
+                valueStr = max ? formatCurrency(max.grandTotal, settings.currency) : '—';
+                if (max && !ci.teacherId) entity = max.teacherName;
+            }
+            else if (ci.metric === 'minEarner') {
+                const validDs = ds.filter(r => r.grandTotal > 0);
+                const min = [...validDs].sort((a, b) => a.grandTotal - b.grandTotal)[0];
+                valueStr = min ? formatCurrency(min.grandTotal, settings.currency) : '—';
+                if (min && !ci.teacherId) entity = min.teacherName;
+            }
+
+            return {
+                id: ci.id,
+                title: ci.title,
+                icon: <Zap size={16} />,
+                value: valueStr,
+                highlight: 'neutral',
+                gradient: 'bg-gradient-to-r from-slate-400 to-slate-600',
+                entity: entity,
+                isCustom: true
+            };
+        });
+    }, [reportData, customInsights, teachers, settings.currency]);
+
+    const allInsightTiles = useMemo(() => [...insightTiles, ...customInsightTiles], [insightTiles, customInsightTiles]);
 
     // Filter pills
     const activeFilterPills: { label: string; color: string; onRemove: () => void }[] = [];
@@ -437,12 +624,104 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
                                 <Zap size={18} className="text-amber-500" /> Key Insights
-                                <span className="text-xs font-normal bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full">{insightTiles.length}</span>
+                                <span className="text-xs font-normal bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full">
+                                    {insightShowAll ? allInsightTiles.length : `${visibleInsightIds.size} / ${allInsightTiles.length}`}
+                                </span>
                             </h3>
-                            <span className="text-[10px] text-slate-400 flex items-center gap-1"><Activity size={10} /> Updated {lastUpdated.toLocaleTimeString()}</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-slate-400 flex items-center gap-1"><Activity size={10} /> Updated {lastUpdated.toLocaleTimeString()}</span>
+                                <button
+                                    onClick={() => setIsInsightPickerOpen(!isInsightPickerOpen)}
+                                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${isInsightPickerOpen
+                                        ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700'
+                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border border-transparent'
+                                        }`}
+                                >
+                                    <SettingsIcon size={12} />
+                                    {isInsightPickerOpen ? 'Done' : 'Edit'}
+                                </button>
+                            </div>
                         </div>
+
+                        {/* Insight Picker Panel */}
+                        {isInsightPickerOpen && (
+                            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg mb-4 p-4 animate-in slide-in-from-top">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Choose Visible Insights</h4>
+                                        {!insightShowAll && (
+                                            <span className="text-[10px] bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
+                                                {visibleInsightIds.size} selected
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setIsCustomInsightModalOpen(true)}
+                                            className="text-[11px] text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium flex items-center gap-1 transition-colors mr-2"
+                                        >
+                                            <Plus size={12} /> Custom Insight
+                                        </button>
+                                        {!insightShowAll && (
+                                            <button
+                                                onClick={resetInsightsToDefault}
+                                                className="text-[11px] text-slate-400 hover:text-blue-500 dark:text-slate-500 dark:hover:text-blue-400 font-medium flex items-center gap-1 transition-colors"
+                                            >
+                                                <RotateCcw size={10} /> Show All
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                                    {allInsightTiles.map(tile => {
+                                        const isVisible = insightShowAll || visibleInsightIds.has(tile.id);
+                                        return (
+                                            <button
+                                                key={tile.id}
+                                                onClick={() => toggleInsightVisibility(tile.id)}
+                                                className={`relative flex items-center gap-2 px-3 py-2.5 rounded-lg border text-left transition-all text-xs ${isVisible
+                                                    ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-700 shadow-sm'
+                                                    : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 opacity-50'
+                                                    }`}
+                                            >
+                                                <div className={`p-1 rounded ${isVisible
+                                                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-400'
+                                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'
+                                                    }`}>
+                                                    {tile.icon}
+                                                </div>
+                                                <span className={`font-medium truncate ${isVisible
+                                                    ? 'text-slate-700 dark:text-slate-200'
+                                                    : 'text-slate-400 dark:text-slate-500'
+                                                    }`}>
+                                                    {tile.title}
+                                                </span>
+                                                {tile.isCustom && (
+                                                    <button onClick={(e) => handleDeleteCustomInsight(e, tile.id)} className="ml-1 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors text-slate-400 hover:text-red-500">
+                                                        <Trash2 size={10} />
+                                                    </button>
+                                                )}
+                                                {isVisible && (
+                                                    <Check size={12} className="text-blue-500 dark:text-blue-400 flex-shrink-0 ml-auto" />
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                            {insightTiles.map(tile => <InsightCard key={tile.id} tile={tile} />)}
+                            {allInsightTiles
+                                .filter(tile => insightShowAll || visibleInsightIds.has(tile.id))
+                                .map(tile => <InsightCard key={tile.id} tile={tile} />)
+                            }
+                            {!insightShowAll && visibleInsightIds.size === 0 && (
+                                <div className="col-span-full text-center py-6 text-slate-400 dark:text-slate-500 text-sm">
+                                    <EyeOff size={20} className="mx-auto mb-2 opacity-50" />
+                                    No insights selected. Click <strong>Edit</strong> to choose which insights to display.
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -561,6 +840,21 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                     editingChart={editingChart}
                     currencySymbol={settings.currency}
                 />
+
+                {isCustomInsightModalOpen && (
+                    <CustomInsightModal
+                        teachers={teachers}
+                        onClose={() => setIsCustomInsightModalOpen(false)}
+                        onSave={(info) => {
+                            saveCustomInsights([...customInsights, info]);
+                            setIsCustomInsightModalOpen(false);
+                            // Auto-show the new insight
+                            const newVisible = new Set<string>(visibleInsightIds);
+                            newVisible.add(info.id);
+                            saveInsightPrefs(newVisible, false);
+                        }}
+                    />
+                )}
 
                 {/* Delete Confirmation Modal */}
                 {deletingChart && (

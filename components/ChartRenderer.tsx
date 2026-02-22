@@ -456,10 +456,10 @@ const TableRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys, co
     };
 
     const SortIcon: React.FC<{ col: string }> = ({ col }) => {
-        if (sortCol !== col) return <ChevronDown size={10} className="opacity-30 ml-1 inline" />;
+        if (sortCol !== col) return <ChevronDown size={10} className="text-slate-400 dark:text-slate-500 ml-1 inline" />;
         return sortDir === 'asc'
-            ? <ChevronUp size={10} className="text-blue-500 ml-1 inline" />
-            : <ChevronDown size={10} className="text-blue-500 ml-1 inline" />;
+            ? <ChevronUp size={10} className="text-blue-500 dark:text-blue-400 ml-1 inline" />
+            : <ChevronDown size={10} className="text-blue-500 dark:text-blue-400 ml-1 inline" />;
     };
 
     /** Get the CSS class for a cell based on whether it's min, max, or neither */

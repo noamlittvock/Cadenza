@@ -351,9 +351,11 @@ export const MergedChartRenderer: React.FC<MergedChartRendererProps> = ({
                                 }}
                             />
                             <span style={{
-                                color: isHidden ? '#94a3b8' : '#64748b',
+                                color: isHidden ? '#94a3b8' : undefined,
                                 textDecoration: isHidden ? 'line-through' : 'none',
-                            }}>
+                            }}
+                                className={isHidden ? '' : 'text-slate-500 dark:text-slate-300'}
+                            >
                                 {ds.label}
                                 {ds.isPrimary && ' ★'}
                             </span>
@@ -619,10 +621,10 @@ const MergedTableRenderer: React.FC<MergedTableRendererProps> = ({
     };
 
     const SortIcon: React.FC<{ col: string }> = ({ col }) => {
-        if (sortCol !== col) return <ChevronDown size={10} className="opacity-30 ml-0.5 inline" />;
+        if (sortCol !== col) return <ChevronDown size={10} className="text-slate-400 dark:text-slate-500 ml-0.5 inline" />;
         return sortDir === 'asc'
-            ? <ChevronUp size={10} className="text-blue-500 ml-0.5 inline" />
-            : <ChevronDown size={10} className="text-blue-500 ml-0.5 inline" />;
+            ? <ChevronUp size={10} className="text-blue-500 dark:text-blue-400 ml-0.5 inline" />
+            : <ChevronDown size={10} className="text-blue-500 dark:text-blue-400 ml-0.5 inline" />;
     };
 
     return (
@@ -630,7 +632,7 @@ const MergedTableRenderer: React.FC<MergedTableRendererProps> = ({
             <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-medium sticky top-0 z-10">
                     <tr>
-                        <th className="px-3 py-2 text-[10px] uppercase tracking-wider cursor-pointer hover:text-slate-700 transition-colors"
+                        <th className="px-3 py-2 text-[10px] uppercase tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
                             onClick={() => handleSort('__name__')}>
                             {dimLabel} <SortIcon col="__name__" />
                         </th>
@@ -638,7 +640,7 @@ const MergedTableRenderer: React.FC<MergedTableRendererProps> = ({
                             const dsLabel = seriesDatasetMap[k];
                             return (
                                 <th key={k}
-                                    className="px-3 py-2 text-right text-[10px] uppercase tracking-wider cursor-pointer hover:text-slate-700 transition-colors"
+                                    className="px-3 py-2 text-right text-[10px] uppercase tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
                                     onClick={() => handleSort(k)}
                                     onMouseEnter={() => setHoveredDataset(dsLabel)}
                                     onMouseLeave={() => setHoveredDataset(null)}
@@ -663,13 +665,11 @@ const MergedTableRenderer: React.FC<MergedTableRendererProps> = ({
                                 const dsLabel = seriesDatasetMap[k];
                                 return (
                                     <td key={k}
-                                        className="px-3 py-2 text-right tabular-nums transition-opacity duration-200"
+                                        className={`px-3 py-2 text-right tabular-nums transition-opacity duration-200 ${mMax ? 'font-bold text-emerald-500 dark:text-emerald-400' : mMin ? 'font-bold text-red-500 dark:text-red-400' : 'text-slate-600 dark:text-slate-300'}`}
                                         onMouseEnter={() => setHoveredDataset(dsLabel)}
                                         onMouseLeave={() => setHoveredDataset(null)}
                                         style={{
                                             opacity: hoveredDataset && hoveredDataset !== dsLabel ? 0.3 : 1,
-                                            fontWeight: mMax || mMin ? 700 : 400,
-                                            color: mMax ? '#22c55e' : mMin ? '#ef4444' : undefined,
                                         }}>
                                         <span className="inline-flex items-center gap-0.5">
                                             {formatValueSmart(val, k, metrics, currencySymbol)}
