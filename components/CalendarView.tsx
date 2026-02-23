@@ -1164,7 +1164,7 @@ export const CalendarView: React.FC<Props> = ({
                           </div>
                         </div>
 
-                        <button onClick={(e) => { e.stopPropagation(); handleSlotClick(day, 10); }} className="text-slate-300 hover:text-blue-500 opacity-0 group-hover/cell:opacity-100 transition-opacity">
+                        <button onClick={(e) => { e.stopPropagation(); handleSlotClick(day, 10); }} className="text-slate-300 hover:text-blue-500 opacity-0 group-hover/cell:opacity-100 transition-opacity relative z-30">
                           <Plus size={14} />
                         </button>
                       </div>
