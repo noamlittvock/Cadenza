@@ -1,4 +1,4 @@
-import { Teacher, CalendarEvent, Room, Classification, PositionAssignment, RateType } from '../types';
+import { Teacher, CalendarEvent, Room, Classification, PositionAssignment, RateType, GanttBlock } from '../types';
 import { COLORS } from '../constants';
 
 // ---- Rich position/tag/name pools for maximum diversity ----
@@ -224,6 +224,41 @@ export const generateTestCalendar = (teachers: Teacher[], existingRooms: Room[],
     return events;
 };
 
+export const generateTestGantts = (teachers: Teacher[]): GanttBlock[] => {
+    const gantts: GanttBlock[] = [];
+    const TARGET_GANTT_COUNT = 15;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const TITLES = ['Summer Break', 'Workshop Series', 'Conference', 'Studio Renovation', 'Tour', 'Examination Period'];
+
+    for (let i = 0; i < TARGET_GANTT_COUNT; i++) {
+        const dayOffsetStart = randomInt(-30, 30);
+        const start = new Date(today);
+        start.setDate(start.getDate() + dayOffsetStart);
+
+        const durationDays = randomInt(2, 14);
+        const end = new Date(start);
+        end.setDate(end.getDate() + durationDays);
+        end.setHours(23, 59, 59, 999);
+
+        const isTeacherSpecific = Math.random() < 0.5;
+        const assignedTeacher = isTeacherSpecific ? random(teachers) : undefined;
+        const baseColor = assignedTeacher ? assignedTeacher.color : random(COLORS);
+
+        gantts.push({
+            id: `GEN_GANTT_${generateId()}_${i}`,
+            title: assignedTeacher ? `${assignedTeacher.fullName.split(' ')[0]} - ${random(TITLES)}` : random(TITLES),
+            startDate: start.toISOString(),
+            endDate: end.toISOString(),
+            color: baseColor,
+            isBlackout: false
+        });
+    }
+
+    return gantts;
+};
+
 export const generateTestData = (currencySymbol: string = '₪') => {
     const rooms: Room[] = [
         { id: 'R1', name: 'Studio A', itinerary: 'Grand Piano, Sound System' },
@@ -237,5 +272,6 @@ export const generateTestData = (currencySymbol: string = '₪') => {
     ];
     const teachers = generateTestTeachers(currencySymbol);
     const events = generateTestCalendar(teachers, rooms, currencySymbol);
-    return { teachers, events, rooms };
+    const ganttBlocks = generateTestGantts(teachers);
+    return { teachers, events, rooms, ganttBlocks };
 };

@@ -279,6 +279,7 @@ function AppContent() {
               setTeachers(data.teachers);
               setEvents(data.events);
               setRooms(data.rooms);
+              setGanttBlocks(data.ganttBlocks);
             }}
           />
         );
