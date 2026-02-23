@@ -8,6 +8,62 @@ export enum Classification {
   OTHER = 'Other'
 }
 
+export type CancellationPayStatus = 'PAID_CANCELLATION' | 'NO_PAY_CANCELLATION';
+
+export interface AddOnItem {
+  id: string;
+  label: string;
+  amount: number;
+  tagCategory?: string;
+  affectsPayroll: boolean;
+  notes?: string;
+}
+
+export interface RateSnapshot {
+  rateValue: number;
+  rateType: RateType;
+  source: 'RATE_CARD' | 'MANUAL';
+}
+
+export interface RateSourceRef {
+  rateCardId: string;
+  rateVersionId: string;
+  effectiveDateUsed: string;
+}
+
+export interface RateCardEntry {
+  id: string;
+  categoryId: string;
+  teacherId?: string;
+  positionId?: string;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  rateType: RateType;
+  rateValue: number;
+}
+
+export interface RateCard {
+  id: string;
+  versionId: string;
+  entries: RateCardEntry[];
+}
+
+export interface CategorySchemaField {
+  id: string;
+  label: string;
+  type: 'text' | 'number' | 'boolean' | 'date' | 'select';
+  options?: string[];
+  required?: boolean;
+}
+
+export interface CategorySchema {
+  id: string;
+  name: string;
+  fields: CategorySchemaField[];
+  hasSubtypes?: boolean;
+  subtypes?: { id: string; name: string }[];
+}
+
 // Rate assignment types for position-based billing
 export type RateType = 'HOURLY' | 'GLOBAL_MONTHLY';
 
@@ -53,8 +109,18 @@ export interface CalendarEvent {
   id: string;
   name: string;
   description: string;
-  teacherId: string;
-  roomId: string;
+  teacherId?: string;
+  roomId?: string;
+  categoryId?: string;
+  subtypeId?: string;
+  schemaPayload?: Record<string, any>;
+  pricingSnapshot?: RateSnapshot;
+  rateSourceRef?: RateSourceRef;
+  overrideFlags?: { isRateOverridden?: boolean, [key: string]: any };
+  overrideReason?: string;
+  cancellationPayStatus?: CancellationPayStatus;
+  addOnItems?: AddOnItem[];
+  audit?: { createdBy?: string; updatedBy?: string; createdAt?: string; updatedAt?: string; };
   positionId?: string;       // Links to a PositionAssignment.id on the teacher
   classification: string;
   start: string; // ISO Date String
@@ -96,6 +162,7 @@ export interface AppSettings {
   defaultEventDuration: number;
   weekNumberDisplay: 'none' | 'week-number' | 'week-of';
   currency: string;
+  developerMode: boolean;
 }
 
 export interface ListsState {

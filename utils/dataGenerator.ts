@@ -88,33 +88,26 @@ const pickUnique = <T>(arr: T[], count: number): T[] => {
 
 // ---- Main Generator ----
 
-export const generateTestData = (currencySymbol: string = '₪') => {
+export const generateTestTeachers = (currencySymbol: string = '₪') => {
     const teachers: Teacher[] = [];
-    const events: CalendarEvent[] = [];
     const usedNames = new Set<string>();
 
-    // Generate 20 Teachers with diverse positions, tags, and rates
     for (let i = 1; i <= 20; i++) {
-        // Unique name
         let fullName = '';
-        do {
-            fullName = `${random(FIRST_NAMES)} ${random(LAST_NAMES)}`;
-        } while (usedNames.has(fullName));
+        do { fullName = `${random(FIRST_NAMES)} ${random(LAST_NAMES)}`; } while (usedNames.has(fullName));
         usedNames.add(fullName);
 
-        // 1-4 positions per teacher (weighted: ~30% get 1, ~35% get 2, ~25% get 3, ~10% get 4)
         const roll = Math.random();
         const posCount = roll < 0.30 ? 1 : roll < 0.65 ? 2 : roll < 0.90 ? 3 : 4;
         const chosenPositions = pickUnique(POSITION_POOL, posCount);
 
         const positionAssignments: PositionAssignment[] = chosenPositions.map((pos, idx) => {
-            // Diverse rate types: ~60% hourly, ~40% global monthly
             const rateType: RateType = Math.random() > 0.4 ? 'HOURLY' : 'GLOBAL_MONTHLY';
-            // Hourly: 100-150 in steps of 10 (round numbers)
-            // Global Monthly: 2,000-8,000 in steps of 500 (round numbers)
+            // hourly rate: 150–300 step 50 (150, 200, 250, 300)
+            // global monthly: 1000–6000 (we can use step 1000)
             const rateValue = rateType === 'HOURLY'
-                ? (randomInt(10, 15) * 10)      // 100, 110, 120, 130, 140, 150
-                : (randomInt(4, 16) * 500);     // 2000, 2500, 3000, ..., 8000
+                ? (randomInt(3, 6) * 50)
+                : (randomInt(1, 6) * 1000);
 
             return {
                 id: `T${i}_PA${idx}`,
@@ -125,27 +118,91 @@ export const generateTestData = (currencySymbol: string = '₪') => {
             };
         });
 
-        // 1-4 tags per teacher
         const tagCount = randomInt(1, 4);
         const tags = pickUnique(TAG_POOL, tagCount);
 
         teachers.push({
-            id: `T${i}`,
-            fullName,
-            positions: positionAssignments.map(pa => pa.positionName),
-            positionAssignments,
-            tags,
-            phone: `555-${randomInt(100, 999)}-${randomInt(1000, 9999)}`,
-            email: `${fullName.toLowerCase().replace(' ', '.')}@music.com`,
-            color: COLORS[(i - 1) % COLORS.length],
+            id: `T${i}`, fullName, positions: positionAssignments.map(pa => pa.positionName), positionAssignments,
+            tags, phone: `555-${randomInt(100, 999)}-${randomInt(1000, 9999)}`,
+            email: `${fullName.toLowerCase().replace(' ', '.')}@music.com`, color: COLORS[(i - 1) % COLORS.length]
         });
     }
+    return teachers;
+};
 
-    // Generate ~200 Events with diverse position linkage
+export const generateTestCalendar = (teachers: Teacher[], existingRooms: Room[], currencySymbol: string = '₪') => {
+    const events: CalendarEvent[] = [];
     const TARGET_EVENT_COUNT = 200;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    const DURATIONS = [30, 45, 60, 90, 120, 150, 180]; // 30m - 3h
+
+    const CLASSIFICATIONS = [Classification.INDIVIDUAL, Classification.GROUP, Classification.OTHER];
+
+    for (let i = 0; i < TARGET_EVENT_COUNT; i++) {
+        const teacher = random(teachers);
+        const pa = teacher ? random(teacher.positionAssignments) : undefined;
+        const room = existingRooms.length > 0 ? random(existingRooms) : { id: 'R1', name: 'Virtual', itinerary: '' };
+
+        const dayOffset = randomInt(-30, 30);
+        const date = new Date(today);
+        date.setDate(date.getDate() + dayOffset);
+
+        // 08:00–22:00
+        const startHour = randomInt(8, 21); // up to 21 (9 PM) so end time can be up to 10 PM roughly depending on duration
+        const startMinute = random([0, 15, 30, 45]); // 15-minute increments
+
+        const start = new Date(date);
+        start.setHours(startHour, startMinute, 0, 0);
+
+        const duration = random(DURATIONS);
+        const end = new Date(start.getTime() + duration * 60000);
+
+        // Ensure within 22:00
+        if (end.getHours() >= 22 && end.getMinutes() > 0) {
+            end.setHours(22, 0, 0, 0);
+        }
+
+        const template = random(EVENT_NAME_TEMPLATES);
+        const posShort = pa ? pa.positionName.split(' ')[0] : 'Event';
+        const studentName = random(STUDENT_NAMES);
+        const eventName = template.replace('{pos}', posShort).replace('{student}', studentName);
+
+        const isCanceled = Math.random() < 0.10;
+        const isHidden = !isCanceled && Math.random() < 0.05;
+
+        // Add cancellation pay status randomly if canceled
+        const cancellationPayStatus = isCanceled ? (Math.random() < 0.5 ? 'PAID_CANCELLATION' : 'NO_PAY_CANCELLATION') as any : undefined;
+
+        let classification: string = Classification.INDIVIDUAL;
+        if (pa) {
+            if (pa.category === 'Individual Lesson') classification = Classification.INDIVIDUAL;
+            else if (pa.category === 'Group Lesson') classification = Classification.GROUP;
+            else if (pa.category === 'Administrative') classification = Classification.OTHER;
+            else classification = random(CLASSIFICATIONS);
+        }
+
+        events.push({
+            id: `GEN_${generateId()}_${i}`,
+            name: eventName,
+            description: pa ? `${pa.positionName} (${duration} min)` : `Random Event`,
+            teacherId: teacher?.id,
+            roomId: room.id,
+            positionId: pa?.id,
+            classification,
+            start: start.toISOString(),
+            end: end.toISOString(),
+            isCanceled,
+            isHidden,
+            cancellationPayStatus
+        });
+    }
+
+    return events;
+};
+
+export const generateTestData = (currencySymbol: string = '₪') => {
     const rooms: Room[] = [
         { id: 'R1', name: 'Studio A', itinerary: 'Grand Piano, Sound System' },
         { id: 'R2', name: 'Studio B', itinerary: 'Upright Piano, Whiteboard' },
@@ -156,70 +213,7 @@ export const generateTestData = (currencySymbol: string = '₪') => {
         { id: 'R7', name: 'Ensemble Room', itinerary: 'Large Room, Chairs, Stands' },
         { id: 'R8', name: 'Theory Lab', itinerary: 'Computers, Headphones' },
     ];
-
-    const DURATIONS = [30, 30, 45, 45, 60, 60, 60, 90, 120]; // weighted towards 45-60 min
-
-    const CLASSIFICATIONS = [
-        Classification.INDIVIDUAL, Classification.INDIVIDUAL, Classification.INDIVIDUAL,
-        Classification.GROUP, Classification.GROUP,
-        Classification.OTHER,
-    ]; // weighted toward individual
-
-    for (let i = 0; i < TARGET_EVENT_COUNT; i++) {
-        const teacher = random(teachers);
-
-        // Pick a random position from this teacher's assignments
-        const pa = random(teacher.positionAssignments);
-        const room = random(rooms);
-
-        // Random date: weighted more toward current month (+/- 45 days, skewed recent)
-        const dayOffset = Math.random() < 0.6
-            ? randomInt(-14, 30)   // 60% within 2 weeks ago to 1 month ahead
-            : randomInt(-60, 60);  // 40% across wider range
-        const date = new Date(today);
-        date.setDate(date.getDate() + dayOffset);
-
-        // Random start hour (8 AM to 8 PM)
-        const startHour = randomInt(8, 20);
-        const startMinute = random([0, 15, 30, 45]);
-
-        const start = new Date(date);
-        start.setHours(startHour, startMinute, 0, 0);
-
-        const duration = random(DURATIONS);
-        const end = new Date(start.getTime() + duration * 60000);
-
-        // Event name from template
-        const template = random(EVENT_NAME_TEMPLATES);
-        const posShort = pa.positionName.split(' ')[0]; // "Piano" from "Piano Instructor"
-        const studentName = random(STUDENT_NAMES);
-        const eventName = template.replace('{pos}', posShort).replace('{student}', studentName);
-
-        // ~10% canceled, ~5% hidden
-        const isCanceled = Math.random() < 0.10;
-        const isHidden = !isCanceled && Math.random() < 0.05;
-
-        // Classification: use position's category if it maps, else random
-        let classification: Classification;
-        if (pa.category === 'Individual Lesson') classification = Classification.INDIVIDUAL;
-        else if (pa.category === 'Group Lesson') classification = Classification.GROUP;
-        else if (pa.category === 'Administrative') classification = Classification.OTHER;
-        else classification = random(CLASSIFICATIONS);
-
-        events.push({
-            id: `GEN_${generateId()}_${i}`,
-            name: eventName,
-            description: `${pa.positionName} (${duration} min) — ${pa.rateType === 'HOURLY' ? `${currencySymbol}${pa.rateValue}/hr` : `${currencySymbol}${pa.rateValue}/mo global`}`,
-            teacherId: teacher.id,
-            roomId: room.id,
-            positionId: pa.id,
-            classification: classification as string,
-            start: start.toISOString(),
-            end: end.toISOString(),
-            isCanceled,
-            isHidden,
-        });
-    }
-
+    const teachers = generateTestTeachers(currencySymbol);
+    const events = generateTestCalendar(teachers, rooms, currencySymbol);
     return { teachers, events, rooms };
 };

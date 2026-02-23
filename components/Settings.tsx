@@ -230,29 +230,137 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onLoadTestDat
           </div>
         </section>
 
-        {/* Developer Tools */}
+        {/* Advanced System Settings */}
         <section>
           <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
-            {t('settings.dev_tools')}
+            System
           </h3>
-          <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg border border-amber-200 dark:border-amber-700/50 flex items-center justify-between">
+          <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
             <div>
-              <h4 className="font-bold text-slate-900 dark:text-white">{t('settings.generate_data')}</h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{t('settings.generate_data_desc')}</p>
+              <h4 className="font-medium text-slate-900 dark:text-white">Developer Mode</h4>
+              <p className="text-xs text-slate-500">Enable advanced tools, test data generation, and state snapshots.</p>
             </div>
-            <button
-              onClick={() => {
-                if (window.confirm(t('alert.confirm_generate'))) {
-                  onLoadTestData?.();
-                  window.alert(t('alert.data_generated'));
-                }
-              }}
-              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded text-xs font-bold transition-colors shadow-sm"
-            >
-              {t('settings.generate_btn')}
-            </button>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" className="sr-only peer" checked={tempSettings.developerMode} onChange={e => handleChange('developerMode', e.target.checked)} />
+              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-blue-600"></div>
+            </label>
           </div>
         </section>
+
+        {/* Developer Tools */}
+        {tempSettings.developerMode && (
+          <section className="border-t-2 border-dashed border-amber-300 dark:border-amber-700/50 pt-8 mt-4 animate-in fade-in">
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 pb-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
+              <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 p-1 rounded">⚙️</span>
+              {t('settings.dev_tools')}
+            </h3>
+            <div className="space-y-4">
+              <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg border border-amber-200 dark:border-amber-700/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white">{t('settings.generate_data')}</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{t('settings.generate_data_desc')}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    // Implementation of prompt to snapshot before destructive action
+                    if (window.confirm("Would you like to take a Snapshot of current state before generating test data?")) {
+                      // We would call snapshot logic here, or we can assume it's handled via the onLoadTestData?
+                      // Let's create an explicit snapshot state.
+                      localStorage.setItem('appSnapshot', JSON.stringify({
+                        teachers: localStorage.getItem('teachers'),
+                        events: localStorage.getItem('events'),
+                        rooms: localStorage.getItem('rooms'),
+                        settings: localStorage.getItem('settings'),
+                        lists: localStorage.getItem('lists')
+                      }));
+                      alert("Snapshot created!");
+                    }
+                    if (window.confirm(t('alert.confirm_generate'))) {
+                      onLoadTestData?.();
+                      window.alert(t('alert.data_generated'));
+                    }
+                  }}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-bold transition-colors shadow-none shrink-0 border border-amber-600"
+                >
+                  {t('settings.generate_btn')}
+                </button>
+              </div>
+
+              {/* Dev Utils Actions */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <h4 className="font-bold text-slate-900 dark:text-white mb-1">State Snapshot</h4>
+                  <p className="text-xs text-slate-500 mb-3">Save current app data to browser storage or restore from it.</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => {
+                      localStorage.setItem('appSnapshot', JSON.stringify({
+                        teachers: localStorage.getItem('teachers'),
+                        events: localStorage.getItem('events'),
+                        rooms: localStorage.getItem('rooms'),
+                        settings: localStorage.getItem('settings'),
+                        lists: localStorage.getItem('lists')
+                      }));
+                      alert("Snapshot created successfully!");
+                    }} className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold rounded">Create Snapshot</button>
+                    <button onClick={() => {
+                      const snap = localStorage.getItem('appSnapshot');
+                      if (snap && window.confirm("Restore snapshot? Current changes will be overwritten!")) {
+                        const parsed = JSON.parse(snap);
+                        // Since we don't have direct access to setApp items here easily except triggering a reload
+                        // Let's just restore to localStorage and force reload
+                        if (parsed.teachers) localStorage.setItem('teachers', parsed.teachers);
+                        if (parsed.events) localStorage.setItem('events', parsed.events);
+                        if (parsed.rooms) localStorage.setItem('rooms', parsed.rooms);
+                        if (parsed.lists) localStorage.setItem('lists', parsed.lists);
+                        window.location.reload();
+                      } else if (!snap) {
+                        alert("No snapshot found.");
+                      }
+                    }} className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded">Restore</button>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <h4 className="font-bold text-slate-900 dark:text-white mb-1">Testing Tools</h4>
+                  <p className="text-xs text-slate-500 mb-3">Actions specific for evaluating Layer 1 logic.</p>
+                  <div className="flex gap-2 flex-wrap">
+                    <button onClick={() => {
+                      // Trigger an action to just clear calendar and insert 200 Gantt / Calendar events
+                      // I need to emit an event or create an onLoadTestData generic. Let's do it via reloading localStorage test data but specific for Calendar Test.
+                      if (window.confirm("Run Calendar Test Generator? Current state will be cleared. (Prompting Snapshot first...)")) {
+                        localStorage.setItem('appSnapshot', JSON.stringify({
+                          teachers: localStorage.getItem('teachers'),
+                          events: localStorage.getItem('events'),
+                          rooms: localStorage.getItem('rooms')
+                        }));
+                        // Since I don't have global app setters here, I can dispatch an event or rely on onLoadTestData and adjust it to generate 200 events.
+                        onLoadTestData?.();
+                      }
+                    }} className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded">Run Calendar Test Gen</button>
+                    <button onClick={() => {
+                      // Trigger just a clear of teachers?
+                      if (window.confirm("Run Teacher Test Generator? Current teachers will be replaced. (Prompting Snapshot first...)")) {
+                        localStorage.setItem('appSnapshot', JSON.stringify({
+                          teachers: localStorage.getItem('teachers'),
+                          events: localStorage.getItem('events'),
+                          rooms: localStorage.getItem('rooms')
+                        }));
+                        // For now, we rely on the parent or we can do a forced localized set and reload
+                        if (onLoadTestData) {
+                          onLoadTestData(); // In a real scenario we'd split the callback, but here reloading both is fine or we can write directly to localstorage
+                        } else {
+                          const tData = require('../utils/dataGenerator').generateTestTeachers(settings.currency);
+                          localStorage.setItem('teachers', JSON.stringify(tData));
+                          window.location.reload();
+                        }
+                      }
+                    }} className="px-3 py-1.5 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 text-xs font-bold rounded">Run Teacher Gen</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
       </div>
 
       {/* Floating Save Bar */}

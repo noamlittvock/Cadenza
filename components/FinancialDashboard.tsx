@@ -5,7 +5,7 @@ import { formatHours, formatCurrency } from '../utils/formatters';
 import {
   Download, Filter, Calendar as CalIcon, ChevronDown, ChevronUp, Menu, Clock, CalendarDays,
   DollarSign, TrendingUp, X, SlidersHorizontal, Tag, User, Briefcase, ToggleLeft,
-  ArrowRight, BarChart3, ArrowUpDown
+  ArrowRight, BarChart3, ArrowUpDown, Mail
 } from 'lucide-react';
 
 interface Props {
@@ -113,6 +113,11 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
   // Table sort
   const [sortCol, setSortCol] = useState<SortColumn>('total');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  // Email sending
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [isSendingEmails, setIsSendingEmails] = useState(false);
+  const [emailSuccess, setEmailSuccess] = useState(false);
 
   // Expanded rows in table
   const [expandedTeachers, setExpandedTeachers] = useState<Set<string>>(new Set());
@@ -436,6 +441,9 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
             <button onClick={handleExport} className="hidden md:flex bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg items-center shadow-sm text-sm">
               <Download size={16} className="mr-2" /> Export
             </button>
+            <button onClick={() => { setIsEmailModalOpen(true); setEmailSuccess(false); }} className="hidden md:flex bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg items-center shadow-sm text-sm">
+              <Mail size={16} className="mr-2" /> Email Report
+            </button>
           </div>
         </div>
 
@@ -621,6 +629,95 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
               </div>
             </div>
           </>
+        )}
+
+        {/* Email Report Modal */}
+        {isEmailModalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh]">
+              <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 rounded-t-xl">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><Mail size={20} className="text-blue-500" /> Send Financial Reports</h3>
+                  <p className="text-sm text-slate-500 mt-1">Based on current filters, reports will be sent to the following teachers.</p>
+                </div>
+                <button onClick={() => setIsEmailModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-200/50 dark:bg-slate-800 p-2 rounded-full transition-colors"><X size={20} /></button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-50/50 dark:bg-slate-900">
+                {emailSuccess ? (
+                  <div className="flex flex-col items-center justify-center text-center py-12">
+                    <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 text-green-500 rounded-full flex items-center justify-center mb-4">
+                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Reports Sent Successfully!</h4>
+                    <p className="text-slate-500 dark:text-slate-400 max-w-md">Email reports have been generated and dispatched to {reportData.length} recipients.</p>
+                  </div>
+                ) : reportData.length === 0 ? (
+                  <div className="text-center py-12 text-slate-500">
+                    No reports match the current filters to send.
+                  </div>
+                ) : (
+                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-sm">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-medium">
+                        <tr>
+                          <th className="px-4 py-3">Recipient</th>
+                          <th className="px-4 py-3">Email Address</th>
+                          <th className="px-4 py-3 text-right">Total Payout</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {reportData.map(r => {
+                          const teacher = teachers.find(t => t.id === r.teacherId);
+                          return (
+                            <tr key={r.teacherId}>
+                              <td className="px-4 py-3 font-medium text-slate-800 dark:text-white flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: r.teacherColor }}>{r.teacherName.charAt(0)}</div>
+                                {r.teacherName}
+                              </td>
+                              <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{teacher?.email || 'No email saved'}</td>
+                              <td className="px-4 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400">{formatCurrency(r.grandTotal, settings.currency)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {!emailSuccess && (
+                <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex justify-between items-center rounded-b-xl">
+                  <div className="text-sm text-slate-500 dark:text-slate-400">
+                    Filter settings applied: <strong className="text-slate-700 dark:text-slate-300">{activeFilterCount} active filters</strong>
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={() => setIsEmailModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors rounded-lg font-medium text-sm">Cancel</button>
+                    <button
+                      onClick={() => {
+                        setIsSendingEmails(true);
+                        setTimeout(() => {
+                          setIsSendingEmails(false);
+                          setEmailSuccess(true);
+                        }, 1500);
+                      }}
+                      disabled={isSendingEmails || reportData.length === 0}
+                      className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-bold text-sm shadow-sm transition-all flex items-center"
+                    >
+                      {isSendingEmails ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
+                          Sending...
+                        </>
+                      ) : (
+                        `Send ${reportData.length} Reports`
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { Teacher, Room, CalendarEvent, GanttBlock, Classification, AppSettings, ListsState, PositionAssignment } from './types';
+import { Teacher, Room, CalendarEvent, GanttBlock, Classification, AppSettings, ListsState, PositionAssignment, RateCard } from './types';
 
 export const COLORS = [
   '#3b82f6', // blue
@@ -48,7 +48,8 @@ export const INITIAL_SETTINGS: AppSettings = {
   timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   defaultEventDuration: 60,
   weekNumberDisplay: 'none',
-  currency: '₪'
+  currency: '₪',
+  developerMode: false
 };
 
 export const INITIAL_LISTS: ListsState = {
@@ -262,6 +263,18 @@ export const INITIAL_ROOMS: Room[] = [
   { id: 'R1', name: 'Studio A', itinerary: 'Grand Piano, roughly 20 person capacity.' },
   { id: 'R2', name: 'Studio B', itinerary: 'Upright Piano, soundproofed.' },
   { id: 'R3', name: 'Practice Room 1', itinerary: 'Small room for individual practice.' },
+];
+
+export const INITIAL_RATE_CARDS: RateCard[] = [
+  {
+    id: 'RC_DEFAULT',
+    versionId: 'V1',
+    entries: [
+      { id: 'RC_DEFAULT_E1', categoryId: 'individual_lesson', effectiveFrom: '2020-01-01', rateType: 'HOURLY', rateValue: 150 },
+      { id: 'RC_DEFAULT_E2', categoryId: 'group_lesson', effectiveFrom: '2020-01-01', rateType: 'GLOBAL_MONTHLY', rateValue: 5000 },
+      { id: 'RC_DEFAULT_E3', categoryId: 'rehearsal', effectiveFrom: '2020-01-01', rateType: 'HOURLY', rateValue: 100 },
+    ]
+  }
 ];
 
 // Helper to generate some initial events relative to "today"

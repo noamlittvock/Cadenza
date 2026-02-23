@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, ListsState, RecurrenceRule, DayOfWeek } from '../types';
-import { generateId, INITIAL_LISTS } from '../constants';
+import { generateId, INITIAL_LISTS, INITIAL_RATE_CARDS } from '../constants';
+import { CATEGORY_SCHEMAS } from '../utils/schemaRegistry';
+import { lookupRate } from '../utils/rateLookup';
 import { ChevronLeft, ChevronRight, AlertCircle, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronUp, Repeat, Ban, RotateCcw } from 'lucide-react';
 
 interface Props {
@@ -1449,50 +1451,157 @@ export const CalendarView: React.FC<Props> = ({
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg p-6 border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{editingEvent.id ? 'Edit Event' : 'New Event'}</h3>
             <form onSubmit={saveEvent} className="space-y-4">
-              <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Event Name</label><input required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" value={editingEvent.name || ''} onChange={e => setEditingEvent({ ...editingEvent, name: e.target.value })} placeholder="e.g. Piano Lesson" /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Teacher</label><select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.teacherId} onChange={e => {
-                  const newTeacher = teachers.find(t => t.id === e.target.value);
-                  setEditingEvent({
-                    ...editingEvent,
-                    teacherId: e.target.value,
-                    positionId: newTeacher?.positionAssignments?.[0]?.id || undefined,
-                  });
-                }}>{teachers.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}</select></div>
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Room</label><select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.roomId} onChange={e => setEditingEvent({ ...editingEvent, roomId: e.target.value })}>{rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></div>
-              </div>
-              {/* Position Assignment Dropdown */}
-              {(() => {
-                const selectedTeacher = teachers.find(t => t.id === editingEvent.teacherId);
-                const assignments = selectedTeacher?.positionAssignments || [];
-                if (assignments.length === 0) return null;
-                return (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Position</label>
-                    <select
-                      className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
-                      value={editingEvent.positionId || ''}
-                      onChange={e => setEditingEvent({ ...editingEvent, positionId: e.target.value || undefined })}
-                    >
-                      <option value="">— No position —</option>
-                      {assignments.map(pa => (
-                        <option key={pa.id} value={pa.id}>
-                          {pa.positionName} ({pa.rateType === 'HOURLY' ? `${settings.currency}${pa.rateValue}/hr` : `${settings.currency}${pa.rateValue.toLocaleString()}/mo`})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                );
-              })()}
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Start Time</label><input type="datetime-local" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.start ? new Date(new Date(editingEvent.start).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setEditingEvent({ ...editingEvent, start: new Date(e.target.value).toISOString() })} /></div>
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">End Time</label><input type="datetime-local" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.end ? new Date(new Date(editingEvent.end).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setEditingEvent({ ...editingEvent, end: new Date(e.target.value).toISOString() })} /></div>
-              </div>
+              {/* 1. Category */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Classification</label>
-                <select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.classification} onChange={e => setEditingEvent({ ...editingEvent, classification: e.target.value })}>
-                  {activeLists.classifications.map(c => <option key={c} value={c}>{c}</option>)}
+                <label className="block text-sm font-medium flex justify-between text-slate-700 dark:text-slate-300 mb-1">
+                  <span>Category <span className="text-red-500">*</span></span>
+                </label>
+                <select required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.classification || ''} onChange={e => {
+                  const val = e.target.value;
+                  setEditingEvent({ ...editingEvent, classification: val, teacherId: undefined, positionId: undefined, roomId: undefined, overrideFlags: { ...editingEvent.overrideFlags, isOneOffPayment: false, paymentMethod: 'NONE' }, pricingSnapshot: undefined });
+                }}>
+                  <option value="" disabled>Select Category</option>
+                  <optgroup label="Teacher Lessons">
+                    {['Individual Lesson', 'Group Lesson'].map(c => <option key={c} value={c}>{c}</option>)}
+                  </optgroup>
+                  <optgroup label="General Events">
+                    {activeLists.classifications.filter(c => !['Individual Lesson', 'Group Lesson'].includes(c)).map(c => <option key={c} value={c}>{c}</option>)}
+                    {Object.values(CATEGORY_SCHEMAS).filter(s => !activeLists.classifications.includes(s.name) && !['Individual Lesson', 'Group Lesson'].includes(s.name)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </optgroup>
                 </select>
+              </div>
+
+              {/* 2. Teacher */}
+              <div>
+                <label className="block flex items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <span>Teacher {['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">(Optional)</span>}</span>
+                </label>
+                <select
+                  required={['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE'}
+                  disabled={!editingEvent.classification}
+                  className={`w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none ${!editingEvent.classification ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  value={editingEvent.teacherId || ''}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      let newFlags = { ...editingEvent.overrideFlags };
+                      if (newFlags.paymentMethod === 'POSITION_RATE') newFlags.paymentMethod = 'NONE';
+                      setEditingEvent({ ...editingEvent, teacherId: undefined, positionId: undefined, roomId: undefined, overrideFlags: newFlags });
+                    } else {
+                      setEditingEvent({ ...editingEvent, teacherId: val, positionId: undefined, roomId: undefined });
+                    }
+                  }}
+                >
+                  <option value="">— {editingEvent.classification ? (['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification) || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? 'Select Teacher' : 'Organization / No Teacher (Optional)') : 'Select Category First'} —</option>
+                  {teachers.filter(t => {
+                    if (!editingEvent.classification) return false;
+                    if (!['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification)) return true; // Show all teachers for general categories
+                    return t.positionAssignments.some(pa => pa.category === editingEvent.classification || pa.category === Object.values(CATEGORY_SCHEMAS).find(s => s.id === editingEvent.classification)?.name);
+                  }).map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}
+                </select>
+              </div>
+
+              {/* 3. Position */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Position {['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">(Optional)</span>}</label>
+                <select
+                  required={['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE'}
+                  disabled={!editingEvent.teacherId || editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF'}
+                  className={`w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none ${(!editingEvent.teacherId || editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  value={editingEvent.positionId || ''}
+                  onChange={e => {
+                    const val = e.target.value;
+                    let newFlags = { ...editingEvent.overrideFlags };
+                    if (!val && newFlags.paymentMethod === 'POSITION_RATE') newFlags.paymentMethod = 'NONE';
+                    setEditingEvent({ ...editingEvent, positionId: val || undefined, roomId: undefined, overrideFlags: newFlags });
+                  }}
+                >
+                  <option value="">— {!editingEvent.teacherId ? 'Select Teacher First' : 'Select a position'} —</option>
+                  {editingEvent.teacherId && teachers.find(t => t.id === editingEvent.teacherId)?.positionAssignments.filter(pa => pa.category === editingEvent.classification || pa.category === Object.values(CATEGORY_SCHEMAS).find(s => s.id === editingEvent.classification)?.name).map(pa => (
+                    <option key={pa.id} value={pa.id}>
+                      {pa.positionName} ({pa.rateType === 'HOURLY' ? `${settings.currency}${pa.rateValue}/hr` : `${settings.currency}${pa.rateValue.toLocaleString()}/mo`})
+                    </option>
+                  ))}
+                </select>
+
+                {/* Payment Method for General Categories */}
+                {editingEvent.classification && !['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification) && (
+                  <div className="mt-4 space-y-3 border-t border-slate-200 dark:border-slate-700 pt-3">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Payment Method <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
+                    <div className="flex flex-col gap-2">
+                      <label className="flex items-center text-sm cursor-pointer dark:text-white">
+                        <input
+                          type="radio"
+                          name="payMethod"
+                          checked={!editingEvent.overrideFlags?.paymentMethod || editingEvent.overrideFlags?.paymentMethod === 'NONE'}
+                          onChange={() => setEditingEvent({ ...editingEvent, overrideFlags: { ...editingEvent.overrideFlags, paymentMethod: 'NONE', isOneOffPayment: false }, pricingSnapshot: undefined })}
+                          className="mr-2 focus:ring-blue-500"
+                        />
+                        No Payment (Scheduling Only)
+                      </label>
+                      <label className={`flex items-center text-sm ${!editingEvent.teacherId || !editingEvent.positionId ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} dark:text-white`}>
+                        <input
+                          type="radio"
+                          name="payMethod"
+                          disabled={!editingEvent.teacherId || !editingEvent.positionId}
+                          checked={editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE'}
+                          onChange={() => setEditingEvent({ ...editingEvent, overrideFlags: { ...editingEvent.overrideFlags, paymentMethod: 'POSITION_RATE', isOneOffPayment: false }, pricingSnapshot: undefined })}
+                          className="mr-2 focus:ring-blue-500"
+                        />
+                        Use Position Rate {(!editingEvent.teacherId || !editingEvent.positionId) && <span className="ml-1 text-xs text-slate-400">(Requires Teacher & Position)</span>}
+                      </label>
+                      <label className="flex items-center text-sm cursor-pointer dark:text-white">
+                        <input
+                          type="radio"
+                          name="payMethod"
+                          checked={editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF'}
+                          onChange={() => setEditingEvent({ ...editingEvent, overrideFlags: { ...editingEvent.overrideFlags, paymentMethod: 'ONE_OFF', isOneOffPayment: true }, positionId: undefined })}
+                          className="mr-2 focus:ring-blue-500"
+                        />
+                        One-Off Payment
+                      </label>
+                    </div>
+
+                    {editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF' && (
+                      <div className="pt-2">
+                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">One-Off Price ({settings.currency}) <span className="text-red-500">*</span></label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          required
+                          className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                          value={editingEvent.pricingSnapshot?.rateValue ?? ''}
+                          onChange={e => setEditingEvent({
+                            ...editingEvent,
+                            pricingSnapshot: { rateValue: Number(e.target.value), rateType: 'HOURLY', source: 'OVERRIDE' }
+                          })}
+                          placeholder="e.g. 150"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* 4. Room */}
+              <div>
+                <label className="block flex items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <span>Room <span className="text-xs text-slate-400 font-normal">(Optional)</span></span>
+                </label>
+                <select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.roomId || ''} onChange={e => setEditingEvent({ ...editingEvent, roomId: e.target.value || undefined })}>
+                  <option value="">— No Room —</option>
+                  {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </div>
+
+              {/* 5. Event Name */}
+              <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Event Name</label><input required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" value={editingEvent.name || ''} onChange={e => setEditingEvent({ ...editingEvent, name: e.target.value })} placeholder="e.g. Piano Lesson" /></div>
+
+              {/* 6. Start Time / End Time */}
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Start Time</label><input type="datetime-local" required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.start ? new Date(new Date(editingEvent.start).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setEditingEvent({ ...editingEvent, start: new Date(e.target.value).toISOString() })} /></div>
+                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">End Time</label><input type="datetime-local" required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.end ? new Date(new Date(editingEvent.end).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setEditingEvent({ ...editingEvent, end: new Date(e.target.value).toISOString() })} /></div>
               </div>
 
               {/* Recurrence Section */}
@@ -1708,9 +1817,18 @@ export const CalendarView: React.FC<Props> = ({
               {editingEvent.id && !editingEvent.recurrenceRule && (
                 <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 mt-2">
                   <label className="flex items-center space-x-3 cursor-pointer">
-                    <input type="checkbox" className="w-5 h-5 text-red-600 rounded focus:ring-red-500 border-slate-300 dark:border-slate-600" checked={editingEvent.isCanceled || false} onChange={e => setEditingEvent({ ...editingEvent, isCanceled: e.target.checked })} />
+                    <input type="checkbox" className="w-5 h-5 text-red-600 rounded focus:ring-red-500 border-slate-300 dark:border-slate-600" checked={editingEvent.isCanceled || false} onChange={e => setEditingEvent({ ...editingEvent, isCanceled: e.target.checked, cancellationPayStatus: e.target.checked && !editingEvent.cancellationPayStatus ? 'NO_PAY_CANCELLATION' : editingEvent.cancellationPayStatus })} />
                     <span className="font-medium text-slate-900 dark:text-white">Mark as Canceled</span>
                   </label>
+                  {editingEvent.isCanceled && (
+                    <div className="mt-3 ml-8 border-t border-slate-200 dark:border-slate-700 pt-3">
+                      <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Cancellation Pay Status</label>
+                      <select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none" value={editingEvent.cancellationPayStatus || 'NO_PAY_CANCELLATION'} onChange={e => setEditingEvent({ ...editingEvent, cancellationPayStatus: e.target.value as any })}>
+                        <option value="NO_PAY_CANCELLATION">No Pay</option>
+                        <option value="PAID_CANCELLATION">Paid Cancellation</option>
+                      </select>
+                    </div>
+                  )}
                 </div>
               )}
               <div className="flex justify-between mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
