@@ -205,7 +205,7 @@ export const generateTestCalendar = (teachers: Teacher[], existingRooms: Room[],
 
         events.push({
             id: `GEN_${generateId()}_${i}`,
-            title: eventName,
+            name: eventName,
             description: pa ? `${pa.positionName} (${duration} min)` : `Random Event`,
             teacherId: teacher?.id,
             roomId: room.id,

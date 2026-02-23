@@ -1021,7 +1021,7 @@ export const CalendarView: React.FC<Props> = ({
             });
 
             return (
-              <div key={wIdx} className="relative min-h-0 border-b border-slate-100 dark:border-slate-800 last:border-0 h-full group/week">
+              <div key={wIdx} className="relative min-h-0 border-b border-slate-100 dark:border-slate-800 last:border-0 h-full group/week hover:z-50">
                 {/* Layer 1: Background & Day Click (z-0) */}
                 <div className="absolute inset-0 grid grid-cols-7 pointer-events-none">
                   {week.map((day) => {
