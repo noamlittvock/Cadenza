@@ -1504,25 +1504,43 @@ export const CalendarView: React.FC<Props> = ({
               {/* 3. Position */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Position {['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">(Optional)</span>}</label>
-                <select
-                  required={['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE'}
-                  disabled={!editingEvent.teacherId || editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF'}
-                  className={`w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none ${(!editingEvent.teacherId || editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF') ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  value={editingEvent.positionId || ''}
-                  onChange={e => {
-                    const val = e.target.value;
-                    let newFlags = { ...editingEvent.overrideFlags };
-                    if (!val && newFlags.paymentMethod === 'POSITION_RATE') newFlags.paymentMethod = 'NONE';
-                    setEditingEvent({ ...editingEvent, positionId: val || undefined, roomId: undefined, overrideFlags: newFlags });
-                  }}
-                >
-                  <option value="">— {!editingEvent.teacherId ? 'Select Teacher First' : 'Select a position'} —</option>
-                  {editingEvent.teacherId && teachers.find(t => t.id === editingEvent.teacherId)?.positionAssignments.filter(pa => pa.category === editingEvent.classification || pa.category === Object.values(CATEGORY_SCHEMAS).find(s => s.id === editingEvent.classification)?.name).map(pa => (
-                    <option key={pa.id} value={pa.id}>
-                      {pa.positionName} ({pa.rateType === 'HOURLY' ? `${settings.currency}${pa.rateValue}/hr` : `${settings.currency}${pa.rateValue.toLocaleString()}/mo`})
-                    </option>
-                  ))}
-                </select>
+                {(() => {
+                  const teacherForPos = teachers.find(t => t.id === editingEvent.teacherId);
+                  const isLesson = ['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '');
+                  const positionOptions = teacherForPos ? teacherForPos.positionAssignments.filter(pa => {
+                    if (!editingEvent.classification) return false;
+                    if (!isLesson) return true;
+                    return pa.category === editingEvent.classification || pa.category === Object.values(CATEGORY_SCHEMAS).find(s => s.id === editingEvent.classification)?.name;
+                  }) : [];
+
+                  return (
+                    <select
+                      required={['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE'}
+                      disabled={!editingEvent.teacherId || editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF' || (editingEvent.teacherId && positionOptions.length === 0)}
+                      className={`w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none ${(!editingEvent.teacherId || editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF' || (editingEvent.teacherId && positionOptions.length === 0)) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      value={editingEvent.positionId || ''}
+                      onChange={e => {
+                        const val = e.target.value;
+                        let newFlags = { ...editingEvent.overrideFlags };
+                        if (!val && newFlags.paymentMethod === 'POSITION_RATE') newFlags.paymentMethod = 'NONE';
+                        setEditingEvent({ ...editingEvent, positionId: val || undefined, roomId: undefined, overrideFlags: newFlags });
+                      }}
+                    >
+                      <option value="">
+                        {!editingEvent.teacherId
+                          ? '— Select Teacher First —'
+                          : positionOptions.length === 0
+                            ? '— No positions available for this teacher under this category —'
+                            : '— Select a position —'}
+                      </option>
+                      {positionOptions.map(pa => (
+                        <option key={pa.id} value={pa.id}>
+                          {pa.positionName} ({pa.rateType === 'HOURLY' ? `${settings.currency}${pa.rateValue}/hr` : `${settings.currency}${pa.rateValue.toLocaleString()}/mo`})
+                        </option>
+                      ))}
+                    </select>
+                  );
+                })()}
 
                 {/* Payment Method for General Categories */}
                 {editingEvent.classification && !['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification) && (
