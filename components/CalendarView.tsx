@@ -1451,7 +1451,10 @@ export const CalendarView: React.FC<Props> = ({
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg p-6 border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{editingEvent.id ? 'Edit Event' : 'New Event'}</h3>
             <form onSubmit={saveEvent} className="space-y-4">
-              {/* 1. Category */}
+              {/* 1. Event Name */}
+              <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Event Name <span className="text-red-500">*</span></label><input autoFocus required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" value={editingEvent.name || ''} onChange={e => setEditingEvent({ ...editingEvent, name: e.target.value })} placeholder="e.g. Piano Lesson" /></div>
+
+              {/* 2. Category */}
               <div>
                 <label className="block text-sm font-medium flex justify-between text-slate-700 dark:text-slate-300 mb-1">
                   <span>Category <span className="text-red-500">*</span></span>
@@ -1613,10 +1616,7 @@ export const CalendarView: React.FC<Props> = ({
                 </select>
               </div>
 
-              {/* 5. Event Name */}
-              <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Event Name</label><input required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" value={editingEvent.name || ''} onChange={e => setEditingEvent({ ...editingEvent, name: e.target.value })} placeholder="e.g. Piano Lesson" /></div>
-
-              {/* 6. Start Time / End Time */}
+              {/* 5. Start Time / End Time */}
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Start Time</label><input type="datetime-local" required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.start ? new Date(new Date(editingEvent.start).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setEditingEvent({ ...editingEvent, start: new Date(e.target.value).toISOString() })} /></div>
                 <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">End Time</label><input type="datetime-local" required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.end ? new Date(new Date(editingEvent.end).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setEditingEvent({ ...editingEvent, end: new Date(e.target.value).toISOString() })} /></div>

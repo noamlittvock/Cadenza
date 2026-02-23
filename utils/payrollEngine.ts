@@ -84,13 +84,20 @@ export function computePayroll(
         }
 
         let eventPay = 0;
+        const isNoPayment = evt.overrideFlags?.paymentMethod === 'NONE';
+        const isOneOff = evt.overrideFlags?.paymentMethod === 'ONE_OFF' || evt.overrideFlags?.isOneOffPayment;
 
-        if (rateType === 'HOURLY') {
+        if (isNoPayment) {
+            eventPay = 0;
+        } else if (isOneOff && evt.pricingSnapshot) {
+            eventPay = evt.pricingSnapshot.rateValue; // One-Off amount is a flat fee, distinct from hourly rate calculation
+        } else if (rateType === 'HOURLY') {
             eventPay = durationHours * rateValue;
         } else {
             // GLOBAL_MONTHLY will be added separately, or we portion it?
             // Usually GLOBAL_MONTHLY is a flat sum paid at end of month, independent of events.
             // But we will calculate it later or assign eventPay = 0 for the individual event.
+            eventPay = 0;
         }
 
         // Cancellations
