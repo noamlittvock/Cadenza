@@ -183,9 +183,29 @@ export const generateTestCalendar = (teachers: Teacher[], existingRooms: Room[],
             else classification = random(CLASSIFICATIONS);
         }
 
+        // Randomly assign special payment methods to ~15% of events
+        const isSpecialPayment = Math.random() < 0.15;
+        let pricingSnapshot: any = undefined;
+        let overrideFlags: any = undefined;
+
+        if (isSpecialPayment) {
+            const isNoPayment = Math.random() < 0.2; // 20% of special payments are NONE
+            if (isNoPayment) {
+                overrideFlags = { paymentMethod: 'NONE' };
+            } else {
+                const oneOffValue = randomInt(2, 10) * 100; // e.g. 200 to 1000
+                overrideFlags = { paymentMethod: 'ONE_OFF' };
+                pricingSnapshot = {
+                    rateType: 'ONE_OFF',
+                    rateValue: oneOffValue,
+                    source: 'OVERRIDE'
+                };
+            }
+        }
+
         events.push({
             id: `GEN_${generateId()}_${i}`,
-            name: eventName,
+            title: eventName,
             description: pa ? `${pa.positionName} (${duration} min)` : `Random Event`,
             teacherId: teacher?.id,
             roomId: room.id,
@@ -195,8 +215,10 @@ export const generateTestCalendar = (teachers: Teacher[], existingRooms: Room[],
             end: end.toISOString(),
             isCanceled,
             isHidden,
-            cancellationPayStatus
-        });
+            cancellationPayStatus,
+            overrideFlags,
+            pricingSnapshot
+        } as any);
     }
 
     return events;
