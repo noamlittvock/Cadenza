@@ -65,7 +65,7 @@ export interface CategorySchema {
 }
 
 // Rate assignment types for position-based billing
-export type RateType = 'HOURLY' | 'GLOBAL_MONTHLY';
+export type RateType = 'HOURLY' | 'GLOBAL_MONTHLY' | 'ONE_OFF';
 
 export interface PositionAssignment {
   id: string;               // Unique ID for this assignment

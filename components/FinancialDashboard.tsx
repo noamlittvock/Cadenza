@@ -259,21 +259,58 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
       teacherEvents.forEach(evt => {
         const durationHours = (new Date(evt.end).getTime() - new Date(evt.start).getTime()) / (1000 * 60 * 60);
         if (evt.isCanceled) canceledEventCount++; else activeEventCount++;
+
         let targetPosId = evt.positionId;
+
+        // Handle general category events with no position (do not drop them, group under category)
+        if (!targetPosId && evt.classification) {
+          const syntheticId = `cat_${evt.classification}`;
+          if (!posFinancials[syntheticId]) {
+            posFinancials[syntheticId] = {
+              positionId: syntheticId, positionName: evt.classification, rateType: 'HOURLY',
+              rateValue: 0, category: evt.classification, activeHours: 0,
+              canceledHours: 0, totalHours: 0, hourlyCost: 0, globalCost: 0,
+            };
+          }
+          targetPosId = syntheticId;
+        }
+
         if (!targetPosId || !posFinancials[targetPosId]) {
           const firstKey = Object.keys(posFinancials)[0];
           if (firstKey) { targetPosId = firstKey; }
           else { if (evt.isCanceled) unassignedCanceled += durationHours; else unassignedActive += durationHours; return; }
         }
+
         const pf = posFinancials[targetPosId!];
         if (!pf) return;
+
         pf.totalHours += durationHours;
         if (evt.isCanceled) pf.canceledHours += durationHours; else pf.activeHours += durationHours;
+
+        // Calculate pay for this event
+        const isNoPayment = evt.overrideFlags?.paymentMethod === 'NONE';
+        const isOneOff = evt.overrideFlags?.paymentMethod === 'ONE_OFF' || evt.overrideFlags?.isOneOffPayment || evt.pricingSnapshot?.rateType === 'ONE_OFF';
+
+        let eventPay = 0;
+        if (isNoPayment) {
+          eventPay = 0;
+        } else if (isOneOff && evt.pricingSnapshot) {
+          eventPay = evt.pricingSnapshot.rateValue;
+        } else if (pf.rateType === 'HOURLY') {
+          eventPay = durationHours * pf.rateValue;
+        }
+
+        if (!evt.isCanceled || evt.cancellationPayStatus === 'PAID_CANCELLATION') {
+          pf.hourlyCost += eventPay;
+        }
       });
 
       Object.values(posFinancials).forEach(pf => {
-        if (pf.rateType === 'HOURLY') pf.hourlyCost = pf.activeHours * pf.rateValue;
-        else { if (pf.totalHours > 0 || activeFilterCount > 0) pf.globalCost = pf.rateValue * monthsInRange; }
+        if (pf.rateType === 'GLOBAL_MONTHLY') {
+          if (pf.totalHours > 0 || activeFilterCount > 0) {
+            pf.globalCost = pf.rateValue * monthsInRange;
+          }
+        }
       });
 
       const positionsArr = Object.values(posFinancials);

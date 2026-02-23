@@ -1595,7 +1595,7 @@ export const CalendarView: React.FC<Props> = ({
                           value={editingEvent.pricingSnapshot?.rateValue ?? ''}
                           onChange={e => setEditingEvent({
                             ...editingEvent,
-                            pricingSnapshot: { rateValue: Number(e.target.value), rateType: 'HOURLY', source: 'OVERRIDE' }
+                            pricingSnapshot: { rateValue: Number(e.target.value), rateType: 'ONE_OFF', source: 'OVERRIDE' }
                           })}
                           placeholder="e.g. 150"
                         />
