@@ -31,6 +31,7 @@ interface PositionFinancials {
   canceledHours: number;
   totalHours: number;
   hourlyCost: number;
+  oneOffCost: number;
   globalCost: number;
 }
 
@@ -43,6 +44,7 @@ interface TeacherReport {
   totalCanceledHours: number;
   totalHours: number;
   hourlyCostTotal: number;
+  oneOffCostTotal: number;
   globalCostTotal: number;
   grandTotal: number;
   canceledEventCount: number;
@@ -93,7 +95,7 @@ const FilterSection: React.FC<FilterSectionProps> = ({ title, icon, items, selec
 };
 
 // Sort column type
-type SortColumn = 'name' | 'activeHrs' | 'canceledHrs' | 'canceledEvents' | 'totalHrs' | 'hourlyCost' | 'globalCost' | 'total';
+type SortColumn = 'name' | 'activeHrs' | 'canceledHrs' | 'canceledEvents' | 'totalHrs' | 'hourlyCost' | 'oneOffCost' | 'globalCost' | 'total';
 
 // ---- Main Component ----
 
@@ -249,7 +251,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
         posFinancials[pa.id] = {
           positionId: pa.id, positionName: pa.positionName, rateType: pa.rateType,
           rateValue: pa.rateValue, category: pa.category, activeHours: 0,
-          canceledHours: 0, totalHours: 0, hourlyCost: 0, globalCost: 0,
+          canceledHours: 0, totalHours: 0, hourlyCost: 0, oneOffCost: 0, globalCost: 0,
         };
       });
 
@@ -269,7 +271,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
             posFinancials[syntheticId] = {
               positionId: syntheticId, positionName: evt.classification, rateType: 'HOURLY',
               rateValue: 0, category: evt.classification, activeHours: 0,
-              canceledHours: 0, totalHours: 0, hourlyCost: 0, globalCost: 0,
+              canceledHours: 0, totalHours: 0, hourlyCost: 0, oneOffCost: 0, globalCost: 0,
             };
           }
           targetPosId = syntheticId;
@@ -301,7 +303,11 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
         }
 
         if (!evt.isCanceled || evt.cancellationPayStatus === 'PAID_CANCELLATION') {
-          pf.hourlyCost += eventPay;
+          if (isOneOff) {
+            pf.oneOffCost += eventPay;
+          } else {
+            pf.hourlyCost += eventPay;
+          }
         }
       });
 
@@ -317,13 +323,14 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
       const totalActiveHours = positionsArr.reduce((s, p) => s + p.activeHours, 0) + unassignedActive;
       const totalCanceledHours = positionsArr.reduce((s, p) => s + p.canceledHours, 0) + unassignedCanceled;
       const hourlyCostTotal = positionsArr.reduce((s, p) => s + p.hourlyCost, 0);
+      const oneOffCostTotal = positionsArr.reduce((s, p) => s + p.oneOffCost, 0);
       const globalCostTotal = positionsArr.reduce((s, p) => s + p.globalCost, 0);
 
       return {
         teacherId: teacher.id, teacherName: teacher.fullName, teacherColor: teacher.color,
         positions: positionsArr, totalActiveHours, totalCanceledHours,
         totalHours: totalActiveHours + totalCanceledHours,
-        hourlyCostTotal, globalCostTotal, grandTotal: hourlyCostTotal + globalCostTotal,
+        hourlyCostTotal, oneOffCostTotal, globalCostTotal, grandTotal: hourlyCostTotal + oneOffCostTotal + globalCostTotal,
         canceledEventCount, activeEventCount,
       };
     });
@@ -336,11 +343,12 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
     const activeHours = reportData.reduce((s, r) => s + r.totalActiveHours, 0);
     const canceledHours = reportData.reduce((s, r) => s + r.totalCanceledHours, 0);
     const hourlyCost = reportData.reduce((s, r) => s + r.hourlyCostTotal, 0);
+    const oneOffCost = reportData.reduce((s, r) => s + r.oneOffCostTotal, 0);
     const globalCost = reportData.reduce((s, r) => s + r.globalCostTotal, 0);
-    const grandTotal = hourlyCost + globalCost;
+    const grandTotal = hourlyCost + oneOffCost + globalCost;
     const canceledEvents = reportData.reduce((s, r) => s + r.canceledEventCount, 0);
     const activeEvents = reportData.reduce((s, r) => s + r.activeEventCount, 0);
-    return { totalHours, activeHours, canceledHours, hourlyCost, globalCost, grandTotal, canceledEvents, activeEvents };
+    return { totalHours, activeHours, canceledHours, hourlyCost, oneOffCost, globalCost, grandTotal, canceledEvents, activeEvents };
   }, [reportData]);
 
   const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -357,6 +365,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
         case 'canceledEvents': aVal = a.canceledEventCount; bVal = b.canceledEventCount; break;
         case 'totalHrs': aVal = a.totalHours; bVal = b.totalHours; break;
         case 'hourlyCost': aVal = a.hourlyCostTotal; bVal = b.hourlyCostTotal; break;
+        case 'oneOffCost': aVal = a.oneOffCostTotal; bVal = b.oneOffCostTotal; break;
         case 'globalCost': aVal = a.globalCostTotal; bVal = b.globalCostTotal; break;
         case 'total': aVal = a.grandTotal; bVal = b.grandTotal; break;
         default: aVal = a.grandTotal; bVal = b.grandTotal;
@@ -387,22 +396,22 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
 
   // --- Export ---
   const handleExport = () => {
-    const headers = ['Teacher', 'Position', 'Rate Type', `Rate (${settings.currency})`, 'Active Hours', 'Canceled Hours', `Hourly Cost (${settings.currency})`, `Global Cost (${settings.currency})`, `Total Cost (${settings.currency})`];
+    const headers = ['Teacher', 'Position', 'Rate Type', `Rate (${settings.currency})`, 'Active Hours', 'Canceled Hours', `Hourly Cost (${settings.currency})`, `One-Off Payments (${settings.currency})`, `Global Cost (${settings.currency})`, `Total Cost (${settings.currency})`];
     const rows: string[][] = [];
     reportData.forEach(r => {
       if (r.positions.length === 0) {
-        rows.push([`"${r.teacherName}"`, '—', '—', '0', formatHours(r.totalActiveHours), formatHours(r.totalCanceledHours), '0', '0', '0']);
+        rows.push([`"${r.teacherName}"`, '—', '—', '0', formatHours(r.totalActiveHours), formatHours(r.totalCanceledHours), '0', '0', '0', '0']);
       } else {
         r.positions.forEach(p => {
           rows.push([
             `"${r.teacherName}"`, `"${p.positionName}"`, p.rateType, p.rateValue.toString(),
             formatHours(p.activeHours), formatHours(p.canceledHours),
-            p.hourlyCost.toFixed(2), p.globalCost.toFixed(2), (p.hourlyCost + p.globalCost).toFixed(2),
+            p.hourlyCost.toFixed(2), p.oneOffCost.toFixed(2), p.globalCost.toFixed(2), (p.hourlyCost + p.oneOffCost + p.globalCost).toFixed(2),
           ]);
         });
       }
     });
-    rows.push(['', '', '', '', '', '', totals.hourlyCost.toFixed(2), totals.globalCost.toFixed(2), totals.grandTotal.toFixed(2)]);
+    rows.push(['', '', '', '', '', '', totals.hourlyCost.toFixed(2), totals.oneOffCost.toFixed(2), totals.globalCost.toFixed(2), totals.grandTotal.toFixed(2)]);
     const csvContent = "data:text/csv;charset=utf-8,"
       + headers.join(",") + "\n"
       + rows.map(e => e.join(",")).join("\n");
@@ -596,6 +605,9 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                       <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('hourlyCost')}>
                         <span className="flex items-center justify-end gap-1"><Clock size={11} /> Hourly ({settings.currency})</span> <SortIcon col="hourlyCost" />
                       </th>
+                      <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('oneOffCost')}>
+                        <span className="flex items-center justify-end gap-1"><DollarSign size={11} /> One-Off ({settings.currency})</span> <SortIcon col="oneOffCost" />
+                      </th>
                       <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('globalCost')}>
                         <span className="flex items-center justify-end gap-1"><CalendarDays size={11} /> Global ({settings.currency})</span> <SortIcon col="globalCost" />
                       </th>
@@ -622,6 +634,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                           <td className="px-4 py-4 text-right text-red-500 tabular-nums">{formatHours(r.totalCanceledHours)}</td>
                           <td className="px-4 py-4 text-right text-red-500 tabular-nums">{r.canceledEventCount}</td>
                           <td className="px-4 py-4 text-right text-blue-600 dark:text-blue-400 font-medium tabular-nums">{formatCurrency(r.hourlyCostTotal, settings.currency)}</td>
+                          <td className="px-4 py-4 text-right text-violet-600 dark:text-violet-400 font-medium tabular-nums">{formatCurrency(r.oneOffCostTotal, settings.currency)}</td>
                           <td className="px-4 py-4 text-right text-emerald-600 dark:text-emerald-400 font-medium tabular-nums">{formatCurrency(r.globalCostTotal, settings.currency)}</td>
                           <td className="px-4 py-4 text-right font-bold text-slate-900 dark:text-white tabular-nums">{formatCurrency(r.grandTotal, settings.currency)}</td>
                         </tr>
@@ -644,8 +657,9 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                             <td className="px-4 py-3 text-right text-xs text-slate-500 tabular-nums">{formatHours(p.canceledHours)}</td>
                             <td className="px-4 py-3 text-right text-xs text-slate-400">—</td>
                             <td className="px-4 py-3 text-right text-xs text-blue-500 tabular-nums">{p.hourlyCost > 0 ? formatCurrency(p.hourlyCost, settings.currency) : '—'}</td>
+                            <td className="px-4 py-3 text-right text-xs text-violet-500 tabular-nums">{p.oneOffCost > 0 ? formatCurrency(p.oneOffCost, settings.currency) : '—'}</td>
                             <td className="px-4 py-3 text-right text-xs text-emerald-500 tabular-nums">{p.globalCost > 0 ? formatCurrency(p.globalCost, settings.currency) : '—'}</td>
-                            <td className="px-4 py-3 text-right text-xs font-medium text-slate-700 dark:text-slate-300 tabular-nums">{formatCurrency(p.hourlyCost + p.globalCost, settings.currency)}</td>
+                            <td className="px-4 py-3 text-right text-xs font-medium text-slate-700 dark:text-slate-300 tabular-nums">{formatCurrency(p.hourlyCost + p.oneOffCost + p.globalCost, settings.currency)}</td>
                           </tr>
                         ))}
                       </React.Fragment>
@@ -658,6 +672,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                       <td className="px-4 py-4 text-right text-red-500 tabular-nums">{formatHours(totals.canceledHours)}</td>
                       <td className="px-4 py-4 text-right text-red-500 tabular-nums">{totals.canceledEvents}</td>
                       <td className="px-4 py-4 text-right text-blue-600 dark:text-blue-400 tabular-nums">{formatCurrency(totals.hourlyCost, settings.currency)}</td>
+                      <td className="px-4 py-4 text-right text-violet-600 dark:text-violet-400 tabular-nums">{formatCurrency(totals.oneOffCost, settings.currency)}</td>
                       <td className="px-4 py-4 text-right text-emerald-600 dark:text-emerald-400 tabular-nums">{formatCurrency(totals.globalCost, settings.currency)}</td>
                       <td className="px-4 py-4 text-right text-slate-900 dark:text-white text-lg tabular-nums">{formatCurrency(totals.grandTotal, settings.currency)}</td>
                     </tr>

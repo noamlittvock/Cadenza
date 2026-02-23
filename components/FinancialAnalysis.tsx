@@ -24,18 +24,18 @@ import { MergedChartRenderer, DatasetInput } from './MergedChartRenderer';
 interface PositionFinancials {
     positionId: string; positionName: string; rateType: 'HOURLY' | 'GLOBAL_MONTHLY';
     rateValue: number; category: string; activeHours: number; canceledHours: number;
-    totalHours: number; hourlyCost: number; globalCost: number;
+    totalHours: number; hourlyCost: number; oneOffCost: number; globalCost: number;
 }
 
 interface TeacherReport {
     teacherId: string; teacherName: string; teacherColor: string;
     positions: PositionFinancials[]; totalActiveHours: number; totalCanceledHours: number;
-    totalHours: number; hourlyCostTotal: number; globalCostTotal: number; grandTotal: number;
+    totalHours: number; hourlyCostTotal: number; oneOffCostTotal: number; globalCostTotal: number; grandTotal: number;
 }
 
 interface CustomInsightInfo {
     id: string; title: string;
-    metric: 'totalActiveHours' | 'totalCanceledHours' | 'hourlyCostTotal' | 'globalCostTotal' | 'grandTotal' | 'avgActiveHours' | 'avgGrandTotal' | 'cancellationRate' | 'maxEarner' | 'minEarner';
+    metric: 'totalActiveHours' | 'totalCanceledHours' | 'hourlyCostTotal' | 'oneOffCostTotal' | 'globalCostTotal' | 'grandTotal' | 'avgActiveHours' | 'avgGrandTotal' | 'cancellationRate' | 'maxEarner' | 'minEarner';
     teacherId?: string;
 }
 
@@ -224,6 +224,7 @@ const CustomInsightModal: React.FC<CustomInsightModalProps> = ({ teachers, onClo
                                 <option value="totalActiveHours">Total Active Hours</option>
                                 <option value="totalCanceledHours">Total Canceled Hours</option>
                                 <option value="hourlyCostTotal">Hourly Payroll</option>
+                                <option value="oneOffCostTotal">One-Off Payroll</option>
                                 <option value="globalCostTotal">Global Payroll</option>
                                 <option value="grandTotal">Grand Total Payroll</option>
                             </optgroup>
@@ -407,7 +408,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                 if (selectedPositionNames.size > 0 && !selectedPositionNames.has(pa.positionName)) return;
                 if (selectedCategories.size > 0 && !selectedCategories.has(pa.category)) return;
                 if (selectedRateTypes.size > 0 && !selectedRateTypes.has(pa.rateType)) return;
-                posFinancials[pa.id] = { positionId: pa.id, positionName: pa.positionName, rateType: pa.rateType, rateValue: pa.rateValue, category: pa.category, activeHours: 0, canceledHours: 0, totalHours: 0, hourlyCost: 0, globalCost: 0 };
+                posFinancials[pa.id] = { positionId: pa.id, positionName: pa.positionName, rateType: pa.rateType, rateValue: pa.rateValue, category: pa.category, activeHours: 0, canceledHours: 0, totalHours: 0, hourlyCost: 0, oneOffCost: 0, globalCost: 0 };
             });
             let unassignedActive = 0, unassignedCanceled = 0;
             filteredEvents.filter(e => e.teacherId === teacher.id).forEach(evt => {
@@ -420,7 +421,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                         posFinancials[syntheticId] = {
                             positionId: syntheticId, positionName: evt.classification, rateType: 'HOURLY',
                             rateValue: 0, category: evt.classification, activeHours: 0,
-                            canceledHours: 0, totalHours: 0, hourlyCost: 0, globalCost: 0,
+                            canceledHours: 0, totalHours: 0, hourlyCost: 0, oneOffCost: 0, globalCost: 0,
                         };
                     }
                     tid = syntheticId;
@@ -443,7 +444,11 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                 }
 
                 if (!evt.isCanceled || evt.cancellationPayStatus === 'PAID_CANCELLATION') {
-                    pf.hourlyCost += eventPay;
+                    if (isOneOff) {
+                        pf.oneOffCost += eventPay;
+                    } else {
+                        pf.hourlyCost += eventPay;
+                    }
                 }
             });
             Object.values(posFinancials).forEach(pf => { if (pf.rateType === 'GLOBAL_MONTHLY') { if (pf.totalHours > 0 || activeFilterCount > 0) pf.globalCost = pf.rateValue * monthsInRange; } });
@@ -451,8 +456,9 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
             const totalActiveHours = arr.reduce((s, p) => s + p.activeHours, 0) + unassignedActive;
             const totalCanceledHours = arr.reduce((s, p) => s + p.canceledHours, 0) + unassignedCanceled;
             const hourlyCostTotal = arr.reduce((s, p) => s + p.hourlyCost, 0);
+            const oneOffCostTotal = arr.reduce((s, p) => s + p.oneOffCost, 0);
             const globalCostTotal = arr.reduce((s, p) => s + p.globalCost, 0);
-            return { teacherId: teacher.id, teacherName: teacher.fullName, teacherColor: teacher.color, positions: arr, totalActiveHours, totalCanceledHours, totalHours: totalActiveHours + totalCanceledHours, hourlyCostTotal, globalCostTotal, grandTotal: hourlyCostTotal + globalCostTotal };
+            return { teacherId: teacher.id, teacherName: teacher.fullName, teacherColor: teacher.color, positions: arr, totalActiveHours, totalCanceledHours, totalHours: totalActiveHours + totalCanceledHours, hourlyCostTotal, oneOffCostTotal, globalCostTotal, grandTotal: hourlyCostTotal + oneOffCostTotal + globalCostTotal };
         });
         return reports.filter(r => r.totalHours > 0 || r.grandTotal > 0 || activeFilterCount > 0);
     }, [filteredEvents, teachers, filteredTeacherIds, activeFilterCount, selectedPositionNames, selectedCategories, selectedRateTypes, monthsInRange]);
@@ -462,8 +468,9 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
         const activeHours = reportData.reduce((s, r) => s + r.totalActiveHours, 0);
         const canceledHours = reportData.reduce((s, r) => s + r.totalCanceledHours, 0);
         const hourlyCost = reportData.reduce((s, r) => s + r.hourlyCostTotal, 0);
+        const oneOffCost = reportData.reduce((s, r) => s + r.oneOffCostTotal, 0);
         const globalCost = reportData.reduce((s, r) => s + r.globalCostTotal, 0);
-        return { totalHours, activeHours, canceledHours, hourlyCost, globalCost, grandTotal: hourlyCost + globalCost };
+        return { totalHours, activeHours, canceledHours, hourlyCost, oneOffCost, globalCost, grandTotal: hourlyCost + oneOffCost + globalCost };
     }, [reportData]);
 
     const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -510,12 +517,14 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
             const cancHrs = ds.reduce((s, r) => s + r.totalCanceledHours, 0);
             const grandTot = ds.reduce((s, r) => s + r.grandTotal, 0);
             const hrTot = ds.reduce((s, r) => s + r.hourlyCostTotal, 0);
+            const ooTot = ds.reduce((s, r) => s + r.oneOffCostTotal, 0);
             const glTot = ds.reduce((s, r) => s + r.globalCostTotal, 0);
             const count = ds.length || 1;
 
             if (ci.metric === 'totalActiveHours') valueStr = formatHours(totalHrs);
             else if (ci.metric === 'totalCanceledHours') valueStr = formatHours(cancHrs);
             else if (ci.metric === 'hourlyCostTotal') valueStr = formatCurrency(hrTot, settings.currency);
+            else if (ci.metric === 'oneOffCostTotal') valueStr = formatCurrency(ooTot, settings.currency);
             else if (ci.metric === 'globalCostTotal') valueStr = formatCurrency(glTot, settings.currency);
             else if (ci.metric === 'grandTotal') valueStr = formatCurrency(grandTot, settings.currency);
             else if (ci.metric === 'avgActiveHours') valueStr = formatHours(totalHrs / count);
