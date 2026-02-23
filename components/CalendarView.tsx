@@ -1322,7 +1322,7 @@ export const CalendarView: React.FC<Props> = ({
       {viewMode === 'MONTH' ? renderMonthView() : renderTimeGrid(viewMode === 'DAY' ? [currentDate] : getWeekDays(currentDate))}
 
       {/* Speed Dial Component */}
-      <div className="fixed bottom-8 right-8 z-40 flex flex-col items-end space-y-3">
+      <div className="fixed bottom-8 right-8 z-[60] flex flex-col items-end space-y-3">
         {/* Speed Dial Actions */}
         {isSpeedDialOpen && (
           <div className="flex flex-col items-end space-y-3 mb-2" style={{ animation: 'fadeSlideUp 400ms ease-out forwards' }}>
