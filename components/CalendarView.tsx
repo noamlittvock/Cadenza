@@ -1144,10 +1144,17 @@ export const CalendarView: React.FC<Props> = ({
                                           color: 'inherit'
                                         } : {}}
                                       >
-                                        <span style={{ color: !evt.isCanceled ? baseColor : undefined }} className="font-bold block brightness-75 dark:brightness-100">
-                                          {formatTime(new Date(evt.start))}
+                                        <span style={{ color: !evt.isCanceled ? baseColor : undefined }} className="font-bold flex justify-between items-center gap-2 brightness-75 dark:brightness-100">
+                                          <span>{formatTime(new Date(evt.start))}</span>
+                                          {evt.teacherId && (
+                                            <span className="text-[9px] uppercase tracking-wider opacity-70 truncate text-right">
+                                              {teachers.find(t => t.id === evt.teacherId)?.fullName.split(' ')[0]}
+                                            </span>
+                                          )}
                                         </span>
-                                        <span className="font-medium text-slate-800 dark:text-slate-200 block truncate">{evt.name}</span>
+                                        <span className="font-medium text-slate-800 dark:text-slate-200 block truncate" title={evt.name || 'Unnamed Event'}>
+                                          {evt.name || 'Unnamed Event'}
+                                        </span>
                                       </div>
                                     );
                                   })

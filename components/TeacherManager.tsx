@@ -564,7 +564,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
           </div>
           <div className="flex items-center space-x-2">
             <select
-              className="filter-select-uniform w-[160px] max-w-[160px]"
+              className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-white outline-none focus:ring-1 focus:ring-blue-500 w-[160px]"
               value={filterType}
               onChange={(e) => { setFilterType(e.target.value as any); setFilterValue(''); }}
             >
@@ -575,7 +575,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
 
             {filterType !== 'ALL' && (
               <select
-                className="filter-select-uniform w-[160px] max-w-[160px]"
+                className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-white outline-none focus:ring-1 focus:ring-blue-500 w-[160px]"
                 value={filterValue}
                 onChange={(e) => setFilterValue(e.target.value)}
               >
