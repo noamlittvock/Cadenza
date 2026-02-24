@@ -269,7 +269,7 @@ export const CalendarView: React.FC<Props> = ({
   const getStartOfWeek = (d: Date) => {
     const date = new Date(d);
     const day = date.getDay();
-    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+    const diff = date.getDate() - day;
     const newDate = new Date(date.setDate(diff));
     newDate.setHours(0, 0, 0, 0);
     return newDate;
@@ -290,9 +290,9 @@ export const CalendarView: React.FC<Props> = ({
     const firstDayOfMonth = new Date(year, month, 1);
     const startDay = firstDayOfMonth.getDay(); // 0 is Sunday
 
-    // Start from the previous Monday (or Sunday if standard US) - let's do Monday start for consistency with week view
+    // Start from the previous Sunday for week consistency
     const startDate = new Date(firstDayOfMonth);
-    const diff = startDay === 0 ? 6 : startDay - 1; // Days to subtract to get to Monday
+    const diff = startDay;
     startDate.setDate(startDate.getDate() - diff);
 
     const days = [];
@@ -960,7 +960,7 @@ export const CalendarView: React.FC<Props> = ({
     return (
       <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 overflow-hidden">
         <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700 z-10 relative bg-white dark:bg-slate-900">
-          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
             <div key={d} className="p-2 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">
               {d}
             </div>
