@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from './firebase';
 import { useAuth } from '../context/AuthContext';
@@ -14,6 +14,10 @@ export function useFirestoreSync<T extends { id: string }>(
     const { orgId } = useAuth();
     const [data, setData] = useState<T[]>(initialData);
     const [loading, setLoading] = useState(true);
+
+    // Keep a ref to the latest data so updateData's delete-diff is never stale
+    const dataRef = useRef(data);
+    useEffect(() => { dataRef.current = data; }, [data]);
 
     useEffect(() => {
         if (!orgId) {
@@ -50,8 +54,9 @@ export function useFirestoreSync<T extends { id: string }>(
 
     // Wrapper for state updates to also write to Firestore
     const updateData = async (newData: T[] | ((prev: T[]) => T[])) => {
-        // 1. Calculate the new state array
-        const resolvedData = typeof newData === 'function' ? (newData as any)(data) : newData;
+        // 1. Calculate the new state array (use ref for latest data to avoid stale closure)
+        const currentData = dataRef.current;
+        const resolvedData = typeof newData === 'function' ? (newData as any)(currentData) : newData;
 
         // 2. Optimistic UI update
         setData(resolvedData);
@@ -71,9 +76,9 @@ export function useFirestoreSync<T extends { id: string }>(
                 batch.set(docRef, { ...item, orgId }, { merge: true });
             });
 
-            // Find deleted items
+            // Find deleted items — use ref for latest snapshot, not stale closure
             const newIds = new Set(resolvedData.map(i => i.id));
-            data.forEach(oldItem => {
+            currentData.forEach(oldItem => {
                 if (!newIds.has(oldItem.id)) {
                     const docRef = doc(db, collectionName, oldItem.id);
                     batch.delete(docRef);

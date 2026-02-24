@@ -4,6 +4,8 @@ import { generateId, INITIAL_LISTS, INITIAL_RATE_CARDS } from '../constants';
 import { CATEGORY_SCHEMAS } from '../utils/schemaRegistry';
 import { lookupRate } from '../utils/rateLookup';
 import { ChevronLeft, ChevronRight, AlertCircle, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronUp, Repeat, Ban, RotateCcw } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { syncEventToGoogle, removeEventFromGoogle, updateEventInGoogle } from '../utils/googleCalendarSync';
 
 interface Props {
   events: CalendarEvent[];
@@ -21,7 +23,7 @@ interface Props {
   selectionMode: 'NORMAL' | 'MARQUEE';
   setSelectionMode: (mode: 'NORMAL' | 'MARQUEE') => void;
   selectedEventIds: Set<string>;
-  setSelectedEventIds: (ids: Set<string>) => void;
+  setSelectedEventIds: React.Dispatch<React.SetStateAction<Set<string>>>;
 
   // Mobile Control
   setIsMobileMenuOpen: (isOpen: boolean) => void;
@@ -53,6 +55,9 @@ const END_HOUR = 22;
 const PIXELS_PER_HOUR = 60;
 const SNAP_MINUTES = 15;
 
+// Module-level scroll position — survives component re-mounts (sidebar toggle, etc.)
+let savedScrollTop = START_HOUR * PIXELS_PER_HOUR; // Default: scroll to 7 AM
+
 export const CalendarView: React.FC<Props> = ({
   events, setEvents, teachers, rooms, ganttBlocks, setGanttBlocks, settings, lists,
   onNavigate, currentView,
@@ -60,6 +65,11 @@ export const CalendarView: React.FC<Props> = ({
   setIsMobileMenuOpen,
   currentDate, setCurrentDate, viewMode, setViewMode
 }) => {
+  const { googleAccessToken, currentUser } = useAuth();
+
+  // Google Calendar sync is locked to the tenant admin who connected it
+  const isCalendarOwner = currentUser?.email?.toLowerCase() === settings.googleCalendarConnectedBy?.toLowerCase();
+
   // Safe Fallback for lists
   const activeLists = lists || INITIAL_LISTS;
 
@@ -99,7 +109,25 @@ export const CalendarView: React.FC<Props> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // --- Recurrence Expansion Engine ---
+  // Marquee Drag-to-Select State
+  const [marqueeActive, setMarqueeActive] = useState(false);
+  const [marqueeStart, setMarqueeStart] = useState<{ x: number; y: number } | null>(null);
+  const [marqueeEnd, setMarqueeEnd] = useState<{ x: number; y: number } | null>(null);
+  const marqueeContainerRef = useRef<HTMLDivElement>(null);
+
+  // Preserve scroll position across re-mounts (view switching to/from Power Tools/Gantt)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    // Restore saved scroll position on mount
+    el.scrollTop = savedScrollTop;
+
+    // Save scroll position as user scrolls
+    const handleScroll = () => { savedScrollTop = el.scrollTop; };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [viewMode]); // re-run when view mode changes (DAY/WEEK/MONTH switches the scroll container)
 
   const DAY_MAP: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
   const DAY_ABBR: DayOfWeek[] = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
@@ -424,6 +452,8 @@ export const CalendarView: React.FC<Props> = ({
   // --- Interaction Handlers ---
 
   const handleMouseDown = (e: React.MouseEvent, evt: CalendarEvent, type: 'MOVE' | 'RESIZE') => {
+    // In MARQUEE mode, let clicks pass through to onClick for selection toggling
+    if (selectionMode === 'MARQUEE') return;
     e.stopPropagation();
     e.preventDefault();
     // Close detail if dragging starts
@@ -484,6 +514,76 @@ export const CalendarView: React.FC<Props> = ({
     };
   }, [dragState, tempEvent, setEvents]);
 
+  // --- Marquee Drag-to-Select ---
+  useEffect(() => {
+    if (selectionMode !== 'MARQUEE' || !marqueeActive) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      setMarqueeEnd({ x: e.clientX, y: e.clientY });
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      if (marqueeStart && marqueeEnd) {
+        // Calculate the marquee rectangle in viewport coords
+        const rect = {
+          left: Math.min(marqueeStart.x, e.clientX),
+          right: Math.max(marqueeStart.x, e.clientX),
+          top: Math.min(marqueeStart.y, e.clientY),
+          bottom: Math.max(marqueeStart.y, e.clientY),
+        };
+
+        // Only select if the drag was significant (not just a click)
+        const dragWidth = rect.right - rect.left;
+        const dragHeight = rect.bottom - rect.top;
+        if (dragWidth > 5 || dragHeight > 5) {
+          // Find all event elements that intersect the marquee rect
+          const container = marqueeContainerRef.current || containerRef.current;
+          if (container) {
+            const eventElements = container.querySelectorAll('[data-event-id]');
+            const newSelected = new Set(selectedEventIds);
+            eventElements.forEach(el => {
+              const elRect = el.getBoundingClientRect();
+              // Check intersection
+              if (
+                elRect.left < rect.right &&
+                elRect.right > rect.left &&
+                elRect.top < rect.bottom &&
+                elRect.bottom > rect.top
+              ) {
+                const eventId = el.getAttribute('data-event-id');
+                if (eventId) {
+                  newSelected.add(eventId);
+                }
+              }
+            });
+            setSelectedEventIds(newSelected);
+          }
+        }
+      }
+      setMarqueeActive(false);
+      setMarqueeStart(null);
+      setMarqueeEnd(null);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [selectionMode, marqueeActive, marqueeStart, marqueeEnd, selectedEventIds, setSelectedEventIds]);
+
+  const handleMarqueeMouseDown = useCallback((e: React.MouseEvent) => {
+    if (selectionMode !== 'MARQUEE') return;
+    // Only start marquee on left mouse button, not on event elements
+    if (e.button !== 0) return;
+    e.preventDefault();
+    setMarqueeStart({ x: e.clientX, y: e.clientY });
+    setMarqueeEnd({ x: e.clientX, y: e.clientY });
+    setMarqueeActive(true);
+  }, [selectionMode]);
+
   // --- Event Editor (Modal) ---
 
   const openModal = (evt?: Partial<CalendarEvent>) => {
@@ -506,6 +606,8 @@ export const CalendarView: React.FC<Props> = ({
   };
 
   const handleSlotClick = (date: Date, hour: number) => {
+    // In MARQUEE mode, don't open the create-event modal when clicking empty space
+    if (selectionMode === 'MARQUEE') return;
     const start = new Date(date);
     start.setHours(hour, 0, 0, 0);
     const end = new Date(start);
@@ -518,6 +620,31 @@ export const CalendarView: React.FC<Props> = ({
       teacherId: teachers[0]?.id,
       roomId: rooms[0]?.id
     });
+  };
+
+  const handleGoogleSync = async (eventToSync: CalendarEvent, isUpdate: boolean = false) => {
+    // Only sync if the currently logged-in user is the admin who connected the calendar
+    if (settings.googleCalendarSyncEnabled && settings.googleCalendarId && googleAccessToken && isCalendarOwner) {
+      try {
+        const payload = {
+          title: eventToSync.name,
+          start: eventToSync.start,
+          end: eventToSync.end,
+          description: eventToSync.description,
+          location: rooms.find(r => r.id === eventToSync.roomId)?.name
+        };
+
+        if (isUpdate && eventToSync.googleEventId) {
+          await updateEventInGoogle(googleAccessToken, settings.googleCalendarId, eventToSync.googleEventId, payload);
+        } else {
+          const gId = await syncEventToGoogle(googleAccessToken, settings.googleCalendarId, payload);
+          // Update the event with the newly assigned google Event ID
+          setEvents(prev => prev.map(ev => ev.id === eventToSync.id ? { ...ev, googleEventId: gId } : ev));
+        }
+      } catch (err) {
+        console.error("Failed to sync to Google Calendar:", err);
+      }
+    }
   };
 
   const saveEvent = (e: React.FormEvent) => {
@@ -557,9 +684,14 @@ export const CalendarView: React.FC<Props> = ({
         setEvents(prev => [...prev, exceptionEvent]);
       } else {
         // Regular event or parent event edit
-        setEvents(prev => prev.map(ev => ev.id === editingEvent.id ? { ...ev, ...editingEvent } as CalendarEvent : ev));
-        setRecentlySaved(prev => new Set(prev).add(editingEvent.id!));
-        setTimeout(() => setRecentlySaved(prev => { const n = new Set(prev); n.delete(editingEvent.id!); return n; }), 1500);
+        const updatedEvent = { ...editingEvent } as CalendarEvent;
+        setEvents(prev => prev.map(ev => ev.id === editingEvent.id ? { ...ev, ...updatedEvent } : ev));
+        setRecentlySaved(prev => new Set(prev).add(updatedEvent.id!));
+        setTimeout(() => setRecentlySaved(prev => { const n = new Set(prev); n.delete(updatedEvent.id!); return n; }), 1500);
+
+        if (updatedEvent.googleEventId) {
+          handleGoogleSync(updatedEvent, true);
+        }
       }
     } else {
       // New event — save with recurrence rule if set
@@ -574,8 +706,19 @@ export const CalendarView: React.FC<Props> = ({
       setEvents(prev => [...prev, newEvent]);
       setRecentlySaved(prev => new Set(prev).add(newId));
       setTimeout(() => setRecentlySaved(prev => { const n = new Set(prev); n.delete(newId); return n; }), 1500);
+      handleGoogleSync(newEvent);
     }
     setIsModalOpen(false);
+  };
+
+  const handleDeleteGoogleSync = async (gId: string) => {
+    if (settings.googleCalendarSyncEnabled && settings.googleCalendarId && googleAccessToken && isCalendarOwner && gId) {
+      try {
+        await removeEventFromGoogle(googleAccessToken, settings.googleCalendarId, gId);
+      } catch (err) {
+        console.error("Failed to delete from Google Calendar", err);
+      }
+    }
   };
 
   // --- Detail View Actions ---
@@ -591,6 +734,9 @@ export const CalendarView: React.FC<Props> = ({
 
     if (window.confirm("Are you sure you want to delete this event?")) {
       setEvents(prev => prev.filter(e => e.id !== id));
+      if (targetEvent?.googleEventId) {
+        handleDeleteGoogleSync(targetEvent.googleEventId);
+      }
       setDetailItem(null);
     }
   };
@@ -832,9 +978,21 @@ export const CalendarView: React.FC<Props> = ({
     return (
       <div
         key={evt.id}
+        data-event-id={evt.id}
         onMouseDown={(e) => handleMouseDown(e, evt, 'MOVE')}
-        onClick={(e) => { e.stopPropagation(); setDetailItem({ type: 'EVENT', data: evt }); }}
-        className={`absolute rounded-xl border shadow-sm transition-shadow select-none overflow-hidden group animate-cadenza-arrive ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
+        onClick={(e) => {
+          e.stopPropagation();
+          if (selectionMode === 'MARQUEE') {
+            setSelectedEventIds(prev => {
+              const next = new Set(prev);
+              next.has(evt.id) ? next.delete(evt.id) : next.add(evt.id);
+              return next;
+            });
+          } else {
+            setDetailItem({ type: 'EVENT', data: evt });
+          }
+        }}
+        className={`absolute rounded-xl border shadow-sm transition-shadow select-none overflow-hidden group animate-cadenza-arrive ${selectedEventIds.has(evt.id) ? 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
           ? 'canceled-stripe border-slate-300 text-slate-400 dark:border-slate-600 dark:text-slate-500 bg-slate-50 dark:bg-slate-800'
           : isDragging
             ? 'z-50 opacity-90 shadow-cadenza-deep'
@@ -898,8 +1056,8 @@ export const CalendarView: React.FC<Props> = ({
 
   const renderTimeGrid = (days: Date[]) => {
     return (
-      <div className="flex-1 overflow-auto bg-white dark:bg-slate-900 relative" ref={containerRef}>
-        <div className="min-w-[800px] relative">
+      <div className={`flex-1 overflow-auto bg-white dark:bg-slate-900 relative ${selectionMode === 'MARQUEE' ? 'cursor-crosshair' : ''}`} ref={containerRef} onMouseDown={handleMarqueeMouseDown}>
+        <div className="min-w-[800px] relative" ref={marqueeContainerRef}>
           <div className="grid border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-900 z-20 shadow-sm" style={{ gridTemplateColumns: `50px repeat(${days.length}, 1fr)` }}>
             <div className="p-4 border-r border-slate-100 dark:border-slate-800"></div>
             {days.map(day => (
@@ -954,6 +1112,32 @@ export const CalendarView: React.FC<Props> = ({
             </div>
           </div>
         </div>
+
+        {/* Marquee Selection Rectangle */}
+        {marqueeActive && marqueeStart && marqueeEnd && (() => {
+          const containerRect = containerRef.current?.getBoundingClientRect();
+          if (!containerRect) return null;
+          const scrollLeft = containerRef.current?.scrollLeft || 0;
+          const scrollTop = containerRef.current?.scrollTop || 0;
+          const left = Math.min(marqueeStart.x, marqueeEnd.x) - containerRect.left + scrollLeft;
+          const top = Math.min(marqueeStart.y, marqueeEnd.y) - containerRect.top + scrollTop;
+          const width = Math.abs(marqueeEnd.x - marqueeStart.x);
+          const height = Math.abs(marqueeEnd.y - marqueeStart.y);
+          return (
+            <div
+              className="absolute pointer-events-none z-50"
+              style={{
+                left: `${left}px`,
+                top: `${top}px`,
+                width: `${width}px`,
+                height: `${height}px`,
+                border: '2px dashed rgba(59, 130, 246, 0.8)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderRadius: '4px',
+              }}
+            />
+          );
+        })()}
       </div>
     );
   };
@@ -1140,8 +1324,20 @@ export const CalendarView: React.FC<Props> = ({
                                     return (
                                       <div
                                         key={evt.id}
-                                        onClick={(e) => { e.stopPropagation(); setDetailItem({ type: 'EVENT', data: evt }); }}
-                                        className={`text-[10px] text-left px-1.5 py-1 rounded cursor-pointer border-l-2 animate-cadenza-arrive ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
+                                        data-event-id={evt.id}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (selectionMode === 'MARQUEE') {
+                                            setSelectedEventIds(prev => {
+                                              const next = new Set(prev);
+                                              next.has(evt.id) ? next.delete(evt.id) : next.add(evt.id);
+                                              return next;
+                                            });
+                                          } else {
+                                            setDetailItem({ type: 'EVENT', data: evt });
+                                          }
+                                        }}
+                                        className={`text-[10px] text-left px-1.5 py-1 rounded cursor-pointer border-l-2 animate-cadenza-arrive ${selectedEventIds.has(evt.id) ? 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
                                           ? 'bg-slate-100 text-slate-400 line-through dark:bg-slate-800 dark:text-slate-600 border-slate-400'
                                           : 'hover:opacity-90 hover:shadow-cadenza-soft transition-all'
                                           }`}

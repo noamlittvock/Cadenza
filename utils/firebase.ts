@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 // TODO: Add these variables to your .env file
@@ -15,6 +15,16 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = initializeFirestore(app, { ignoreUndefinedProperties: true });
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
+
+// Request permissions for Google Calendar Management
+googleProvider.addScope('https://www.googleapis.com/auth/calendar.events');
+// Optional: also readonly base scope to just fetch calendar list if needed
+googleProvider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+
+// Force account selection so users can switch between Google accounts
+googleProvider.setCustomParameters({
+    prompt: 'select_account'
+});

@@ -53,7 +53,7 @@ const NavItem = ({
 export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, darkMode, toggleDarkMode, settings, isMobileMenuOpen, setIsMobileMenuOpen }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 1024 : false);
-  const { isAdmin, currentUser, orgId, logout, availableOrgs } = useAuth(); // Added availableOrgs
+  const { isAdmin, isSuperAdmin, currentUser, orgId, logout, availableOrgs } = useAuth();
 
   const currentOrg = availableOrgs?.find(o => o.id === orgId);
 
@@ -79,10 +79,14 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
   // Redirect Viewers from Admin Pages
   useEffect(() => {
     if (currentUser?.role === 'VIEWER') {
-      const adminViews: ViewState[] = ['GANTT', 'POWER_TOOLS', 'MANAGE', 'SETTINGS', 'FINANCIAL_ANALYSIS'];
+      const adminViews: ViewState[] = ['GANTT', 'POWER_TOOLS', 'MANAGE', 'SETTINGS', 'FINANCIAL_ANALYSIS', 'SUPER_ADMIN'];
       if (adminViews.includes(currentView)) {
         setView('CALENDAR');
       }
+    }
+    // Non-superadmin admins cannot access SUPER_ADMIN
+    if (isAdmin && !isSuperAdmin && currentView === 'SUPER_ADMIN') {
+      setView('CALENDAR');
     }
   }, [currentUser, currentView, setView]);
 
@@ -229,8 +233,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 collapsed={isCollapsed}
               />
 
-              {/* Super Admin Area (Only visible to the root bootstrap admin) */}
-              {currentUser?.email === 'noam.littvock@gmail.com' && (
+              {/* Super Admin Area (Only visible to superadmin) */}
+              {isSuperAdmin && (
                 <>
                   {/* Separator */}
                   <div className="my-2 mx-3 border-t border-red-900/50" />

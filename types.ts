@@ -134,6 +134,7 @@ export interface CalendarEvent {
   exceptions?: string[]; // Date strings (YYYY-MM-DD) to skip
   isExceptionEdit?: boolean;
   originalStart?: string; // Original occurrence date before modification
+  googleEventId?: string;
 }
 
 export interface ExternalCalendar {
@@ -162,7 +163,10 @@ export interface AppSettings {
   defaultEventDuration: number;
   weekNumberDisplay: 'none' | 'week-number' | 'week-of';
   currency: string;
-  developerMode: boolean;
+  developerMode: boolean; // Legacy — kept for backward compat, no longer shown in UI
+  googleCalendarSyncEnabled?: boolean;
+  googleCalendarId?: string;
+  googleCalendarConnectedBy?: string; // Email of the admin who connected GCal for this tenant
 }
 
 export interface ListsState {

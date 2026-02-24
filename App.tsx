@@ -152,13 +152,9 @@ function AppContent() {
 
       return (
         <div className="relative w-full h-full overflow-hidden">
-          {/* Main Calendar Area */}
+          {/* Main Calendar Area — stays full width, sidebar overlaps from right */}
           <div
-            className="sidebar-transition h-full overflow-hidden"
-            style={{
-              marginRight: showSidebar ? '384px' : '0px',
-              transition: 'margin-right 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-            }}
+            className="h-full overflow-hidden"
           >
             {CalendarComponent}
           </div>
@@ -230,13 +226,8 @@ function AppContent() {
       case 'FINANCIAL_ANALYSIS':
         return <FinancialAnalysis events={events} teachers={teachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} onNavigateBack={() => setCurrentView('FINANCIAL')} />;
       case 'SUPER_ADMIN':
-        return <SuperAdmin />;
-      case 'SETTINGS':
         return (
-          <Settings
-            settings={settings}
-            setSettings={setSettings}
-            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+          <SuperAdmin
             onLoadTestData={() => {
               console.log("Generating data...");
               const data = generateTestData(settings.currency);
@@ -253,6 +244,14 @@ function AppContent() {
                 setGanttBlocks([]);
               }
             }}
+          />
+        );
+      case 'SETTINGS':
+        return (
+          <Settings
+            settings={settings}
+            setSettings={setSettings}
+            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
           />
         );
       default:

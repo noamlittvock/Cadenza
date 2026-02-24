@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../utils/firebase';
 import { Lock, LogIn, AlertCircle, Loader2, Music } from 'lucide-react';
 
-export type UserRole = 'ADMIN' | 'VIEWER';
+export type UserRole = 'SUPERADMIN' | 'ADMIN' | 'VIEWER';
 
 interface User {
   id: string;
@@ -24,8 +24,10 @@ interface OrgInfo {
 interface AuthContextType {
   currentUser: User | null;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   orgId: string | null;
   availableOrgs: OrgInfo[] | null;
+  googleAccessToken: string | null;
   login: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -40,12 +42,14 @@ export const useAuth = () => {
   return context;
 };
 
-// Bootstrap admin email for the first time setup
-const BOOTSTRAP_ADMIN_EMAIL = 'noam.littvock@gmail.com';
+// Superadmin email – has access to all tenants, sandbox, and superadmin tools
+// This is hardcoded and not editable through any UI. Firebase is the only place this could ever change.
+const SUPERADMIN_EMAIL = 'noam.littvock@gmail.com';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [availableOrgs, setAvailableOrgs] = useState<OrgInfo[] | null>(null);
+  const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(() => sessionStorage.getItem('gcal_token'));
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -57,29 +61,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser?.email) {
         const normalizedEmail = firebaseUser.email.toLowerCase().trim();
-        const BOOTSTRAP_EMAIL_NORMALIZED = BOOTSTRAP_ADMIN_EMAIL.toLowerCase().trim();
+        const SUPERADMIN_EMAIL_NORMALIZED = SUPERADMIN_EMAIL.toLowerCase().trim();
+        const isSuperAdminUser = normalizedEmail === SUPERADMIN_EMAIL_NORMALIZED;
 
         try {
           if (orgSlug) {
             // SCENARIO A: User is trying to access a specific organization URL
-            const userDocRef = doc(db, 'access_control', firebaseUser.email);
-            const userDoc = await getDoc(userDocRef);
+            // First check the new composite ID format (email_orgSlug)
+            const compositeId = `${normalizedEmail}_${orgSlug}`;
+            const compositeDocRef = doc(db, 'access_control', compositeId);
+            const compositeDoc = await getDoc(compositeDocRef);
 
-            console.log("Auth Check:", { email: normalizedEmail, orgSlug, docExists: userDoc.exists() });
+            // Backup check for legacy documents (where ID is exactly the email)
+            const legacyDocRef = doc(db, 'access_control', normalizedEmail);
+            const legacyDoc = await getDoc(legacyDocRef);
 
-            if (userDoc.exists() && userDoc.data()?.allowed === true && userDoc.data()?.orgId === orgSlug) {
+            let validDoc = null;
+            if (compositeDoc.exists() && compositeDoc.data()?.allowed === true && compositeDoc.data()?.orgId === orgSlug) {
+              validDoc = compositeDoc;
+            } else if (legacyDoc.exists() && legacyDoc.data()?.allowed === true && legacyDoc.data()?.orgId === orgSlug) {
+              validDoc = legacyDoc;
+            }
+
+            console.log("Auth Check:", { email: normalizedEmail, orgSlug, docExists: !!validDoc });
+
+            if (validDoc) {
+              // If this is the superadmin, always assign SUPERADMIN role regardless of what's in the doc
+              const resolvedRole: UserRole = isSuperAdminUser ? 'SUPERADMIN' : (validDoc.data()?.role || 'VIEWER');
               setCurrentUser({
                 id: firebaseUser.uid,
                 name: firebaseUser.displayName || 'User',
                 email: firebaseUser.email,
-                role: userDoc.data()?.role || 'VIEWER',
+                role: resolvedRole,
                 avatar: firebaseUser.photoURL || undefined,
                 orgId: orgSlug
               });
               setErrorMsg(null);
-            } else if (normalizedEmail === BOOTSTRAP_EMAIL_NORMALIZED) {
-              // Bootstrap Protocol
-              await setDoc(userDocRef, {
+            } else if (isSuperAdminUser) {
+              // Superadmin Automatic Bypass & Provisioning
+              await setDoc(compositeDocRef, {
                 email: normalizedEmail,
                 allowed: true,
                 role: 'ADMIN',
@@ -89,9 +109,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
               setCurrentUser({
                 id: firebaseUser.uid,
-                name: firebaseUser.displayName || 'Administrator',
+                name: firebaseUser.displayName || 'Super Administrator',
                 email: firebaseUser.email,
-                role: 'ADMIN',
+                role: 'SUPERADMIN',
                 avatar: firebaseUser.photoURL || undefined,
                 orgId: orgSlug
               });
@@ -109,25 +129,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           } else {
             // SCENARIO B: User is at the root ("Gateway")
-            // 1. Fetch all newer composite records (email_orgId)
-            const q = query(
-              collection(db, 'access_control'),
-              where('email', '==', normalizedEmail),
-              where('allowed', '==', true)
-            );
-            const querySnapshot = await getDocs(q);
-            let myOrgsRaw = querySnapshot.docs.map(d => d.data().orgId);
+            let myOrgsRaw: string[] = [];
 
-            // 2. Also check for a legacy record (where ID is just the email)
-            const legacyDoc = await getDoc(doc(db, 'access_control', normalizedEmail));
-            if (legacyDoc.exists() && legacyDoc.data().allowed && legacyDoc.data().orgId) {
-              myOrgsRaw.push(legacyDoc.data().orgId);
+            if (isSuperAdminUser) {
+              // Superadmin: Get ALL organizations + sandbox
+              const allOrgsSnap = await getDocs(collection(db, 'organizations'));
+              myOrgsRaw = allOrgsSnap.docs.map(d => d.id);
+
+              // Ensure sandbox is always available for superadmin
+              if (!myOrgsRaw.includes('sandbox')) myOrgsRaw.push('sandbox');
+            } else {
+              // Regular users: only see orgs they have explicit access to
+              const q = query(
+                collection(db, 'access_control'),
+                where('email', '==', normalizedEmail),
+                where('allowed', '==', true)
+              );
+              const querySnapshot = await getDocs(q);
+              myOrgsRaw = querySnapshot.docs.map(d => d.data().orgId);
+
+              // Also check for a legacy record (where ID is just the email)
+              const legacyDoc = await getDoc(doc(db, 'access_control', normalizedEmail));
+              if (legacyDoc.exists() && legacyDoc.data().allowed && legacyDoc.data().orgId) {
+                myOrgsRaw.push(legacyDoc.data().orgId);
+              }
             }
 
             // Deduplicate slugs
             myOrgsRaw = [...new Set(myOrgsRaw)];
 
-            if (myOrgsRaw.length === 0 && normalizedEmail !== BOOTSTRAP_EMAIL_NORMALIZED) {
+            if (myOrgsRaw.length === 0 && !isSuperAdminUser) {
               setErrorMsg("No workspaces found for your account.");
               setAvailableOrgs([]);
             } else {
@@ -149,17 +180,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 id: firebaseUser.uid,
                 name: firebaseUser.displayName || 'Authorized User',
                 email: firebaseUser.email,
-                role: 'VIEWER', // Default at root
+                role: isSuperAdminUser ? 'SUPERADMIN' : 'VIEWER',
                 avatar: firebaseUser.photoURL || undefined,
                 orgId: '' // No org active yet
               });
 
-              // If it's you (the boss), ensure Alpert is always in the list even if not explicitly mapped
-              if (normalizedEmail === BOOTSTRAP_EMAIL_NORMALIZED && !myOrgsRaw.includes('alpert')) {
-                setAvailableOrgs(prev => [
-                  ...(prev || []),
-                  { id: 'alpert', name: 'Alpert Music Center', logoUrl: undefined }
-                ]);
+              // Superadmin: always ensure sandbox environment is in the list
+              if (isSuperAdminUser) {
+                setAvailableOrgs(prev => {
+                  const existing = prev || [];
+                  if (!existing.find(o => o.id === 'sandbox')) {
+                    return [...existing, { id: 'sandbox', name: 'Sandbox (Dev)', logoUrl: undefined }];
+                  }
+                  return existing;
+                });
               }
             }
           }
@@ -181,7 +215,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setErrorMsg(null);
     setLoading(true);
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+
+      // Capture the Google Access Token for Calendar operations
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential && credential.accessToken) {
+        setGoogleAccessToken(credential.accessToken);
+        sessionStorage.setItem('gcal_token', credential.accessToken);
+      }
+
     } catch (err: any) {
       console.error(err);
       if (err.code !== 'auth/popup-closed-by-user') {
@@ -193,6 +235,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     await signOut(auth);
+    setGoogleAccessToken(null);
+    sessionStorage.removeItem('gcal_token');
     if (orgSlug) {
       window.location.href = '/';
     }
@@ -200,9 +244,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const value = {
     currentUser,
-    isAdmin: currentUser?.role === 'ADMIN',
+    isAdmin: currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPERADMIN',
+    isSuperAdmin: currentUser?.role === 'SUPERADMIN',
     orgId: currentUser?.orgId || null,
     availableOrgs,
+    googleAccessToken,
     login,
     logout
   };

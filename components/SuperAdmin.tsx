@@ -3,7 +3,8 @@ import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'f
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../utils/firebase';
 import { useAuth } from '../context/AuthContext';
-import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus } from 'lucide-react';
+import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus, Wrench } from 'lucide-react';
+import { TRANSLATIONS } from '../constants';
 
 interface Organization {
     id: string; // The slug
@@ -20,9 +21,14 @@ interface AccessRecord {
     orgId: string;
 }
 
-export const SuperAdmin: React.FC = () => {
-    const { currentUser } = useAuth();
-    const [activeTab, setActiveTab] = useState<'ORGS' | 'USERS'>('ORGS');
+interface SuperAdminProps {
+    onLoadTestData?: () => void;
+    onWipeData?: () => void;
+}
+
+export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeData }) => {
+    const { currentUser, isSuperAdmin } = useAuth();
+    const [activeTab, setActiveTab] = useState<'ORGS' | 'USERS' | 'DEV_TOOLS'>('ORGS');
     const [loading, setLoading] = useState(true);
 
     // Data State
@@ -46,8 +52,8 @@ export const SuperAdmin: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [selectedUploadOrgId, setSelectedUploadOrgId] = useState<string | null>(null);
 
-    // Security check - only literal super admin
-    if (currentUser?.email !== 'noam.littvock@gmail.com') {
+    // Security check - only superadmin role
+    if (!isSuperAdmin) {
         return (
             <div className="p-8 text-center text-red-500">
                 <AlertCircle className="mx-auto mb-4" size={48} />
@@ -239,7 +245,7 @@ export const SuperAdmin: React.FC = () => {
                     </div>
                     <div>
                         <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Super Admin Console</h1>
-                        <p className="text-slate-500">Manage Tenants & Master Access Control</p>
+                        <p className="text-slate-500">Manage Tenants, Access Control & Developer Tools</p>
                     </div>
                 </div>
 
@@ -270,6 +276,16 @@ export const SuperAdmin: React.FC = () => {
                         <div className="flex items-center space-x-2">
                             <Users size={18} />
                             <span>Access Mappings</span>
+                        </div>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('DEV_TOOLS')}
+                        className={`pb-4 px-2 font-medium transition-colors border-b-2 ${activeTab === 'DEV_TOOLS' ? 'border-amber-500 text-amber-600 dark:text-amber-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+                            }`}
+                    >
+                        <div className="flex items-center space-x-2">
+                            <Wrench size={18} />
+                            <span>Developer Tools</span>
                         </div>
                     </button>
                 </div>
@@ -518,6 +534,142 @@ export const SuperAdmin: React.FC = () => {
                                             ))}
                                         </tbody>
                                     </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'DEV_TOOLS' && (
+                            <div className="p-6">
+                                <div className="border-l-4 border-amber-400 bg-amber-50 dark:bg-amber-900/20 p-4 rounded-r-lg mb-6">
+                                    <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
+                                        ⚠️ These tools are exclusively available to the Super Admin. No tenant admin can access them.
+                                    </p>
+                                </div>
+
+                                <div className="space-y-6">
+                                    {/* Test Data Generation */}
+                                    <div className="bg-amber-50 dark:bg-amber-900/20 p-5 rounded-lg border border-amber-200 dark:border-amber-700/50">
+                                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                            <div>
+                                                <h4 className="font-bold text-slate-900 dark:text-white">Generate Test Data</h4>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                                    Populate the current workspace with realistic test teachers, events, rooms, and Gantt blocks for evaluation purposes.
+                                                </p>
+                                            </div>
+                                            <div className="flex gap-2 shrink-0">
+                                                <button
+                                                    onClick={() => onWipeData?.()}
+                                                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-bold transition-colors shadow-none border border-red-600"
+                                                >
+                                                    Wipe Data
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        if (window.confirm("Would you like to take a Snapshot of current state before generating test data?")) {
+                                                            localStorage.setItem('appSnapshot', JSON.stringify({
+                                                                teachers: localStorage.getItem('teachers'),
+                                                                events: localStorage.getItem('events'),
+                                                                rooms: localStorage.getItem('rooms'),
+                                                                settings: localStorage.getItem('settings'),
+                                                                lists: localStorage.getItem('lists')
+                                                            }));
+                                                            alert("Snapshot created!");
+                                                        }
+                                                        if (window.confirm("Generate test data? This will overwrite current data in this workspace.")) {
+                                                            onLoadTestData?.();
+                                                            window.alert("Test data generated successfully!");
+                                                        }
+                                                    }}
+                                                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-bold transition-colors shadow-none border border-amber-600"
+                                                >
+                                                    Generate Test Data
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* State Snapshots & Testing Tools */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="bg-slate-50 dark:bg-slate-800 p-5 rounded-lg border border-slate-200 dark:border-slate-700">
+                                            <h4 className="font-bold text-slate-900 dark:text-white mb-1">State Snapshot</h4>
+                                            <p className="text-xs text-slate-500 mb-3">Save current app data to browser storage or restore from a previous snapshot.</p>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => {
+                                                    localStorage.setItem('appSnapshot', JSON.stringify({
+                                                        teachers: localStorage.getItem('teachers'),
+                                                        events: localStorage.getItem('events'),
+                                                        rooms: localStorage.getItem('rooms'),
+                                                        settings: localStorage.getItem('settings'),
+                                                        lists: localStorage.getItem('lists')
+                                                    }));
+                                                    alert("Snapshot created successfully!");
+                                                }} className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">Create Snapshot</button>
+                                                <button onClick={() => {
+                                                    const snap = localStorage.getItem('appSnapshot');
+                                                    if (snap && window.confirm("Restore snapshot? Current changes will be overwritten!")) {
+                                                        const parsed = JSON.parse(snap);
+                                                        if (parsed.teachers) localStorage.setItem('teachers', parsed.teachers);
+                                                        if (parsed.events) localStorage.setItem('events', parsed.events);
+                                                        if (parsed.rooms) localStorage.setItem('rooms', parsed.rooms);
+                                                        if (parsed.lists) localStorage.setItem('lists', parsed.lists);
+                                                        window.location.reload();
+                                                    } else if (!snap) {
+                                                        alert("No snapshot found.");
+                                                    }
+                                                }} className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">Restore</button>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-slate-50 dark:bg-slate-800 p-5 rounded-lg border border-slate-200 dark:border-slate-700">
+                                            <h4 className="font-bold text-slate-900 dark:text-white mb-1">Testing Tools</h4>
+                                            <p className="text-xs text-slate-500 mb-3">Actions specific for evaluating Layer 1 logic.</p>
+                                            <div className="flex gap-2 flex-wrap">
+                                                <button onClick={() => {
+                                                    if (window.confirm("Run Calendar Test Generator? Current state will be cleared. (Snapshot taken automatically)")) {
+                                                        localStorage.setItem('appSnapshot', JSON.stringify({
+                                                            teachers: localStorage.getItem('teachers'),
+                                                            events: localStorage.getItem('events'),
+                                                            rooms: localStorage.getItem('rooms')
+                                                        }));
+                                                        onLoadTestData?.();
+                                                    }
+                                                }} className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors">Run Calendar Test Gen</button>
+                                                <button onClick={() => {
+                                                    if (window.confirm("Run Teacher Test Generator? Current teachers will be replaced. (Snapshot taken automatically)")) {
+                                                        localStorage.setItem('appSnapshot', JSON.stringify({
+                                                            teachers: localStorage.getItem('teachers'),
+                                                            events: localStorage.getItem('events'),
+                                                            rooms: localStorage.getItem('rooms')
+                                                        }));
+                                                        onLoadTestData?.();
+                                                    }
+                                                }} className="px-3 py-1.5 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 text-xs font-bold rounded hover:bg-violet-200 dark:hover:bg-violet-900/50 transition-colors">Run Teacher Gen</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* System Info */}
+                                    <div className="bg-slate-50 dark:bg-slate-800 p-5 rounded-lg border border-slate-200 dark:border-slate-700">
+                                        <h4 className="font-bold text-slate-900 dark:text-white mb-3">System Information</h4>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                                            <div>
+                                                <span className="text-slate-500 block">Super Admin</span>
+                                                <span className="text-slate-900 dark:text-white font-mono">{currentUser?.email}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-slate-500 block">Total Tenants</span>
+                                                <span className="text-slate-900 dark:text-white font-bold text-lg">{organizations.length}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-slate-500 block">Total Access Records</span>
+                                                <span className="text-slate-900 dark:text-white font-bold text-lg">{accessRecords.length}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-slate-500 block">Role</span>
+                                                <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded font-bold">SUPERADMIN</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         )}

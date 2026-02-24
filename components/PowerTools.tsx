@@ -345,7 +345,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                             </button>
                         </div>
                     </>
-                ) : (
+                ) : selectionMethod === 'MANUAL' ? (
                     <>
                         {/* Manual View */}
                         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 rounded-lg p-3 animate-in fade-in duration-300">
@@ -354,7 +354,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                 <div>
                                     <h4 className="text-xs font-bold text-blue-700 dark:text-blue-300 mb-1">Interactive Selection</h4>
                                     <p className="text-[10px] text-blue-600 dark:text-blue-400 leading-relaxed">
-                                        Click and drag directly on the calendar grid to select multiple events.
+                                        Click and drag directly on the calendar grid to draw a selection rectangle, or click individual events to toggle them.
                                     </p>
                                 </div>
                             </div>
@@ -377,7 +377,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                         )}
                     </>
 
-                )}
+                ) : null}
 
                 {selectionMethod === 'IMPORT_GANTT' && (
                     <div className="space-y-4 animate-in fade-in duration-300">

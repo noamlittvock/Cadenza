@@ -3,63 +3,118 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Base permissions are Deny by Default in Firestore
-    
-    // Helper functions
     function isAuthenticated() {
       return request.auth != null;
     }
-    
-    function getUserData() {
-      return get(/databases/$(database)/documents/access_control/$(request.auth.token.email)).data;
+
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == 'noam.littvock@gmail.com' ||
+        request.auth.token.email == 'musicgonenim@gmail.com'
+      );
     }
     
-    function isAdmin(userData) {
-      return userData.role == 'ADMIN';
+    function isAuthorizedForOrg(orgId) {
+      return isSuperAdmin() || (
+        isAuthenticated() && (
+          (exists(/databases/$(database)/documents/access_control/$(request.auth.token.email + "_" + orgId)) && 
+           get(/databases/$(database)/documents/access_control/$(request.auth.token.email + "_" + orgId)).data.allowed == true) ||
+          (exists(/databases/$(database)/documents/access_control/$(request.auth.token.email)) &&
+           get(/databases/$(database)/documents/access_control/$(request.auth.token.email)).data.allowed == true &&
+           get(/databases/$(database)/documents/access_control/$(request.auth.token.email)).data.orgId == orgId)
+        )
+      );
+    }
+
+    function isOrgAdmin(orgId) {
+      return isSuperAdmin() || (
+        isAuthenticated() && (
+          (exists(/databases/$(database)/documents/access_control/$(request.auth.token.email + "_" + orgId)) && 
+           get(/databases/$(database)/documents/access_control/$(request.auth.token.email + "_" + orgId)).data.role == 'ADMIN') ||
+          (exists(/databases/$(database)/documents/access_control/$(request.auth.token.email)) &&
+           get(/databases/$(database)/documents/access_control/$(request.auth.token.email)).data.role == 'ADMIN' &&
+           get(/databases/$(database)/documents/access_control/$(request.auth.token.email)).data.orgId == orgId)
+        )
+      );
     }
     
     // Organizations collection
     match /organizations/{orgSlug} {
-      allow read: if true; // Allows the app to verify if an organization exists before login
-      allow write: if isAuthenticated() && request.auth.token.email == 'noam.littvock@gmail.com';
+      allow read: if true;
+      allow write: if isSuperAdmin();
     }
 
     // Access Control Collection
     match /access_control/{recordId} {
-      // Users can read records that belong to them, super admin can read all
-      allow read: if isAuthenticated() && (
-        request.auth.token.email == 'noam.littvock@gmail.com' ||
-        request.auth.token.email == recordId || 
-        resource.data.email == request.auth.token.email
+      allow read: if isSuperAdmin() || (
+        isAuthenticated() && (
+          recordId == request.auth.token.email ||
+          recordId.matches(request.auth.token.email + '_.*')
+        )
       );
       
-      // Allow bootstrap admin to write its own record, or existing admins to manage others in their org
-      allow write: if isAuthenticated() && (
-        request.auth.token.email == 'noam.littvock@gmail.com' ||
-        (isAdmin(getUserData()) && request.method != 'delete' && getUserData().orgId == request.resource.data.orgId) ||
-        (isAdmin(getUserData()) && request.method == 'delete' && getUserData().orgId == resource.data.orgId)
+      allow write: if isSuperAdmin() || (
+        isAuthenticated() && (
+          (request.method == 'create' && isOrgAdmin(request.resource.data.orgId)) ||
+          (request.method == 'update' && isOrgAdmin(request.resource.data.orgId)) ||
+          (request.method == 'delete' && isOrgAdmin(resource.data.orgId))
+        )
       );
     }
     
-    // Multi-Tenant Business Data
-    match /teachers/{id} { allow read, write: if isAuthorizedForOrg(); }
-    match /events/{id} { allow read, write: if isAuthorizedForOrg(); }
-    match /rooms/{id} { allow read, write: if isAuthorizedForOrg(); }
-    match /ganttBlocks/{id} { allow read, write: if isAuthorizedForOrg(); }
-    match /settings/{id} { allow read, write: if isAuthorizedForOrg(); }
-    match /lists/{id} { allow read, write: if isAuthorizedForOrg(); }
-    match /customCharts/{id} { allow read, write: if isAuthorizedForOrg(); }
+    // Helper to extract orgId safely
+    function getDocOrgId(data) {
+      return data.get('orgId', null);
+    }
 
-    function isAuthorizedForOrg() {
-      return isAuthenticated() && (
-        // For READ: The existing document must belong to the user's org
-        (request.method == 'read' && resource.data.orgId == getUserData().orgId) ||
-        // For CREATE: The new document must be assigned to the user's org
-        (request.method == 'create' && request.resource.data.orgId == getUserData().orgId) ||
-        // For UPDATE: Both the old and new must match the user's org
-        (request.method == 'update' && resource.data.orgId == getUserData().orgId && request.resource.data.orgId == getUserData().orgId) ||
-        // For DELETE: The document must belong to the user's org
-        (request.method == 'delete' && resource.data.orgId == getUserData().orgId)
+    // Multi-Tenant Business Data
+    match /teachers/{id} { 
+      allow read, write: if isSuperAdmin();
+      allow read, delete: if isAuthorizedForOrg(getDocOrgId(resource.data)); 
+      allow create: if isAuthorizedForOrg(getDocOrgId(request.resource.data));
+      allow update: if isAuthorizedForOrg(getDocOrgId(resource.data)) && isAuthorizedForOrg(getDocOrgId(request.resource.data));
+    }
+    match /events/{id} { 
+      allow read, write: if isSuperAdmin();
+      allow read, delete: if isAuthorizedForOrg(getDocOrgId(resource.data)); 
+      allow create: if isAuthorizedForOrg(getDocOrgId(request.resource.data));
+      allow update: if isAuthorizedForOrg(getDocOrgId(resource.data)) && isAuthorizedForOrg(getDocOrgId(request.resource.data));
+    }
+    match /rooms/{id} { 
+      allow read, write: if isSuperAdmin();
+      allow read, delete: if isAuthorizedForOrg(getDocOrgId(resource.data)); 
+      allow create: if isAuthorizedForOrg(getDocOrgId(request.resource.data));
+      allow update: if isAuthorizedForOrg(getDocOrgId(resource.data)) && isAuthorizedForOrg(getDocOrgId(request.resource.data));
+    }
+    match /ganttBlocks/{id} { 
+      allow read, write: if isSuperAdmin();
+      allow read, delete: if isAuthorizedForOrg(getDocOrgId(resource.data)); 
+      allow create: if isAuthorizedForOrg(getDocOrgId(request.resource.data));
+      allow update: if isAuthorizedForOrg(getDocOrgId(resource.data)) && isAuthorizedForOrg(getDocOrgId(request.resource.data));
+    }
+    match /settings/{id} { 
+      allow read, write: if isSuperAdmin();
+      allow read, delete: if isAuthorizedForOrg(getDocOrgId(resource.data)); 
+      allow create: if isAuthorizedForOrg(getDocOrgId(request.resource.data));
+      allow update: if isAuthorizedForOrg(getDocOrgId(resource.data)) && isAuthorizedForOrg(getDocOrgId(request.resource.data));
+    }
+    match /lists/{id} { 
+      allow read, write: if isSuperAdmin();
+      allow read, delete: if isAuthorizedForOrg(getDocOrgId(resource.data)); 
+      allow create: if isAuthorizedForOrg(getDocOrgId(request.resource.data));
+      allow update: if isAuthorizedForOrg(getDocOrgId(resource.data)) && isAuthorizedForOrg(getDocOrgId(request.resource.data));
+    }
+    match /customCharts/{id} { 
+      allow read, write: if isSuperAdmin();
+      allow read, delete: if isAuthorizedForOrg(getDocOrgId(resource.data)); 
+      allow create: if isAuthorizedForOrg(getDocOrgId(request.resource.data));
+      allow update: if isAuthorizedForOrg(getDocOrgId(resource.data)) && isAuthorizedForOrg(getDocOrgId(request.resource.data));
+    }
+    
+    // System Configs (Settings, Lists, etc. stored as composite IDs: orgId_docId)
+    match /system_configs/{configId} {
+      allow read, write: if isSuperAdmin() || (
+        isAuthenticated() && isAuthorizedForOrg(configId.split('_')[0])
       );
     }
   }
