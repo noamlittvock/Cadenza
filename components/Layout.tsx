@@ -133,17 +133,17 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             style={{ transition: 'all 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
             <img src="/logo.png?v=2" alt="Cadenza Logo" className="w-12 h-12 object-cover rounded shadow-sm" />
           </div>
-          <div className="overflow-hidden whitespace-nowrap flex flex-col justify-center"
+          <div className="overflow-hidden flex flex-col justify-center flex-1"
             style={{
               opacity: isCollapsed ? 0 : 1,
               maxWidth: isCollapsed ? 0 : 200,
               transition: 'opacity 300ms ease, max-width 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
             }}>
-            <h1 className="text-lg font-bold leading-tight truncate" title={displayOrgName}>
+            <h1 className="text-sm font-bold leading-snug break-words text-center flex items-center justify-center min-h-full" title={displayOrgName}>
               {displayOrgName}
             </h1>
             {orgId === 'sandbox' && !isCollapsed && (
-              <div className="mt-1">
+              <div className="mt-1 flex justify-center">
                 <span className="bg-amber-500 text-[10px] font-black px-1.5 py-0.5 rounded text-white animate-pulse">SANDBOX</span>
               </div>
             )}

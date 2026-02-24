@@ -127,6 +127,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setCurrentUser(null);
               setErrorMsg(`Your account does not have access to the '${orgSlug}' workspace.`);
             }
+
+            if (validDoc || isSuperAdminUser) {
+              try {
+                const oDoc = await getDoc(doc(db, 'organizations', orgSlug));
+                const orgName = oDoc.exists() ? oDoc.data().name : orgSlug.charAt(0).toUpperCase() + orgSlug.slice(1);
+                const orgLogo = oDoc.exists() ? oDoc.data().logoUrl : undefined;
+                setAvailableOrgs([{ id: orgSlug, name: orgName, logoUrl: orgLogo }]);
+              } catch (e) {
+                console.error("Failed to load organization metadata", e);
+                setAvailableOrgs([{ id: orgSlug, name: orgSlug.charAt(0).toUpperCase() + orgSlug.slice(1) }]);
+              }
+            }
           } else {
             // SCENARIO B: User is at the root ("Gateway")
             let myOrgsRaw: string[] = [];
@@ -259,11 +271,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900 px-4 py-12">
         <div className="w-full max-w-md">
           <div className="text-center mb-10">
-            <div className="w-28 h-28 mx-auto mb-6 drop-shadow-2xl rounded-[2rem] overflow-hidden">
+            <div className="w-44 h-44 mx-auto mb-6 drop-shadow-2xl rounded-[2.5rem] overflow-hidden">
               <img src="/logo.png?v=2" alt="Cadenza Logo" className="w-full h-full object-cover" />
             </div>
-            <h1 className="text-4xl font-black text-slate-900 dark:text-white mb-3">Cadenza</h1>
-            <p className="text-slate-500 dark:text-slate-400">Welcome to the Music Center Management Platform</p>
+            <img src="/logo_text.png" alt="Cadenza" className="h-[72px] mx-auto mb-3 object-contain" />
           </div>
 
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -336,10 +347,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               )}
             </div>
 
-            <div className="bg-slate-50 dark:bg-slate-800/50 p-6 border-t border-slate-100 dark:border-slate-700">
-              <p className="text-center text-xs text-slate-500 mb-1">Authenticated via Google Cloud Identity</p>
-              <p className="text-center text-[10px] text-slate-400">Cadenza Multi-Tenant v1.0 • Built by Antigravity</p>
-            </div>
+
           </div>
         </div>
       </div>
