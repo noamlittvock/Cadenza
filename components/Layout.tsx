@@ -53,7 +53,7 @@ const NavItem = ({
 export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, darkMode, toggleDarkMode, settings, isMobileMenuOpen, setIsMobileMenuOpen }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 1024 : false);
-  const { isAdmin, currentUser, login } = useAuth(); // Moved hook up
+  const { isAdmin, currentUser, login, logout } = useAuth(); // Moved hook up
 
   useEffect(() => {
     const handleResize = () => {
@@ -248,28 +248,35 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
         )}
 
         <div className={`p-4 border-t border-slate-800 flex flex-col ${isCollapsed ? 'items-center px-2' : 'items-stretch'}`}>
-
-          <div className="flex flex-col gap-2 w-full mb-4 overflow-hidden"
+          {/* User Profile & Logout */}
+          <div className={`mb-4 overflow-hidden ${isCollapsed ? 'text-center' : 'px-2'}`}
             style={{
-              opacity: isCollapsed ? 0 : 1,
-              maxHeight: isCollapsed ? 0 : 60,
-              marginBottom: isCollapsed ? 0 : 16,
-              transition: 'opacity 200ms ease, max-height 400ms ease, margin-bottom 400ms ease',
+              transition: 'all 500ms ease',
             }}>
-            <div className="flex gap-1 text-xs bg-slate-800 p-1 rounded-lg">
-              <button
-                onClick={() => login('ADMIN')}
-                className={`flex-1 py-1 rounded transition-colors ${currentUser?.role === 'ADMIN' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
-              >
-                Admin
-              </button>
-              <button
-                onClick={() => login('VIEWER')}
-                className={`flex-1 py-1 rounded transition-colors ${currentUser?.role === 'VIEWER' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
-              >
-                Viewer
-              </button>
+            <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3 mb-3'}`}>
+              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold overflow-hidden shrink-0">
+                {currentUser?.avatar ? (
+                  <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+                ) : (
+                  currentUser?.name.charAt(0)
+                )}
+              </div>
+              {!isCollapsed && (
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-medium text-white truncate">{currentUser?.name}</span>
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider">{currentUser?.role}</span>
+                </div>
+              )}
             </div>
+
+            <button
+              onClick={() => logout()}
+              className={`flex items-center justify-center space-x-2 py-2 w-full bg-red-950/30 hover:bg-red-900/40 text-red-400 rounded-lg transition-colors border border-red-900/20 ${isCollapsed ? 'p-2' : 'px-4'}`}
+              title="Sign Out"
+            >
+              <Users size={16} />
+              {!isCollapsed && <span className="text-sm font-medium">Sign Out</span>}
+            </button>
           </div>
 
           <button
