@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState } from './types';
 import { ChartConfiguration } from './types/chartBuilder';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, migrateTeacher } from './constants';
@@ -159,9 +160,24 @@ function AppContent() {
             {CalendarComponent}
           </div>
 
+          {/* Collapse Arrow — rendered OUTSIDE the sliding panel so it doesn't appear when collapsed */}
+          {showSidebar && (
+            <button
+              onClick={() => setCurrentView('CALENDAR')}
+              className="fixed z-50 bg-slate-800 hover:bg-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg hover:scale-110 border-4 border-slate-50 dark:border-slate-900 transition-all duration-200"
+              style={{
+                right: '364px', /* 384px sidebar width minus half the button */
+                bottom: '26%',
+              }}
+              title="Collapse Sidebar"
+            >
+              <ChevronRight size={20} />
+            </button>
+          )}
+
           {/* Secondary Sidebar - always rendered, slides in/out */}
           <div
-            className="sidebar-transition absolute top-0 right-0 h-full bg-white dark:bg-slate-900 shadow-xl z-20 flex flex-col border-l border-slate-200 dark:border-slate-700"
+            className="sidebar-transition absolute top-0 right-0 h-full bg-white dark:bg-slate-900 shadow-xl z-40 flex flex-col border-l border-slate-200 dark:border-slate-700"
             style={{
               width: '384px',
               transform: showSidebar ? 'translateX(0)' : 'translateX(100%)',
@@ -169,20 +185,21 @@ function AppContent() {
               willChange: 'transform',
             }}
           >
-            <div className="flex-1 overflow-y-auto">
-              <div className="h-full overflow-y-auto">
-                {currentView === 'GANTT' && (
-                  <div className="p-4">
-                    <GanttManager
-                      blocks={ganttBlocks}
-                      setBlocks={setGanttBlocks}
-                      events={events}
-                      setEvents={setEvents}
-                      settings={settings}
-                    />
-                  </div>
-                )}
-                {currentView === 'POWER_TOOLS' && (
+            {/* Scrollable Content — with top padding to prevent header cropping */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              {currentView === 'GANTT' && (
+                <div className="p-4 pt-6">
+                  <GanttManager
+                    blocks={ganttBlocks}
+                    setBlocks={setGanttBlocks}
+                    events={events}
+                    setEvents={setEvents}
+                    settings={settings}
+                  />
+                </div>
+              )}
+              {currentView === 'POWER_TOOLS' && (
+                <div className="pt-2">
                   <PowerTools
                     events={events}
                     setEvents={setEvents}
@@ -197,8 +214,8 @@ function AppContent() {
                     ganttBlocks={ganttBlocks}
                     setGanttBlocks={setGanttBlocks}
                   />
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

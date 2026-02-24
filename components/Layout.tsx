@@ -56,6 +56,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
   const { isAdmin, isSuperAdmin, currentUser, orgId, logout, availableOrgs } = useAuth();
 
   const currentOrg = availableOrgs?.find(o => o.id === orgId);
+  const displayOrgName = currentOrg?.name || (orgId ? orgId.charAt(0).toUpperCase() + orgId.slice(1) : 'Loading...');
 
   useEffect(() => {
     const handleResize = () => {
@@ -130,11 +131,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
           style={{ transition: 'all 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
           <div className={`${isCollapsed ? 'p-1 mx-auto' : 'p-1.5'} bg-transparent rounded-xl flex-shrink-0 overflow-hidden`}
             style={{ transition: 'all 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
-            {currentOrg?.logoUrl ? (
-              <img src={currentOrg.logoUrl} alt="Logo" className="w-8 h-8 object-contain rounded" />
-            ) : (
-              <img src="/logo.png" alt="Cadenza Logo" className="w-8 h-8 object-cover rounded shadow-sm" />
-            )}
+            <img src="/logo.png?v=2" alt="Cadenza Logo" className="w-12 h-12 object-cover rounded shadow-sm" />
           </div>
           <div className="overflow-hidden whitespace-nowrap flex flex-col justify-center"
             style={{
@@ -142,13 +139,14 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               maxWidth: isCollapsed ? 0 : 200,
               transition: 'opacity 300ms ease, max-width 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
             }}>
-            <h1 className="text-base font-bold leading-tight">Music Center</h1>
-            <div className="flex items-center space-x-2">
-              <h1 className="text-base font-bold leading-tight">Calendar</h1>
-              {orgId === 'sandbox' && !isCollapsed && (
+            <h1 className="text-lg font-bold leading-tight truncate" title={displayOrgName}>
+              {displayOrgName}
+            </h1>
+            {orgId === 'sandbox' && !isCollapsed && (
+              <div className="mt-1">
                 <span className="bg-amber-500 text-[10px] font-black px-1.5 py-0.5 rounded text-white animate-pulse">SANDBOX</span>
-              )}
-            </div>
+              </div>
+            )}
           </div>
           {isMobile && (
             <button onClick={() => setIsMobileMenuOpen(false)} className="ml-auto p-2 text-slate-400 hover:text-white">
@@ -354,7 +352,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               marginTop: isCollapsed ? 0 : 8,
               transition: 'opacity 200ms ease, max-height 400ms ease, margin-top 400ms ease',
             }}>
-            &copy; 2026 Music Center
+            Copyright Noam Solutions.
           </div>
         </div>
       </div>

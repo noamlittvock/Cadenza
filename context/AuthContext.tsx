@@ -260,7 +260,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         <div className="w-full max-w-md">
           <div className="text-center mb-10">
             <div className="w-28 h-28 mx-auto mb-6 drop-shadow-2xl rounded-[2rem] overflow-hidden">
-              <img src="/logo.png" alt="Cadenza Logo" className="w-full h-full object-cover" />
+              <img src="/logo.png?v=2" alt="Cadenza Logo" className="w-full h-full object-cover" />
             </div>
             <h1 className="text-4xl font-black text-slate-900 dark:text-white mb-3">Cadenza</h1>
             <p className="text-slate-500 dark:text-slate-400">Welcome to the Music Center Management Platform</p>
@@ -268,7 +268,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200 dark:border-slate-700 overflow-hidden">
             <div className="p-8">
-              {!currentUser ? (
+              {loading ? (
+                /* Loading State — shown immediately after popup closes while Firestore resolves */
+                <div className="flex flex-col items-center justify-center py-8">
+                  <div className="w-10 h-10 border-4 border-slate-200 dark:border-slate-700 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin mb-4"></div>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Signing you in...</p>
+                </div>
+              ) : !currentUser ? (
                 <>
                   <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 text-center">Sign in to continue</h2>
                   <button

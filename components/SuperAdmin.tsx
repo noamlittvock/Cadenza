@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc, writeBatch, getDoc, where } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../utils/firebase';
 import { useAuth } from '../context/AuthContext';
-import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus, Wrench } from 'lucide-react';
+import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus, Wrench, Edit2, Save, X } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
 
 interface Organization {
@@ -38,6 +38,10 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
     // Form State
     const [newOrgSlug, setNewOrgSlug] = useState('');
     const [newOrgName, setNewOrgName] = useState('');
+
+    const [editingOrgId, setEditingOrgId] = useState<string | null>(null);
+    const [editOrgName, setEditOrgName] = useState('');
+    const [editOrgSlug, setEditOrgSlug] = useState('');
 
     const [newUserEmail, setNewUserEmail] = useState('');
     const [newUserOrgId, setNewUserOrgId] = useState('');
@@ -114,6 +118,92 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
             loadData();
         } catch (err) {
             setErrorMsg("Failed to delete organization.");
+        }
+    };
+
+    const handleEditOrgSave = async (oldSlug: string) => {
+        if (!editOrgName.trim() || !editOrgSlug.trim()) return;
+        const newSlug = editOrgSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+
+        if (oldSlug === newSlug) {
+            try {
+                await updateDoc(doc(db, 'organizations', oldSlug), { name: editOrgName });
+                setEditingOrgId(null);
+                loadData();
+            } catch (err) {
+                setErrorMsg("Failed to update organization name.");
+            }
+            return;
+        }
+
+        if (!window.confirm(`WARNING: Changing the tenant ID from "${oldSlug}" to "${newSlug}" will migrate all records across the platform. Continue?`)) return;
+
+        setLoading(true);
+        try {
+            const existingDest = await getDoc(doc(db, 'organizations', newSlug));
+            if (existingDest.exists()) {
+                setErrorMsg(`Cannot change ID to ${newSlug} because that organization already exists.`);
+                setLoading(false);
+                return;
+            }
+
+            const migrationOps: { ref: any, type: 'set' | 'update' | 'delete', data?: any }[] = [];
+
+            const oldOrgDoc = await getDoc(doc(db, 'organizations', oldSlug));
+            if (oldOrgDoc.exists()) {
+                migrationOps.push({ ref: doc(db, 'organizations', newSlug), type: 'set', data: { ...oldOrgDoc.data(), name: editOrgName } });
+                migrationOps.push({ ref: doc(db, 'organizations', oldSlug), type: 'delete' });
+            }
+
+            const oldSettings = await getDoc(doc(db, 'app_settings', oldSlug));
+            if (oldSettings.exists()) {
+                migrationOps.push({ ref: doc(db, 'app_settings', newSlug), type: 'set', data: oldSettings.data() });
+                migrationOps.push({ ref: doc(db, 'app_settings', oldSlug), type: 'delete' });
+            }
+
+            const oldLists = await getDoc(doc(db, 'app_lists', oldSlug));
+            if (oldLists.exists()) {
+                migrationOps.push({ ref: doc(db, 'app_lists', newSlug), type: 'set', data: oldLists.data() });
+                migrationOps.push({ ref: doc(db, 'app_lists', oldSlug), type: 'delete' });
+            }
+
+            const accessQ = query(collection(db, 'access_control'), where("orgId", "==", oldSlug));
+            const accessDocs = await getDocs(accessQ);
+            accessDocs.forEach(d => {
+                const data = d.data();
+                const newId = `${data.email}_${newSlug}`;
+                migrationOps.push({ ref: doc(db, 'access_control', newId), type: 'set', data: { ...data, orgId: newSlug } });
+                migrationOps.push({ ref: d.ref, type: 'delete' });
+            });
+
+            const collectionsToMigrate = ['teachers', 'events', 'rooms', 'gantt_blocks'];
+            for (const colName of collectionsToMigrate) {
+                const colQ = query(collection(db, colName), where("orgId", "==", oldSlug));
+                const colDocs = await getDocs(colQ);
+                colDocs.forEach(d => {
+                    migrationOps.push({ ref: d.ref, type: 'update', data: { orgId: newSlug } });
+                });
+            }
+
+            // Batch writes (max 500 per batch)
+            const chunkSize = 400;
+            for (let i = 0; i < migrationOps.length; i += chunkSize) {
+                const chunk = migrationOps.slice(i, i + chunkSize);
+                const batch = writeBatch(db);
+                chunk.forEach(op => {
+                    if (op.type === 'set') batch.set(op.ref, op.data);
+                    if (op.type === 'update') batch.update(op.ref, op.data);
+                    if (op.type === 'delete') batch.delete(op.ref);
+                });
+                await batch.commit();
+            }
+
+            setEditingOrgId(null);
+            loadData();
+        } catch (err) {
+            console.error(err);
+            setErrorMsg("Failed to migrate organization data.");
+            setLoading(false);
         }
     };
 
@@ -348,46 +438,106 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                     }}
                                 />
                                 <div className="space-y-3">
-                                    {organizations.map(org => (
-                                        <div key={org.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800 rounded-lg">
-                                            <div className="flex items-center space-x-3">
-                                                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/40 text-blue-600 rounded-lg flex items-center justify-center font-bold overflow-hidden shrink-0">
-                                                    {org.logoUrl ? (
-                                                        <img src={org.logoUrl} alt={org.name} className="w-full h-full object-contain bg-white" />
+                                    {organizations.map(org => {
+                                        const isEditing = editingOrgId === org.id;
+
+                                        return (
+                                            <div key={org.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800 rounded-lg">
+                                                <div className="flex items-center space-x-3 w-full max-w-lg">
+                                                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/40 text-blue-600 rounded-lg flex items-center justify-center font-bold overflow-hidden shrink-0">
+                                                        {org.logoUrl ? (
+                                                            <img src={org.logoUrl} alt={org.name} className="w-full h-full object-contain bg-white" />
+                                                        ) : (
+                                                            org.name.charAt(0)
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        {isEditing ? (
+                                                            <div className="flex flex-col space-y-2">
+                                                                <input
+                                                                    type="text"
+                                                                    value={editOrgName}
+                                                                    onChange={(e) => setEditOrgName(e.target.value)}
+                                                                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                    placeholder="Organization Name"
+                                                                />
+                                                                <div className="flex items-center text-xs">
+                                                                    <span className="text-slate-500 mr-1">ID:</span>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={editOrgSlug}
+                                                                        onChange={(e) => setEditOrgSlug(e.target.value)}
+                                                                        className="bg-slate-200 dark:bg-slate-800 border-none rounded px-2 py-0.5 font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                                        placeholder="url-slug"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                <p className="font-medium text-slate-900 dark:text-white">{org.name}</p>
+                                                                <p className="text-xs text-slate-500">ID: <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{org.id}</code></p>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center space-x-2 shrink-0 ml-4">
+                                                    {!isEditing ? (
+                                                        <>
+                                                            <div className="text-sm text-slate-500 bg-slate-200 dark:bg-slate-800 px-3 py-1 rounded-full hidden md:block">
+                                                                / {org.id}
+                                                            </div>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setEditingOrgId(org.id);
+                                                                    setEditOrgName(org.name);
+                                                                    setEditOrgSlug(org.id);
+                                                                }}
+                                                                className="p-2 text-slate-400 hover:text-blue-500 transition-colors"
+                                                                title="Edit Organization"
+                                                            >
+                                                                <Edit2 size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSelectedUploadOrgId(org.id);
+                                                                    fileInputRef.current?.click();
+                                                                }}
+                                                                className="p-2 text-slate-400 hover:text-blue-500 transition-colors relative"
+                                                                title="Upload Logo"
+                                                                disabled={uploadingOrgId === org.id}
+                                                            >
+                                                                {uploadingOrgId === org.id ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteOrg(org.id, org.name)}
+                                                                className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                                                                title="Delete Organization"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </>
                                                     ) : (
-                                                        org.name.charAt(0)
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleEditOrgSave(org.id)}
+                                                                className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 rounded transition-colors"
+                                                                title="Save Changes"
+                                                            >
+                                                                <Save size={18} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setEditingOrgId(null)}
+                                                                className="p-2 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
+                                                                title="Cancel"
+                                                            >
+                                                                <X size={18} />
+                                                            </button>
+                                                        </>
                                                     )}
                                                 </div>
-                                                <div>
-                                                    <p className="font-medium text-slate-900 dark:text-white">{org.name}</p>
-                                                    <p className="text-xs text-slate-500">ID: <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{org.id}</code></p>
-                                                </div>
                                             </div>
-                                            <div className="flex items-center space-x-2">
-                                                <div className="text-sm text-slate-500 bg-slate-200 dark:bg-slate-800 px-3 py-1 rounded-full">
-                                                    / {org.id}
-                                                </div>
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedUploadOrgId(org.id);
-                                                        fileInputRef.current?.click();
-                                                    }}
-                                                    className="p-2 text-slate-400 hover:text-blue-500 transition-colors relative"
-                                                    title="Upload Logo"
-                                                    disabled={uploadingOrgId === org.id}
-                                                >
-                                                    {uploadingOrgId === org.id ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteOrg(org.id, org.name)}
-                                                    className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-                                                    title="Delete Organization"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        )
+                                    })}
                                     {organizations.length === 0 && (
                                         <div className="text-center py-8 text-slate-500">No organizations registered yet.</div>
                                     )}
