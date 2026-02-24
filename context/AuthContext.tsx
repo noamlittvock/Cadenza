@@ -18,6 +18,7 @@ interface User {
 interface OrgInfo {
   id: string;
   name: string;
+  logoUrl?: string;
 }
 
 interface AuthContextType {
@@ -108,29 +109,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           } else {
             // SCENARIO B: User is at the root ("Gateway")
-            // Fetch all organizations this user is allowed to access
+            // 1. Fetch all newer composite records (email_orgId)
             const q = query(
               collection(db, 'access_control'),
               where('email', '==', normalizedEmail),
               where('allowed', '==', true)
             );
             const querySnapshot = await getDocs(q);
+            let myOrgsRaw = querySnapshot.docs.map(d => d.data().orgId);
 
-            const myOrgsRaw = querySnapshot.docs.map(d => d.data().orgId);
+            // 2. Also check for a legacy record (where ID is just the email)
+            const legacyDoc = await getDoc(doc(db, 'access_control', normalizedEmail));
+            if (legacyDoc.exists() && legacyDoc.data().allowed && legacyDoc.data().orgId) {
+              myOrgsRaw.push(legacyDoc.data().orgId);
+            }
+
+            // Deduplicate slugs
+            myOrgsRaw = [...new Set(myOrgsRaw)];
 
             if (myOrgsRaw.length === 0 && normalizedEmail !== BOOTSTRAP_EMAIL_NORMALIZED) {
               setErrorMsg("No workspaces found for your account.");
               setAvailableOrgs([]);
-            } else if (myOrgsRaw.length === 1 && normalizedEmail !== BOOTSTRAP_EMAIL_NORMALIZED) {
-              // Auto-redirect if only one org found (UX optimization)
-              window.location.href = `/${myOrgsRaw[0]}`;
-              return;
             } else {
               // Fetch organization names
               const orgsWithNames: OrgInfo[] = [];
               for (const slug of myOrgsRaw) {
                 const oDoc = await getDoc(doc(db, 'organizations', slug));
-                orgsWithNames.push({ id: slug, name: oDoc.exists() ? oDoc.data().name : slug });
+                orgsWithNames.push({
+                  id: slug,
+                  name: oDoc.exists() ? oDoc.data().name : slug,
+                  logoUrl: oDoc.exists() ? oDoc.data().logoUrl : undefined
+                });
               }
 
               setAvailableOrgs(orgsWithNames);
@@ -145,9 +154,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 orgId: '' // No org active yet
               });
 
-              // If it's you (the boss), show a generic placeholder if you haven't visited any yet
-              if (normalizedEmail === BOOTSTRAP_EMAIL_NORMALIZED && orgsWithNames.length === 0) {
-                setAvailableOrgs([{ id: 'alpert', name: 'Alpert Music Center' }]);
+              // If it's you (the boss), ensure Alpert is always in the list even if not explicitly mapped
+              if (normalizedEmail === BOOTSTRAP_EMAIL_NORMALIZED && !myOrgsRaw.includes('alpert')) {
+                setAvailableOrgs(prev => [
+                  ...(prev || []),
+                  { id: 'alpert', name: 'Alpert Music Center', logoUrl: undefined }
+                ]);
               }
             }
           }
@@ -247,8 +259,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                           className="group flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/40 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800 rounded-xl transition-all"
                         >
                           <div className="flex items-center space-x-3 text-slate-900">
-                            <div className="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm">
-                              <Music size={18} />
+                            <div className="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-center group-hover:bg-blue-600 transition-colors shadow-sm overflow-hidden">
+                              {org.logoUrl ? (
+                                <img src={org.logoUrl} alt={org.name} className="w-full h-full object-contain" />
+                              ) : (
+                                <Music size={18} className="text-slate-500 group-hover:text-white" />
+                              )}
                             </div>
                             <span className="font-bold dark:text-white">{org.name}</span>
                           </div>

@@ -53,7 +53,9 @@ const NavItem = ({
 export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, darkMode, toggleDarkMode, settings, isMobileMenuOpen, setIsMobileMenuOpen }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 1024 : false);
-  const { isAdmin, currentUser, login, logout } = useAuth(); // Moved hook up
+  const { isAdmin, currentUser, orgId, logout, availableOrgs } = useAuth(); // Added availableOrgs
+
+  const currentOrg = availableOrgs?.find(o => o.id === orgId);
 
   useEffect(() => {
     const handleResize = () => {
@@ -111,7 +113,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
           ${isMobile ? 'shadow-2xl' : ''}
           ${isMobile ? (isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full') : 'translate-x-0'}
           bg-slate-900 dark:bg-slate-950 text-white flex flex-col shadow-xl 
-          ${isRtl ? 'border-l' : 'border-r'} border-slate-800
+          ${isRtl ? 'border-l' : 'border-r'} ${orgId === 'sandbox' ? 'border-amber-500/50 shadow-amber-500/10' : 'border-slate-800'}
           overflow-visible
         `}
         style={{
@@ -122,9 +124,13 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       >
         <div className={`p-2 flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3 rtl:space-x-reverse'} border-b border-slate-800 h-16 overflow-hidden`}
           style={{ transition: 'all 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
-          <div className={`${isCollapsed ? 'p-1 mx-auto' : 'p-2'} bg-blue-500 rounded-lg flex-shrink-0`}
+          <div className={`${isCollapsed ? 'p-1 mx-auto' : 'p-2'} ${currentOrg?.logoUrl ? 'bg-transparent' : 'bg-blue-500'} rounded-lg flex-shrink-0 overflow-hidden`}
             style={{ transition: 'all 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
-            <Music size={24} className="text-white" />
+            {currentOrg?.logoUrl ? (
+              <img src={currentOrg.logoUrl} alt="Logo" className="w-[24px] h-[24px] object-contain rounded" />
+            ) : (
+              <Music size={24} className="text-white" />
+            )}
           </div>
           <div className="overflow-hidden whitespace-nowrap flex flex-col justify-center"
             style={{
@@ -133,7 +139,12 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               transition: 'opacity 300ms ease, max-width 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
             }}>
             <h1 className="text-base font-bold leading-tight">Music Center</h1>
-            <h1 className="text-base font-bold leading-tight">Calendar</h1>
+            <div className="flex items-center space-x-2">
+              <h1 className="text-base font-bold leading-tight">Calendar</h1>
+              {orgId === 'sandbox' && !isCollapsed && (
+                <span className="bg-amber-500 text-[10px] font-black px-1.5 py-0.5 rounded text-white animate-pulse">SANDBOX</span>
+              )}
+            </div>
           </div>
           {isMobile && (
             <button onClick={() => setIsMobileMenuOpen(false)} className="ml-auto p-2 text-slate-400 hover:text-white">

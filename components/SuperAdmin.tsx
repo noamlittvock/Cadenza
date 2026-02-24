@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../utils/firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../utils/firebase';
 import { useAuth } from '../context/AuthContext';
-import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2 } from 'lucide-react';
+import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus } from 'lucide-react';
 
 interface Organization {
     id: string; // The slug
     name: string;
     createdAt: string;
+    logoUrl?: string;
 }
 
 interface AccessRecord {
@@ -40,6 +42,9 @@ export const SuperAdmin: React.FC = () => {
     const [filterOrgId, setFilterOrgId] = useState('');
 
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [uploadingOrgId, setUploadingOrgId] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [selectedUploadOrgId, setSelectedUploadOrgId] = useState<string | null>(null);
 
     // Security check - only literal super admin
     if (currentUser?.email !== 'noam.littvock@gmail.com') {
@@ -94,6 +99,52 @@ export const SuperAdmin: React.FC = () => {
         } catch (err) {
             setErrorMsg("Failed to create organization.");
         }
+    };
+
+    const handleDeleteOrg = async (slug: string, name: string) => {
+        if (!window.confirm(`Are you sure you want to delete the entire organization "${name}"? This will not delete the data within it, but will remove it from the selector list.`)) return;
+        try {
+            await deleteDoc(doc(db, 'organizations', slug));
+            loadData();
+        } catch (err) {
+            setErrorMsg("Failed to delete organization.");
+        }
+    };
+
+    const handleLogoUpload = async (file: File, orgId: string) => {
+        if (!file.type.startsWith('image/')) {
+            setErrorMsg("Please upload a valid image file.");
+            return;
+        }
+
+        setUploadingOrgId(orgId);
+        setErrorMsg(null);
+
+        const storageRef = ref(storage, `organizations/${orgId}/logo`);
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        uploadTask.on(
+            'state_changed',
+            null, // Could add progress bar here
+            (error) => {
+                console.error("Upload failed", error);
+                setErrorMsg("Failed to upload logo.");
+                setUploadingOrgId(null);
+            },
+            async () => {
+                try {
+                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                    await updateDoc(doc(db, 'organizations', orgId), {
+                        logoUrl: downloadURL
+                    });
+                    loadData();
+                } catch (err) {
+                    setErrorMsg("Failed to update organization with new logo.");
+                } finally {
+                    setUploadingOrgId(null);
+                }
+            }
+        );
     };
 
     const handleCreateUser = async (e: React.FormEvent) => {
@@ -269,20 +320,55 @@ export const SuperAdmin: React.FC = () => {
                                 </form>
 
                                 <h3 className="font-semibold mb-4 text-slate-800 dark:text-slate-200">Active Organizations ({organizations.length})</h3>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    ref={fileInputRef}
+                                    onChange={(e) => {
+                                        if (e.target.files && e.target.files[0] && selectedUploadOrgId) {
+                                            handleLogoUpload(e.target.files[0], selectedUploadOrgId);
+                                        }
+                                    }}
+                                />
                                 <div className="space-y-3">
                                     {organizations.map(org => (
                                         <div key={org.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800 rounded-lg">
                                             <div className="flex items-center space-x-3">
-                                                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/40 text-blue-600 rounded-lg flex items-center justify-center font-bold">
-                                                    {org.name.charAt(0)}
+                                                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/40 text-blue-600 rounded-lg flex items-center justify-center font-bold overflow-hidden shrink-0">
+                                                    {org.logoUrl ? (
+                                                        <img src={org.logoUrl} alt={org.name} className="w-full h-full object-contain bg-white" />
+                                                    ) : (
+                                                        org.name.charAt(0)
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <p className="font-medium text-slate-900 dark:text-white">{org.name}</p>
                                                     <p className="text-xs text-slate-500">ID: <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{org.id}</code></p>
                                                 </div>
                                             </div>
-                                            <div className="text-sm text-slate-500 bg-slate-200 dark:bg-slate-800 px-3 py-1 rounded-full">
-                                                / {org.id}
+                                            <div className="flex items-center space-x-2">
+                                                <div className="text-sm text-slate-500 bg-slate-200 dark:bg-slate-800 px-3 py-1 rounded-full">
+                                                    / {org.id}
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedUploadOrgId(org.id);
+                                                        fileInputRef.current?.click();
+                                                    }}
+                                                    className="p-2 text-slate-400 hover:text-blue-500 transition-colors relative"
+                                                    title="Upload Logo"
+                                                    disabled={uploadingOrgId === org.id}
+                                                >
+                                                    {uploadingOrgId === org.id ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteOrg(org.id, org.name)}
+                                                    className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                                                    title="Delete Organization"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
                                             </div>
                                         </div>
                                     ))}
@@ -411,7 +497,6 @@ export const SuperAdmin: React.FC = () => {
                                                         <select
                                                             value={record.role}
                                                             onChange={(e) => handleUpdateRole(record.id, e.target.value as 'ADMIN' | 'VIEWER')}
-                                                            disabled={record.id === 'noam.littvock@gmail.com'}
                                                             className={`px-2 py-1 rounded text-xs font-medium border-0 cursor-pointer focus:ring-2 focus:ring-blue-500 outline-none
                                                                 ${record.role === 'ADMIN' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'}
                                                             `}
@@ -421,15 +506,13 @@ export const SuperAdmin: React.FC = () => {
                                                         </select>
                                                     </td>
                                                     <td className="py-3 text-right">
-                                                        {record.id !== 'noam.littvock@gmail.com' && (
-                                                            <button
-                                                                onClick={() => handleDeleteUser(record.id, record.email || record.id)}
-                                                                className="text-red-500 hover:text-red-700 p-1 transition-colors"
-                                                                title="Revoke Access"
-                                                            >
-                                                                <Trash2 size={16} />
-                                                            </button>
-                                                        )}
+                                                        <button
+                                                            onClick={() => handleDeleteUser(record.id, record.email || record.id)}
+                                                            className="text-red-500 hover:text-red-700 p-1 transition-colors"
+                                                            title="Revoke Access"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             ))}
