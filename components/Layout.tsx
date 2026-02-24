@@ -218,6 +218,21 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 collapsed={isCollapsed}
               />
 
+              {/* Super Admin Area (Only visible to the root bootstrap admin) */}
+              {currentUser?.email === 'noam.littvock@gmail.com' && (
+                <>
+                  {/* Separator */}
+                  <div className="my-2 mx-3 border-t border-red-900/50" />
+                  <NavItem
+                    active={currentView === 'SUPER_ADMIN'}
+                    onClick={() => { setView('SUPER_ADMIN'); setIsMobileMenuOpen(false); }}
+                    icon={AlertOctagon}
+                    label="Super Admin"
+                    collapsed={isCollapsed}
+                  />
+                </>
+              )}
+
               {/* Separator */}
               <div className="my-2 mx-3 border-t border-slate-800" />
 

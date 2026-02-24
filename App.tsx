@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState } from './types';
 import { ChartConfiguration } from './types/chartBuilder';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, migrateTeacher } from './constants';
+import { useFirestoreSync, useFirestoreSettings } from './utils/useFirestoreSync';
 import { generateTestData } from './utils/dataGenerator';
 import { Layout } from './components/Layout';
 import { CalendarView } from './components/CalendarView';
@@ -11,6 +12,7 @@ import { FinancialAnalysis } from './components/FinancialAnalysis';
 import { PowerTools } from './components/PowerTools';
 import { Settings } from './components/Settings';
 import { ManageHub } from './components/ManageHub';
+import { SuperAdmin } from './components/SuperAdmin';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { UserRole } from './context/AuthContext';
@@ -79,44 +81,14 @@ function AppContent() {
     return isDark;
   });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  // Core State (Simulating Database)
-  const [teachers, setTeachers] = useState<Teacher[]>(() => {
-    const saved = localStorage.getItem('teachers');
-    const parsed = saved ? JSON.parse(saved) : INITIAL_TEACHERS;
-    return parsed.map((t: any) => migrateTeacher(t));
-  });
-
-  const [rooms, setRooms] = useState<Room[]>(() => {
-    const saved = localStorage.getItem('rooms');
-    return saved ? JSON.parse(saved) : INITIAL_ROOMS;
-  });
-
-  const [events, setEvents] = useState<CalendarEvent[]>(() => {
-    const saved = localStorage.getItem('events');
-    return saved ? JSON.parse(saved) : INITIAL_EVENTS;
-  });
-
-  const [ganttBlocks, setGanttBlocks] = useState<GanttBlock[]>(() => {
-    const saved = localStorage.getItem('ganttBlocks');
-    return saved ? JSON.parse(saved) : INITIAL_GANTT;
-  });
-
-  const [settings, setSettings] = useState<AppSettings>(() => {
-    const saved = localStorage.getItem('settings');
-    // Merge with defaults so newly added fields (e.g. currency) are never undefined
-    return saved ? { ...INITIAL_SETTINGS, ...JSON.parse(saved) } : INITIAL_SETTINGS;
-  });
-
-  const [lists, setLists] = useState<ListsState>(() => {
-    const saved = localStorage.getItem('lists');
-    return saved ? JSON.parse(saved) : INITIAL_LISTS;
-  });
-
-  // Custom Chart Builder State
-  const [savedCharts, setSavedCharts] = useState<ChartConfiguration[]>(() => {
-    const saved = localStorage.getItem('customCharts');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Core State (Cloud Database via Firestore)
+  const [teachers, setTeachers] = useFirestoreSync<Teacher>('teachers', []);
+  const [rooms, setRooms] = useFirestoreSync<Room>('rooms', []);
+  const [events, setEvents] = useFirestoreSync<CalendarEvent>('events', []);
+  const [ganttBlocks, setGanttBlocks] = useFirestoreSync<GanttBlock>('ganttBlocks', []);
+  const [settings, setSettings] = useFirestoreSettings<AppSettings>('settings', INITIAL_SETTINGS);
+  const [lists, setLists] = useFirestoreSettings<ListsState>('lists', INITIAL_LISTS);
+  const [savedCharts, setSavedCharts] = useFirestoreSettings<ChartConfiguration[]>('customCharts', []);
 
   // Marquee Selection State (Lifted)
   const [selectionMode, setSelectionMode] = useState<'NORMAL' | 'MARQUEE'>('NORMAL');
@@ -125,16 +97,6 @@ function AppContent() {
   // Persistent Calendar State
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'DAY' | 'WEEK' | 'MONTH'>('WEEK');
-
-
-  // Persistence Effects
-  useEffect(() => localStorage.setItem('teachers', JSON.stringify(teachers)), [teachers]);
-  useEffect(() => localStorage.setItem('rooms', JSON.stringify(rooms)), [rooms]);
-  useEffect(() => localStorage.setItem('events', JSON.stringify(events)), [events]);
-  useEffect(() => localStorage.setItem('ganttBlocks', JSON.stringify(ganttBlocks)), [ganttBlocks]);
-  useEffect(() => localStorage.setItem('settings', JSON.stringify(settings)), [settings]);
-  useEffect(() => localStorage.setItem('lists', JSON.stringify(lists)), [lists]);
-  useEffect(() => localStorage.setItem('customCharts', JSON.stringify(savedCharts)), [savedCharts]);
 
   // Sync Language to DOM
   useEffect(() => {
@@ -267,6 +229,8 @@ function AppContent() {
         return <FinancialDashboard events={events} teachers={teachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} />;
       case 'FINANCIAL_ANALYSIS':
         return <FinancialAnalysis events={events} teachers={teachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} onNavigateBack={() => setCurrentView('FINANCIAL')} />;
+      case 'SUPER_ADMIN':
+        return <SuperAdmin />;
       case 'SETTINGS':
         return (
           <Settings
@@ -280,6 +244,14 @@ function AppContent() {
               setEvents(data.events);
               setRooms(data.rooms);
               setGanttBlocks(data.ganttBlocks);
+            }}
+            onWipeData={() => {
+              if (window.confirm("Are you sure you want to permanently delete all Teachers, Rooms, Events, and Gantt Blocks from THIS workspace in the cloud?")) {
+                setTeachers([]);
+                setRooms([]);
+                setEvents([]);
+                setGanttBlocks([]);
+              }
             }}
           />
         );

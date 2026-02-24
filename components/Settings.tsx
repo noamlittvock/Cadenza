@@ -7,10 +7,11 @@ interface Props {
   settings: AppSettings;
   setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
   onLoadTestData?: () => void;
+  onWipeData?: () => void;
   onMobileMenuOpen?: () => void;
 }
 
-export const Settings: React.FC<Props> = ({ settings, setSettings, onLoadTestData, onMobileMenuOpen }) => {
+export const Settings: React.FC<Props> = ({ settings, setSettings, onLoadTestData, onWipeData, onMobileMenuOpen }) => {
   const [tempSettings, setTempSettings] = React.useState<AppSettings>(settings);
   const [hasChanges, setHasChanges] = React.useState(false);
 
@@ -261,30 +262,37 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onLoadTestDat
                     <h4 className="font-bold text-slate-900 dark:text-white">{t('settings.generate_data')}</h4>
                     <p className="text-xs text-slate-500 dark:text-slate-400">{t('settings.generate_data_desc')}</p>
                   </div>
-                  <button
-                    onClick={() => {
-                      // Implementation of prompt to snapshot before destructive action
-                      if (window.confirm("Would you like to take a Snapshot of current state before generating test data?")) {
-                        // We would call snapshot logic here, or we can assume it's handled via the onLoadTestData?
-                        // Let's create an explicit snapshot state.
-                        localStorage.setItem('appSnapshot', JSON.stringify({
-                          teachers: localStorage.getItem('teachers'),
-                          events: localStorage.getItem('events'),
-                          rooms: localStorage.getItem('rooms'),
-                          settings: localStorage.getItem('settings'),
-                          lists: localStorage.getItem('lists')
-                        }));
-                        alert("Snapshot created!");
-                      }
-                      if (window.confirm(t('alert.confirm_generate'))) {
-                        onLoadTestData?.();
-                        window.alert(t('alert.data_generated'));
-                      }
-                    }}
-                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-bold transition-colors shadow-none shrink-0 border border-amber-600"
-                  >
-                    {t('settings.generate_btn')}
-                  </button>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => {
+                        onWipeData?.();
+                      }}
+                      className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-bold transition-colors shadow-none border border-red-600"
+                    >
+                      Wipe Data
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm("Would you like to take a Snapshot of current state before generating test data?")) {
+                          localStorage.setItem('appSnapshot', JSON.stringify({
+                            teachers: localStorage.getItem('teachers'),
+                            events: localStorage.getItem('events'),
+                            rooms: localStorage.getItem('rooms'),
+                            settings: localStorage.getItem('settings'),
+                            lists: localStorage.getItem('lists')
+                          }));
+                          alert("Snapshot created!");
+                        }
+                        if (window.confirm(t('alert.confirm_generate'))) {
+                          onLoadTestData?.();
+                          window.alert(t('alert.data_generated'));
+                        }
+                      }}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-bold transition-colors shadow-none border border-amber-600"
+                    >
+                      {t('settings.generate_btn')}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Dev Utils Actions */}

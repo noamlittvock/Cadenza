@@ -1,0 +1,446 @@
+import React, { useState, useEffect } from 'react';
+import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { db } from '../utils/firebase';
+import { useAuth } from '../context/AuthContext';
+import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2 } from 'lucide-react';
+
+interface Organization {
+    id: string; // The slug
+    name: string;
+    createdAt: string;
+}
+
+interface AccessRecord {
+    id: string; // The record ID (email or email_orgId)
+    email?: string;
+    allowed: boolean;
+    role: 'ADMIN' | 'VIEWER';
+    orgId: string;
+}
+
+export const SuperAdmin: React.FC = () => {
+    const { currentUser } = useAuth();
+    const [activeTab, setActiveTab] = useState<'ORGS' | 'USERS'>('ORGS');
+    const [loading, setLoading] = useState(true);
+
+    // Data State
+    const [organizations, setOrganizations] = useState<Organization[]>([]);
+    const [accessRecords, setAccessRecords] = useState<AccessRecord[]>([]);
+
+    // Form State
+    const [newOrgSlug, setNewOrgSlug] = useState('');
+    const [newOrgName, setNewOrgName] = useState('');
+
+    const [newUserEmail, setNewUserEmail] = useState('');
+    const [newUserOrgId, setNewUserOrgId] = useState('');
+    const [newUserRole, setNewUserRole] = useState<'ADMIN' | 'VIEWER'>('VIEWER');
+
+    const [isBulkMode, setIsBulkMode] = useState(false);
+    const [bulkCsvData, setBulkCsvData] = useState('');
+    const [filterOrgId, setFilterOrgId] = useState('');
+
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+    // Security check - only literal super admin
+    if (currentUser?.email !== 'noam.littvock@gmail.com') {
+        return (
+            <div className="p-8 text-center text-red-500">
+                <AlertCircle className="mx-auto mb-4" size={48} />
+                <h2 className="text-2xl font-bold">Access Denied</h2>
+                <p>This area is restricted to the platform super-administrator.</p>
+            </div>
+        );
+    }
+
+    // Fetch Data
+    const loadData = async () => {
+        setLoading(true);
+        setErrorMsg(null);
+        try {
+            const orgsSnap = await getDocs(collection(db, 'organizations'));
+            const orgsData = orgsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Organization));
+            setOrganizations(orgsData);
+
+            const accessSnap = await getDocs(collection(db, 'access_control'));
+            const accessData = accessSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as AccessRecord));
+            setAccessRecords(accessData);
+        } catch (err) {
+            console.error("Error loading super admin data", err);
+            setErrorMsg("Failed to load data. Make sure rules allow super admin reading.");
+        }
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    // Actions
+    const handleCreateOrg = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newOrgSlug.trim() || !newOrgName.trim()) return;
+
+        // Simple validation for slug (no spaces, lowercase)
+        const safeSlug = newOrgSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+
+        try {
+            await setDoc(doc(db, 'organizations', safeSlug), {
+                name: newOrgName,
+                createdAt: new Date().toISOString()
+            });
+            setNewOrgSlug('');
+            setNewOrgName('');
+            loadData(); // Reload to show new
+        } catch (err) {
+            setErrorMsg("Failed to create organization.");
+        }
+    };
+
+    const handleCreateUser = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const normalizedEmail = newUserEmail.toLowerCase().trim();
+        const compositeId = `${normalizedEmail}_${newUserOrgId}`;
+
+        try {
+            await setDoc(doc(db, 'access_control', compositeId), {
+                email: normalizedEmail,
+                allowed: true,
+                role: newUserRole,
+                orgId: newUserOrgId,
+                createdAt: new Date().toISOString()
+            });
+            setNewUserEmail('');
+            loadData();
+        } catch (err) {
+            setErrorMsg("Failed to assign user access.");
+        }
+    };
+
+    const handleBulkAdd = async () => {
+        if (!bulkCsvData.trim()) return;
+        const lines = bulkCsvData.split('\n');
+        setLoading(true);
+
+        const promises = lines.map(line => {
+            if (!line.trim()) return Promise.resolve();
+            const parts = line.split(',').map(s => s.trim());
+            const email = parts[0];
+            const orgId = parts[1];
+            const roleStr = parts[2];
+
+            if (!email || !orgId) return Promise.resolve();
+            const normalizedEmail = email.toLowerCase();
+            const role = (roleStr?.toUpperCase() === 'ADMIN') ? 'ADMIN' : 'VIEWER';
+            const compositeId = `${normalizedEmail}_${orgId}`;
+
+            return setDoc(doc(db, 'access_control', compositeId), {
+                email: normalizedEmail,
+                allowed: true,
+                role: role,
+                orgId: orgId,
+                createdAt: new Date().toISOString()
+            });
+        });
+
+        try {
+            await Promise.all(promises);
+            setBulkCsvData('');
+            setIsBulkMode(false);
+            loadData();
+        } catch (err) {
+            setErrorMsg("Failed to process bulk upload.");
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteUser = async (recordId: string, email: string) => {
+        if (!window.confirm(`Are you sure you want to revoke access for ${email}?`)) return;
+        try {
+            await deleteDoc(doc(db, 'access_control', recordId));
+            loadData();
+        } catch (err) {
+            setErrorMsg("Failed to delete user access.");
+        }
+    };
+
+    const handleUpdateRole = async (recordId: string, newRole: 'ADMIN' | 'VIEWER') => {
+        try {
+            await updateDoc(doc(db, 'access_control', recordId), { role: newRole });
+
+            // Optimistically update local state
+            setAccessRecords(prev => prev.map(r => r.id === recordId ? { ...r, role: newRole } : r));
+        } catch (err) {
+            setErrorMsg("Failed to update user role.");
+            loadData(); // Revert on failure
+        }
+    };
+
+    const filteredRecords = filterOrgId
+        ? accessRecords.filter(r => r.orgId === filterOrgId)
+        : accessRecords;
+
+    return (
+        <div className="flex-1 flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-y-auto">
+            <div className="p-8 max-w-5xl mx-auto w-full">
+                <div className="flex items-center space-x-4 mb-8">
+                    <div className="w-12 h-12 bg-red-100 dark:bg-red-900/40 text-red-600 rounded-xl flex items-center justify-center">
+                        <ShieldCheck size={28} />
+                    </div>
+                    <div>
+                        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Super Admin Console</h1>
+                        <p className="text-slate-500">Manage Tenants & Master Access Control</p>
+                    </div>
+                </div>
+
+                {errorMsg && (
+                    <div className="mb-6 bg-red-50 text-red-600 p-4 rounded-lg flex items-center">
+                        <AlertCircle size={20} className="mr-3" />
+                        {errorMsg}
+                    </div>
+                )}
+
+                {/* Tabs */}
+                <div className="flex space-x-4 mb-6 border-b border-slate-200 dark:border-slate-800">
+                    <button
+                        onClick={() => setActiveTab('ORGS')}
+                        className={`pb-4 px-2 font-medium transition-colors border-b-2 ${activeTab === 'ORGS' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+                            }`}
+                    >
+                        <div className="flex items-center space-x-2">
+                            <Building size={18} />
+                            <span>Organizations</span>
+                        </div>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('USERS')}
+                        className={`pb-4 px-2 font-medium transition-colors border-b-2 ${activeTab === 'USERS' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+                            }`}
+                    >
+                        <div className="flex items-center space-x-2">
+                            <Users size={18} />
+                            <span>Access Mappings</span>
+                        </div>
+                    </button>
+                </div>
+
+                {loading ? (
+                    <div className="flex items-center justify-center py-20 text-slate-400">
+                        <Loader2 className="animate-spin mr-3" size={24} />
+                        Loading super admin data...
+                    </div>
+                ) : (
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        {activeTab === 'ORGS' && (
+                            <div className="p-6">
+                                <form onSubmit={handleCreateOrg} className="mb-8 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                                    <h3 className="font-semibold mb-4 text-slate-800 dark:text-slate-200">Register New Organization</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                            <label className="block text-xs text-slate-500 mb-1">Organization Name</label>
+                                            <input
+                                                type="text"
+                                                value={newOrgName}
+                                                onChange={(e) => setNewOrgName(e.target.value)}
+                                                placeholder="e.g. Alpert Music Center"
+                                                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-500 mb-1">URL Slug (ID)</label>
+                                            <input
+                                                type="text"
+                                                value={newOrgSlug}
+                                                onChange={(e) => setNewOrgSlug(e.target.value)}
+                                                placeholder="e.g. alpert (no spaces)"
+                                                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            />
+                                        </div>
+                                        <div className="flex items-end">
+                                            <button
+                                                type="submit"
+                                                disabled={!newOrgName || !newOrgSlug}
+                                                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg px-4 py-2 text-sm font-medium flex items-center justify-center transition-colors"
+                                            >
+                                                <Plus size={16} className="mr-2" />
+                                                Create Tenant
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+
+                                <h3 className="font-semibold mb-4 text-slate-800 dark:text-slate-200">Active Organizations ({organizations.length})</h3>
+                                <div className="space-y-3">
+                                    {organizations.map(org => (
+                                        <div key={org.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800 rounded-lg">
+                                            <div className="flex items-center space-x-3">
+                                                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/40 text-blue-600 rounded-lg flex items-center justify-center font-bold">
+                                                    {org.name.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-slate-900 dark:text-white">{org.name}</p>
+                                                    <p className="text-xs text-slate-500">ID: <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{org.id}</code></p>
+                                                </div>
+                                            </div>
+                                            <div className="text-sm text-slate-500 bg-slate-200 dark:bg-slate-800 px-3 py-1 rounded-full">
+                                                / {org.id}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {organizations.length === 0 && (
+                                        <div className="text-center py-8 text-slate-500">No organizations registered yet.</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'USERS' && (
+                            <div className="p-6">
+                                <div className="mb-8 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="font-semibold text-slate-800 dark:text-slate-200">Map User to Organization</h3>
+                                        <button
+                                            onClick={() => setIsBulkMode(!isBulkMode)}
+                                            className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline transition-all"
+                                        >
+                                            {isBulkMode ? "Switch to Single Entry" : "Switch to Bulk CSV Entry"}
+                                        </button>
+                                    </div>
+
+                                    {!isBulkMode ? (
+                                        <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                                            <div className="md:col-span-2">
+                                                <label className="block text-xs text-slate-500 mb-1">User Email (Gmail)</label>
+                                                <input
+                                                    type="email"
+                                                    value={newUserEmail}
+                                                    onChange={(e) => setNewUserEmail(e.target.value)}
+                                                    placeholder="user@gmail.com"
+                                                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-slate-500 mb-1">Organization</label>
+                                                <select
+                                                    value={newUserOrgId}
+                                                    onChange={(e) => setNewUserOrgId(e.target.value)}
+                                                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                >
+                                                    <option value="">Select Org...</option>
+                                                    {organizations.map(org => (
+                                                        <option key={org.id} value={org.id}>{org.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-slate-500 mb-1">Role</label>
+                                                <select
+                                                    value={newUserRole}
+                                                    onChange={(e) => setNewUserRole(e.target.value as 'ADMIN' | 'VIEWER')}
+                                                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                >
+                                                    <option value="VIEWER">Viewer</option>
+                                                    <option value="ADMIN">Admin</option>
+                                                </select>
+                                            </div>
+                                            <div className="flex items-end">
+                                                <button
+                                                    type="submit"
+                                                    disabled={!newUserEmail || !newUserOrgId}
+                                                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg px-4 py-2 text-sm font-medium flex items-center justify-center transition-colors"
+                                                >
+                                                    <Plus size={16} className="mr-2" />
+                                                    Add
+                                                </button>
+                                            </div>
+                                        </form>
+                                    ) : (
+                                        <div>
+                                            <label className="block text-xs text-slate-500 mb-2">
+                                                Paste CSV data. Format: <code>email, organization_slug, role</code> (Role defaults to VIEWER if omitted, use ADMIN for admins)
+                                            </label>
+                                            <textarea
+                                                value={bulkCsvData}
+                                                onChange={(e) => setBulkCsvData(e.target.value)}
+                                                placeholder={`test1@test.com, alpert, ADMIN\ntest2@test.com, gonenim, VIEWER`}
+                                                className="w-full h-32 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono mb-4 custom-scrollbar"
+                                            />
+                                            <div className="flex justify-end">
+                                                <button
+                                                    onClick={handleBulkAdd}
+                                                    disabled={!bulkCsvData.trim()}
+                                                    className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg px-6 py-2 text-sm font-medium transition-colors"
+                                                >
+                                                    Process Bulk Import
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="font-semibold text-slate-800 dark:text-slate-200">Global Access Roster ({filteredRecords.length})</h3>
+                                    <select
+                                        value={filterOrgId}
+                                        onChange={(e) => setFilterOrgId(e.target.value)}
+                                        className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-xs"
+                                    >
+                                        <option value="">All Organizations</option>
+                                        {organizations.map(org => (
+                                            <option key={org.id} value={org.id}>{org.name} ({org.id})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-sm">
+                                        <thead>
+                                            <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500">
+                                                <th className="pb-3 font-medium">Email</th>
+                                                <th className="pb-3 font-medium">Organization</th>
+                                                <th className="pb-3 font-medium">Role</th>
+                                                <th className="pb-3 font-medium text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                            {filteredRecords.map(record => (
+                                                <tr key={record.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50">
+                                                    <td className="py-3 font-medium text-slate-900 dark:text-slate-300">{record.email || record.id}</td>
+                                                    <td className="py-3 text-slate-600 dark:text-slate-400">
+                                                        <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-xs">{record.orgId}</span>
+                                                    </td>
+                                                    <td className="py-3">
+                                                        <select
+                                                            value={record.role}
+                                                            onChange={(e) => handleUpdateRole(record.id, e.target.value as 'ADMIN' | 'VIEWER')}
+                                                            disabled={record.id === 'noam.littvock@gmail.com'}
+                                                            className={`px-2 py-1 rounded text-xs font-medium border-0 cursor-pointer focus:ring-2 focus:ring-blue-500 outline-none
+                                                                ${record.role === 'ADMIN' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'}
+                                                            `}
+                                                        >
+                                                            <option value="VIEWER" className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">VIEWER</option>
+                                                            <option value="ADMIN" className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">ADMIN</option>
+                                                        </select>
+                                                    </td>
+                                                    <td className="py-3 text-right">
+                                                        {record.id !== 'noam.littvock@gmail.com' && (
+                                                            <button
+                                                                onClick={() => handleDeleteUser(record.id, record.email || record.id)}
+                                                                className="text-red-500 hover:text-red-700 p-1 transition-colors"
+                                                                title="Revoke Access"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
