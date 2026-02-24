@@ -213,8 +213,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900 px-4 py-12">
         <div className="w-full max-w-md">
           <div className="text-center mb-10">
-            <div className="w-20 h-20 bg-blue-500 rounded-3xl flex items-center justify-center text-white mx-auto mb-6 shadow-lg shadow-blue-500/20">
-              <Music size={40} />
+            <div className="w-28 h-28 mx-auto mb-6 drop-shadow-2xl rounded-[2rem] overflow-hidden">
+              <img src="/logo.png" alt="Cadenza Logo" className="w-full h-full object-cover" />
             </div>
             <h1 className="text-4xl font-black text-slate-900 dark:text-white mb-3">Cadenza</h1>
             <p className="text-slate-500 dark:text-slate-400">Welcome to the Music Center Management Platform</p>

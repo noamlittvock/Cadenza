@@ -1004,7 +1004,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                         datasets={[
                                             {
                                                 label: TIMEFRAME_OPTIONS.find(o => o.value === timeframe)?.label ?? 'Primary',
-                                                color: '#3b82f6',
+                                                color: '#4f46e5',
                                                 events: timeFilteredEvents,
                                                 isPrimary: true,
                                             },

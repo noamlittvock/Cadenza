@@ -26,7 +26,7 @@ import { formatHours, formatCurrency } from '../utils/formatters';
 // ── Color palette matching existing dashboard style ──
 
 const CHART_COLORS = [
-    '#3b82f6', // blue
+    '#4f46e5', // cadenza-light
     '#10b981', // emerald
     '#f59e0b', // amber
     '#ef4444', // red

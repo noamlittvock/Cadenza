@@ -32,11 +32,11 @@ const NavItem = ({
   <button
     onClick={onClick}
     title={collapsed ? label : undefined}
-    className={`flex items-center w-full py-3 rounded-lg text-left ${collapsed ? 'justify-center px-3' : 'px-4 space-x-2'} ${active
-      ? 'bg-blue-600 text-white'
-      : 'text-slate-400 hover:text-white hover:bg-slate-800'
-      }`}
-    style={{ transition: 'padding 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94), background-color 200ms ease' }}
+    className={`flex items-center w-full py-3 rounded-xl text-left ${collapsed ? 'justify-center px-3' : 'px-4 space-x-2'} ${active
+      ? 'bg-cadenza-gradient text-white shadow-cadenza-soft font-semibold'
+      : 'text-slate-400 hover:text-white hover:bg-white/5 hover:shadow-cadenza-soft'
+      } btn-cadenza`}
+    style={{ transition: 'padding 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}
   >
     <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
       <Icon size={24} />
@@ -112,8 +112,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
           fixed inset-y-0 left-0 z-[110] lg:relative lg:z-50
           ${isMobile ? 'shadow-2xl' : ''}
           ${isMobile ? (isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full') : 'translate-x-0'}
-          bg-slate-900 dark:bg-slate-950 text-white flex flex-col shadow-xl 
-          ${isRtl ? 'border-l' : 'border-r'} ${orgId === 'sandbox' ? 'border-amber-500/50 shadow-amber-500/10' : 'border-slate-800'}
+          bg-slate-900/95 backdrop-blur-2xl dark:bg-slate-950/95 text-white flex flex-col shadow-cadenza-deep 
+          ${isRtl ? 'border-l' : 'border-r'} ${orgId === 'sandbox' ? 'border-amber-500/50 shadow-amber-500/10' : 'border-white/5 dark:border-slate-800/50'}
           overflow-visible
         `}
         style={{
@@ -124,12 +124,12 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       >
         <div className={`p-2 flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3 rtl:space-x-reverse'} border-b border-slate-800 h-16 overflow-hidden`}
           style={{ transition: 'all 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
-          <div className={`${isCollapsed ? 'p-1 mx-auto' : 'p-2'} ${currentOrg?.logoUrl ? 'bg-transparent' : 'bg-blue-500'} rounded-lg flex-shrink-0 overflow-hidden`}
+          <div className={`${isCollapsed ? 'p-1 mx-auto' : 'p-1.5'} bg-transparent rounded-xl flex-shrink-0 overflow-hidden`}
             style={{ transition: 'all 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
             {currentOrg?.logoUrl ? (
-              <img src={currentOrg.logoUrl} alt="Logo" className="w-[24px] h-[24px] object-contain rounded" />
+              <img src={currentOrg.logoUrl} alt="Logo" className="w-8 h-8 object-contain rounded" />
             ) : (
-              <Music size={24} className="text-white" />
+              <img src="/logo.png" alt="Cadenza Logo" className="w-8 h-8 object-cover rounded shadow-sm" />
             )}
           </div>
           <div className="overflow-hidden whitespace-nowrap flex flex-col justify-center"
@@ -265,10 +265,10 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
           <div className="relative w-full py-4 shrink-0 flex items-center">
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className="absolute right-0 translate-x-1/2 bg-blue-600 hover:bg-blue-500 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-xl transition-transform hover:scale-110 z-50 border-[6px] border-slate-50 dark:border-slate-900"
+              className="absolute right-0 translate-x-1/2 bg-slate-800 hover:bg-cadenza-light text-white rounded-full w-10 h-10 flex items-center justify-center shadow-cadenza-deep hover:scale-110 z-50 border-4 border-slate-50 dark:border-slate-900 btn-cadenza"
               title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
             >
-              {isCollapsed ? (isRtl ? <ChevronLeft size={24} /> : <ChevronRight size={24} />) : (isRtl ? <ChevronRight size={24} /> : <ChevronLeft size={24} />)}
+              {isCollapsed ? (isRtl ? <ChevronLeft size={20} /> : <ChevronRight size={20} />) : (isRtl ? <ChevronRight size={20} /> : <ChevronLeft size={20} />)}
             </button>
           </div>
         )}
@@ -297,7 +297,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
             <button
               onClick={() => logout()}
-              className={`flex items-center justify-center space-x-2 py-2 w-full bg-red-950/30 hover:bg-red-900/40 text-red-400 rounded-lg transition-colors border border-red-900/20 ${isCollapsed ? 'p-2' : 'px-4'}`}
+              className={`flex items-center justify-center space-x-2 py-2 w-full bg-red-950/30 hover:bg-red-900/40 text-red-400 rounded-xl border border-red-900/20 btn-cadenza ${isCollapsed ? 'p-2' : 'px-4'}`}
               title="Sign Out"
             >
               <Users size={16} />
@@ -308,7 +308,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
           <button
             onClick={toggleDarkMode}
             title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            className={`flex items-center justify-center py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors ${isCollapsed ? 'w-10 h-10 p-0' : 'w-full px-4'}`}
+            className={`flex items-center justify-center py-2 bg-slate-800/50 hover:bg-slate-700/80 rounded-xl text-slate-300 btn-cadenza ${isCollapsed ? 'w-10 h-10 p-0' : 'w-full px-4'}`}
           >
             <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
@@ -328,7 +328,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               target="_blank"
               rel="noopener noreferrer"
               title={isCollapsed ? "Mobile Access" : undefined}
-              className={`flex items-center justify-center mt-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white transition-colors ${isCollapsed ? 'w-10 h-10 p-0' : 'w-full py-2 px-4'}`}
+              className={`flex items-center justify-center mt-2 bg-white/5 hover:bg-white/10 rounded-xl text-slate-300 hover:text-white btn-cadenza ${isCollapsed ? 'w-10 h-10 p-0' : 'w-full py-2 px-4'}`}
             >
               <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
                 <Smartphone size={18} />
@@ -356,9 +356,14 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden bg-slate-100 dark:bg-slate-900 absolute right-0 top-0 bottom-0"
+        style={{
+          width: isMobile ? '100%' : (isCollapsed ? 'calc(100% - 80px)' : 'max(calc(100% - 300px), 75vw)'),
+          transition: 'width 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        }}>
         <main
-          className="flex-1 flex flex-col overflow-hidden bg-slate-100 dark:bg-slate-900 relative"
+          key={currentView}
+          className="flex-1 flex flex-col overflow-hidden relative animate-page-turn h-full w-full"
           style={{ transition: 'background-color 300ms ease-in-out' }}
         >
 

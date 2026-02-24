@@ -820,7 +820,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                                         (() => {
                                             // Build datasets for comparison rendering
                                             const compDatasets: DatasetInput[] = [
-                                                { label: 'Primary', color: '#3b82f6', events: filteredEvents, isPrimary: true },
+                                                { label: 'Primary', color: '#4f46e5', events: filteredEvents, isPrimary: true },
                                                 ...chart.comparisons.map((cmp, idx) => {
                                                     const { start, end } = computeDateRangeForComparison(
                                                         cmp.timeframe, cmp.specificDate, cmp.customStart, cmp.customEnd

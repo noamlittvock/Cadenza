@@ -95,6 +95,8 @@ export const CalendarView: React.FC<Props> = ({
     event: CalendarEvent;
   } | null>(null);
 
+  const [recentlySaved, setRecentlySaved] = useState<Set<string>>(new Set());
+
   const containerRef = useRef<HTMLDivElement>(null);
 
   // --- Recurrence Expansion Engine ---
@@ -556,17 +558,22 @@ export const CalendarView: React.FC<Props> = ({
       } else {
         // Regular event or parent event edit
         setEvents(prev => prev.map(ev => ev.id === editingEvent.id ? { ...ev, ...editingEvent } as CalendarEvent : ev));
+        setRecentlySaved(prev => new Set(prev).add(editingEvent.id!));
+        setTimeout(() => setRecentlySaved(prev => { const n = new Set(prev); n.delete(editingEvent.id!); return n; }), 1500);
       }
     } else {
       // New event — save with recurrence rule if set
+      const newId = generateId();
       const newEvent: CalendarEvent = {
         ...editingEvent,
-        id: generateId(),
+        id: newId,
         isCanceled: false,
         isHidden: false,
         description: editingEvent.description || '',
       } as CalendarEvent;
       setEvents(prev => [...prev, newEvent]);
+      setRecentlySaved(prev => new Set(prev).add(newId));
+      setTimeout(() => setRecentlySaved(prev => { const n = new Set(prev); n.delete(newId); return n; }), 1500);
     }
     setIsModalOpen(false);
   };
@@ -709,7 +716,7 @@ export const CalendarView: React.FC<Props> = ({
   // --- Helper for Teacher Colors ---
   const getTeacherColor = (teacherId: string) => {
     const teacher = teachers.find(t => t.id === teacherId);
-    return teacher ? teacher.color : '#3b82f6'; // Default blue
+    return teacher ? teacher.color : '#4f46e5'; // Default indigo
   };
 
   const hexToRgba = (hex: string, alpha: number) => {
@@ -779,7 +786,7 @@ export const CalendarView: React.FC<Props> = ({
                 <div
                   key={block.id}
                   onClick={(e) => { e.stopPropagation(); setDetailItem({ type: 'GANTT', data: block }); }}
-                  className="absolute rounded px-2 flex items-center text-[10px] text-white font-medium truncate opacity-90 hover:opacity-100 transition-opacity cursor-pointer z-10 hover:shadow-lg hover:z-20 border border-white/20"
+                  className={`absolute rounded px-2 flex items-center text-[10px] text-white font-medium truncate opacity-90 hover:opacity-100 transition-opacity cursor-pointer z-10 hover:shadow-cadenza-deep hover:z-20 border border-white/20 animate-cadenza-arrive ${recentlySaved.has(block.id) ? 'animate-cadenza-pulse' : ''}`}
                   style={{
                     left: `${leftPercent}%`,
                     width: `${widthPercent}%`,
@@ -827,11 +834,11 @@ export const CalendarView: React.FC<Props> = ({
         key={evt.id}
         onMouseDown={(e) => handleMouseDown(e, evt, 'MOVE')}
         onClick={(e) => { e.stopPropagation(); setDetailItem({ type: 'EVENT', data: evt }); }}
-        className={`absolute rounded-md border shadow-sm transition-shadow select-none overflow-hidden group ${evt.isCanceled
+        className={`absolute rounded-xl border shadow-sm transition-shadow select-none overflow-hidden group animate-cadenza-arrive ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
           ? 'canceled-stripe border-slate-300 text-slate-400 dark:border-slate-600 dark:text-slate-500 bg-slate-50 dark:bg-slate-800'
           : isDragging
-            ? 'z-50 opacity-90 shadow-xl'
-            : 'hover:shadow-md cursor-pointer'
+            ? 'z-50 opacity-90 shadow-cadenza-deep'
+            : 'hover:shadow-cadenza-soft cursor-pointer'
           }`}
         style={{
           top: `${top}px`,
@@ -1134,9 +1141,9 @@ export const CalendarView: React.FC<Props> = ({
                                       <div
                                         key={evt.id}
                                         onClick={(e) => { e.stopPropagation(); setDetailItem({ type: 'EVENT', data: evt }); }}
-                                        className={`text-[10px] text-left px-1.5 py-1 rounded cursor-pointer border-l-2 ${evt.isCanceled
+                                        className={`text-[10px] text-left px-1.5 py-1 rounded cursor-pointer border-l-2 animate-cadenza-arrive ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
                                           ? 'bg-slate-100 text-slate-400 line-through dark:bg-slate-800 dark:text-slate-600 border-slate-400'
-                                          : 'hover:opacity-90'
+                                          : 'hover:opacity-90 hover:shadow-cadenza-soft transition-all'
                                           }`}
                                         style={!evt.isCanceled ? {
                                           backgroundColor: hexToRgba(baseColor, 0.1),
