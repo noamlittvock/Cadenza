@@ -279,7 +279,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                       onClick={handleConnectGoogle}
                       className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors whitespace-nowrap active:scale-95"
                     >
-                      Connect My Account
+                      {t('settings.connect_account')}
                     </button>
                   ) : (
                     <div className="flex items-center gap-1.5 text-xs text-slate-400">

@@ -638,7 +638,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                             ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
                                             : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                                     >
-                                        {dim.label}
+                                        {dim.tKey ? t(dim.tKey) : dim.label}
                                     </button>
                                 ))}
                             </div>
@@ -661,12 +661,12 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                     <div key={idx} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-3 py-2 border border-slate-100 dark:border-slate-700/50">
                                         <select value={m.metricId} onChange={e => updateMetric(idx, { metricId: e.target.value as MetricId })}
                                             className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-xs outline-none focus:ring-2 focus:ring-blue-500/30">
-                                            {METRIC_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                            {METRIC_OPTIONS.map(o => { const meta = METRIC_REGISTRY[o.value]; return <option key={o.value} value={o.value}>{meta?.tKey ? t(meta.tKey) : o.label}</option>; })}
                                         </select>
                                         <span className="text-[10px] text-slate-400 font-medium">{t('builder.by')}</span>
                                         <select value={m.aggregation} onChange={e => updateMetric(idx, { aggregation: e.target.value as AggregationFn })}
                                             className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-xs outline-none focus:ring-2 focus:ring-blue-500/30">
-                                            {AGG_OPTIONS.map(o => <option key={o.value} value={o.value}>{t({'SUM':'agg.sum','AVG':'agg.average','COUNT':'agg.count','MIN':'agg.min','MAX':'agg.max'}[o.value] || o.label)}</option>)}
+                                            {AGG_OPTIONS.map(o => <option key={o.value} value={o.value}>{t({ 'SUM': 'builder.agg_sum', 'AVG': 'builder.agg_average', 'COUNT': 'builder.agg_count', 'MIN': 'builder.agg_min', 'MAX': 'builder.agg_max' }[o.value] || o.label)}</option>)}
                                         </select>
                                         {metrics.length > 1 && (
                                             <button onClick={() => removeMetric(idx)} className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
@@ -691,7 +691,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                             ? 'bg-teal-600 text-white shadow-sm shadow-teal-500/25'
                                             : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                                     >
-                                        <span className="me-1">{opt.icon}</span>{t({'today':'tf.today','currentWeek':'tf.current_week','currentMonth':'tf.current_month','customRange':'tf.custom_range','specificDay':'tf.specific_day','specificWeek':'tf.specific_week','specificMonth':'tf.specific_month'}[opt.value] || opt.label)}
+                                        <span className="me-1">{opt.icon}</span>{t({ 'today': 'builder.tf_today', 'currentWeek': 'builder.tf_current_week', 'currentMonth': 'builder.tf_current_month', 'customRange': 'builder.tf_custom_range', 'specificDay': 'builder.tf_specific_day', 'specificWeek': 'builder.tf_specific_week', 'specificMonth': 'builder.tf_specific_month' }[opt.value] || opt.label)}
                                     </button>
                                 ))}
                             </div>
@@ -725,7 +725,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                 </div>
                             )}
                             <p className="text-[10px] text-teal-500 mt-1.5">
-                                {timeFilteredEvents.length} events in selected timeframe
+                                {timeFilteredEvents.length} {t('builder.events_in_timeframe')}
                             </p>
                         </div>
 
@@ -784,7 +784,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                                 <label className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5"
                                                     style={{ color: COMPARE_COLORS[idx % COMPARE_COLORS.length] }}>
                                                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COMPARE_COLORS[idx % COMPARE_COLORS.length] }} />
-                                                    {t('builder.comparison_n')} {idx + 1} — {t({'today':'tf.today','currentWeek':'tf.current_week','currentMonth':'tf.current_month','customRange':'tf.custom_range','specificDay':'tf.specific_day','specificWeek':'tf.specific_week','specificMonth':'tf.specific_month'}[timeframe] || 'Period')}
+                                                    {t('builder.comparison_n')} {idx + 1} — {t({ 'today': 'tf.today', 'currentWeek': 'tf.current_week', 'currentMonth': 'tf.current_month', 'customRange': 'tf.custom_range', 'specificDay': 'tf.specific_day', 'specificWeek': 'tf.specific_week', 'specificMonth': 'tf.specific_month' }[timeframe] || 'Period')}
                                                 </label>
                                                 <button onClick={() => removeComparison(cmp.id)}
                                                     className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors">
@@ -861,7 +861,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${active
                                                 ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
                                                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
-                                            {viz.icon}{t({'bar':'viz.bar','stacked-bar':'viz.stacked','line':'viz.line','pie':'viz.pie','table':'viz.table'}[viz.type] || viz.label)}
+                                            {viz.icon}{t({ 'bar': 'builder.viz_bar', 'stacked-bar': 'builder.viz_stacked', 'line': 'builder.viz_line', 'pie': 'builder.viz_pie', 'table': 'builder.viz_table' }[viz.type] || viz.label)}
                                         </button>
                                     );
                                 })}
@@ -969,7 +969,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                         <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
                                             className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none">
                                             <option value="dimension">{t('builder.dimension_label')}</option>
-                                            {metrics.map(m => <option key={m.metricId} value={m.metricId}>{METRIC_REGISTRY[m.metricId]?.label ?? m.metricId}</option>)}
+                                            {metrics.map(m => { const meta = METRIC_REGISTRY[m.metricId]; return <option key={m.metricId} value={m.metricId}>{meta?.tKey ? t(meta.tKey) : (meta?.label ?? m.metricId)}</option>; })}
                                         </select>
                                         <div className="flex gap-1 mt-1.5">
                                             <button onClick={() => setSortDir('asc')} className={`text-[10px] px-2 py-0.5 rounded ${sortDir === 'asc' ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>{t('builder.ascending')}</button>

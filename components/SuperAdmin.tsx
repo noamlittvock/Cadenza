@@ -557,7 +557,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                             onClick={() => setIsBulkMode(!isBulkMode)}
                                             className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline transition-all"
                                         >
-                                            {isBulkMode ? "Switch to Single Entry" : "Switch to Bulk CSV Entry"}
+                                            {isBulkMode ? t('super.switch_single') : t('super.switch_bulk')}
                                         </button>
                                     </div>
 
@@ -593,8 +593,8 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                     onChange={(e) => setNewUserRole(e.target.value as 'ADMIN' | 'VIEWER')}
                                                     className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                 >
-                                                    <option value="VIEWER">Viewer</option>
-                                                    <option value="ADMIN">Admin</option>
+                                                    <option value="VIEWER">{t('super.role_viewer')}</option>
+                                                    <option value="ADMIN">{t('super.role_admin')}</option>
                                                 </select>
                                             </div>
                                             <div className="flex items-end">
@@ -604,7 +604,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                     className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg px-4 py-2 text-sm font-medium flex items-center justify-center transition-colors"
                                                 >
                                                     <Plus size={16} className="mr-2" />
-                                                    Add
+                                                    {t('super.add_btn')}
                                                 </button>
                                             </div>
                                         </form>
@@ -695,7 +695,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                             <div className="p-6">
                                 <div className="border-l-4 border-amber-400 bg-amber-50 dark:bg-amber-900/20 p-4 rounded-r-lg mb-6">
                                     <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
-                                        ⚠️ These tools are exclusively available to the Super Admin. No tenant admin can access them.
+                                        ⚠️ {t('super.tools_notice')}
                                     </p>
                                 </div>
 
@@ -714,7 +714,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                     onClick={() => onWipeData?.()}
                                                     className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-bold transition-colors shadow-none border border-red-600"
                                                 >
-                                                    Wipe Data
+                                                    {t('super.wipe_data')}
                                                 </button>
                                                 <button
                                                     onClick={() => {

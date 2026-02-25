@@ -490,7 +490,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
               <Download size={16} className="me-2" /> {t('btn.export')}
             </button>
             <button onClick={() => { setIsEmailModalOpen(true); setEmailSuccess(false); }} className="hidden md:flex bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg items-center shadow-sm text-sm">
-              <Mail size={16} className="me-2" /> Email Report
+              <Mail size={16} className="me-2" /> {t('fin.email_report')}
             </button>
           </div>
         </div>
@@ -514,7 +514,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                 onToggle={tag => toggleInSet(selectedTags, setSelectedTags, tag)} accentColor="amber" />
               <FilterSection title={t('filter.categories')} icon={<CalendarDays size={12} />} items={allCategories} selected={selectedCategories}
                 onToggle={cat => toggleInSet(selectedCategories, setSelectedCategories, cat)} accentColor="violet" />
-              <FilterSection title={t('filter.rate_type')} icon={<ToggleLeft size={12} />} items={['HOURLY', 'GLOBAL_MONTHLY']} selected={selectedRateTypes}
+              <FilterSection title={t('filter.rate_type')} icon={<ToggleLeft size={12} />} items={['HOURLY', 'GLOBAL_MONTHLY']} displayLabel={(v) => v === 'HOURLY' ? t('fin.rate_hourly') : t('fin.rate_global')} selected={selectedRateTypes}
                 onToggle={rt => toggleInSet(selectedRateTypes, setSelectedRateTypes, rt)} accentColor="rose" />
             </div>
           </div>
@@ -543,7 +543,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
               <h3 className="text-xs font-semibold uppercase tracking-wider opacity-80">{t('fin.grand_total')}</h3>
             </div>
             <p className="text-2xl font-bold">{formatCurrency(totals.grandTotal, settings.currency)}</p>
-            <p className="text-xs opacity-70 mt-1">{monthsInRange} month{monthsInRange > 1 ? 's' : ''}</p>
+            <p className="text-xs opacity-70 mt-1">{monthsInRange} {monthsInRange > 1 ? t('fin.months_plural') : t('fin.month_singular')}</p>
           </div>
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-2 mb-1">
@@ -577,7 +577,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
 
         {reportData.length === 0 ? (
           <div className="bg-white dark:bg-slate-900 rounded-xl p-12 text-center border border-dashed border-slate-300 dark:border-slate-800 text-slate-500">
-            No data matches current filters.
+            {t('fin.no_data_matches')}
           </div>
         ) : (
           <>
@@ -691,7 +691,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
             <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh]">
               <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 rounded-t-xl">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><Mail size={20} className="text-blue-500" /> Send Financial Reports</h3>
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><Mail size={20} className="text-blue-500" /> {t('fin.send_reports_title')}</h3>
                   <p className="text-sm text-slate-500 mt-1">{t('dashboard.report_desc')}</p>
                 </div>
                 <button onClick={() => setIsEmailModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-200/50 dark:bg-slate-800 p-2 rounded-full transition-colors"><X size={20} /></button>
@@ -704,7 +704,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                       <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
                     </div>
                     <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('dashboard.report_success')}</h4>
-                    <p className="text-slate-500 dark:text-slate-400 max-w-md">Email reports have been generated and dispatched to {reportData.length} recipients.</p>
+                    <p className="text-slate-500 dark:text-slate-400 max-w-md">{t('fin.email_dispatched')} {reportData.length} {t('fin.recipients')}.</p>
                   </div>
                 ) : reportData.length === 0 ? (
                   <div className="text-center py-12 text-slate-500">

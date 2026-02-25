@@ -8,6 +8,7 @@ import { DimensionId, MetricSelection, VisualizationType } from '../types/chartB
 export interface DimensionMeta {
     id: DimensionId;
     label: string;
+    tKey?: string;
     isTemporal: boolean;
     /** Estimated cardinality — affects chart type recommendations */
     estimatedCardinality: 'low' | 'medium' | 'high';
@@ -15,29 +16,29 @@ export interface DimensionMeta {
 
 /** Registry of all dimensions with their characteristics */
 export const DIMENSION_REGISTRY: Record<DimensionId, DimensionMeta> = {
-    teacher: { id: 'teacher', label: 'Teacher', isTemporal: false, estimatedCardinality: 'medium' },
-    position: { id: 'position', label: 'Position', isTemporal: false, estimatedCardinality: 'medium' },
-    category: { id: 'category', label: 'Category', isTemporal: false, estimatedCardinality: 'low' },
-    tag: { id: 'tag', label: 'Tag', isTemporal: false, estimatedCardinality: 'low' },
-    rateType: { id: 'rateType', label: 'Rate Type', isTemporal: false, estimatedCardinality: 'low' },
-    month: { id: 'month', label: 'Month', isTemporal: true, estimatedCardinality: 'medium' },
-    week: { id: 'week', label: 'Week', isTemporal: true, estimatedCardinality: 'high' },
-    dayOfWeek: { id: 'dayOfWeek', label: 'Day of Week', isTemporal: true, estimatedCardinality: 'low' },
-    room: { id: 'room', label: 'Room', isTemporal: false, estimatedCardinality: 'low' },
-    classification: { id: 'classification', label: 'Classification', isTemporal: false, estimatedCardinality: 'low' },
+    teacher: { id: 'teacher', label: 'Teacher', tKey: 'dim.teacher', isTemporal: false, estimatedCardinality: 'medium' },
+    position: { id: 'position', label: 'Position', tKey: 'dim.position', isTemporal: false, estimatedCardinality: 'medium' },
+    category: { id: 'category', label: 'Category', tKey: 'dim.category', isTemporal: false, estimatedCardinality: 'low' },
+    tag: { id: 'tag', label: 'Tag', tKey: 'dim.tag', isTemporal: false, estimatedCardinality: 'low' },
+    rateType: { id: 'rateType', label: 'Rate Type', tKey: 'dim.rate_type', isTemporal: false, estimatedCardinality: 'low' },
+    month: { id: 'month', label: 'Month', tKey: 'dim.month', isTemporal: true, estimatedCardinality: 'medium' },
+    week: { id: 'week', label: 'Week', tKey: 'dim.week', isTemporal: true, estimatedCardinality: 'high' },
+    dayOfWeek: { id: 'dayOfWeek', label: 'Day of Week', tKey: 'dim.day_of_week', isTemporal: true, estimatedCardinality: 'low' },
+    room: { id: 'room', label: 'Room', tKey: 'dim.room', isTemporal: false, estimatedCardinality: 'low' },
+    classification: { id: 'classification', label: 'Classification', tKey: 'dim.classification', isTemporal: false, estimatedCardinality: 'low' },
 };
 
 /** All metric options with display labels */
-export const METRIC_REGISTRY: Record<string, { id: string; label: string; unit: string }> = {
-    activeHours: { id: 'activeHours', label: 'Active Hours', unit: 'hours' },
-    canceledHours: { id: 'canceledHours', label: 'Canceled Hours', unit: 'hours' },
-    totalHours: { id: 'totalHours', label: 'Total Hours', unit: 'hours' },
-    hourlyCost: { id: 'hourlyCost', label: 'Hourly Cost', unit: 'currency' },
-    globalCost: { id: 'globalCost', label: 'Global Cost', unit: 'currency' },
-    totalCost: { id: 'totalCost', label: 'Total Cost', unit: 'currency' },
-    eventCount: { id: 'eventCount', label: 'Event Count', unit: '' },
-    teacherCount: { id: 'teacherCount', label: 'Teacher Count', unit: '' },
-    avgRate: { id: 'avgRate', label: 'Average Rate', unit: 'currency' },
+export const METRIC_REGISTRY: Record<string, { id: string; label: string; tKey?: string; unit: string }> = {
+    activeHours: { id: 'activeHours', label: 'Active Hours', tKey: 'metric.active_hours', unit: 'hours' },
+    canceledHours: { id: 'canceledHours', label: 'Canceled Hours', tKey: 'metric.canceled_hours', unit: 'hours' },
+    totalHours: { id: 'totalHours', label: 'Total Hours', tKey: 'metric.total_hours', unit: 'hours' },
+    hourlyCost: { id: 'hourlyCost', label: 'Hourly Cost', tKey: 'metric.hourly_cost', unit: 'currency' },
+    globalCost: { id: 'globalCost', label: 'Global Cost', tKey: 'metric.global_cost', unit: 'currency' },
+    totalCost: { id: 'totalCost', label: 'Total Cost', tKey: 'metric.total_cost', unit: 'currency' },
+    eventCount: { id: 'eventCount', label: 'Event Count', tKey: 'metric.event_count', unit: '' },
+    teacherCount: { id: 'teacherCount', label: 'Teacher Count', tKey: 'metric.teacher_count', unit: '' },
+    avgRate: { id: 'avgRate', label: 'Average Rate', tKey: 'metric.avg_rate', unit: 'currency' },
 };
 
 /**
