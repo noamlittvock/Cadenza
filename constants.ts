@@ -959,6 +959,14 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'fin.header_total_cost': 'Total Cost',
     'fin.per_hr': '/hr',
     'fin.per_mo': '/mo',
+    'nav.gantt.subtitle': 'Manage semesters & blackouts.',
+    'gantt.blackout_label': 'Blackout',
+    'gantt.no_periods': 'No periods defined.',
+    'gantt.edit_period': 'Edit Period',
+    'gantt.add_period': 'Add Gantt / Blackout Period',
+    'gantt.blackout_warning': 'Caution: Existing events in this range will be hidden.',
+    'gantt.save_changes': 'Save Changes',
+    'gantt.create_apply': 'Create & Apply',
   },
   'he-IL': {
     'app.title': 'מרכז המוזיקה אלפרט',
@@ -1857,6 +1865,14 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'fin.header_total_cost': 'עלות כוללת',
     'fin.per_hr': '/שעה',
     'fin.per_mo': '/חודש',
+    'nav.gantt.subtitle': 'ניהול סמסטרים וחסימות.',
+    'gantt.blackout_label': 'חסימה',
+    'gantt.no_periods': 'לא הוגדרו תקופות.',
+    'gantt.edit_period': 'עריכת תקופה',
+    'gantt.add_period': 'הוספת תקופת גנט / חסימה',
+    'gantt.blackout_warning': 'זהירות: אירועים קיימים בטווח זה יוסתרו.',
+    'gantt.save_changes': 'שמור שינויים',
+    'gantt.create_apply': 'צור והחל',
   }
 };
 
