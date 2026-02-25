@@ -102,10 +102,10 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
     const handleBulkAction = (action: 'CANCEL' | 'DELETE') => {
         if (count === 0) return;
 
-        const actionVerb = action === 'CANCEL' ? 'CANCEL' : 'PERMANENTLY DELETE';
-        const methodDesc = selectionMethod === 'MANUAL' ? 'selected' : 'matching';
+        const actionVerb = action === 'CANCEL' ? t('power.action_cancel') : t('power.action_delete');
+        const methodDesc = selectionMethod === 'MANUAL' ? t('power.selected_word') : t('power.matching');
 
-        if (window.confirm(`Are you sure you want to ${actionVerb} ${count} ${methodDesc} events?`)) {
+        if (window.confirm(`${t('power.confirm_action')} ${actionVerb} ${count} ${methodDesc} ${t('power.events_word')}?`)) {
             if (action === 'DELETE') {
                 const idsToDelete = new Set(targetEvents.map(e => e.id));
                 setEvents(prev => prev.filter(e => !idsToDelete.has(e.id)));
@@ -120,7 +120,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                     return e;
                 }));
                 if (setSelectedEventIds) setSelectedEventIds(new Set());
-                alert(`Successfully canceled ${count} events.\n\nNote: Canceled events may be hidden. Enable the "Show Canceled" filter in the calendar toolbar to view them.`);
+                alert(`${t('power.alert_canceled')} ${count} ${t('power.events_word')}.\n\n${t('power.alert_cancel_note')}`);
             }
         }
     };
@@ -230,10 +230,10 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                     <div className="bg-slate-100 dark:bg-slate-800 p-1.5 rounded-lg me-2 text-slate-600 dark:text-slate-300">
                         <BoxSelect size={20} />
                     </div>
-                    Power Tools
+                    {t('power.title')}
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Bulk actions for event management.
+                    {t('power.subtitle')}
                 </p>
             </div>
 
@@ -244,21 +244,21 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                     className={`flex-1 py-1.5 text-xs font-bold rounded-md flex items-center justify-center transition-all ${selectionMethod === 'FILTER' ? 'bg-white dark:bg-slate-700 shadow text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     <ListFilter size={14} className="me-1.5" />
-                    By Filter
+                    {t('power.tab_filter')}
                 </button>
                 <button
                     onClick={() => setSelectionMethod('MANUAL')}
                     className={`flex-1 py-1.5 text-xs font-bold rounded-md items-center justify-center transition-all hidden md:flex ${selectionMethod === 'MANUAL' ? 'bg-white dark:bg-slate-700 shadow text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     <Hand size={14} className="me-1.5" />
-                    Manual Select
+                    {t('power.tab_manual')}
                 </button>
                 <button
                     onClick={() => setSelectionMethod('IMPORT_GANTT')}
                     className={`flex-1 py-1.5 text-xs font-bold rounded-md flex items-center justify-center transition-all ${selectionMethod === 'IMPORT_GANTT' ? 'bg-white dark:bg-slate-700 shadow text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     <FileJson size={14} className="me-1.5" />
-                    Import Schedule
+                    {t('power.tab_import')}
                 </button>
             </div>
 
@@ -272,7 +272,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('power.time_range')}</h4>
                                 <div className="grid grid-cols-2 gap-2">
                                     <div>
-                                        <label className="block text-[10px] font-medium text-slate-400 mb-1">From</label>
+                                        <label className="block text-[10px] font-medium text-slate-400 mb-1">{t('power.label_from')}</label>
                                         <input
                                             type="date"
                                             className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-500"
@@ -281,7 +281,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] font-medium text-slate-400 mb-1">To</label>
+                                        <label className="block text-[10px] font-medium text-slate-400 mb-1">{t('power.label_to')}</label>
                                         <input
                                             type="date"
                                             className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-500"
@@ -297,7 +297,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('power.criteria')}</h4>
                                 {!deleteStartDate || !deleteEndDate ? (
                                     <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/30">
-                                        Please select a time range first.
+                                        {t('power.select_time_range_first')}
                                     </div>
                                 ) : (
                                     <div className="space-y-2 animate-in fade-in">
@@ -341,7 +341,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                 className="w-full py-2 text-xs text-slate-500 hover:text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700 dark:text-slate-400 rounded-lg transition-colors flex items-center justify-center font-bold shadow-sm"
                             >
                                 <XCircle size={14} className="me-1.5" />
-                                Clear Filters
+                                {t('power.clear_filters')}
                             </button>
                         </div>
                     </>
@@ -354,7 +354,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                 <div>
                                     <h4 className="text-xs font-bold text-blue-700 dark:text-blue-300 mb-1">{t('power.interactive_selection')}</h4>
                                     <p className="text-[10px] text-blue-600 dark:text-blue-400 leading-relaxed">
-                                        Click and drag directly on the calendar grid to draw a selection rectangle, or click individual events to toggle them.
+                                        {t('power.manual_desc')}
                                     </p>
                                 </div>
                             </div>
@@ -372,7 +372,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                 className="w-full mt-2 py-2 px-4 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold transition-colors flex items-center justify-center dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/20"
                             >
                                 <XCircle size={14} className="me-2" />
-                                Clear Selection ({selectedEventIds?.size})
+                                {t('power.clear_selection')} ({selectedEventIds?.size})
                             </button>
                         )}
                     </>
@@ -387,13 +387,13 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
 
                             <div className="flex flex-col gap-3">
                                 <button onClick={downloadGanttTemplate} className="flex items-center text-xs text-blue-600 hover:underline">
-                                    <FileDown size={14} className="me-1" /> Download CSV Template
+                                    <FileDown size={14} className="me-1" /> {t('power.download_template')}
                                 </button>
 
                                 <label className="flex items-center justify-center w-full h-24 px-4 transition bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 border-dashed rounded-lg appearance-none cursor-pointer hover:border-blue-500 focus:outline-none">
                                     <div className="flex flex-col items-center space-y-2">
                                         <Upload className="w-6 h-6 text-slate-400" />
-                                        <span className="font-medium text-slate-500 dark:text-slate-400 text-xs">{isGanttImporting ? 'Processing...' : 'Drop CSV file or Click to Browse'}</span>
+                                        <span className="font-medium text-slate-500 dark:text-slate-400 text-xs">{isGanttImporting ? t('power.processing') : t('power.drop_csv')}</span>
                                     </div>
                                     <input type="file" accept=".csv" className="hidden" onChange={handleGanttFileUpload} disabled={isGanttImporting} />
                                 </label>
@@ -403,7 +403,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                         {ganttPreview.length > 0 && (
                             <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
                                 <div className="p-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                                    <h5 className="font-bold text-xs text-slate-700 dark:text-slate-300">Preview ({ganttPreview.length} items)</h5>
+                                    <h5 className="font-bold text-xs text-slate-700 dark:text-slate-300">{t('power.preview')} ({ganttPreview.length} {t('power.items')})</h5>
                                     <button onClick={() => setGanttPreview([])} className="text-red-500 hover:text-red-600 text-xs"><Trash2 size={14} /></button>
                                 </div>
                                 <div className="max-h-60 overflow-y-auto p-2 space-y-2">
@@ -423,7 +423,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                         onClick={confirmGanttImport}
                                         className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center"
                                     >
-                                        <Check size={14} className="me-2" /> Confirm Import
+                                        <Check size={14} className="me-2" /> {t('power.confirm_import')}
                                     </button>
                                 </div>
                             </div>
@@ -437,11 +437,11 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                         <div className="text-center mb-2">
                             {count > 0 ? (
                                 <span className="text-xs font-bold text-slate-800 dark:text-white bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full text-green-700 dark:text-green-400">
-                                    {count} targeted
+                                    {count} {t('power.targeted')}
                                 </span>
                             ) : (
                                 <span className="text-xs italic text-slate-400">
-                                    {selectionMethod === 'FILTER' ? 'Adjust filters.' : 'Select events.'}
+                                    {selectionMethod === 'FILTER' ? t('power.adjust_filters') : t('power.select_events')}
                                 </span>
                             )}
                         </div>
@@ -456,7 +456,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                     }`}
                             >
                                 <XCircle size={14} className="me-1.5" />
-                                Bulk Cancel
+                                {t('power.bulk_cancel')}
                             </button>
                             <button
                                 onClick={() => handleBulkAction('DELETE')}
@@ -467,7 +467,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                     }`}
                             >
                                 <Trash2 size={14} className="me-1.5" />
-                                Bulk Delete
+                                {t('power.bulk_delete')}
                             </button>
                         </div>
                     </div>
