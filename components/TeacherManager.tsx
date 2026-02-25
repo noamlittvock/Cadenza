@@ -3,6 +3,7 @@ import { Teacher, ListsState, PositionAssignment, RateType, AppSettings } from '
 import { generateId, COLORS, INITIAL_LISTS } from '../constants';
 import { Plus, Edit2, Trash2, Search, CheckCircle2, Palette, X, Download, Upload, FileDown, Tag, Briefcase, Menu, DollarSign, Clock, CalendarDays, ChevronDown, ToggleLeft, ToggleRight } from 'lucide-react';
 
+import { TRANSLATIONS } from '../constants';
 interface Props {
   teachers: Teacher[];
   setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>;
@@ -34,6 +35,7 @@ const createEmptyAssignment = (): PositionAssignment => ({
 });
 
 export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, setLists, onMobileMenuOpen, embedded = false, settings }) => {
+  const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Teacher>>({ positions: [], positionAssignments: [], tags: [] });
@@ -500,13 +502,13 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
               <button
                 onClick={onMobileMenuOpen}
                 className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden"
-                title="Open Menu"
+                title={t('tooltip.open_menu')}
               >
                 <Menu className="w-6 h-6 text-slate-600 dark:text-slate-300" />
               </button>
             )}
             <div>
-              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Teacher Management</h2>
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{t('teach.title')}</h2>
               <p className="text-slate-500 dark:text-slate-400">Manage instructor profiles, positions, rates, and tags.</p>
             </div>
           </div>
@@ -524,7 +526,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
             <button onClick={handleExportTeachers} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700"><Download size={16} className="mr-2" /> Export</button>
             <button onClick={() => fileInputRef.current?.click()} disabled={isAnalyzing} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"><Upload size={16} className="mr-2" /> Import</button>
             <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
-            <button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm"><Plus size={16} className="mr-2" /> Add Teacher</button>
+            <button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm"><Plus size={16} className="mr-2" /> {t('teach.add')}</button>
           </div>
         </div>
       )}
@@ -545,7 +547,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
           <button onClick={() => fileInputRef.current?.click()} disabled={isAnalyzing} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"><Upload size={16} className="mr-2" /> Import</button>
           <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
           <div className="flex-1" />
-          <button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm"><Plus size={16} className="mr-2" /> Add Teacher</button>
+          <button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm"><Plus size={16} className="mr-2" /> {t('teach.add')}</button>
         </div>
       )}
 
@@ -556,7 +558,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search teachers..."
+              placeholder={t('placeholder.search_teachers')}
               className="pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm w-full text-slate-800 dark:text-white outline-none focus:ring-1 focus:ring-blue-500"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -693,11 +695,11 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
               {/* Name + Color Row */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Full Name</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('label.full_name')}</label>
                   <input required type="text" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.fullName || ''} onChange={e => setFormData({ ...formData, fullName: e.target.value })} />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Teacher Color</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{t('label.teacher_color')}</label>
                   <div className="flex gap-2 mb-2">
                     {COLORS.map(c => (
                       <button key={c} type="button" onClick={() => setFormData({ ...formData, color: c })} className={`w-6 h-6 rounded-full border ${formData.color === c ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`} style={{ backgroundColor: c }} />
@@ -746,7 +748,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                         <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 text-[10px] font-bold flex items-center justify-center">
                           {idx + 1}
                         </span>
-                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Position Assignment</span>
+                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('teach.position_assignment')}</span>
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
@@ -843,7 +845,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                       onClick={addPositionAssignment}
                       className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium"
                     >
-                      + Add first position
+                      {t('teach.add_first_position')}
                     </button>
                   </div>
                 )}
@@ -903,7 +905,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-2xl p-6 border border-slate-200 dark:border-slate-800 max-h-[90vh] flex flex-col">
             <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">Import Teachers</h3>
-            <p className="text-sm text-slate-500 mb-4">Found {importCandidates.length} unique teachers. Select the ones you want to import.</p>
+            <p className="text-sm text-slate-500 mb-4">Found {importCandidates.length} {t('teach.unique_teachers')}</p>
 
             <div className="flex-1 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg mb-4">
               <table className="w-full text-left text-xs">

@@ -1,10 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { ListsState } from '../types';
+import { ListsState, AppSettings } from '../types';
 import { Plus, X, Tag, Briefcase, Bookmark, Download, Upload, FileDown, CheckCircle2, Menu } from 'lucide-react';
 
+import { TRANSLATIONS } from '../constants';
 interface Props {
   lists: ListsState;
   setLists: React.Dispatch<React.SetStateAction<ListsState>>;
+  settings?: AppSettings;
   onMobileMenuOpen?: () => void;
   embedded?: boolean;
 }
@@ -78,7 +80,8 @@ const ListEditor = ({
   );
 };
 
-export const ManageLists: React.FC<Props> = ({ lists, setLists, onMobileMenuOpen, embedded = false }) => {
+export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobileMenuOpen, embedded = false }) => {
+  const t = (key: string) => (settings && TRANSLATIONS[settings.language]?.[key]) || TRANSLATIONS['en-US'][key] || key;
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [candidates, setCandidates] = useState<{ positions: string[], tags: string[], classifications: string[] }>({ positions: [], tags: [], classifications: [] });
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -174,7 +177,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, onMobileMenuOpen
               <button
                 onClick={onMobileMenuOpen}
                 className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden"
-                title="Open Menu"
+                title={t('tooltip.open_menu')}
               >
                 <Menu className="w-6 h-6 text-slate-600 dark:text-slate-300" />
               </button>

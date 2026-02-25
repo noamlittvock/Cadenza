@@ -185,7 +185,7 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
             <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{editingId ? 'Edit Period' : 'Add Gantt / Blackout Period'}</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Title</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.label_title')}</label>
                 <input
                   type="text"
                   className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
@@ -196,7 +196,7 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Start Date</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.start_date')}</label>
                   <input
                     type="date"
                     className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
@@ -205,7 +205,7 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">End Date</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.end_date')}</label>
                   <input
                     type="date"
                     className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
@@ -216,7 +216,7 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Display Color</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{t('gantt.display_color')}</label>
                 <div className="flex space-x-2">
                   {COLORS.map(c => (
                     <button
@@ -238,7 +238,7 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
                     onChange={e => setFormData({ ...formData, isBlackout: e.target.checked })}
                   />
                   <div>
-                    <span className="block font-medium text-slate-900 dark:text-white">Apply Blackout</span>
+                    <span className="block font-medium text-slate-900 dark:text-white">{t('gantt.apply_blackout')}</span>
                     <span className="block text-xs text-slate-500 dark:text-slate-400">Automatically <strong>HIDE</strong> all events in this range from calendar and reports.</span>
                   </div>
                 </label>

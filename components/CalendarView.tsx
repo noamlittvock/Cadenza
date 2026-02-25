@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, AlertCircle, Filter, Calendar as CalendarIco
 import { useAuth } from '../context/AuthContext';
 import { syncEventToGoogle, removeEventFromGoogle, updateEventInGoogle } from '../utils/googleCalendarSync';
 
+import { TRANSLATIONS } from '../constants';
 interface Props {
   events: CalendarEvent[];
   setEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>;
@@ -65,6 +66,7 @@ export const CalendarView: React.FC<Props> = ({
   setIsMobileMenuOpen,
   currentDate, setCurrentDate, viewMode, setViewMode
 }) => {
+  const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
   const { googleAccessToken, currentUser } = useAuth();
 
   // Google Calendar sync is locked to the tenant admin who connected it
@@ -1037,7 +1039,7 @@ export const CalendarView: React.FC<Props> = ({
                 {formatTime(start)} - {formatTime(end)}
               </div>
               <div className="truncate opacity-75 font-semibold" style={{ fontSize: timeFontSize }}>{teachers.find(t => t.id === evt.teacherId)?.fullName}</div>
-              {evt.isCanceled && <div className="font-bold text-red-500 mt-1">CANCELED</div>}
+              {evt.isCanceled && <div className="font-bold text-red-500 mt-1">{t('cal.canceled')}</div>}
             </>
           )}
         </div>
@@ -1317,7 +1319,7 @@ export const CalendarView: React.FC<Props> = ({
                               </div>
                               <div className="overflow-y-auto p-1.5 space-y-1 custom-scrollbar">
                                 {dayEvents.length === 0 ? (
-                                  <div className="text-xs text-slate-400 p-2 text-center">No events</div>
+                                  <div className="text-xs text-slate-400 p-2 text-center">{t('cal.no_events')}</div>
                                 ) : (
                                   dayEvents.map(evt => {
                                     const baseColor = getTeacherColor(evt.teacherId);
@@ -1622,7 +1624,7 @@ export const CalendarView: React.FC<Props> = ({
                     <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><Clock size={16} className="mr-3 flex-shrink-0" /><span>{new Date((detailItem.data as CalendarEvent).start).toLocaleString(settings.language)} - <br />{formatTime(new Date((detailItem.data as CalendarEvent).end))}</span></div>
                     <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><User size={16} className="mr-3 flex-shrink-0" /><span>{teachers.find(t => t.id === (detailItem.data as CalendarEvent).teacherId)?.fullName}</span></div>
                     <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><MapPin size={16} className="mr-3 flex-shrink-0" /><span>{rooms.find(r => r.id === (detailItem.data as CalendarEvent).roomId)?.name}</span></div>
-                    {(detailItem.data as CalendarEvent).isCanceled && <div className="mt-2 bg-red-100 text-red-700 text-xs px-2 py-1 rounded inline-block font-bold">CANCELED</div>}
+                    {(detailItem.data as CalendarEvent).isCanceled && <div className="mt-2 bg-red-100 text-red-700 text-xs px-2 py-1 rounded inline-block font-bold">{t('cal.canceled')}</div>}
                     {(detailItem.data as CalendarEvent).recurrenceRule && <div className="mt-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-bold"><Repeat size={10} /> Recurring</div>}
                     {(detailItem.data as CalendarEvent).recurrenceId && <div className="mt-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-bold"><Repeat size={10} /> Part of Series</div>}
                   </>
@@ -2046,24 +2048,24 @@ export const CalendarView: React.FC<Props> = ({
                 <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 mt-2">
                   <label className="flex items-center space-x-3 cursor-pointer">
                     <input type="checkbox" className="w-5 h-5 text-red-600 rounded focus:ring-red-500 border-slate-300 dark:border-slate-600" checked={editingEvent.isCanceled || false} onChange={e => setEditingEvent({ ...editingEvent, isCanceled: e.target.checked, cancellationPayStatus: e.target.checked && !editingEvent.cancellationPayStatus ? 'NO_PAY_CANCELLATION' : editingEvent.cancellationPayStatus })} />
-                    <span className="font-medium text-slate-900 dark:text-white">Mark as Canceled</span>
+                    <span className="font-medium text-slate-900 dark:text-white">{t('cal.mark_canceled')}</span>
                   </label>
                   {editingEvent.isCanceled && (
                     <div className="mt-3 ml-8 border-t border-slate-200 dark:border-slate-700 pt-3">
-                      <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Cancellation Pay Status</label>
+                      <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{t('cal.cancel_pay_status')}</label>
                       <select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none" value={editingEvent.cancellationPayStatus || 'NO_PAY_CANCELLATION'} onChange={e => setEditingEvent({ ...editingEvent, cancellationPayStatus: e.target.value as any })}>
-                        <option value="NO_PAY_CANCELLATION">No Pay</option>
-                        <option value="PAID_CANCELLATION">Paid Cancellation</option>
+                        <option value="NO_PAY_CANCELLATION">{t('cal.no_pay')}</option>
+                        <option value="PAID_CANCELLATION">{t('cal.paid_cancel')}</option>
                       </select>
                     </div>
                   )}
                 </div>
               )}
               <div className="flex justify-between mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
-                {editingEvent.id && <button type="button" onClick={() => { handleDeleteEvent(editingEvent.id!, editingEvent as CalendarEvent); setIsModalOpen(false); }} className="text-red-500 hover:text-red-700 text-sm font-medium">Delete Event</button>}
+                {editingEvent.id && <button type="button" onClick={() => { handleDeleteEvent(editingEvent.id!, editingEvent as CalendarEvent); setIsModalOpen(false); }} className="text-red-500 hover:text-red-700 text-sm font-medium">{t('cal.delete_event')}</button>}
                 <div className="flex space-x-3 ml-auto">
                   <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
-                  <button type="submit" className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg">Save Changes</button>
+                  <button type="submit" className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg">{t('cal.save_changes')}</button>
                 </div>
               </div>
             </form>

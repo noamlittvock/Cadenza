@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { CalendarEvent, Teacher, AppSettings } from '../types';
 import { ChartConfiguration } from '../types/chartBuilder';
 import { formatHours, formatCurrency } from '../utils/formatters';
+import { TRANSLATIONS } from '../constants';
 import {
   Download, Filter, Calendar as CalIcon, ChevronDown, ChevronUp, Menu, Clock, CalendarDays,
   DollarSign, TrendingUp, X, SlidersHorizontal, Tag, User, Briefcase, ToggleLeft,
@@ -100,6 +101,7 @@ type SortColumn = 'name' | 'activeHrs' | 'canceledHrs' | 'canceledEvents' | 'tot
 // ---- Main Component ----
 
 export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings, savedCharts, setSavedCharts, onMobileMenuOpen }) => {
+  const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
   const [dateFilterType, setDateFilterType] = useState<DateFilterType>('MONTH');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
@@ -432,7 +434,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
   selectedPositionNames.forEach(pn => activeFilterPills.push({ label: pn, color: 'emerald', onRemove: () => toggleInSet(selectedPositionNames, setSelectedPositionNames, pn as string) }));
   selectedTags.forEach(tag => activeFilterPills.push({ label: `#${tag}`, color: 'amber', onRemove: () => toggleInSet(selectedTags, setSelectedTags, tag as string) }));
   selectedCategories.forEach(cat => activeFilterPills.push({ label: cat, color: 'violet', onRemove: () => toggleInSet(selectedCategories, setSelectedCategories, cat as string) }));
-  selectedRateTypes.forEach(rt => activeFilterPills.push({ label: rt === 'HOURLY' ? '⏱ Hourly' : '📅 Global Monthly', color: 'rose', onRemove: () => toggleInSet(selectedRateTypes, setSelectedRateTypes, rt as string) }));
+  selectedRateTypes.forEach(rt => activeFilterPills.push({ label: rt === 'HOURLY' ? `⏱ ${t('fin.hourly')}` : `📅 ${t('fin.global_monthly')}`, color: 'rose', onRemove: () => toggleInSet(selectedRateTypes, setSelectedRateTypes, rt as string) }));
 
   const pillColorClasses: Record<string, string> = {
     blue: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
@@ -448,12 +450,12 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div className="flex items-center gap-3">
-            <button onClick={onMobileMenuOpen} className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden" title="Open Menu">
+            <button onClick={onMobileMenuOpen} className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden" title={t('tooltip.open_menu')}>
               <Menu className="w-6 h-6 text-slate-600 dark:text-slate-300" />
             </button>
             <div>
-              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Financial Dashboard</h2>
-              <p className="text-slate-500 dark:text-slate-400 text-sm">Payroll overview — teacher metrics and cost breakdown.</p>
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{t('fin.title')}</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-sm">{t('fin.title')}</p>
             </div>
           </div>
 
@@ -462,10 +464,10 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
             <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg flex items-center px-2 py-1.5 shadow-sm">
               <CalIcon size={16} className="text-slate-400 mr-2" />
               <select className="bg-transparent outline-none text-sm font-medium text-slate-700 dark:text-white" value={dateFilterType} onChange={(e) => setDateFilterType(e.target.value as DateFilterType)}>
-                <option value="WEEK">Current Week</option>
-                <option value="MONTH">Current Month</option>
-                <option value="CUSTOM">Custom Range</option>
-                <option value="ALL">All Time</option>
+                <option value="WEEK">{t('fin.current_week')}</option>
+                <option value="MONTH">{t('fin.monthly')}</option>
+                <option value="CUSTOM">{t('pt.date_range')}</option>
+                <option value="ALL">{t('fin.all_time')}</option>
               </select>
             </div>
 
@@ -479,13 +481,13 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
 
             <button onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
               className={`border rounded-lg flex items-center px-3 py-2 shadow-sm text-sm transition-colors ${isFilterPanelOpen || activeFilterCount > 0 ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-slate-700 dark:text-white'}`}>
-              <SlidersHorizontal size={16} className="mr-2" />Filters
+              <SlidersHorizontal size={16} className="mr-2" />{t('tooltip.toggle_filters')}
               {activeFilterCount > 0 && <span className="ml-1.5 bg-white/20 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>}
               <ChevronDown size={14} className={`ml-1 transition-transform ${isFilterPanelOpen ? 'rotate-180' : ''}`} />
             </button>
 
             <button onClick={handleExport} className="hidden md:flex bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg items-center shadow-sm text-sm">
-              <Download size={16} className="mr-2" /> Export
+              <Download size={16} className="mr-2" /> {t('btn.export')}
             </button>
             <button onClick={() => { setIsEmailModalOpen(true); setEmailSuccess(false); }} className="hidden md:flex bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg items-center shadow-sm text-sm">
               <Mail size={16} className="mr-2" /> Email Report
@@ -497,22 +499,22 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
         {isFilterPanelOpen && (
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg mb-6 p-5 animate-in slide-in-from-top">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2"><Filter size={14} /> Advanced Filters</h3>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2"><Filter size={14} /> {t('tooltip.toggle_filters')}</h3>
               <div className="flex items-center gap-2">
-                {activeFilterCount > 0 && <button onClick={clearAllFilters} className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors">Clear All</button>}
+                {activeFilterCount > 0 && <button onClick={clearAllFilters} className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors">{t('btn.clear_all')}</button>}
                 <button onClick={() => setIsFilterPanelOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={16} /></button>
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              <FilterSection title="Teachers" icon={<User size={12} />} items={teachers.map(t => t.id)} selected={selectedTeacherIds}
-                onToggle={id => toggleInSet(selectedTeacherIds, setSelectedTeacherIds, id)} colorDot={id => teacherColorMap[id]} displayLabel={id => teachers.find(t => t.id === id)?.fullName || id} accentColor="blue" />
-              <FilterSection title="Positions" icon={<Briefcase size={12} />} items={allPositionNames} selected={selectedPositionNames}
+              <FilterSection title={t('filter.teachers')} icon={<User size={12} />} items={teachers.map(tc => tc.id)} selected={selectedTeacherIds}
+                onToggle={id => toggleInSet(selectedTeacherIds, setSelectedTeacherIds, id)} colorDot={id => teacherColorMap[id]} displayLabel={id => teachers.find(tc => tc.id === id)?.fullName || id} accentColor="blue" />
+              <FilterSection title={t('filter.positions')} icon={<Briefcase size={12} />} items={allPositionNames} selected={selectedPositionNames}
                 onToggle={pn => toggleInSet(selectedPositionNames, setSelectedPositionNames, pn)} accentColor="emerald" />
-              <FilterSection title="Tags" icon={<Tag size={12} />} items={allTags} selected={selectedTags}
+              <FilterSection title={t('filter.tags')} icon={<Tag size={12} />} items={allTags} selected={selectedTags}
                 onToggle={tag => toggleInSet(selectedTags, setSelectedTags, tag)} accentColor="amber" />
-              <FilterSection title="Categories" icon={<CalendarDays size={12} />} items={allCategories} selected={selectedCategories}
+              <FilterSection title={t('filter.categories')} icon={<CalendarDays size={12} />} items={allCategories} selected={selectedCategories}
                 onToggle={cat => toggleInSet(selectedCategories, setSelectedCategories, cat)} accentColor="violet" />
-              <FilterSection title="Rate Type" icon={<ToggleLeft size={12} />} items={['HOURLY', 'GLOBAL_MONTHLY']} selected={selectedRateTypes}
+              <FilterSection title={t('filter.rate_type')} icon={<ToggleLeft size={12} />} items={['HOURLY', 'GLOBAL_MONTHLY']} selected={selectedRateTypes}
                 onToggle={rt => toggleInSet(selectedRateTypes, setSelectedRateTypes, rt)} accentColor="rose" />
             </div>
           </div>
@@ -528,7 +530,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
               </span>
             ))}
             <button onClick={clearAllFilters} className="text-[11px] text-slate-400 hover:text-red-500 px-2 py-0.5 flex items-center gap-0.5">
-              <X size={10} /> Clear all
+              <X size={10} /> {t('btn.clear_all')}
             </button>
           </div>
         )}
@@ -538,7 +540,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
           <div className="col-span-2 md:col-span-1 bg-gradient-to-br from-blue-600 to-indigo-700 p-5 rounded-xl shadow-lg text-white">
             <div className="flex items-center gap-2 mb-1">
               <DollarSign size={16} className="opacity-80" />
-              <h3 className="text-xs font-semibold uppercase tracking-wider opacity-80">Grand Total</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wider opacity-80">{t('fin.grand_total')}</h3>
             </div>
             <p className="text-2xl font-bold">{formatCurrency(totals.grandTotal, settings.currency)}</p>
             <p className="text-xs opacity-70 mt-1">{monthsInRange} month{monthsInRange > 1 ? 's' : ''}</p>
@@ -546,28 +548,28 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-2 mb-1">
               <Clock size={14} className="text-blue-500" />
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Hourly Fees</h3>
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('fin.hourly_fees')}</h3>
             </div>
             <p className="text-xl font-bold text-slate-900 dark:text-white">{formatCurrency(totals.hourlyCost, settings.currency)}</p>
           </div>
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-2 mb-1">
               <CalendarDays size={14} className="text-emerald-500" />
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Global Monthly</h3>
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('fin.global_monthly')}</h3>
             </div>
             <p className="text-xl font-bold text-slate-900 dark:text-white">{formatCurrency(totals.globalCost, settings.currency)}</p>
           </div>
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp size={14} className="text-blue-500" />
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Active Hours</h3>
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('fin.active_hours')}</h3>
             </div>
             <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{formatHours(totals.activeHours)}</p>
           </div>
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-2 mb-1">
               <X size={14} className="text-red-500" />
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Canceled</h3>
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('fin.canceled')}</h3>
             </div>
             <p className="text-xl font-bold text-red-500">{formatHours(totals.canceledHours)}</p>
           </div>
@@ -582,8 +584,8 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
             {/* ── Teacher Metrics Table ── */}
             <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <h3 className="font-bold text-slate-800 dark:text-white text-sm">Teacher Metrics</h3>
-                <span className="text-[10px] text-slate-400">{sortedReportData.length} teacher{sortedReportData.length !== 1 ? 's' : ''} · Click headers to sort</span>
+                <h3 className="font-bold text-slate-800 dark:text-white text-sm">{t('fin.teacher_metrics')}</h3>
+                <span className="text-[10px] text-slate-400">{sortedReportData.length} {t('nav.teachers')} {t('fin.sort_hint')}</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -591,28 +593,28 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                     <tr>
                       <th className="px-4 py-3 w-8"></th>
                       <th className="px-4 py-3 cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('name')}>
-                        Teacher <SortIcon col="name" />
+                        {t('label.teacher')} <SortIcon col="name" />
                       </th>
                       <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('activeHrs')}>
-                        Active Hrs <SortIcon col="activeHrs" />
+                        {t('col.active_hrs')} <SortIcon col="activeHrs" />
                       </th>
                       <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('canceledHrs')}>
-                        Canc. Hrs <SortIcon col="canceledHrs" />
+                        {t('col.canceled_hrs')} <SortIcon col="canceledHrs" />
                       </th>
                       <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('canceledEvents')}>
-                        Canc. Events <SortIcon col="canceledEvents" />
+                        {t('col.cancel_count')} <SortIcon col="canceledEvents" />
                       </th>
                       <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('hourlyCost')}>
-                        <span className="flex items-center justify-end gap-1"><Clock size={11} /> Hourly ({settings.currency})</span> <SortIcon col="hourlyCost" />
+                        <span className="flex items-center justify-end gap-1"><Clock size={11} /> {t('dynamic.hourly_currency').replace('{currency}', settings.currency)}</span> <SortIcon col="hourlyCost" />
                       </th>
                       <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('oneOffCost')}>
-                        <span className="flex items-center justify-end gap-1"><DollarSign size={11} /> One-Off ({settings.currency})</span> <SortIcon col="oneOffCost" />
+                        <span className="flex items-center justify-end gap-1"><DollarSign size={11} /> {t('dynamic.one_off_currency').replace('{currency}', settings.currency)}</span> <SortIcon col="oneOffCost" />
                       </th>
                       <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('globalCost')}>
-                        <span className="flex items-center justify-end gap-1"><CalendarDays size={11} /> Global ({settings.currency})</span> <SortIcon col="globalCost" />
+                        <span className="flex items-center justify-end gap-1"><CalendarDays size={11} /> {t('dynamic.global_currency').replace('{currency}', settings.currency)}</span> <SortIcon col="globalCost" />
                       </th>
                       <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none font-bold" onClick={() => handleSort('total')}>
-                        Total ({settings.currency}) <SortIcon col="total" />
+                        {t('dynamic.total_currency').replace('{currency}', settings.currency)} <SortIcon col="total" />
                       </th>
                     </tr>
                   </thead>
@@ -667,7 +669,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                     {/* Totals Row */}
                     <tr className="bg-slate-100 dark:bg-slate-950 font-bold border-t-2 border-slate-200 dark:border-slate-700">
                       <td className="px-4 py-4"></td>
-                      <td className="px-4 py-4 text-slate-800 dark:text-white">Grand Total</td>
+                      <td className="px-4 py-4 text-slate-800 dark:text-white">{t('fin.grand_total')}</td>
                       <td className="px-4 py-4 text-right text-blue-600 dark:text-blue-400 tabular-nums">{formatHours(totals.activeHours)}</td>
                       <td className="px-4 py-4 text-right text-red-500 tabular-nums">{formatHours(totals.canceledHours)}</td>
                       <td className="px-4 py-4 text-right text-red-500 tabular-nums">{totals.canceledEvents}</td>
@@ -713,9 +715,9 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                     <table className="w-full text-left text-sm">
                       <thead className="bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-medium">
                         <tr>
-                          <th className="px-4 py-3">Recipient</th>
-                          <th className="px-4 py-3">Email Address</th>
-                          <th className="px-4 py-3 text-right">Total Payout</th>
+                          <th className="px-4 py-3">{t('col.recipient')}</th>
+                          <th className="px-4 py-3">{t('col.email_address')}</th>
+                          <th className="px-4 py-3 text-right">{t('col.total_payout')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -744,7 +746,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                     Filter settings applied: <strong className="text-slate-700 dark:text-slate-300">{activeFilterCount} active filters</strong>
                   </div>
                   <div className="flex gap-3">
-                    <button onClick={() => setIsEmailModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors rounded-lg font-medium text-sm">Cancel</button>
+                    <button onClick={() => setIsEmailModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors rounded-lg font-medium text-sm">{t('btn.cancel')}</button>
                     <button
                       onClick={() => {
                         setIsSendingEmails(true);

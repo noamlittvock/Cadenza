@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
-import { Room } from '../types';
+import { Room, AppSettings } from '../types';
 import { generateId } from '../constants';
 import { Plus, Edit2, Trash2, Home, Menu } from 'lucide-react';
 
+import { TRANSLATIONS } from '../constants';
 interface Props {
   rooms: Room[];
   setRooms: React.Dispatch<React.SetStateAction<Room[]>>;
+  settings?: AppSettings;
   onMobileMenuOpen?: () => void;
   embedded?: boolean;
 }
 
-export const RoomManager: React.FC<Props> = ({ rooms, setRooms, onMobileMenuOpen, embedded = false }) => {
+export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobileMenuOpen, embedded = false }) => {
+  const t = (key: string) => (settings && TRANSLATIONS[settings.language]?.[key]) || TRANSLATIONS['en-US'][key] || key;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Room>>({});
@@ -57,13 +60,13 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, onMobileMenuOpen
               <button
                 onClick={onMobileMenuOpen}
                 className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden"
-                title="Open Menu"
+                title={t('tooltip.open_menu')}
               >
                 <Menu className="w-6 h-6 text-slate-600 dark:text-slate-300" />
               </button>
             )}
             <div>
-              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Room Management</h2>
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{t('room.title')}</h2>
               <p className="text-slate-500 dark:text-slate-400">Configure spaces and equipment itineraries.</p>
             </div>
           </div>
@@ -106,7 +109,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, onMobileMenuOpen
               </div>
             </div>
             <div className="flex-1">
-              <h4 className="text-xs font-semibold uppercase text-slate-400 mb-2">Itinerary & Equipment</h4>
+              <h4 className="text-xs font-semibold uppercase text-slate-400 mb-2">{t('room.itinerary')} & Equipment</h4>
               <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                 {room.itinerary || 'No details provided.'}
               </p>
@@ -126,7 +129,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, onMobileMenuOpen
             <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{editingId ? 'Edit Room' : 'Add New Room'}</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Room Name</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('label.room_name')}</label>
                 <input
                   required
                   type="text"

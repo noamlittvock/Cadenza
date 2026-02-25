@@ -122,6 +122,7 @@ export const ManageHub: React.FC<Props> = ({
                     <RoomManager
                         rooms={rooms}
                         setRooms={setRooms}
+                        settings={settings}
                         onMobileMenuOpen={onMobileMenuOpen}
                         embedded={true}
                     />
@@ -130,6 +131,7 @@ export const ManageHub: React.FC<Props> = ({
                     <ManageLists
                         lists={lists}
                         setLists={setLists}
+                        settings={settings}
                         onMobileMenuOpen={onMobileMenuOpen}
                         embedded={true}
                     />

@@ -4,7 +4,6 @@ import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../utils/firebase';
 import { useAuth } from '../context/AuthContext';
 import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus, Wrench, Edit2, Save, X } from 'lucide-react';
-import { TRANSLATIONS } from '../constants';
 
 interface Organization {
     id: string; // The slug
