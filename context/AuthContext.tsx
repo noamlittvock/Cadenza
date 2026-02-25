@@ -265,90 +265,100 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logout
   };
 
-  // 3. Gateway / Workspace Selector
-  if (!orgSlug) {
+  // 3. Gateway / Workspace Selector / Authentication Guard
+  if (!orgSlug || !currentUser) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900 px-4 py-12">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-10">
-            <div className="w-44 h-44 mx-auto mb-6 drop-shadow-2xl rounded-[2.5rem] overflow-hidden">
-              <img src="/logo.png?v=2" alt="Cadenza Logo" className="w-full h-full object-cover" />
+      <div
+        className="flex min-h-screen items-center justify-center px-4 py-12 bg-cover bg-center bg-no-repeat relative overflow-hidden"
+        style={{ backgroundImage: 'url("/login.png")' }}
+      >
+        {/* Animated Background Overlay */}
+        <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[2px]"></div>
+
+        <div className="w-full max-w-md relative z-10 transition-all duration-700 ease-out">
+          <div className="text-center mb-10 transition-transform duration-500">
+            <div className="w-44 h-44 mx-auto mb-6 drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center justify-center">
+              <img src="/logo.png?v=2" alt="Cadenza Logo" className="w-full h-full object-contain" />
             </div>
-            <img src="/logo_text.png" alt="Cadenza" className="h-[72px] mx-auto mb-3 object-contain" />
+            <img src="/logo_text.png" alt="Cadenza" className="h-[72px] mx-auto mb-3 object-contain drop-shadow-lg" />
           </div>
 
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.4)] border border-white/20 dark:border-slate-700/50 overflow-hidden transform transition-all duration-500">
             <div className="p-8">
               {loading ? (
-                /* Loading State — shown immediately after popup closes while Firestore resolves */
-                <div className="flex flex-col items-center justify-center py-8">
-                  <div className="w-10 h-10 border-4 border-slate-200 dark:border-slate-700 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin mb-4"></div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Signing you in...</p>
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-12 h-12 border-4 border-slate-200 dark:border-slate-700 border-t-blue-600 dark:border-t-blue-500 rounded-full animate-spin mb-6"></div>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-semibold tracking-wide">Syncing with Cadenza Cloud...</p>
                 </div>
               ) : !currentUser ? (
-                <>
-                  <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 text-center">Sign in to continue</h2>
+                <div className="space-y-6">
+
                   <button
                     onClick={login}
-                    className="w-full flex items-center justify-center space-x-3 bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white py-4 px-4 rounded-xl font-semibold transition-all shadow-lg active:scale-[0.98]"
+                    className="w-full flex items-center justify-center space-x-3 bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white py-4 px-6 rounded-2xl font-bold transition-all shadow-xl hover:shadow-blue-500/20 active:scale-[0.98] group"
                   >
-                    <LogIn size={20} />
+                    <LogIn size={20} className="group-hover:translate-x-1 transition-transform" />
                     <span>Sign In with Google</span>
                   </button>
-                  {errorMsg && <p className="mt-4 text-center text-red-500 text-sm">{errorMsg}</p>}
-                </>
+
+                  {errorMsg && (
+                    <div className="flex items-center space-x-2 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl text-red-600 dark:text-red-400 text-sm animate-shake">
+                      <AlertCircle size={18} />
+                      <span>{errorMsg}</span>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <>
-                  <div className="flex items-center space-x-4 mb-8 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
-                    <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border-2 border-white dark:border-slate-700">
+                  <div className="flex items-center space-x-4 mb-10 p-5 bg-slate-50/80 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <div className="w-14 h-14 rounded-full overflow-hidden shrink-0 border-2 border-white dark:border-slate-700 shadow-md">
                       <img src={currentUser.avatar || `https://ui-avatars.com/api/?name=${currentUser.name}`} alt="" />
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-bold text-slate-900 dark:text-white truncate">{currentUser.name}</p>
-                      <p className="text-xs text-slate-500 truncate">{currentUser.email}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-slate-900 dark:text-white truncate text-lg leading-tight">{currentUser.name}</p>
+                      <p className="text-xs font-medium text-slate-500 truncate mt-0.5">{currentUser.email}</p>
                     </div>
-                    <button onClick={logout} className="ml-auto text-slate-400 hover:text-red-500 p-2 transition-colors">
-                      <LogIn size={18} className="rotate-180" />
+                    <button onClick={logout} className="ml-2 text-slate-400 hover:text-red-500 p-2.5 transition-colors bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                      <LogIn size={20} className="rotate-180" />
                     </button>
                   </div>
 
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 px-1">Your Workspaces</h3>
-                  <div className="space-y-3">
+                  <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 px-1">Authorized Workspaces</h3>
+                  <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
                     {availableOrgs && availableOrgs.length > 0 ? (
                       availableOrgs.map(org => (
                         <a
                           key={org.id}
                           href={`/${org.id}`}
-                          className="group flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/40 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800 rounded-xl transition-all"
+                          className="group flex items-center justify-between p-5 bg-white dark:bg-slate-900/40 hover:bg-blue-600 border border-slate-100 dark:border-slate-800 rounded-2xl transition-all shadow-sm hover:shadow-blue-600/20 hover:scale-[1.02] active:scale-[0.99]"
                         >
-                          <div className="flex items-center space-x-3 text-slate-900">
-                            <div className="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-center group-hover:bg-blue-600 transition-colors shadow-sm overflow-hidden">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center group-hover:bg-white transition-colors shadow-inner overflow-hidden">
                               {org.logoUrl ? (
-                                <img src={org.logoUrl} alt={org.name} className="w-full h-full object-contain" />
+                                <img src={org.logoUrl} alt={org.name} className="w-full h-full object-contain p-1" />
                               ) : (
-                                <Music size={18} className="text-slate-500 group-hover:text-white" />
+                                <Music size={22} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
                               )}
                             </div>
-                            <span className="font-bold dark:text-white">{org.name}</span>
+                            <span className="font-bold text-slate-900 dark:text-white group-hover:text-white transition-colors text-lg">{org.name}</span>
                           </div>
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 group-hover:text-blue-500 transition-colors">
-                            <Lock size={16} />
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center text-slate-300 group-hover:text-white transition-colors">
+                            <Lock size={20} />
                           </div>
                         </a>
                       ))
                     ) : (
-                      <div className="text-center py-6 text-slate-400">
-                        <AlertCircle className="mx-auto mb-2 opacity-20" size={32} />
-                        <p className="text-sm">No authorized workspaces found.</p>
+                      <div className="text-center py-10 text-slate-400 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                        <AlertCircle className="mx-auto mb-3 opacity-20" size={40} />
+                        <p className="text-sm font-medium">No authorized workspaces found.</p>
                       </div>
                     )}
                   </div>
                 </>
               )}
             </div>
-
-
           </div>
+
         </div>
       </div>
     );
