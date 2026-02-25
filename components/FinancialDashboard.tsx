@@ -398,7 +398,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
 
   // --- Export ---
   const handleExport = () => {
-    const headers = ['Teacher', 'Position', 'Rate Type', `Rate (${settings.currency})`, 'Active Hours', 'Canceled Hours', `Hourly Cost (${settings.currency})`, `One-Off Payments (${settings.currency})`, `Global Cost (${settings.currency})`, `Total Cost (${settings.currency})`];
+    const headers = [t('fin.header_teacher'), t('fin.header_position'), t('fin.header_rate_type'), `${t('fin.header_rate')} (${settings.currency})`, t('fin.header_active_hrs'), t('fin.header_canceled_hrs'), `${t('fin.header_hourly_cost')} (${settings.currency})`, `${t('fin.header_oneoff')} (${settings.currency})`, `${t('fin.header_global_cost')} (${settings.currency})`, `${t('fin.header_total_cost')} (${settings.currency})`];
     const rows: string[][] = [];
     reportData.forEach(r => {
       if (r.positions.length === 0) {
@@ -650,7 +650,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                                   ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
                                   : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                                   }`}>
-                                  {p.rateType === 'HOURLY' ? `${settings.currency}${p.rateValue}/hr` : `${formatCurrency(p.rateValue, settings.currency)}/mo`}
+                                  {p.rateType === 'HOURLY' ? `${settings.currency}${p.rateValue}${t('fin.per_hr')}` : `${formatCurrency(p.rateValue, settings.currency)}${t('fin.per_mo')}`}
                                 </span>
                                 <span className="text-[9px] text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{p.category}</span>
                               </div>

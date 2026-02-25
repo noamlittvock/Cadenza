@@ -478,7 +478,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                         ) : (
                                                             <>
                                                                 <p className="font-medium text-slate-900 dark:text-white">{org.name}</p>
-                                                                <p className="text-xs text-slate-500">ID: <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{org.id}</code></p>
+                                                                <p className="text-xs text-slate-500">{t('super.id_label')} <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{org.id}</code></p>
                                                             </>
                                                         )}
                                                     </div>
@@ -611,7 +611,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                     ) : (
                                         <div>
                                             <label className="block text-xs text-slate-500 mb-2">
-                                                Paste CSV data. Format: <code>email, organization_slug, role</code> (Role defaults to VIEWER if omitted, use ADMIN for admins)
+                                                Paste CSV data. Format: <code>{t('super.csv_format')}</code> (Role defaults to VIEWER if omitted, use ADMIN for admins)
                                             </label>
                                             <textarea
                                                 value={bulkCsvData}
@@ -718,7 +718,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                 </button>
                                                 <button
                                                     onClick={() => {
-                                                        if (window.confirm("Would you like to take a Snapshot of current state before generating test data?")) {
+                                                        if (window.confirm(t('super.confirm_snapshot'))) {
                                                             localStorage.setItem('appSnapshot', JSON.stringify({
                                                                 teachers: localStorage.getItem('teachers'),
                                                                 events: localStorage.getItem('events'),
@@ -728,7 +728,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                             }));
                                                             alert(t('sa.snapshot_created_short'));
                                                         }
-                                                        if (window.confirm("Generate test data? This will overwrite current data in this workspace.")) {
+                                                        if (window.confirm(t('super.confirm_generate'))) {
                                                             onLoadTestData?.();
                                                             window.alert(t('sa.test_generated'));
                                                         }
@@ -759,7 +759,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                 }} className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">{t('sa.create_snapshot')}</button>
                                                 <button onClick={() => {
                                                     const snap = localStorage.getItem('appSnapshot');
-                                                    if (snap && window.confirm("Restore snapshot? Current changes will be overwritten!")) {
+                                                    if (snap && window.confirm(t('super.confirm_restore'))) {
                                                         const parsed = JSON.parse(snap);
                                                         if (parsed.teachers) localStorage.setItem('teachers', parsed.teachers);
                                                         if (parsed.events) localStorage.setItem('events', parsed.events);
@@ -769,7 +769,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                     } else if (!snap) {
                                                         alert(t('sa.no_snapshot'));
                                                     }
-                                                }} className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">Restore</button>
+                                                }} className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">{t('sa.restore')}</button>
                                             </div>
                                         </div>
 
@@ -778,7 +778,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                             <p className="text-xs text-slate-500 mb-3">{t('sa.testing_desc')}</p>
                                             <div className="flex gap-2 flex-wrap">
                                                 <button onClick={() => {
-                                                    if (window.confirm("Run Calendar Test Generator? Current state will be cleared. (Snapshot taken automatically)")) {
+                                                    if (window.confirm(t('super.confirm_cal_test'))) {
                                                         localStorage.setItem('appSnapshot', JSON.stringify({
                                                             teachers: localStorage.getItem('teachers'),
                                                             events: localStorage.getItem('events'),
@@ -788,7 +788,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                     }
                                                 }} className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors">{t('sa.run_calendar_test')}</button>
                                                 <button onClick={() => {
-                                                    if (window.confirm("Run Teacher Test Generator? Current teachers will be replaced. (Snapshot taken automatically)")) {
+                                                    if (window.confirm(t('super.confirm_teacher_test'))) {
                                                         localStorage.setItem('appSnapshot', JSON.stringify({
                                                             teachers: localStorage.getItem('teachers'),
                                                             events: localStorage.getItem('events'),

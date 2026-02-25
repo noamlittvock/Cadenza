@@ -30,7 +30,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure? Scheduled events will flag warnings.')) {
+    if (window.confirm(t('rooms.confirm_delete'))) {
       setRooms(prev => prev.filter(r => r.id !== id));
     }
   };

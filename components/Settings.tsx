@@ -124,7 +124,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   onChange={(e) => handleChange('language', e.target.value)}
                 >
                   <option value="en-US">{t('settings.english_us')}</option>
-                  <option value="he-IL">עברית (Hebrew)</option>
+                  <option value="he-IL">{t('settings.hebrew_lang')}</option>
                 </select>
               </div>
 
@@ -164,13 +164,13 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   value={tempSettings.currency}
                   onChange={(e) => handleChange('currency', e.target.value)}
                 >
-                  <option value="₪">₪ — Israeli New Shekel (ILS)</option>
-                  <option value="$">$ — US Dollar (USD)</option>
-                  <option value="€">€ — Euro (EUR)</option>
-                  <option value="£">£ — British Pound (GBP)</option>
-                  <option value="¥">¥ — Japanese Yen (JPY)</option>
-                  <option value="₹">₹ — Indian Rupee (INR)</option>
-                  <option value="₿">₿ — Bitcoin (BTC)</option>
+                  <option value="₪">{t('settings.currency_ils')}</option>
+                  <option value="$">{t('settings.currency_usd')}</option>
+                  <option value="€">{t('settings.currency_eur')}</option>
+                  <option value="£">{t('settings.currency_gbp')}</option>
+                  <option value="¥">{t('settings.currency_jpy')}</option>
+                  <option value="₹">{t('settings.currency_inr')}</option>
+                  <option value="₿">{t('settings.currency_btc')}</option>
                 </select>
                 <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t('settings.currency_desc')}</p>
               </div>
@@ -207,8 +207,8 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   value={tempSettings.timeFormat}
                   onChange={(e) => handleChange('timeFormat', e.target.value)}
                 >
-                  <option value="12h">12-hour (1:00 PM)</option>
-                  <option value="24h">24-hour (13:00)</option>
+                  <option value="12h">{t('settings.time_12h')}</option>
+                  <option value="24h">{t('settings.time_24h')}</option>
                 </select>
               </div>
             </div>
@@ -313,7 +313,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   </span>
                   {!isCalendarOwner && (
                     <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                      Different account — sync inactive for you
+                      {t('settings.diff_account')}
                     </span>
                   )}
                 </div>
@@ -343,7 +343,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                         value={tempSettings.googleCalendarId || ""}
                         onChange={(e) => handleChange('googleCalendarId', e.target.value)}
                       >
-                        <option value="" disabled>-- Choose a calendar --</option>
+                        <option value="" disabled>{t('settings.choose_calendar')}</option>
                         {googleCalendars.map(cal => (
                           <option key={cal.id} value={cal.id}>{cal.summary} {cal.primary ? '(Primary)' : ''}</option>
                         ))}

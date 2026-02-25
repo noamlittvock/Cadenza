@@ -137,7 +137,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this teacher? Associated events will show warnings.')) {
+    if (window.confirm(t('teachers.confirm_delete'))) {
       setTeachers(prev => prev.filter(t => t.id !== id));
     }
   };
@@ -475,7 +475,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
   };
 
   const handleBulkDelete = () => {
-    if (window.confirm(`Are you sure you want to delete ${selectedTeacherIds.size} teachers? This cannot be undone.`)) {
+    if (window.confirm(`${t('teachers.confirm_bulk_prefix')} ${selectedTeacherIds.size} ${t('teachers.confirm_bulk_delete')}`)) {
       setTeachers(prev => prev.filter(t => !selectedTeacherIds.has(t.id)));
       setSelectedTeacherIds(new Set());
     }

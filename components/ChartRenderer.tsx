@@ -22,6 +22,12 @@ import { aggregateByDimension, AggregationConfig } from '../utils/financialAggre
 import { DIMENSION_REGISTRY, METRIC_REGISTRY } from '../chartBuilder/smartDefaults';
 import { ChevronDown, ChevronUp, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatHours, formatCurrency } from '../utils/formatters';
+import { TRANSLATIONS } from '../constants';
+
+const t = (key: string) => {
+    const lang = document.documentElement.lang || 'en-US';
+    return (TRANSLATIONS as any)[lang]?.[key] || (TRANSLATIONS as any)['en-US']?.[key] || key;
+};
 
 // ── Color palette matching existing dashboard style ──
 
@@ -604,7 +610,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({
             <div className="flex items-center justify-center text-slate-400 dark:text-slate-600 py-12">
                 <div className="text-center">
                     <div className="text-3xl mb-2">📊</div>
-                    <div className="text-sm">No data matches the current filters</div>
+                    <div className="text-sm">{t('chart.no_data_filters')}</div>
                 </div>
             </div>
         );

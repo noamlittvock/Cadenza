@@ -103,7 +103,7 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
   };
 
   const handleDelete = (block: GanttBlock) => {
-    if (window.confirm('Delete this block? If it is a blackout, events will be restored.')) {
+    if (window.confirm(t('gantt.confirm_delete_block'))) {
       setBlocks(prev => prev.filter(b => b.id !== block.id));
       if (block.isBlackout) {
         restoreBlackout(block.id);

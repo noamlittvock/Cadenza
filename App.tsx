@@ -2,7 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState } from './types';
 import { ChartConfiguration } from './types/chartBuilder';
-import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, migrateTeacher } from './constants';
+import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, TRANSLATIONS, migrateTeacher } from './constants';
+
+const t = (key: string) => {
+  const lang = document.documentElement.lang || 'en-US';
+  return (TRANSLATIONS as any)[lang]?.[key] || (TRANSLATIONS as any)['en-US']?.[key] || key;
+};
 import { useFirestoreSync, useFirestoreSettings } from './utils/useFirestoreSync';
 import { generateTestData } from './utils/dataGenerator';
 import { Layout } from './components/Layout';
@@ -48,7 +53,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     if (this.state.hasError) {
       return (
         <div className="p-6 bg-red-50 text-red-900 min-h-screen flex flex-col items-center justify-center">
-          <h1 className="text-2xl font-bold mb-4">Something went wrong.</h1>
+          <h1 className="text-2xl font-bold mb-4">{t('app.something_wrong')}</h1>
           <div className="bg-white p-4 rounded shadow-lg max-w-lg w-full overflow-auto">
             <p className="font-mono text-sm text-red-600 mb-2">{this.state.error?.toString()}</p>
             <pre className="text-xs text-slate-500 whitespace-pre-wrap">{this.state.errorInfo?.componentStack}</pre>
@@ -57,7 +62,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
             onClick={() => window.location.reload()}
             className="mt-6 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
           >
-            Reload App
+            {t('app.reload')}
           </button>
         </div>
       );
@@ -171,7 +176,7 @@ function AppContent() {
                 ...(isRtl ? { left: '364px' } : { right: '364px' }), /* 384px sidebar width minus half the button */
                 bottom: '26%',
               }}
-              title="Collapse Sidebar"
+              title={t('app.collapse_sidebar')}
             >
               {isRtl ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
             </button>
@@ -257,7 +262,7 @@ function AppContent() {
               setGanttBlocks(data.ganttBlocks);
             }}
             onWipeData={() => {
-              if (window.confirm("Are you sure you want to permanently delete all Teachers, Rooms, Events, and Gantt Blocks from THIS workspace in the cloud?")) {
+              if (window.confirm(t('app.confirm_wipe'))) {
                 setTeachers([]);
                 setRooms([]);
                 setEvents([]);
@@ -275,7 +280,7 @@ function AppContent() {
           />
         );
       default:
-        return <div>Not found</div>;
+        return <div>{t('app.not_found')}</div>;
     }
   };
 

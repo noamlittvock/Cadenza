@@ -734,7 +734,7 @@ export const CalendarView: React.FC<Props> = ({
       return;
     }
 
-    if (window.confirm("Are you sure you want to delete this event?")) {
+    if (window.confirm(t('cal.confirm_delete_event'))) {
       setEvents(prev => prev.filter(e => e.id !== id));
       if (targetEvent?.googleEventId) {
         handleDeleteGoogleSync(targetEvent.googleEventId);
@@ -844,7 +844,7 @@ export const CalendarView: React.FC<Props> = ({
   };
 
   const handleDeleteGantt = (id: string) => {
-    if (window.confirm("Delete this Gantt block? This may affect blackouts.")) {
+    if (window.confirm(t('cal.confirm_delete_gantt'))) {
       const block = ganttBlocks.find(b => b.id === id);
       if (block && block.isBlackout) {
         // Restore hidden events

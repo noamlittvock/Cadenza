@@ -96,7 +96,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
   };
 
   const removeItem = (key: keyof ListsState, item: string) => {
-    if (window.confirm(`Remove "${item}" from lists? Existing records using this will not be updated.`)) {
+    if (window.confirm(`${t('lists.remove_word')} "${item}" ${t('lists.confirm_remove')}`)) {
       setLists(prev => ({
         ...prev,
         [key]: prev[key].filter(i => i !== item)
