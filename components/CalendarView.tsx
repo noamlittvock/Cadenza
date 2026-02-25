@@ -1707,7 +1707,7 @@ export const CalendarView: React.FC<Props> = ({
                     }
                   }}
                 >
-                  <option value="">— {editingEvent.classification ? (['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification) || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? 'Select Teacher' : 'Organization / No Teacher (Optional)') : 'Select Category First'} —</option>
+                  <option value="">— {editingEvent.classification ? (['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification) || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? t('event.select_teacher') : t('event.org_no_teacher')) : t('event.select_category_first')} —</option>
                   {teachers.filter(t => {
                     if (!editingEvent.classification) return false;
                     if (!['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification)) return true; // Show all teachers for general categories
@@ -1718,7 +1718,7 @@ export const CalendarView: React.FC<Props> = ({
 
               {/* 3. Position */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.position')} {['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">(Optional)</span>}</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.position')} {['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span>}</label>
                 {(() => {
                   const teacherForPos = teachers.find(t => t.id === editingEvent.teacherId);
                   const isLesson = ['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '');
@@ -1743,14 +1743,14 @@ export const CalendarView: React.FC<Props> = ({
                     >
                       <option value="">
                         {!editingEvent.teacherId
-                          ? '— Select Teacher First —'
+                          ? t('event.select_teacher_first')
                           : positionOptions.length === 0
-                            ? '— No positions available for this teacher under this category —'
-                            : '— Select a position —'}
+                            ? t('event.no_positions')
+                            : t('event.select_position')}
                       </option>
                       {positionOptions.map(pa => (
                         <option key={pa.id} value={pa.id}>
-                          {pa.positionName} ({pa.rateType === 'HOURLY' ? `${settings.currency}${pa.rateValue}/hr` : `${settings.currency}${pa.rateValue.toLocaleString()}/mo`})
+                          {pa.positionName} ({pa.rateType === 'HOURLY' ? `${settings.currency}${pa.rateValue}${t('fin.per_hr')}` : `${settings.currency}${pa.rateValue.toLocaleString()}${t('fin.per_mo')}`})
                         </option>
                       ))}
                     </select>
@@ -1760,7 +1760,7 @@ export const CalendarView: React.FC<Props> = ({
                 {/* Payment Method for General Categories */}
                 {editingEvent.classification && !['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification) && (
                   <div className="mt-4 space-y-3 border-t border-slate-200 dark:border-slate-700 pt-3">
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{t('event.payment_method')} <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{t('event.payment_method')} <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span></label>
                     <div className="flex flex-col gap-2">
                       <label className="flex items-center text-sm cursor-pointer dark:text-white">
                         <input
@@ -1820,7 +1820,7 @@ export const CalendarView: React.FC<Props> = ({
               {/* 4. Room */}
               <div>
                 <label className="block flex items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  <span>{t('event.room')} <span className="text-xs text-slate-400 font-normal">(Optional)</span></span>
+                  <span>{t('event.room')} <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span></span>
                 </label>
                 <select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.roomId || ''} onChange={e => setEditingEvent({ ...editingEvent, roomId: e.target.value || undefined })}>
                   <option value="">— {t('event.no_room')} —</option>
@@ -1945,9 +1945,9 @@ export const CalendarView: React.FC<Props> = ({
                         {rule.frequency === 'MONTHLY' && editingEvent.start && (() => {
                           const startDate = new Date(editingEvent.start);
                           const dayNum = startDate.getDate();
-                          const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][startDate.getDay()];
+                          const dayName = [t('recurrence.day_sunday'), t('recurrence.day_monday'), t('recurrence.day_tuesday'), t('recurrence.day_wednesday'), t('recurrence.day_thursday'), t('recurrence.day_friday'), t('recurrence.day_saturday')][startDate.getDay()];
                           const weekOfMonth = Math.ceil(dayNum / 7);
-                          const posLabels = ['', '1st', '2nd', '3rd', '4th', '5th'];
+                          const posLabels = ['', t('recurrence.pos_1st'), t('recurrence.pos_2nd'), t('recurrence.pos_3rd'), t('recurrence.pos_4th'), t('recurrence.pos_5th')];
                           const isPositionalMode = !!rule.bySetPos;
 
                           return (
@@ -1962,7 +1962,7 @@ export const CalendarView: React.FC<Props> = ({
                                     onChange={() => updateRule({ byMonthDay: dayNum, bySetPos: undefined, byDayOfWeek: undefined })}
                                     className="text-blue-600"
                                   />
-                                  On the {dayNum}{dayNum === 1 ? 'st' : dayNum === 2 ? 'nd' : dayNum === 3 ? 'rd' : 'th'} of each month
+                                  {t('recurrence.on_day_of_month').replace('{ordinal}', String(dayNum) + (dayNum === 1 ? t('recurrence.ordinal_st') : dayNum === 2 ? t('recurrence.ordinal_nd') : dayNum === 3 ? t('recurrence.ordinal_rd') : t('recurrence.ordinal_th')))}
                                 </label>
                                 <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
                                   <input
@@ -1972,7 +1972,7 @@ export const CalendarView: React.FC<Props> = ({
                                     onChange={() => updateRule({ bySetPos: weekOfMonth, byDayOfWeek: DAY_ABBR[startDate.getDay()], byMonthDay: undefined })}
                                     className="text-blue-600"
                                   />
-                                  On the {posLabels[weekOfMonth]} {dayName} of each month
+                                  {t('recurrence.on_pos_day_of_month').replace('{pos}', posLabels[weekOfMonth]).replace('{dayName}', dayName)}
                                 </label>
                               </div>
                             </div>
@@ -1981,7 +1981,7 @@ export const CalendarView: React.FC<Props> = ({
 
                         {/* End Condition */}
                         <div className="space-y-2">
-                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Ends</label>
+                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">{t('recurrence.ends')}</label>
                           <div className="space-y-2">
                             <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
                               <input
@@ -1991,7 +1991,7 @@ export const CalendarView: React.FC<Props> = ({
                                 onChange={() => updateRule({ untilDate: undefined, count: undefined })}
                                 className="text-blue-600"
                               />
-                              Never
+                              {t('recurrence.never')}
                             </label>
                             <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
                               <input
@@ -2005,7 +2005,7 @@ export const CalendarView: React.FC<Props> = ({
                                 }}
                                 className="text-blue-600"
                               />
-                              On date
+                              {t('recurrence.on_date')}
                               {rule.untilDate && (
                                 <input
                                   type="date"
@@ -2023,7 +2023,7 @@ export const CalendarView: React.FC<Props> = ({
                                 onChange={() => updateRule({ count: 12, untilDate: undefined })}
                                 className="text-blue-600"
                               />
-                              After
+                              {t('recurrence.after')}
                               {rule.count !== undefined && (
                                 <input
                                   type="number"
@@ -2034,7 +2034,7 @@ export const CalendarView: React.FC<Props> = ({
                                   onChange={e => updateRule({ count: Math.max(1, parseInt(e.target.value) || 1) })}
                                 />
                               )}
-                              {rule.count !== undefined && <span>occurrences</span>}
+                              {rule.count !== undefined && <span>{t('recurrence.occurrences')}</span>}
                             </label>
                           </div>
                         </div>
@@ -2064,7 +2064,7 @@ export const CalendarView: React.FC<Props> = ({
               <div className="flex justify-between mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
                 {editingEvent.id && <button type="button" onClick={() => { handleDeleteEvent(editingEvent.id!, editingEvent as CalendarEvent); setIsModalOpen(false); }} className="text-red-500 hover:text-red-700 text-sm font-medium">{t('cal.delete_event')}</button>}
                 <div className="flex space-x-3 rtl:space-x-reverse ms-auto">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">{t('btn.cancel')}</button>
                   <button type="submit" className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg">{t('cal.save_changes')}</button>
                 </div>
               </div>
@@ -2082,31 +2082,31 @@ export const CalendarView: React.FC<Props> = ({
                 <Repeat size={20} className="text-blue-600 dark:text-blue-400" />
               </div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                {recurrenceDialog.type === 'EDIT' ? 'Edit Recurring Event' : recurrenceDialog.type === 'DELETE' ? 'Delete Recurring Event' : recurrenceDialog.event.isCanceled ? 'Restore Recurring Event' : 'Cancel Recurring Event'}
+                {recurrenceDialog.type === 'EDIT' ? t('recurrence.edit_series_title') : recurrenceDialog.type === 'DELETE' ? t('recurrence.delete_series_title') : recurrenceDialog.event.isCanceled ? t('recurrence.restore_series_title') : t('recurrence.cancel_series_title')}
               </h3>
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
-              This is part of a recurring series. What would you like to {recurrenceDialog.type === 'EDIT' ? 'edit' : recurrenceDialog.type === 'DELETE' ? 'delete' : recurrenceDialog.event.isCanceled ? 'restore' : 'cancel'}?
+              {recurrenceDialog.type === 'EDIT' ? t('recurrence.series_desc_edit') : recurrenceDialog.type === 'DELETE' ? t('recurrence.series_desc_delete') : recurrenceDialog.event.isCanceled ? t('recurrence.series_desc_restore') : t('recurrence.series_desc_cancel')}
             </p>
             <div className="flex gap-3 mb-4">
               <button
                 onClick={() => handleSeriesAction('THIS')}
                 className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 py-3 rounded-lg font-medium transition-colors text-sm"
               >
-                Just This One
+                {t('recurrence.just_this_one')}
               </button>
               <button
                 onClick={() => handleSeriesAction('ALL')}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium transition-colors text-sm"
               >
-                All Events
+                {t('recurrence.all_events')}
               </button>
             </div>
             <button
               onClick={() => setRecurrenceDialog(null)}
               className="w-full text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 py-2"
             >
-              Cancel
+              {t('btn.cancel')}
             </button>
           </div>
         </div>
