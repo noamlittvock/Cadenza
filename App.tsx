@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ChevronLeft } from 'lucide-react';
 import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState } from './types';
 import { ChartConfiguration } from './types/chartBuilder';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, migrateTeacher } from './constants';
@@ -99,11 +99,13 @@ function AppContent() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'DAY' | 'WEEK' | 'MONTH'>('WEEK');
 
+  const isRtl = settings.language === 'he-IL';
+
   // Sync Language to DOM
   useEffect(() => {
     document.documentElement.lang = settings.language;
-    document.documentElement.dir = settings.language === 'he-IL' ? 'rtl' : 'ltr';
-  }, [settings.language]);
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+  }, [settings.language, isRtl]);
 
   // Dark Mode Effect - persist to localStorage and apply class
   useEffect(() => {
@@ -166,21 +168,21 @@ function AppContent() {
               onClick={() => setCurrentView('CALENDAR')}
               className="fixed z-50 bg-slate-800 hover:bg-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg hover:scale-110 border-4 border-slate-50 dark:border-slate-900 transition-all duration-200"
               style={{
-                right: '364px', /* 384px sidebar width minus half the button */
+                ...(isRtl ? { left: '364px' } : { right: '364px' }), /* 384px sidebar width minus half the button */
                 bottom: '26%',
               }}
               title="Collapse Sidebar"
             >
-              <ChevronRight size={20} />
+              {isRtl ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
             </button>
           )}
 
           {/* Secondary Sidebar - always rendered, slides in/out */}
           <div
-            className="sidebar-transition absolute top-0 right-0 h-full bg-white dark:bg-slate-900 shadow-xl z-40 flex flex-col border-l border-slate-200 dark:border-slate-700"
+            className="sidebar-transition absolute top-0 end-0 h-full bg-white dark:bg-slate-900 shadow-xl z-40 flex flex-col border-s border-slate-200 dark:border-slate-700"
             style={{
               width: '384px',
-              transform: showSidebar ? 'translateX(0)' : 'translateX(100%)',
+              transform: showSidebar ? 'translateX(0)' : `translateX(${isRtl ? '-100%' : '100%'})`,
               transition: 'transform 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
               willChange: 'transform',
             }}
