@@ -94,7 +94,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
               <button
                 onClick={onMobileMenuOpen}
                 className="p-2 -ms-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden"
-                title="Open Menu"
+                title={t('settings.open_menu')}
               >
                 <Menu className="w-6 h-6 text-slate-600 dark:text-slate-300" />
               </button>

@@ -1448,7 +1448,7 @@ export const CalendarView: React.FC<Props> = ({
               className="status-toggle-track"
               role="switch"
               aria-checked={!showCanceled}
-              aria-label="Toggle canceled events visibility"
+              aria-label={t('cal.aria_toggle_canceled')}
               style={{
                 backgroundColor: !showCanceled ? '#ef4444' : '#cbd5e1',
               }}
@@ -1470,7 +1470,7 @@ export const CalendarView: React.FC<Props> = ({
               className="status-toggle-track"
               role="switch"
               aria-checked={!showBlackouts}
-              aria-label="Toggle blackout events visibility"
+              aria-label={t('cal.aria_toggle_blackouts')}
               style={{
                 backgroundColor: !showBlackouts ? '#f97316' : '#cbd5e1',
               }}

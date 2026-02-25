@@ -814,7 +814,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button onClick={() => handleEditChart(chart)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Edit"><Pencil size={12} className="text-slate-400 hover:text-blue-500" /></button>
                                         <button onClick={() => handleDuplicateChart(chart)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Duplicate"><Copy size={12} className="text-slate-400 hover:text-emerald-500" /></button>
-                                        <button onClick={() => setDeletingChartId(chart.id)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title="Delete"><Trash2 size={12} className="text-slate-400 hover:text-red-500" /></button>
+                                        <button onClick={() => setDeletingChartId(chart.id)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title={t('financial.delete_title')}><Trash2 size={12} className="text-slate-400 hover:text-red-500" /></button>
                                     </div>
                                 </div>
                                 {/* Body */}

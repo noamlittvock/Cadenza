@@ -873,7 +873,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                     value={tagInput}
                     onChange={e => setTagInput(e.target.value)}
                     onKeyDown={handleAddTag}
-                    placeholder="Or type new..."
+                    placeholder={t('teacher.or_type_new')}
                   />
                   <button type="button" onClick={handleAddTag} className="bg-slate-200 dark:bg-slate-700 px-3 py-2 rounded-lg">Add</button>
                 </div>

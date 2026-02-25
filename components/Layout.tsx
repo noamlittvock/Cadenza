@@ -227,7 +227,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 active={currentView === 'FINANCIAL_ANALYSIS'}
                 onClick={() => { setView('FINANCIAL_ANALYSIS'); setIsMobileMenuOpen(false); }}
                 icon={LineChart}
-                label="Analysis"
+                label={t('nav.analysis')}
                 collapsed={isCollapsed}
               />
 
@@ -240,7 +240,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                     active={currentView === 'SUPER_ADMIN'}
                     onClick={() => { setView('SUPER_ADMIN'); setIsMobileMenuOpen(false); }}
                     icon={AlertOctagon}
-                    label="Super Admin"
+                    label={t('nav.super_admin')}
                     collapsed={isCollapsed}
                   />
                 </>
@@ -300,7 +300,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             <button
               onClick={() => logout()}
               className={`flex items-center justify-center space-x-2 py-2 w-full bg-red-950/30 hover:bg-red-900/40 text-red-400 rounded-xl border border-red-900/20 btn-cadenza ${isCollapsed ? 'p-2' : 'px-4'}`}
-              title="Sign Out"
+              title={t('common.sign_out')}
             >
               <Users size={16} />
               {!isCollapsed && <span className="text-sm font-medium">Sign Out</span>}

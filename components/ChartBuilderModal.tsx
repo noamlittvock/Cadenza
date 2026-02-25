@@ -145,11 +145,13 @@ interface MultiSelectDropdownProps {
     selected: Set<string>;
     onToggle: (id: string) => void;
     onClear: () => void;
+    t?: (key: string) => string;
 }
 
 const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
-    label, items, selected, onToggle, onClear,
+    label, items, selected, onToggle, onClear, t: _t2,
 }) => {
+    const t = _t2 ?? ((k: string) => k);
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -165,10 +167,10 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
 
     const count = selected.size;
     const summary = count === 0
-        ? `All ${label}`
+        ? `${t('dropdown.all')} ${label}`
         : count === 1
-            ? items.find(i => selected.has(i.id))?.label ?? `1 selected`
-            : `${count} selected`;
+            ? items.find(i => selected.has(i.id))?.label ?? `1 ${t('dropdown.selected')}`
+            : `${count} ${t('dropdown.selected')}`;
 
     return (
         <div ref={ref} className="relative">
@@ -196,7 +198,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                             onClick={() => items.forEach(i => { if (!selected.has(i.id)) onToggle(i.id); })}
                             className="text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-800 font-medium"
                         >
-                            Select All
+                            {t('dropdown.select_all')}
                         </button>
                         {count > 0 && (
                             <button
@@ -204,7 +206,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                                 onClick={onClear}
                                 className="text-[10px] text-red-500 hover:text-red-700 font-medium flex items-center gap-0.5"
                             >
-                                <X size={9} /> Clear
+                                <X size={9} /> {t('dropdown.clear')}
                             </button>
                         )}
                     </div>
@@ -224,7 +226,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                         </div>
                     ))}
                     {items.length === 0 && (
-                        <div className="px-3 py-3 text-[10px] text-slate-400 text-center">No options available</div>
+                        <div className="px-3 py-3 text-[10px] text-slate-400 text-center">{t('dropdown.no_options')}</div>
                     )}
                 </div>
             )}
@@ -255,6 +257,7 @@ export interface ChartBuilderModalProps {
     };
     editingChart?: ChartConfiguration | null;
     currencySymbol?: string;
+    t?: (key: string) => string;
 }
 
 // ══════════════════════════════════════════════
@@ -262,9 +265,10 @@ export interface ChartBuilderModalProps {
 // ══════════════════════════════════════════════
 
 export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
-    isOpen, onClose, onSave, filteredEvents, allEvents, teachers, currentFilters, editingChart, currencySymbol = '₪',
+    isOpen, onClose, onSave, filteredEvents, allEvents, teachers, currentFilters, editingChart, currencySymbol = '₪', t: _t,
 }) => {
-    // ── Draft state ──
+    const t = _t ?? ((k: string) => k);
+    // ── Draft state ──// ── Draft state ──
     const [title, setTitle] = useState('');
     const [dimension, setDimension] = useState<DimensionId>('teacher');
     const [metrics, setMetrics] = useState<MetricSelection[]>([{ metricId: 'totalCost', aggregation: 'SUM' }]);
@@ -392,7 +396,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
     const getCompareLabel = useCallback((cmp: ComparisonEntry): string => {
         if (derivedCompareTimeframe === 'customRange') {
             if (cmp.customStart && cmp.customEnd) return `${cmp.customStart} → ${cmp.customEnd}`;
-            return 'Custom Range';
+            return t('builder.custom_range');
         }
         if (cmp.specificDate) {
             if (derivedCompareTimeframe === 'specificDay') return new Date(cmp.specificDate).toLocaleDateString();
@@ -402,10 +406,10 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
             }
             if (derivedCompareTimeframe === 'specificWeek') {
                 const d = new Date(cmp.specificDate);
-                return `Week of ${d.toLocaleDateString()}`;
+                return `${t('builder.week_of')} ${d.toLocaleDateString()}`;
             }
         }
-        return 'Select a period';
+        return t('builder.select_period');
     }, [derivedCompareTimeframe]);
 
     // Colors for comparison datasets
@@ -541,11 +545,11 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
     // ── Filter description ──
     const filterDescription = useMemo(() => {
         const parts: string[] = [currentFilters.dateFilterType];
-        if (currentFilters.selectedTeacherIds.size > 0) parts.push(`${currentFilters.selectedTeacherIds.size} teacher(s)`);
-        if (currentFilters.selectedPositionNames.size > 0) parts.push(`${currentFilters.selectedPositionNames.size} position(s)`);
-        if (currentFilters.selectedTags.size > 0) parts.push(`${currentFilters.selectedTags.size} tag(s)`);
-        if (currentFilters.selectedCategories.size > 0) parts.push(`${currentFilters.selectedCategories.size} categor(ies)`);
-        if (currentFilters.selectedRateTypes.size > 0) parts.push(`${currentFilters.selectedRateTypes.size} rate type(s)`);
+        if (currentFilters.selectedTeacherIds.size > 0) parts.push(`${currentFilters.selectedTeacherIds.size} ${t('builder.teacher_s')}`);
+        if (currentFilters.selectedPositionNames.size > 0) parts.push(`${currentFilters.selectedPositionNames.size} ${t('builder.position_s')}`);
+        if (currentFilters.selectedTags.size > 0) parts.push(`${currentFilters.selectedTags.size} ${t('builder.tag_s')}`);
+        if (currentFilters.selectedCategories.size > 0) parts.push(`${currentFilters.selectedCategories.size} ${t('builder.category_ies')}`);
+        if (currentFilters.selectedRateTypes.size > 0) parts.push(`${currentFilters.selectedRateTypes.size} ${t('builder.rate_type_s')}`);
         return parts.join(' · ');
     }, [currentFilters]);
 
@@ -598,7 +602,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
                     <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
                         <BarChart3 size={20} className="text-blue-500" />
-                        {editingChart ? 'Edit Chart' : 'Create Custom Chart'}
+                        {editingChart ? t('builder.edit_chart') : t('builder.create_chart')}
                     </h2>
                     <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                         <X size={18} className="text-slate-400" />
@@ -613,9 +617,9 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
 
                         {/* Title */}
                         <div>
-                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">Chart Title</label>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">{t('builder.chart_title')}</label>
                             <input
-                                type="text" placeholder="e.g., Monthly Cost Trend, Hours by Department..."
+                                type="text" placeholder={t('builder.chart_title_placeholder')}
                                 value={title} onChange={e => setTitle(e.target.value)} autoFocus
                                 className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all placeholder:text-slate-400"
                             />
@@ -624,9 +628,9 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                         {/* Dimension Selector — non-temporal only */}
                         <div>
                             <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                <Hash size={12} /> Group By
+                                <Hash size={12} /> {t('builder.group_by')}
                             </label>
-                            <p className="text-[10px] text-slate-400 mb-2">Classify data by category (timeframes are controlled separately below)</p>
+                            <p className="text-[10px] text-slate-400 mb-2">{t('builder.group_by_desc')}</p>
                             <div className="flex flex-wrap gap-1.5">
                                 {Object.values(DIMENSION_REGISTRY).filter(dim => !dim.isTemporal).map(dim => (
                                     <button key={dim.id} onClick={() => handleDimensionChange(dim.id)}
@@ -644,11 +648,11 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                         <div>
                             <div className="flex items-center justify-between mb-2">
                                 <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                                    <BarChart2 size={12} /> Metrics
+                                    <BarChart2 size={12} /> {t('builder.metrics')}
                                 </label>
                                 {metrics.length < METRIC_OPTIONS.length && (
                                     <button onClick={addMetric} className="text-[11px] text-blue-600 dark:text-blue-400 hover:text-blue-800 font-medium flex items-center gap-1 transition-colors">
-                                        <Plus size={12} /> Add
+                                        <Plus size={12} /> {t('builder.add')}
                                     </button>
                                 )}
                             </div>
@@ -659,10 +663,10 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                             className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-xs outline-none focus:ring-2 focus:ring-blue-500/30">
                                             {METRIC_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                         </select>
-                                        <span className="text-[10px] text-slate-400 font-medium">by</span>
+                                        <span className="text-[10px] text-slate-400 font-medium">{t('builder.by')}</span>
                                         <select value={m.aggregation} onChange={e => updateMetric(idx, { aggregation: e.target.value as AggregationFn })}
                                             className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-xs outline-none focus:ring-2 focus:ring-blue-500/30">
-                                            {AGG_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                            {AGG_OPTIONS.map(o => <option key={o.value} value={o.value}>{t({'SUM':'agg.sum','AVG':'agg.average','COUNT':'agg.count','MIN':'agg.min','MAX':'agg.max'}[o.value] || o.label)}</option>)}
                                         </select>
                                         {metrics.length > 1 && (
                                             <button onClick={() => removeMetric(idx)} className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
@@ -677,9 +681,9 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                         {/* ── Timeframe ── */}
                         <div>
                             <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                <Calendar size={12} /> Timeframe
+                                <Calendar size={12} /> {t('builder.timeframe')}
                             </label>
-                            <p className="text-[10px] text-slate-400 mb-2">Select the time period for analysis (independent of grouping)</p>
+                            <p className="text-[10px] text-slate-400 mb-2">{t('builder.timeframe_desc')}</p>
                             <div className="flex flex-wrap gap-1.5 mb-2">
                                 {TIMEFRAME_OPTIONS.map(opt => (
                                     <button key={opt.value} onClick={() => setTimeframe(opt.value)}
@@ -687,7 +691,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                             ? 'bg-teal-600 text-white shadow-sm shadow-teal-500/25'
                                             : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                                     >
-                                        <span className="me-1">{opt.icon}</span>{opt.label}
+                                        <span className="me-1">{opt.icon}</span>{t({'today':'tf.today','currentWeek':'tf.current_week','currentMonth':'tf.current_month','customRange':'tf.custom_range','specificDay':'tf.specific_day','specificWeek':'tf.specific_week','specificMonth':'tf.specific_month'}[opt.value] || opt.label)}
                                     </button>
                                 ))}
                             </div>
@@ -696,7 +700,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                 <div className="flex items-center gap-2 mt-2 bg-slate-50 dark:bg-slate-800/30 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
                                     <input type="date" value={tfCustomStart} onChange={e => setTfCustomStart(e.target.value)}
                                         className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
-                                    <span className="text-slate-400 text-xs">to</span>
+                                    <span className="text-slate-400 text-xs">{t('builder.to')}</span>
                                     <input type="date" value={tfCustomEnd} onChange={e => setTfCustomEnd(e.target.value)}
                                         className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
                                 </div>
@@ -709,7 +713,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                             )}
                             {timeframe === 'specificWeek' && (
                                 <div className="mt-2 bg-slate-50 dark:bg-slate-800/30 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
-                                    <label className="text-[10px] text-slate-500 mb-1 block">Pick any date within the desired week:</label>
+                                    <label className="text-[10px] text-slate-500 mb-1 block">{t('builder.pick_date_desired_week')}</label>
                                     <input type="date" value={tfSpecificDate} onChange={e => setTfSpecificDate(e.target.value)}
                                         className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
                                 </div>
@@ -729,7 +733,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                         <div>
                             <div className="flex items-center justify-between mb-2">
                                 <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                                    <GitCompareArrows size={12} /> Comparison Mode
+                                    <GitCompareArrows size={12} /> {t('builder.comparison_mode')}
                                     {compareEnabled && (
                                         <span className="ms-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-500 text-white animate-pulse">
                                             ACTIVE · {comparisons.length}
@@ -751,8 +755,8 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                             </div>
                             <p className="text-[10px] text-slate-400 mb-2">
                                 {compareEnabled
-                                    ? 'Comparison Mode is active — add periods to compare against the primary timeframe'
-                                    : 'Compare the same filters against different periods of the same timeframe type'}
+                                    ? t('builder.comparison_active')
+                                    : t('builder.comparison_inactive')}
                             </p>
 
                             {compareEnabled && (
@@ -763,13 +767,13 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                             className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all ${compareLayout === 'side-by-side'
                                                 ? 'bg-orange-500 text-white shadow-sm'
                                                 : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
-                                            <Columns size={10} /> Side by Side
+                                            <Columns size={10} /> {t('builder.side_by_side')}
                                         </button>
                                         <button onClick={() => setCompareLayout('merged')}
                                             className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all ${compareLayout === 'merged'
                                                 ? 'bg-orange-500 text-white shadow-sm'
                                                 : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
-                                            <Merge size={10} /> Merged
+                                            <Merge size={10} /> {t('builder.merged')}
                                         </button>
                                     </div>
 
@@ -780,7 +784,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                                 <label className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5"
                                                     style={{ color: COMPARE_COLORS[idx % COMPARE_COLORS.length] }}>
                                                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COMPARE_COLORS[idx % COMPARE_COLORS.length] }} />
-                                                    Comparison {idx + 1} — {TIMEFRAME_OPTIONS.find(o => o.value === timeframe)?.label ?? 'Period'}
+                                                    {t('builder.comparison_n')} {idx + 1} — {t({'today':'tf.today','currentWeek':'tf.current_week','currentMonth':'tf.current_month','customRange':'tf.custom_range','specificDay':'tf.specific_day','specificWeek':'tf.specific_week','specificMonth':'tf.specific_month'}[timeframe] || 'Period')}
                                                 </label>
                                                 <button onClick={() => removeComparison(cmp.id)}
                                                     className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors">
@@ -791,7 +795,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                             {/* Day picker */}
                                             {(timeframe === 'today' || timeframe === 'specificDay') && (
                                                 <div>
-                                                    <label className="text-[10px] text-slate-500 mb-1 block">Select comparison day:</label>
+                                                    <label className="text-[10px] text-slate-500 mb-1 block">{t('builder.select_comparison_day')}</label>
                                                     <input type="date" value={cmp.specificDate}
                                                         onChange={e => updateComparison(cmp.id, { specificDate: e.target.value })}
                                                         className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
@@ -800,7 +804,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                             {/* Week picker */}
                                             {(timeframe === 'currentWeek' || timeframe === 'specificWeek') && (
                                                 <div>
-                                                    <label className="text-[10px] text-slate-500 mb-1 block">Pick a date within the comparison week:</label>
+                                                    <label className="text-[10px] text-slate-500 mb-1 block">{t('builder.pick_date_in_week')}</label>
                                                     <input type="date" value={cmp.specificDate}
                                                         onChange={e => updateComparison(cmp.id, { specificDate: e.target.value })}
                                                         className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
@@ -809,7 +813,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                             {/* Month picker */}
                                             {(timeframe === 'currentMonth' || timeframe === 'specificMonth') && (
                                                 <div>
-                                                    <label className="text-[10px] text-slate-500 mb-1 block">Select comparison month:</label>
+                                                    <label className="text-[10px] text-slate-500 mb-1 block">{t('builder.select_comparison_month')}</label>
                                                     <input type="month" value={cmp.specificDate}
                                                         onChange={e => updateComparison(cmp.id, { specificDate: e.target.value })}
                                                         className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
@@ -818,12 +822,12 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                             {/* Custom range */}
                                             {timeframe === 'customRange' && (
                                                 <div>
-                                                    <label className="text-[10px] text-slate-500 mb-1 block">Select comparison date range:</label>
+                                                    <label className="text-[10px] text-slate-500 mb-1 block">{t('builder.select_comparison_range')}</label>
                                                     <div className="flex items-center gap-2">
                                                         <input type="date" value={cmp.customStart}
                                                             onChange={e => updateComparison(cmp.id, { customStart: e.target.value })}
                                                             className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
-                                                        <span className="text-slate-400 text-xs">to</span>
+                                                        <span className="text-slate-400 text-xs">{t('builder.to')}</span>
                                                         <input type="date" value={cmp.customEnd}
                                                             onChange={e => updateComparison(cmp.id, { customEnd: e.target.value })}
                                                             className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
@@ -832,7 +836,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                             )}
 
                                             <p className="text-[10px] mt-1" style={{ color: COMPARE_COLORS[idx % COMPARE_COLORS.length] }}>
-                                                {comparisonResults[idx]?.eventCount ?? 0} events · {getCompareLabel(cmp)}
+                                                {comparisonResults[idx]?.eventCount ?? 0} {t('builder.events')} · {getCompareLabel(cmp)}
                                             </p>
                                         </div>
                                     ))}
@@ -840,7 +844,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                     {/* Add comparison button */}
                                     <button onClick={addComparison}
                                         className="w-full py-2 rounded-xl border-2 border-dashed border-orange-300 dark:border-orange-700/40 text-orange-500 text-[11px] font-medium hover:bg-orange-50 dark:hover:bg-orange-900/10 transition-colors flex items-center justify-center gap-1.5">
-                                        <Plus size={12} /> Add Another Comparison
+                                        <Plus size={12} /> {t('builder.add_another')}
                                     </button>
                                 </div>
                             )}
@@ -848,7 +852,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
 
                         {/* Visualization — only show compatible options */}
                         <div>
-                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Eye size={12} /> Visualization</label>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Eye size={12} /> {t('builder.visualization')}</label>
                             <div className="flex flex-wrap gap-1.5">
                                 {VIZ_OPTIONS.filter(viz => compatibleViz.includes(viz.type)).map(viz => {
                                     const active = visualization === viz.type;
@@ -857,14 +861,14 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${active
                                                 ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
                                                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
-                                            {viz.icon}{viz.label}
+                                            {viz.icon}{t({'bar':'viz.bar','stacked-bar':'viz.stacked','line':'viz.line','pie':'viz.pie','table':'viz.table'}[viz.type] || viz.label)}
                                         </button>
                                     );
                                 })}
                             </div>
                             {metrics.length > 1 && visualization !== 'table' && (
                                 <p className="text-[10px] text-blue-500 mt-1.5 flex items-center gap-1">
-                                    <Zap size={10} /> {metrics.length} metrics — displayed as {visualization === 'stacked-bar' ? 'stacked segments' : 'grouped series'}
+                                    <Zap size={10} /> {metrics.length} {t('builder.metrics_displayed')} {visualization === 'stacked-bar' ? t('builder.stacked_segments') : t('builder.grouped_series')}
                                 </p>
                             )}
                         </div>
@@ -872,7 +876,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                         {/* ── Data Filters (Dropdown-based) ── */}
                         <div>
                             <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                                <Filter size={12} /> Data Filters
+                                <Filter size={12} /> {t('builder.data_filters')}
                                 {chartFilterCount > 0 && (
                                     <span className="ms-1 bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded-full text-[10px] font-bold">{chartFilterCount}</span>
                                 )}
@@ -883,95 +887,100 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
 
                             <div className="grid grid-cols-2 gap-3">
                                 <MultiSelectDropdown
-                                    label="Teachers" items={filterOptions.teachers}
+                                    label={t('filter.teachers')} items={filterOptions.teachers}
                                     selected={chartFilterTeachers}
                                     onToggle={(id) => toggleIn(chartFilterTeachers, setChartFilterTeachers, id)}
                                     onClear={() => setChartFilterTeachers(new Set())}
+                                    t={t}
                                 />
                                 <MultiSelectDropdown
-                                    label="Positions" items={filterOptions.positions}
+                                    label={t('filter.positions')} items={filterOptions.positions}
                                     selected={chartFilterPositions}
                                     onToggle={(id) => toggleIn(chartFilterPositions, setChartFilterPositions, id)}
                                     onClear={() => setChartFilterPositions(new Set())}
+                                    t={t}
                                 />
                                 <MultiSelectDropdown
-                                    label="Tags" items={filterOptions.tags}
+                                    label={t('filter.tags')} items={filterOptions.tags}
                                     selected={chartFilterTags}
                                     onToggle={(id) => toggleIn(chartFilterTags, setChartFilterTags, id)}
                                     onClear={() => setChartFilterTags(new Set())}
+                                    t={t}
                                 />
                                 <MultiSelectDropdown
-                                    label="Categories" items={filterOptions.categories}
+                                    label={t('filter.categories')} items={filterOptions.categories}
                                     selected={chartFilterCategories}
                                     onToggle={(id) => toggleIn(chartFilterCategories, setChartFilterCategories, id)}
                                     onClear={() => setChartFilterCategories(new Set())}
+                                    t={t}
                                 />
                                 <MultiSelectDropdown
-                                    label="Rate Types" items={filterOptions.rateTypes}
+                                    label={t('filter.rate_types')} items={filterOptions.rateTypes}
                                     selected={chartFilterRateTypes}
                                     onToggle={(id) => toggleIn(chartFilterRateTypes, setChartFilterRateTypes, id)}
                                     onClear={() => setChartFilterRateTypes(new Set())}
+                                    t={t}
                                 />
                             </div>
 
                             {chartFilterCount > 0 && (
                                 <button onClick={() => { setChartFilterTeachers(new Set()); setChartFilterPositions(new Set()); setChartFilterTags(new Set()); setChartFilterCategories(new Set()); setChartFilterRateTypes(new Set()); }}
                                     className="mt-2.5 text-[10px] text-red-500 hover:text-red-700 font-medium flex items-center gap-1 transition-colors">
-                                    <X size={10} /> Clear all filters
+                                    <X size={10} /> {t('builder.clear_all_filters')}
                                 </button>
                             )}
                         </div>
 
                         {/* Filter Mode */}
                         <div>
-                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">Filter Mode</label>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">{t('builder.filter_mode')}</label>
                             <div className="grid grid-cols-2 gap-2">
                                 <button onClick={() => setFilterMode('live')}
                                     className={`flex items-start gap-2 p-3 rounded-xl border text-start transition-all ${filterMode === 'live' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}>
                                     <Zap size={14} className={filterMode === 'live' ? 'text-blue-500 mt-0.5' : 'text-slate-400 mt-0.5'} />
                                     <div>
-                                        <div className={`text-xs font-semibold ${filterMode === 'live' ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>Live</div>
-                                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Reacts to dashboard filters</div>
+                                        <div className={`text-xs font-semibold ${filterMode === 'live' ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>{t('builder.live')}</div>
+                                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">{t('builder.live_desc')}</div>
                                     </div>
                                 </button>
                                 <button onClick={() => setFilterMode('snapshot')}
                                     className={`flex items-start gap-2 p-3 rounded-xl border text-start transition-all ${filterMode === 'snapshot' ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}>
                                     <Camera size={14} className={filterMode === 'snapshot' ? 'text-amber-500 mt-0.5' : 'text-slate-400 mt-0.5'} />
                                     <div>
-                                        <div className={`text-xs font-semibold ${filterMode === 'snapshot' ? 'text-amber-700 dark:text-amber-300' : 'text-slate-700 dark:text-slate-300'}`}>Snapshot</div>
-                                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Freezes filters at save time</div>
+                                        <div className={`text-xs font-semibold ${filterMode === 'snapshot' ? 'text-amber-700 dark:text-amber-300' : 'text-slate-700 dark:text-slate-300'}`}>{t('builder.snapshot')}</div>
+                                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">{t('builder.snapshot_desc')}</div>
                                     </div>
                                 </button>
                             </div>
-                            <div className="mt-1.5 text-[10px] text-slate-400 px-1">Active: {filterDescription}</div>
+                            <div className="mt-1.5 text-[10px] text-slate-400 px-1">{t('builder.active')} {filterDescription}</div>
                         </div>
 
                         {/* Advanced Options */}
                         <div>
                             <button onClick={() => setShowAdvanced(!showAdvanced)}
                                 className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium flex items-center gap-1.5 transition-colors">
-                                <ArrowUpDown size={12} /> Advanced Options
+                                <ArrowUpDown size={12} /> {t('builder.advanced')}
                                 <span className={`transition-transform ${showAdvanced ? 'rotate-180' : ''}`}>▾</span>
                             </button>
                             {showAdvanced && (
                                 <div className="mt-3 grid grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/30 rounded-xl p-4 border border-slate-100 dark:border-slate-700/50">
                                     <div>
-                                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Sort By</label>
+                                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1 block">{t('builder.sort_by')}</label>
                                         <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
                                             className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none">
-                                            <option value="dimension">Dimension Label</option>
+                                            <option value="dimension">{t('builder.dimension_label')}</option>
                                             {metrics.map(m => <option key={m.metricId} value={m.metricId}>{METRIC_REGISTRY[m.metricId]?.label ?? m.metricId}</option>)}
                                         </select>
                                         <div className="flex gap-1 mt-1.5">
-                                            <button onClick={() => setSortDir('asc')} className={`text-[10px] px-2 py-0.5 rounded ${sortDir === 'asc' ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>Ascending</button>
-                                            <button onClick={() => setSortDir('desc')} className={`text-[10px] px-2 py-0.5 rounded ${sortDir === 'desc' ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>Descending</button>
+                                            <button onClick={() => setSortDir('asc')} className={`text-[10px] px-2 py-0.5 rounded ${sortDir === 'asc' ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>{t('builder.ascending')}</button>
+                                            <button onClick={() => setSortDir('desc')} className={`text-[10px] px-2 py-0.5 rounded ${sortDir === 'desc' ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>{t('builder.descending')}</button>
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Limit (Top N)</label>
-                                        <input type="number" min={0} max={100} value={topN} onChange={e => setTopN(parseInt(e.target.value) || 0)} placeholder="0 = no limit"
+                                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1 block">{t('builder.limit_topn')}</label>
+                                        <input type="number" min={0} max={100} value={topN} onChange={e => setTopN(parseInt(e.target.value) || 0)} placeholder={t('builder.no_limit')}
                                             className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
-                                        <p className="text-[10px] text-slate-400 mt-1">0 = show all groups</p>
+                                        <p className="text-[10px] text-slate-400 mt-1">{t('builder.show_all')}</p>
                                     </div>
                                 </div>
                             )}
@@ -982,10 +991,10 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                     <div className="w-1/2 flex flex-col bg-slate-50/50 dark:bg-slate-950/30 overflow-y-auto custom-scrollbar">
                         <div className="px-5 pt-5 pb-2 flex-shrink-0">
                             <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                                <Eye size={12} /> Live Preview
+                                <Eye size={12} /> {t('builder.live_preview')}
                                 {compareEnabled && comparisons.length > 0 && (
                                     <span className="ms-1 text-[9px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-500 font-bold">
-                                        {compareLayout === 'merged' ? 'MERGED OVERLAY' : 'SIDE BY SIDE'}
+                                        {compareLayout === 'merged' ? t('builder.merged_overlay') : t('builder.side_by_side_label')}
                                     </span>
                                 )}
                             </label>
@@ -1003,7 +1012,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                         config={previewConfig}
                                         datasets={[
                                             {
-                                                label: TIMEFRAME_OPTIONS.find(o => o.value === timeframe)?.label ?? 'Primary',
+                                                label: TIMEFRAME_OPTIONS.find(o => o.value === timeframe)?.label ?? t('builder.primary'),
                                                 color: '#4f46e5',
                                                 events: timeFilteredEvents,
                                                 isPrimary: true,
@@ -1077,10 +1086,10 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                         {chartFilterCount > 0 && ` · ${chartFilterCount} filter${chartFilterCount > 1 ? 's' : ''}`}
                     </div>
                     <div className="flex gap-2">
-                        <button onClick={onClose} className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Cancel</button>
+                        <button onClick={onClose} className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">{t('builder.cancel')}</button>
                         <button onClick={handleSave} disabled={!title.trim()}
                             className="px-5 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm shadow-blue-500/25">
-                            {editingChart ? '💾 Update Chart' : '💾 Save Chart'}
+                            {editingChart ? `💾 ${t('builder.update_chart')}` : `💾 ${t('builder.save_chart')}`}
                         </button>
                     </div>
                 </div>

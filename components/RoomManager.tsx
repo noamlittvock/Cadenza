@@ -145,7 +145,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
                   className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none h-32"
                   value={formData.itinerary || ''}
                   onChange={e => setFormData({ ...formData, itinerary: e.target.value })}
-                  placeholder="Details about equipment, capacity, etc."
+                  placeholder={t('room.details_placeholder')}
                 />
               </div>
               <div className="flex justify-end space-x-3 rtl:space-x-reverse mt-6">
