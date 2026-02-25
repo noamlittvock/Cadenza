@@ -245,6 +245,7 @@ function AppContent() {
       case 'SUPER_ADMIN':
         return (
           <SuperAdmin
+            settings={settings}
             onLoadTestData={() => {
               console.log("Generating data...");
               const data = generateTestData(settings.currency);
