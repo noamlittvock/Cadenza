@@ -123,7 +123,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   value={tempSettings.language}
                   onChange={(e) => handleChange('language', e.target.value)}
                 >
-                  <option value="en-US">English (United States)</option>
+                  <option value="en-US">{t('settings.english_us')}</option>
                   <option value="he-IL">עברית (Hebrew)</option>
                 </select>
               </div>
@@ -138,10 +138,10 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   onChange={(e) => handleChange('timeZone', e.target.value)}
                 >
                   <option value={Intl.DateTimeFormat().resolvedOptions().timeZone}>{t('label.system_default')} ({Intl.DateTimeFormat().resolvedOptions().timeZone})</option>
-                  <option value="UTC">UTC</option>
-                  <option value="Asia/Jerusalem">Jerusalem (Israel)</option>
-                  <option value="America/New_York">Eastern Time (US & Canada)</option>
-                  <option value="America/Los_Angeles">Pacific Time (US & Canada)</option>
+                  <option value="UTC">{t('settings.tz_utc')}</option>
+                  <option value="Asia/Jerusalem">{t('settings.tz_jerusalem')}</option>
+                  <option value="America/New_York">{t('settings.tz_eastern')}</option>
+                  <option value="America/Los_Angeles">{t('settings.tz_pacific')}</option>
                   <option value="Europe/London">London</option>
                   <option value="Europe/Paris">Paris</option>
                 </select>
@@ -172,7 +172,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   <option value="₹">₹ — Indian Rupee (INR)</option>
                   <option value="₿">₿ — Bitcoin (BTC)</option>
                 </select>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">This symbol will appear next to all cost values in the financial dashboard, analysis, and exports.</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t('settings.currency_desc')}</p>
               </div>
             </div>
           </section>
@@ -192,9 +192,9 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   value={tempSettings.dateFormat}
                   onChange={(e) => handleChange('dateFormat', e.target.value)}
                 >
-                  <option value="MM/DD/YYYY">MM/DD/YYYY (04/16/2026)</option>
-                  <option value="DD/MM/YYYY">DD/MM/YYYY (16/04/2026)</option>
-                  <option value="YYYY-MM-DD">YYYY-MM-DD (2026-04-16)</option>
+                  <option value="MM/DD/YYYY">{t('settings.date_mmddyyyy')}</option>
+                  <option value="DD/MM/YYYY">{t('settings.date_ddmmyyyy')}</option>
+                  <option value="YYYY-MM-DD">{t('settings.date_iso')}</option>
                 </select>
               </div>
 
@@ -264,12 +264,12 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                       <path d="M22 6V19C22 20.6569 20.6569 22 19 22H5C3.34315 22 2 20.6569 2 19V6" stroke="#4285F4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       <path d="M2 6L12 13L2 6" stroke="#4285F4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       <path d="M2 6C2 4.34315 3.34315 3 5 3H19C20.6569 3 22 4.34315 22 6" stroke="#4285F4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      <text x="8" y="16" fontSize="8" fill="#4285F4" fontWeight="bold">GCal</text>
+                      <text x="8" y="16" fontSize="8" fill="#4285F4" fontWeight="bold">{t('settings.gcal_label')}</text>
                     </svg>
                   </div>
                   <div>
-                    <h4 className="font-bold text-slate-900 dark:text-white hover:text-blue-600 transition-colors">Google Calendar Sync</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">Push scheduled lessons to the tenant admin's Google Calendar.</p>
+                    <h4 className="font-bold text-slate-900 dark:text-white hover:text-blue-600 transition-colors">{t('settings.gcal_title')}</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">{t('settings.gcal_desc')}</p>
                   </div>
                 </div>
 
@@ -325,7 +325,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   {!googleAccessToken ? (
                     <div className="flex items-center gap-3 text-sm text-amber-600 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-700/50">
                       <span>{t('settings.token_expired')}</span>
-                      <button onClick={handleConnectGoogle} className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium shadow-sm text-xs">Reconnect</button>
+                      <button onClick={handleConnectGoogle} className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium shadow-sm text-xs">{t('settings.gcal_reconnect')}</button>
                     </div>
                   ) : isFetchingCals ? (
                     <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 gap-2">
@@ -348,7 +348,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                           <option key={cal.id} value={cal.id}>{cal.summary} {cal.primary ? '(Primary)' : ''}</option>
                         ))}
                       </select>
-                      <p className="text-xs text-slate-500 mt-2">New lessons will be automatically added to this calendar.</p>
+                      <p className="text-xs text-slate-500 mt-2">{t('settings.gcal_auto_note')}</p>
                     </div>
                   )}
                 </div>

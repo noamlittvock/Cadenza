@@ -692,7 +692,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
               <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 rounded-t-xl">
                 <div>
                   <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><Mail size={20} className="text-blue-500" /> Send Financial Reports</h3>
-                  <p className="text-sm text-slate-500 mt-1">Based on current filters, reports will be sent to the following teachers.</p>
+                  <p className="text-sm text-slate-500 mt-1">{t('dashboard.report_desc')}</p>
                 </div>
                 <button onClick={() => setIsEmailModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-200/50 dark:bg-slate-800 p-2 rounded-full transition-colors"><X size={20} /></button>
               </div>
@@ -703,7 +703,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                     <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 text-green-500 rounded-full flex items-center justify-center mb-4">
                       <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
                     </div>
-                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Reports Sent Successfully!</h4>
+                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('dashboard.report_success')}</h4>
                     <p className="text-slate-500 dark:text-slate-400 max-w-md">Email reports have been generated and dispatched to {reportData.length} recipients.</p>
                   </div>
                 ) : reportData.length === 0 ? (

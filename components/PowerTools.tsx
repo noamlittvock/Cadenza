@@ -110,7 +110,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                 const idsToDelete = new Set(targetEvents.map(e => e.id));
                 setEvents(prev => prev.filter(e => !idsToDelete.has(e.id)));
                 if (setSelectedEventIds) setSelectedEventIds(new Set());
-                alert(`Successfully deleted ${count} events.`);
+                alert(t('power.alert_deleted').replace('${count}', String(count)));
             } else {
                 setEvents(prev => prev.map(e => {
                     // If event is in target list, cancel it
@@ -200,7 +200,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                 });
 
                 if (newBlocks.length === 0 && results.data.length > 0) {
-                    alert("No valid rows found. Please ensure dates are in YYYY-MM-DD or DD/MM/YYYY format.");
+                    alert(t('power.alert_no_valid'));
                 }
 
                 setGanttPreview(newBlocks);
@@ -208,7 +208,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
             },
             error: (error: any) => {
                 console.error("CSV Parse Error", error);
-                alert("Failed to parse CSV file.");
+                alert(t('power.alert_parse_fail'));
                 setIsGanttImporting(false);
             }
         });
@@ -219,7 +219,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
         const blocksToAdd: GanttBlock[] = ganttPreview.map(b => ({ ...b, id: generateId() }));
         setGanttBlocks(prev => [...prev, ...blocksToAdd]);
         setGanttPreview([]);
-        alert(`Successfully imported ${blocksToAdd.length} schedule blocks.`);
+        alert(t('power.alert_imported').replace('${n}', String(blocksToAdd.length)));
     };
 
 
@@ -269,7 +269,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                         <div className="space-y-4 animate-in fade-in duration-300">
                             {/* Time Range */}
                             <div className="space-y-2">
-                                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Time Range</h4>
+                                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('power.time_range')}</h4>
                                 <div className="grid grid-cols-2 gap-2">
                                     <div>
                                         <label className="block text-[10px] font-medium text-slate-400 mb-1">From</label>
@@ -294,7 +294,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
 
                             {/* Filters */}
                             <div className="space-y-2 opacity-100 transition-opacity">
-                                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Criteria</h4>
+                                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('power.criteria')}</h4>
                                 {!deleteStartDate || !deleteEndDate ? (
                                     <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/30">
                                         Please select a time range first.
@@ -352,7 +352,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                             <div className="flex items-start">
                                 <MousePointer2 className="text-blue-500 mt-0.5 me-2" size={16} />
                                 <div>
-                                    <h4 className="text-xs font-bold text-blue-700 dark:text-blue-300 mb-1">Interactive Selection</h4>
+                                    <h4 className="text-xs font-bold text-blue-700 dark:text-blue-300 mb-1">{t('power.interactive_selection')}</h4>
                                     <p className="text-[10px] text-blue-600 dark:text-blue-400 leading-relaxed">
                                         Click and drag directly on the calendar grid to draw a selection rectangle, or click individual events to toggle them.
                                     </p>
@@ -360,7 +360,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                             </div>
                         </div>
                         <div className="flex justify-between items-center text-xs">
-                            <span className="text-slate-500">Selected Events:</span>
+                            <span className="text-slate-500">{t('power.selected_events')}</span>
                             <span className="font-bold text-slate-800 dark:text-white bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded">
                                 {selectedEventIds?.size || 0}
                             </span>
@@ -382,8 +382,8 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                 {selectionMethod === 'IMPORT_GANTT' && (
                     <div className="space-y-4 animate-in fade-in duration-300">
                         <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                            <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Import Schedule from CSV</h4>
-                            <p className="text-xs text-slate-500 mb-4">Bulk import semesters, holidays, or blackout periods.</p>
+                            <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">{t('power.import_csv_title')}</h4>
+                            <p className="text-xs text-slate-500 mb-4">{t('power.import_csv_desc')}</p>
 
                             <div className="flex flex-col gap-3">
                                 <button onClick={downloadGanttTemplate} className="flex items-center text-xs text-blue-600 hover:underline">
@@ -412,7 +412,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                             <div className="flex items-center gap-2">
                                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: block.color }}></div>
                                                 <span className="font-medium">{block.title}</span>
-                                                {block.isBlackout && <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-bold">BLACKOUT</span>}
+                                                {block.isBlackout && <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-bold">{t('power.blackout_label')}</span>}
                                             </div>
                                             <span className="text-slate-500">{block.startDate} &rarr; {block.endDate}</span>
                                         </div>

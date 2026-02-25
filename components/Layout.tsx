@@ -131,7 +131,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
           style={{ transition: 'all 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
           <div className={`${isCollapsed ? 'p-1 mx-auto' : 'p-1.5'} bg-transparent rounded-xl flex-shrink-0 overflow-hidden`}
             style={{ transition: 'all 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
-            <img src="/logo.png?v=2" alt="Cadenza Logo" className="w-12 h-12 object-cover rounded shadow-sm" />
+            <img src="/logo.png?v=2" alt={t('layout.logo_alt')} className="w-12 h-12 object-cover rounded shadow-sm" />
           </div>
           <div className="overflow-hidden flex flex-col justify-center flex-1"
             style={{
@@ -144,7 +144,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             </h1>
             {orgId === 'sandbox' && !isCollapsed && (
               <div className="mt-1 flex justify-center">
-                <span className="bg-amber-500 text-[10px] font-black px-1.5 py-0.5 rounded text-white animate-pulse">SANDBOX</span>
+                <span className="bg-amber-500 text-[10px] font-black px-1.5 py-0.5 rounded text-white animate-pulse">{t('layout.sandbox_badge')}</span>
               </div>
             )}
           </div>
@@ -303,7 +303,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               title={t('common.sign_out')}
             >
               <Users size={16} />
-              {!isCollapsed && <span className="text-sm font-medium">Sign Out</span>}
+              {!isCollapsed && <span className="text-sm font-medium">{t('layout.sign_out')}</span>}
             </button>
           </div>
 
@@ -341,7 +341,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                   maxWidth: isCollapsed ? 0 : 150,
                   marginLeft: isCollapsed ? 0 : 8,
                   transition: 'opacity 300ms ease, max-width 500ms ease, margin-left 500ms ease',
-                }}>Mobile Access</span>
+                }}>{t('layout.mobile_access_label')}</span>
             </a>
           )}
 

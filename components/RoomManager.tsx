@@ -67,7 +67,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
             )}
             <div>
               <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{t('room.title')}</h2>
-              <p className="text-slate-500 dark:text-slate-400">Configure spaces and equipment itineraries.</p>
+              <p className="text-slate-500 dark:text-slate-400">{t('room.subtitle')}</p>
             </div>
           </div>
           <button
@@ -136,7 +136,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
                   className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
                   value={formData.name || ''}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. Studio A"
+                  placeholder={t('room.name_placeholder')}
                 />
               </div>
               <div>

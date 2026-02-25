@@ -3,6 +3,8 @@ import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc, writeBat
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../utils/firebase';
 import { useAuth } from '../context/AuthContext';
+import { TRANSLATIONS } from '../constants';
+import { AppSettings } from '../types';
 import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus, Wrench, Edit2, Save, X } from 'lucide-react';
 
 interface Organization {
@@ -23,10 +25,12 @@ interface AccessRecord {
 interface SuperAdminProps {
     onLoadTestData?: () => void;
     onWipeData?: () => void;
+    settings: AppSettings;
 }
 
-export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeData }) => {
+export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeData, settings }) => {
     const { currentUser, isSuperAdmin } = useAuth();
+    const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
     const [activeTab, setActiveTab] = useState<'ORGS' | 'USERS' | 'DEV_TOOLS'>('ORGS');
     const [loading, setLoading] = useState(true);
 
@@ -60,8 +64,8 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
         return (
             <div className="p-8 text-center text-red-500">
                 <AlertCircle className="mx-auto mb-4" size={48} />
-                <h2 className="text-2xl font-bold">Access Denied</h2>
-                <p>This area is restricted to the platform super-administrator.</p>
+                <h2 className="text-2xl font-bold">{t('sa.access_denied')}</h2>
+                <p>{t('sa.restricted')}</p>
             </div>
         );
     }
@@ -333,8 +337,8 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                         <ShieldCheck size={28} />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Super Admin Console</h1>
-                        <p className="text-slate-500">Manage Tenants, Access Control & Developer Tools</p>
+                        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{t('sa.console_title')}</h1>
+                        <p className="text-slate-500">{t('sa.console_subtitle')}</p>
                     </div>
                 </div>
 
@@ -354,7 +358,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                     >
                         <div className="flex items-center space-x-2">
                             <Building size={18} />
-                            <span>Organizations</span>
+                            <span>{t('sa.tab_orgs')}</span>
                         </div>
                     </button>
                     <button
@@ -364,7 +368,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                     >
                         <div className="flex items-center space-x-2">
                             <Users size={18} />
-                            <span>Access Mappings</span>
+                            <span>{t('sa.tab_access')}</span>
                         </div>
                     </button>
                     <button
@@ -374,7 +378,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                     >
                         <div className="flex items-center space-x-2">
                             <Wrench size={18} />
-                            <span>Developer Tools</span>
+                            <span>{t('sa.tab_dev')}</span>
                         </div>
                     </button>
                 </div>
@@ -389,25 +393,25 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                         {activeTab === 'ORGS' && (
                             <div className="p-6">
                                 <form onSubmit={handleCreateOrg} className="mb-8 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
-                                    <h3 className="font-semibold mb-4 text-slate-800 dark:text-slate-200">Register New Organization</h3>
+                                    <h3 className="font-semibold mb-4 text-slate-800 dark:text-slate-200">{t('sa.register_org')}</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div>
-                                            <label className="block text-xs text-slate-500 mb-1">Organization Name</label>
+                                            <label className="block text-xs text-slate-500 mb-1">{t('sa.org_name')}</label>
                                             <input
                                                 type="text"
                                                 value={newOrgName}
                                                 onChange={(e) => setNewOrgName(e.target.value)}
-                                                placeholder="e.g. Alpert Music Center"
+                                                placeholder={t('sa.org_name_placeholder')}
                                                 className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs text-slate-500 mb-1">URL Slug (ID)</label>
+                                            <label className="block text-xs text-slate-500 mb-1">{t('sa.url_slug')}</label>
                                             <input
                                                 type="text"
                                                 value={newOrgSlug}
                                                 onChange={(e) => setNewOrgSlug(e.target.value)}
-                                                placeholder="e.g. alpert (no spaces)"
+                                                placeholder={t('sa.url_slug_placeholder')}
                                                 className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                             />
                                         </div>
@@ -458,16 +462,16 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                                     value={editOrgName}
                                                                     onChange={(e) => setEditOrgName(e.target.value)}
                                                                     className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                                    placeholder="Organization Name"
+                                                                    placeholder={t('sa.org_name')}
                                                                 />
                                                                 <div className="flex items-center text-xs">
-                                                                    <span className="text-slate-500 mr-1">ID:</span>
+                                                                    <span className="text-slate-500 mr-1">{t('sa.id_label')}</span>
                                                                     <input
                                                                         type="text"
                                                                         value={editOrgSlug}
                                                                         onChange={(e) => setEditOrgSlug(e.target.value)}
                                                                         className="bg-slate-200 dark:bg-slate-800 border-none rounded px-2 py-0.5 font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                                                        placeholder="url-slug"
+                                                                        placeholder={t('sa.url_slug_placeholder')}
                                                                     />
                                                                 </div>
                                                             </div>
@@ -492,7 +496,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                                     setEditOrgSlug(org.id);
                                                                 }}
                                                                 className="p-2 text-slate-400 hover:text-blue-500 transition-colors"
-                                                                title="Edit Organization"
+                                                                title={t('sa.edit_org_title')}
                                                             >
                                                                 <Edit2 size={16} />
                                                             </button>
@@ -502,7 +506,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                                     fileInputRef.current?.click();
                                                                 }}
                                                                 className="p-2 text-slate-400 hover:text-blue-500 transition-colors relative"
-                                                                title="Upload Logo"
+                                                                title={t('sa.upload_logo')}
                                                                 disabled={uploadingOrgId === org.id}
                                                             >
                                                                 {uploadingOrgId === org.id ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}
@@ -510,7 +514,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                             <button
                                                                 onClick={() => handleDeleteOrg(org.id, org.name)}
                                                                 className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-                                                                title="Delete Organization"
+                                                                title={t('sa.delete_org')}
                                                             >
                                                                 <Trash2 size={16} />
                                                             </button>
@@ -520,14 +524,14 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                             <button
                                                                 onClick={() => handleEditOrgSave(org.id)}
                                                                 className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 rounded transition-colors"
-                                                                title="Save Changes"
+                                                                title={t('sa.save_changes')}
                                                             >
                                                                 <Save size={18} />
                                                             </button>
                                                             <button
                                                                 onClick={() => setEditingOrgId(null)}
                                                                 className="p-2 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
-                                                                title="Cancel"
+                                                                title={t('sa.cancel')}
                                                             >
                                                                 <X size={18} />
                                                             </button>
@@ -538,7 +542,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                         )
                                     })}
                                     {organizations.length === 0 && (
-                                        <div className="text-center py-8 text-slate-500">No organizations registered yet.</div>
+                                        <div className="text-center py-8 text-slate-500">{t('sa.no_orgs')}</div>
                                     )}
                                 </div>
                             </div>
@@ -548,7 +552,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                             <div className="p-6">
                                 <div className="mb-8 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
                                     <div className="flex justify-between items-center mb-4">
-                                        <h3 className="font-semibold text-slate-800 dark:text-slate-200">Map User to Organization</h3>
+                                        <h3 className="font-semibold text-slate-800 dark:text-slate-200">{t('sa.map_user')}</h3>
                                         <button
                                             onClick={() => setIsBulkMode(!isBulkMode)}
                                             className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline transition-all"
@@ -560,23 +564,23 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                     {!isBulkMode ? (
                                         <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-5 gap-4">
                                             <div className="md:col-span-2">
-                                                <label className="block text-xs text-slate-500 mb-1">User Email (Gmail)</label>
+                                                <label className="block text-xs text-slate-500 mb-1">{t('sa.user_email')}</label>
                                                 <input
                                                     type="email"
                                                     value={newUserEmail}
                                                     onChange={(e) => setNewUserEmail(e.target.value)}
-                                                    placeholder="user@gmail.com"
+                                                    placeholder={t('sa.user_email_placeholder')}
                                                     className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-xs text-slate-500 mb-1">Organization</label>
+                                                <label className="block text-xs text-slate-500 mb-1">{t('sa.organization')}</label>
                                                 <select
                                                     value={newUserOrgId}
                                                     onChange={(e) => setNewUserOrgId(e.target.value)}
                                                     className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                 >
-                                                    <option value="">Select Org...</option>
+                                                    <option value="">{t('sa.select_org')}</option>
                                                     {organizations.map(org => (
                                                         <option key={org.id} value={org.id}>{org.name}</option>
                                                     ))}
@@ -635,7 +639,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                         onChange={(e) => setFilterOrgId(e.target.value)}
                                         className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-xs"
                                     >
-                                        <option value="">All Organizations</option>
+                                        <option value="">{t('sa.all_orgs')}</option>
                                         {organizations.map(org => (
                                             <option key={org.id} value={org.id}>{org.name} ({org.id})</option>
                                         ))}
@@ -646,7 +650,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                         <thead>
                                             <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500">
                                                 <th className="pb-3 font-medium">Email</th>
-                                                <th className="pb-3 font-medium">Organization</th>
+                                                <th className="pb-3 font-medium">{t('sa.organization')}</th>
                                                 <th className="pb-3 font-medium">Role</th>
                                                 <th className="pb-3 font-medium text-right">Actions</th>
                                             </tr>
@@ -666,15 +670,15 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                                 ${record.role === 'ADMIN' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'}
                                                             `}
                                                         >
-                                                            <option value="VIEWER" className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">VIEWER</option>
-                                                            <option value="ADMIN" className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">ADMIN</option>
+                                                            <option value="VIEWER" className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">{t('sa.viewer')}</option>
+                                                            <option value="ADMIN" className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">{t('sa.admin')}</option>
                                                         </select>
                                                     </td>
                                                     <td className="py-3 text-right">
                                                         <button
                                                             onClick={() => handleDeleteUser(record.id, record.email || record.id)}
                                                             className="text-red-500 hover:text-red-700 p-1 transition-colors"
-                                                            title="Revoke Access"
+                                                            title={t('sa.revoke_access')}
                                                         >
                                                             <Trash2 size={16} />
                                                         </button>
@@ -700,7 +704,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                     <div className="bg-amber-50 dark:bg-amber-900/20 p-5 rounded-lg border border-amber-200 dark:border-amber-700/50">
                                         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                                             <div>
-                                                <h4 className="font-bold text-slate-900 dark:text-white">Generate Test Data</h4>
+                                                <h4 className="font-bold text-slate-900 dark:text-white">{t('sa.generate_test')}</h4>
                                                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                                                     Populate the current workspace with realistic test teachers, events, rooms, and Gantt blocks for evaluation purposes.
                                                 </p>
@@ -722,11 +726,11 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                                 settings: localStorage.getItem('settings'),
                                                                 lists: localStorage.getItem('lists')
                                                             }));
-                                                            alert("Snapshot created!");
+                                                            alert(t('sa.snapshot_created_short'));
                                                         }
                                                         if (window.confirm("Generate test data? This will overwrite current data in this workspace.")) {
                                                             onLoadTestData?.();
-                                                            window.alert("Test data generated successfully!");
+                                                            window.alert(t('sa.test_generated'));
                                                         }
                                                     }}
                                                     className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-bold transition-colors shadow-none border border-amber-600"
@@ -740,8 +744,8 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                     {/* State Snapshots & Testing Tools */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="bg-slate-50 dark:bg-slate-800 p-5 rounded-lg border border-slate-200 dark:border-slate-700">
-                                            <h4 className="font-bold text-slate-900 dark:text-white mb-1">State Snapshot</h4>
-                                            <p className="text-xs text-slate-500 mb-3">Save current app data to browser storage or restore from a previous snapshot.</p>
+                                            <h4 className="font-bold text-slate-900 dark:text-white mb-1">{t('sa.state_snapshot')}</h4>
+                                            <p className="text-xs text-slate-500 mb-3">{t('sa.snapshot_desc')}</p>
                                             <div className="flex gap-2">
                                                 <button onClick={() => {
                                                     localStorage.setItem('appSnapshot', JSON.stringify({
@@ -751,8 +755,8 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                         settings: localStorage.getItem('settings'),
                                                         lists: localStorage.getItem('lists')
                                                     }));
-                                                    alert("Snapshot created successfully!");
-                                                }} className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">Create Snapshot</button>
+                                                    alert(t('sa.snapshot_created'));
+                                                }} className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">{t('sa.create_snapshot')}</button>
                                                 <button onClick={() => {
                                                     const snap = localStorage.getItem('appSnapshot');
                                                     if (snap && window.confirm("Restore snapshot? Current changes will be overwritten!")) {
@@ -763,15 +767,15 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                         if (parsed.lists) localStorage.setItem('lists', parsed.lists);
                                                         window.location.reload();
                                                     } else if (!snap) {
-                                                        alert("No snapshot found.");
+                                                        alert(t('sa.no_snapshot'));
                                                     }
                                                 }} className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">Restore</button>
                                             </div>
                                         </div>
 
                                         <div className="bg-slate-50 dark:bg-slate-800 p-5 rounded-lg border border-slate-200 dark:border-slate-700">
-                                            <h4 className="font-bold text-slate-900 dark:text-white mb-1">Testing Tools</h4>
-                                            <p className="text-xs text-slate-500 mb-3">Actions specific for evaluating Layer 1 logic.</p>
+                                            <h4 className="font-bold text-slate-900 dark:text-white mb-1">{t('sa.testing_tools')}</h4>
+                                            <p className="text-xs text-slate-500 mb-3">{t('sa.testing_desc')}</p>
                                             <div className="flex gap-2 flex-wrap">
                                                 <button onClick={() => {
                                                     if (window.confirm("Run Calendar Test Generator? Current state will be cleared. (Snapshot taken automatically)")) {
@@ -782,7 +786,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                         }));
                                                         onLoadTestData?.();
                                                     }
-                                                }} className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors">Run Calendar Test Gen</button>
+                                                }} className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors">{t('sa.run_calendar_test')}</button>
                                                 <button onClick={() => {
                                                     if (window.confirm("Run Teacher Test Generator? Current teachers will be replaced. (Snapshot taken automatically)")) {
                                                         localStorage.setItem('appSnapshot', JSON.stringify({
@@ -792,30 +796,30 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                         }));
                                                         onLoadTestData?.();
                                                     }
-                                                }} className="px-3 py-1.5 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 text-xs font-bold rounded hover:bg-violet-200 dark:hover:bg-violet-900/50 transition-colors">Run Teacher Gen</button>
+                                                }} className="px-3 py-1.5 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 text-xs font-bold rounded hover:bg-violet-200 dark:hover:bg-violet-900/50 transition-colors">{t('sa.run_teacher_gen')}</button>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* System Info */}
                                     <div className="bg-slate-50 dark:bg-slate-800 p-5 rounded-lg border border-slate-200 dark:border-slate-700">
-                                        <h4 className="font-bold text-slate-900 dark:text-white mb-3">System Information</h4>
+                                        <h4 className="font-bold text-slate-900 dark:text-white mb-3">{t('sa.system_info')}</h4>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                                             <div>
-                                                <span className="text-slate-500 block">Super Admin</span>
+                                                <span className="text-slate-500 block">{t('sa.super_admin_label')}</span>
                                                 <span className="text-slate-900 dark:text-white font-mono">{currentUser?.email}</span>
                                             </div>
                                             <div>
-                                                <span className="text-slate-500 block">Total Tenants</span>
+                                                <span className="text-slate-500 block">{t('sa.total_tenants')}</span>
                                                 <span className="text-slate-900 dark:text-white font-bold text-lg">{organizations.length}</span>
                                             </div>
                                             <div>
-                                                <span className="text-slate-500 block">Total Access Records</span>
+                                                <span className="text-slate-500 block">{t('sa.total_access')}</span>
                                                 <span className="text-slate-900 dark:text-white font-bold text-lg">{accessRecords.length}</span>
                                             </div>
                                             <div>
                                                 <span className="text-slate-500 block">Role</span>
-                                                <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded font-bold">SUPERADMIN</span>
+                                                <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded font-bold">{t('sa.superadmin_badge')}</span>
                                             </div>
                                         </div>
                                     </div>

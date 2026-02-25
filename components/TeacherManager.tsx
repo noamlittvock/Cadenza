@@ -269,7 +269,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
     };
 
     reader.onerror = () => {
-      alert("Error reading file");
+      alert(t('teach.alert_error_reading'));
       setIsAnalyzing(false);
       setUploadProgress(0);
     };
@@ -347,7 +347,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
     const candidates = Object.values(teacherMap);
 
     if (candidates.length === 0) {
-      alert("No valid or new unique teachers found in CSV.\nPlease ensure the file contains columns: Name, Email, Phone, Position, Category, RateType, RateValue, Tags");
+      alert(t('teach.alert_no_valid'));
       return;
     }
     setImportCandidates(candidates);

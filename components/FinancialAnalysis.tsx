@@ -217,7 +217,7 @@ const CustomInsightModal: React.FC<CustomInsightModalProps> = ({ teachers, onClo
                 <div className="p-5 space-y-4">
                     <div>
                         <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">{t('modal.insight_title')}</label>
-                        <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Piano Revenue" autoFocus className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-blue-500" />
+                        <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder={t('analysis.chart_name_placeholder')} autoFocus className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-blue-500" />
                     </div>
                     <div>
                         <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">{t('modal.metric')}</label>
@@ -812,8 +812,8 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                                         )}
                                     </div>
                                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => handleEditChart(chart)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Edit"><Pencil size={12} className="text-slate-400 hover:text-blue-500" /></button>
-                                        <button onClick={() => handleDuplicateChart(chart)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Duplicate"><Copy size={12} className="text-slate-400 hover:text-emerald-500" /></button>
+                                        <button onClick={() => handleEditChart(chart)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title={t('analysis.edit_tooltip')}><Pencil size={12} className="text-slate-400 hover:text-blue-500" /></button>
+                                        <button onClick={() => handleDuplicateChart(chart)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title={t('analysis.duplicate_tooltip')}><Copy size={12} className="text-slate-400 hover:text-emerald-500" /></button>
                                         <button onClick={() => setDeletingChartId(chart.id)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title={t('financial.delete_title')}><Trash2 size={12} className="text-slate-400 hover:text-red-500" /></button>
                                     </div>
                                 </div>

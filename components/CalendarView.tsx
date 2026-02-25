@@ -654,7 +654,7 @@ export const CalendarView: React.FC<Props> = ({
     if (!editingEvent.name) return;
 
     if (new Date(editingEvent.end!) <= new Date(editingEvent.start!)) {
-      alert("End time must be after start time");
+      alert(t('cal.alert_end_after_start'));
       return;
     }
 

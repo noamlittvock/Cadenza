@@ -16,13 +16,15 @@ const ListEditor = ({
   items,
   onAdd,
   onRemove,
-  icon: Icon
+  icon: Icon,
+  emptyLabel
 }: {
   title: string;
   items: string[];
   onAdd: (item: string) => void;
   onRemove: (item: string) => void;
   icon: React.ElementType;
+  emptyLabel?: string;
 }) => {
   const [input, setInput] = useState('');
 
@@ -73,7 +75,7 @@ const ListEditor = ({
           </div>
         ))}
         {items.length === 0 && (
-          <div className="text-center text-slate-400 text-sm py-4 italic">No items found</div>
+          <div className="text-center text-slate-400 text-sm py-4 italic">{emptyLabel || 'No items found'}</div>
         )}
       </div>
     </div>
@@ -217,6 +219,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
           items={lists.positions}
           onAdd={(item) => addItem('positions', item)}
           onRemove={(item) => removeItem('positions', item)}
+          emptyLabel={t('lists.no_items_found')}
         />
         <ListEditor
           title={t('lists.tags')}
@@ -224,6 +227,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
           items={lists.tags}
           onAdd={(item) => addItem('tags', item)}
           onRemove={(item) => removeItem('tags', item)}
+          emptyLabel={t('lists.no_items_found')}
         />
         <ListEditor
           title={t('lists.classifications')}
@@ -231,6 +235,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
           items={lists.classifications}
           onAdd={(item) => addItem('classifications', item)}
           onRemove={(item) => removeItem('classifications', item)}
+          emptyLabel={t('lists.no_items_found')}
         />
       </div>
 
@@ -266,7 +271,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
                 </div>
               )}
               {(candidates.positions.length + candidates.tags.length + candidates.classifications.length) === 0 && (
-                <p className="text-sm text-amber-500">No new unique items found in the CSV. Make sure you used the template format.</p>
+                <p className="text-sm text-amber-500">{t('lists.csv_no_unique')}</p>
               )}
             </div>
 
