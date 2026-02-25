@@ -509,7 +509,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
             )}
             <div>
               <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{t('teach.title')}</h2>
-              <p className="text-slate-500 dark:text-slate-400">Manage instructor profiles, positions, rates, and tags.</p>
+              <p className="text-slate-500 dark:text-slate-400">{t('teach.subtitle')}</p>
             </div>
           </div>
 
@@ -522,9 +522,9 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                 <span className="text-xs font-bold text-blue-700 dark:text-blue-300">{uploadProgress}%</span>
               </div>
             )}
-            <button onClick={handleDownloadTemplate} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700"><FileDown size={16} className="me-2" /> Template</button>
-            <button onClick={handleExportTeachers} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700"><Download size={16} className="me-2" /> Export</button>
-            <button onClick={() => fileInputRef.current?.click()} disabled={isAnalyzing} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"><Upload size={16} className="me-2" /> Import</button>
+            <button onClick={handleDownloadTemplate} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700"><FileDown size={16} className="me-2" /> {t('teach.template')}</button>
+            <button onClick={handleExportTeachers} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700"><Download size={16} className="me-2" /> {t('teach.export')}</button>
+            <button onClick={() => fileInputRef.current?.click()} disabled={isAnalyzing} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"><Upload size={16} className="me-2" /> {t('teach.import')}</button>
             <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
             <button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm"><Plus size={16} className="me-2" /> {t('teach.add')}</button>
           </div>
@@ -542,9 +542,9 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
               <span className="text-xs font-bold text-blue-700 dark:text-blue-300">{uploadProgress}%</span>
             </div>
           )}
-          <button onClick={handleDownloadTemplate} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700"><FileDown size={16} className="me-2" /> Template</button>
-          <button onClick={handleExportTeachers} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700"><Download size={16} className="me-2" /> Export</button>
-          <button onClick={() => fileInputRef.current?.click()} disabled={isAnalyzing} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"><Upload size={16} className="me-2" /> Import</button>
+          <button onClick={handleDownloadTemplate} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700"><FileDown size={16} className="me-2" /> {t('teach.template')}</button>
+          <button onClick={handleExportTeachers} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700"><Download size={16} className="me-2" /> {t('teach.export')}</button>
+          <button onClick={() => fileInputRef.current?.click()} disabled={isAnalyzing} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"><Upload size={16} className="me-2" /> {t('teach.import')}</button>
           <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
           <div className="flex-1" />
           <button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm"><Plus size={16} className="me-2" /> {t('teach.add')}</button>
@@ -581,7 +581,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                 value={filterValue}
                 onChange={(e) => setFilterValue(e.target.value)}
               >
-                <option value="">Select {filterType === 'POSITION' ? 'Position' : 'Tag'}...</option>
+                <option value="">{filterType === 'POSITION' ? t('teach.select_position_placeholder') : t('teach.select_tag_placeholder')}</option>
                 {filterType === 'POSITION'
                   ? activeLists.positions.map(p => <option key={p} value={p}>{p}</option>)
                   : activeLists.tags.map(t => <option key={t} value={t}>{t}</option>)
@@ -604,11 +604,11 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                     onChange={handleSelectAll}
                   />
                 </th>
-                <th className="px-6 py-4">Name</th>
-                <th className="px-6 py-4">Positions & Rates</th>
-                <th className="px-6 py-4">Tags</th>
-                <th className="px-6 py-4">Contact</th>
-                <th className="px-6 py-4 text-end">Actions</th>
+                <th className="px-6 py-4">{t('teach.col_name')}</th>
+                <th className="px-6 py-4">{t('teach.col_positions')}</th>
+                <th className="px-6 py-4">{t('teach.col_tags')}</th>
+                <th className="px-6 py-4">{t('teach.col_contact')}</th>
+                <th className="px-6 py-4 text-end">{t('teach.col_actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -689,7 +689,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-2xl p-6 border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{editingId ? 'Edit Teacher' : 'Add New Teacher'}</h3>
+            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{editingId ? t('teach.edit_teacher') : t('teach.add_new_teacher')}</h3>
             {error && <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg border border-red-200 dark:border-red-800">{error}</div>}
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Name + Color Row */}
@@ -714,14 +714,14 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                 <div className="flex items-center justify-between mb-3">
                   <label className="block text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
                     <Briefcase size={16} />
-                    Position Assignments
+                    {t('teach.position_assignments_label')}
                   </label>
                   <button
                     type="button"
                     onClick={addPositionAssignment}
                     className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors shadow-sm"
                   >
-                    <Plus size={12} /> Add Position
+                    <Plus size={12} /> {t('teach.add_position')}
                   </button>
                 </div>
 
@@ -754,12 +754,12 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                       <div className="grid grid-cols-2 gap-3">
                         {/* Position Name */}
                         <div>
-                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Position Name</label>
+                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{t('teach.position_name')}</label>
                           <div className="relative">
                             <input
                               type="text"
                               list={`position-options-${pa.id}`}
-                              placeholder="e.g. Piano Instructor"
+                              placeholder={t('teach.position_placeholder')}
                               className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
                               value={pa.positionName}
                               onChange={e => updatePositionAssignment(pa.id, { positionName: e.target.value })}
@@ -772,7 +772,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
 
                         {/* Category */}
                         <div>
-                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Category</label>
+                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{t('teach.category')}</label>
                           <select
                             className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
                             value={pa.category}
@@ -786,7 +786,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
 
                         {/* Rate Type Toggle */}
                         <div>
-                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Rate Type</label>
+                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{t('teach.rate_type')}</label>
                           <button
                             type="button"
                             onClick={() => updatePositionAssignment(pa.id, {
@@ -799,9 +799,9 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                           >
                             <span className="flex items-center gap-1.5">
                               {pa.rateType === 'HOURLY' ? (
-                                <><Clock size={14} /> Hourly</>
+                                <><Clock size={14} /> {t('teach.hourly')}</>
                               ) : (
-                                <><CalendarDays size={14} /> Global Monthly</>
+                                <><CalendarDays size={14} /> {t('teach.global_monthly')}</>
                               )}
                             </span>
                             {pa.rateType === 'HOURLY' ? (
@@ -815,7 +815,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                         {/* Rate Value */}
                         <div>
                           <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                            {pa.rateType === 'HOURLY' ? `Rate (${settings.currency}/hour)` : `Monthly Fee (${settings.currency})`}
+                            {pa.rateType === 'HOURLY' ? `${t('teach.rate_hourly_label')} (${settings.currency}${t('teach.per_hour')})` : `${t('teach.monthly_fee')} (${settings.currency})`}
                           </label>
                           <div className="relative">
                             <DollarSign size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -839,7 +839,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                 {(formData.positionAssignments || []).length === 0 && (
                   <div className="text-center py-6 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
                     <Briefcase size={24} className="mx-auto mb-2 text-slate-300 dark:text-slate-600" />
-                    <p className="text-sm text-slate-400 dark:text-slate-500">No positions assigned yet.</p>
+                    <p className="text-sm text-slate-400 dark:text-slate-500">{t('teach.no_positions_yet')}</p>
                     <button
                       type="button"
                       onClick={addPositionAssignment}
@@ -853,7 +853,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
 
               {/* Tags Input */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tags</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.tags_label')}</label>
                 <div className="flex gap-2 mb-2">
                   <select
                     className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
@@ -875,7 +875,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                     onKeyDown={handleAddTag}
                     placeholder={t('teacher.or_type_new')}
                   />
-                  <button type="button" onClick={handleAddTag} className="bg-slate-200 dark:bg-slate-700 px-3 py-2 rounded-lg">Add</button>
+                  <button type="button" onClick={handleAddTag} className="bg-slate-200 dark:bg-slate-700 px-3 py-2 rounded-lg">{t('teach.add_tag')}</button>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {formData.tags?.map((tag, idx) => (
@@ -888,13 +888,13 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
 
               {/* Email/Phone Inputs */}
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label><input required type="email" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} /></div>
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone</label><input type="text" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={formData.phone || ''} onChange={e => setFormData({ ...formData, phone: e.target.value })} /></div>
+                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.email')}</label><input required type="email" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} /></div>
+                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.phone')}</label><input type="text" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={formData.phone || ''} onChange={e => setFormData({ ...formData, phone: e.target.value })} /></div>
               </div>
 
               <div className="flex justify-end space-x-3 rtl:space-x-reverse mt-6">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg">Save</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">{t('teach.cancel')}</button>
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg">{t('teach.save')}</button>
               </div>
             </form>
           </div>
@@ -904,7 +904,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
       {isImportModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-2xl p-6 border border-slate-200 dark:border-slate-800 max-h-[90vh] flex flex-col">
-            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">Import Teachers</h3>
+            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{t('teach.import_teachers')}</h3>
             <p className="text-sm text-slate-500 mb-4">Found {importCandidates.length} {t('teach.unique_teachers')}</p>
 
             <div className="flex-1 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg mb-4">
@@ -912,10 +912,10 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                 <thead className="bg-slate-50 dark:bg-slate-950 sticky top-0">
                   <tr>
                     <th className="p-3 w-8"><input type="checkbox" checked={importCandidates.every(c => c.selected)} onChange={e => setImportCandidates(prev => prev.map(c => ({ ...c, selected: e.target.checked })))} /></th>
-                    <th className="p-3 text-slate-500 font-medium">Name</th>
-                    <th className="p-3 text-slate-500 font-medium">Email</th>
-                    <th className="p-3 text-slate-500 font-medium">Positions</th>
-                    <th className="p-3 text-slate-500 font-medium">Rates</th>
+                    <th className="p-3 text-slate-500 font-medium">{t('teach.col_name')}</th>
+                    <th className="p-3 text-slate-500 font-medium">{t('teach.import_col_email')}</th>
+                    <th className="p-3 text-slate-500 font-medium">{t('teach.import_col_positions')}</th>
+                    <th className="p-3 text-slate-500 font-medium">{t('teach.import_col_rates')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -938,16 +938,16 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
 
             <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
               <div className="text-xs text-slate-400">
-                * Colors will be auto-assigned
+                {t('teach.colors_auto')}
               </div>
               <div className="flex space-x-3 rtl:space-x-reverse">
-                <button onClick={() => setIsImportModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
+                <button onClick={() => setIsImportModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">{t('teach.cancel')}</button>
                 <button
                   onClick={() => confirmImport(true)}
                   disabled={importCandidates.filter(c => c.selected).length === 0}
                   className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Import {importCandidates.filter(c => c.selected).length} Teachers
+                  {t('teach.import_n_teachers')} {importCandidates.filter(c => c.selected).length} {t('teach.teachers_word')}
                 </button>
               </div>
             </div>
@@ -957,21 +957,21 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
       {/* Bulk Actions Bar */}
       {selectedTeacherIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-6 rtl:space-x-reverse z-40 animate-in slide-in-from-bottom-4">
-          <span className="font-medium">{selectedTeacherIds.size} Selected</span>
+          <span className="font-medium">{selectedTeacherIds.size} {t('teach.selected')}</span>
           <div className="h-6 w-px bg-slate-700"></div>
           <div className="flex items-center space-x-3 rtl:space-x-reverse">
             <button
               onClick={() => setSelectedTeacherIds(new Set())}
               className="px-4 py-2 hover:bg-slate-800 rounded-lg transition-colors text-sm font-medium"
             >
-              Cancel
+              {t('teach.cancel')}
             </button>
             <button
               onClick={handleBulkDelete}
               className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg shadow-lg transition-all text-sm font-bold flex items-center"
             >
               <Trash2 size={16} className="me-2" />
-              Delete Selection
+              {t('teach.delete_selection')}
             </button>
           </div>
         </div>
