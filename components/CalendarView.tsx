@@ -914,7 +914,7 @@ export const CalendarView: React.FC<Props> = ({
 
     return (
       <div className="grid border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 relative" style={{ gridTemplateColumns: `50px 1fr` }}>
-        <div className="border-r border-slate-100 dark:border-slate-800 p-2 text-[10px] text-slate-400 text-center flex items-center justify-center font-bold">
+        <div className="border-e border-slate-100 dark:border-slate-800 p-2 text-[10px] text-slate-400 text-center flex items-center justify-center font-bold">
           GANTT
         </div>
         <div className="relative py-1" style={{ height: `${totalHeight}px` }}>
@@ -1015,7 +1015,7 @@ export const CalendarView: React.FC<Props> = ({
       >
         <div style={{ color: !evt.isCanceled ? baseColor : undefined }} className={`h-full ${isShort ? 'flex items-center gap-1' : 'flex flex-col'} overflow-hidden`}>
           {layout.width < 90 && !evt.isCanceled && !isDragging && (
-            <div className="absolute top-0.5 right-0.5 bg-white/80 rounded-full p-0.5 dark:bg-slate-800">
+            <div className="absolute top-0.5 end-0.5 bg-white/80 rounded-full p-0.5 dark:bg-slate-800">
               <AlertCircle size={isCompact ? 8 : 10} color="red" />
             </div>
           )}
@@ -1047,7 +1047,7 @@ export const CalendarView: React.FC<Props> = ({
         {!evt.isCanceled && (
           <div
             onMouseDown={(e) => handleMouseDown(e, evt, 'RESIZE')}
-            className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize flex justify-center items-end pb-1 opacity-0 group-hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5"
+            className="absolute bottom-0 start-0 end-0 h-3 cursor-ns-resize flex justify-center items-end pb-1 opacity-0 group-hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5"
           >
             <GripHorizontal size={12} className="text-slate-400" />
           </div>
@@ -1061,9 +1061,9 @@ export const CalendarView: React.FC<Props> = ({
       <div className={`flex-1 overflow-auto bg-white dark:bg-slate-900 relative ${selectionMode === 'MARQUEE' ? 'cursor-crosshair' : ''}`} ref={containerRef} onMouseDown={handleMarqueeMouseDown}>
         <div className="min-w-[800px] relative" ref={marqueeContainerRef}>
           <div className="grid border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-900 z-20 shadow-sm" style={{ gridTemplateColumns: `50px repeat(${days.length}, 1fr)` }}>
-            <div className="p-4 border-r border-slate-100 dark:border-slate-800"></div>
+            <div className="p-4 border-e border-slate-100 dark:border-slate-800"></div>
             {days.map(day => (
-              <div key={day.toISOString()} className={`p-3 text-center border-r border-slate-100 dark:border-slate-800 ${day.toDateString() === new Date().toDateString() ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
+              <div key={day.toISOString()} className={`p-3 text-center border-e border-slate-100 dark:border-slate-800 ${day.toDateString() === new Date().toDateString() ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
                 <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{day.toLocaleDateString(settings.language, { weekday: 'short' })}</div>
                 <div className={`text-xl font-bold mt-1 ${day.toDateString() === new Date().toDateString() ? 'text-blue-600 dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}>
                   {day.getDate()}
@@ -1074,22 +1074,22 @@ export const CalendarView: React.FC<Props> = ({
           {renderGanttStrip(days)}
           <div className="relative" style={{ height: `${(END_HOUR - START_HOUR + 1) * 60}px` }}>
             <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `50px repeat(${days.length}, 1fr)` }}>
-              <div className="border-r border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+              <div className="border-e border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
                 {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i).map(h => (
-                  <div key={h} className="h-[60px] border-b border-slate-200 dark:border-slate-800 text-xs text-slate-400 text-right pr-2 pt-1">
+                  <div key={h} className="h-[60px] border-b border-slate-200 dark:border-slate-800 text-xs text-slate-400 text-end pe-2 pt-1">
                     {h}:00
                   </div>
                 ))}
               </div>
               {days.map((day, i) => (
-                <div key={i} className="border-r border-slate-100 dark:border-slate-800 h-full relative group">
+                <div key={i} className="border-e border-slate-100 dark:border-slate-800 h-full relative group">
                   <div className="absolute inset-0 bg-blue-50/0 group-hover:bg-blue-50/5 pointer-events-none transition-colors" />
                   {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i).map(h => (
                     <div
                       key={h}
                       className="h-[60px] border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-cell"
                       onClick={() => handleSlotClick(day, h)}
-                      title="Click to add event"
+                      title={t('cal.click_add')}
                     />
                   ))}
                 </div>
@@ -1222,7 +1222,7 @@ export const CalendarView: React.FC<Props> = ({
                     return (
                       <div
                         key={day.toISOString()}
-                        className={`border-r border-slate-100 dark:border-slate-800 last:border-0 pointer-events-auto cursor-pointer ${!isCurrentMonth ? 'bg-slate-50/50 dark:bg-slate-950/50' : 'bg-transparent'}`}
+                        className={`border-e border-slate-100 dark:border-slate-800 last:border-0 pointer-events-auto cursor-pointer ${!isCurrentMonth ? 'bg-slate-50/50 dark:bg-slate-950/50' : 'bg-transparent'}`}
                         onClick={() => { setCurrentDate(day); setViewMode('DAY'); }}
                       />
                     );
@@ -1230,7 +1230,7 @@ export const CalendarView: React.FC<Props> = ({
                 </div>
 
                 {/* Layer 2: Gantt Overlay (z-10) */}
-                <div className="absolute top-[32px] bottom-0 left-0 right-0 overflow-y-auto custom-scrollbar pointer-events-none z-10">
+                <div className="absolute top-[32px] bottom-0 start-0 end-0 overflow-y-auto custom-scrollbar pointer-events-none z-10">
                   <div className="grid grid-cols-7 gap-y-1 relative pointer-events-auto pb-1" style={{ gridAutoRows: 'min-content' }}>
                     {weekGantts.map(block => {
                       const bStart = new Date(block.startDate); bStart.setHours(0, 0, 0, 0);
@@ -1264,13 +1264,13 @@ export const CalendarView: React.FC<Props> = ({
                         marginClass = 'mx-0';
                         bdrClass = 'border-y border-black/10 dark:border-white/10';
                       } else if (isStartCut) {
-                        roundedClass = 'rounded-r';
-                        marginClass = 'mr-1 ml-0';
-                        bdrClass = 'border border-l-0 border-black/10 dark:border-white/10';
+                        roundedClass = 'rounded-e';
+                        marginClass = 'me-1 ms-0';
+                        bdrClass = 'border border-s-0 border-black/10 dark:border-white/10';
                       } else if (isEndCut) {
-                        roundedClass = 'rounded-l';
-                        marginClass = 'ml-1 mr-0';
-                        bdrClass = 'border border-r-0 border-black/10 dark:border-white/10';
+                        roundedClass = 'rounded-s';
+                        marginClass = 'ms-1 me-0';
+                        bdrClass = 'border border-e-0 border-black/10 dark:border-white/10';
                       }
 
                       return (
@@ -1293,7 +1293,7 @@ export const CalendarView: React.FC<Props> = ({
                 </div>
 
                 {/* Layer 3: Date Headers & Popups (z-20) */}
-                <div className="absolute top-0 left-0 right-0 h-[32px] grid grid-cols-7 pointer-events-none z-20">
+                <div className="absolute top-0 start-0 end-0 h-[32px] grid grid-cols-7 pointer-events-none z-20">
                   {week.map((day, dIdx) => {
                     const isToday = day.toDateString() === new Date().toDateString();
                     const isRightEdge = dIdx >= 5;
@@ -1311,7 +1311,7 @@ export const CalendarView: React.FC<Props> = ({
 
                           {/* Hover Popup Wrapper with Bridge */}
                           <div
-                            className={`absolute ${isBottomRow ? 'bottom-full pb-1' : 'top-full pt-1'} ${isRightEdge ? '-right-2' : '-left-2'} z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all`}
+                            className={`absolute ${isBottomRow ? 'bottom-full pb-1' : 'top-full pt-1'} ${isRightEdge ? '-end-2' : '-start-2'} z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all`}
                           >
                             <div className="w-48 max-h-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                               <div className="p-2 border-b border-slate-100 dark:border-slate-700 font-bold text-xs sticky top-0 bg-white dark:bg-slate-800 z-10 text-slate-800 dark:text-slate-200">
@@ -1339,7 +1339,7 @@ export const CalendarView: React.FC<Props> = ({
                                             setDetailItem({ type: 'EVENT', data: evt });
                                           }
                                         }}
-                                        className={`text-[10px] text-left px-1.5 py-1 rounded cursor-pointer border-l-2 animate-cadenza-arrive ${selectedEventIds.has(evt.id) ? 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
+                                        className={`text-[10px] text-start px-1.5 py-1 rounded cursor-pointer border-s-2 animate-cadenza-arrive ${selectedEventIds.has(evt.id) ? 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
                                           ? 'bg-slate-100 text-slate-400 line-through dark:bg-slate-800 dark:text-slate-600 border-slate-400'
                                           : 'hover:opacity-90 hover:shadow-cadenza-soft transition-all'
                                           }`}
@@ -1352,13 +1352,13 @@ export const CalendarView: React.FC<Props> = ({
                                         <span style={{ color: !evt.isCanceled ? baseColor : undefined }} className="font-bold flex justify-between items-center gap-2 brightness-75 dark:brightness-100">
                                           <span>{formatTime(new Date(evt.start))}</span>
                                           {evt.teacherId && (
-                                            <span className="text-[9px] uppercase tracking-wider opacity-70 truncate text-right">
+                                            <span className="text-[9px] uppercase tracking-wider opacity-70 truncate text-end">
                                               {teachers.find(t => t.id === evt.teacherId)?.fullName.split(' ')[0]}
                                             </span>
                                           )}
                                         </span>
-                                        <span className="font-medium text-slate-800 dark:text-slate-200 block truncate" title={evt.name || 'Unnamed Event'}>
-                                          {evt.name || 'Unnamed Event'}
+                                        <span className="font-medium text-slate-800 dark:text-slate-200 block truncate" title={evt.name || t('cal.unnamed')}>
+                                          {evt.name || t('cal.unnamed')}
                                         </span>
                                       </div>
                                     );
@@ -1406,14 +1406,14 @@ export const CalendarView: React.FC<Props> = ({
                     {viewMode === 'MONTH'
                       ? currentDate.toLocaleDateString(settings.language, { month: 'long', year: 'numeric' })
                       : viewMode === 'WEEK'
-                        ? `Week of ${getStartOfWeek(currentDate).toLocaleDateString(settings.language)}`
+                        ? `${t('cal.week_of')} ${getStartOfWeek(currentDate).toLocaleDateString(settings.language)}`
                         : currentDate.toLocaleDateString(settings.language, { weekday: 'long', month: 'short', day: 'numeric' })
                     }
-                    <CalendarIcon size={14} className="ml-2 opacity-50" />
+                    <CalendarIcon size={14} className="ms-2 opacity-50" />
                   </span>
                   {settings.weekNumberDisplay !== 'none' && (
                     <span className="text-[10px] text-slate-400 uppercase tracking-wider">
-                      {settings.weekNumberDisplay === 'week-number' ? `Week ${getWeekNumber(currentDate)}` : `Week of ${getStartOfWeek(currentDate).toLocaleDateString()}`}
+                      {settings.weekNumberDisplay === 'week-number' ? `${t('cal.week_num')} ${getWeekNumber(currentDate)}` : `Week of ${getStartOfWeek(currentDate).toLocaleDateString()}`}
                     </span>
                   )}
                 </div>
@@ -1428,11 +1428,11 @@ export const CalendarView: React.FC<Props> = ({
                 <ChevronRight size={18} />
               </button>
             </div>
-            <button onClick={() => setCurrentDate(new Date())} className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 text-xs font-bold rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">TODAY</button>
+            <button onClick={() => setCurrentDate(new Date())} className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 text-xs font-bold rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">{t('cal.today')}</button>
 
             <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 text-xs font-medium">
               {['DAY', 'WEEK', 'MONTH'].map((m) => (
-                <button key={m} onClick={() => setViewMode(m as ViewMode)} className={`px-3 py-1.5 rounded transition-all ${viewMode === m ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>{m}</button>
+                <button key={m} onClick={() => setViewMode(m as ViewMode)} className={`px-3 py-1.5 rounded transition-all ${viewMode === m ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>{t('cal.' + m.toLowerCase())}</button>
               ))}
             </div>
           </div>
@@ -1442,7 +1442,7 @@ export const CalendarView: React.FC<Props> = ({
 
           {/* Canceled Status Toggle */}
           <div className="flex items-center gap-2">
-            <span className={`text-[10px] leading-tight font-medium transition-colors text-right ${!showCanceled ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>Hide<br />Canceled</span>
+            <span className={`text-[10px] leading-tight font-medium transition-colors text-end ${!showCanceled ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>{t('cal.hide_canceled').split(' ')[0]}<br />{t('cal.hide_canceled').split(' ')[1]}</span>
             <button
               onClick={() => setShowCanceled(!showCanceled)}
               className="status-toggle-track"
@@ -1464,7 +1464,7 @@ export const CalendarView: React.FC<Props> = ({
 
           {/* Blackouts Status Toggle */}
           <div className="flex items-center gap-2">
-            <span className={`text-[10px] leading-tight font-medium transition-colors text-right ${!showBlackouts ? 'text-orange-600 dark:text-orange-400' : 'text-slate-500 dark:text-slate-400'}`}>Hide<br />Blackouts</span>
+            <span className={`text-[10px] leading-tight font-medium transition-colors text-end ${!showBlackouts ? 'text-orange-600 dark:text-orange-400' : 'text-slate-500 dark:text-slate-400'}`}>{t('cal.hide_blackouts').split(' ')[0]}<br />{t('cal.hide_blackouts').split(' ')[1]}</span>
             <button
               onClick={() => setShowBlackouts(!showBlackouts)}
               className="status-toggle-track"
@@ -1491,7 +1491,7 @@ export const CalendarView: React.FC<Props> = ({
               ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800'
               : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
-            title="Toggle Filters"
+            title={t('cal.toggle_filters')}
           >
             <Filter size={16} />
           </button>
@@ -1500,23 +1500,23 @@ export const CalendarView: React.FC<Props> = ({
           {isFiltersExpanded && (
             <div className="flex items-center gap-2 flex-nowrap">
               <select className="filter-select-uniform" value={filterTeacher} onChange={e => setFilterTeacher(e.target.value)}>
-                <option value="ALL">Teacher: All</option>
+                <option value="ALL">{t('cal.filter.teacher_all')}</option>
                 {teachers.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}
               </select>
               <select className="filter-select-uniform" value={filterRoom} onChange={e => setFilterRoom(e.target.value)}>
-                <option value="ALL">Room: All</option>
+                <option value="ALL">{t('cal.filter.room_all')}</option>
                 {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
               <select className="filter-select-uniform" value={filterClass} onChange={e => setFilterClass(e.target.value)}>
-                <option value="ALL">Type: All</option>
+                <option value="ALL">{t('cal.filter.type_all')}</option>
                 {activeLists.classifications.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
               <select className="filter-select-uniform" value={filterPosition} onChange={e => setFilterPosition(e.target.value)}>
-                <option value="ALL">Position: All</option>
+                <option value="ALL">{t('cal.filter.position_all')}</option>
                 {activeLists.positions.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
               <select className="filter-select-uniform" value={filterTag} onChange={e => setFilterTag(e.target.value)}>
-                <option value="ALL">Tag: All</option>
+                <option value="ALL">{t('cal.filter.tag_all')}</option>
                 {activeLists.tags.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
@@ -1527,19 +1527,19 @@ export const CalendarView: React.FC<Props> = ({
       {viewMode === 'MONTH' ? renderMonthView() : renderTimeGrid(viewMode === 'DAY' ? [currentDate] : getWeekDays(currentDate))}
 
       {/* Speed Dial Component */}
-      <div className="fixed bottom-8 right-8 z-[60] flex flex-col items-end space-y-3">
+      <div className="fixed bottom-8 end-8 z-[60] flex flex-col items-end space-y-3">
         {/* Speed Dial Actions */}
         {isSpeedDialOpen && (
           <div className="flex flex-col items-end space-y-3 mb-2" style={{ animation: 'fadeSlideUp 400ms ease-out forwards' }}>
             {/* Power Tools */}
             <div className="group flex items-center">
               <span
-                className="mr-3 px-3 py-1.5 bg-slate-800 dark:bg-white text-white dark:text-slate-900 text-sm font-medium rounded-lg shadow-lg
+                className="me-3 px-3 py-1.5 bg-slate-800 dark:bg-white text-white dark:text-slate-900 text-sm font-medium rounded-lg shadow-lg
                   max-w-0 overflow-hidden whitespace-nowrap opacity-0 
                   group-hover:max-w-[150px] group-hover:opacity-100
                   transition-all duration-300 ease-out"
               >
-                Power Tools
+                {t('speed.power_tools')}
               </span>
               <button
                 onClick={() => onNavigate(currentView === 'POWER_TOOLS' ? 'CALENDAR' : 'POWER_TOOLS')}
@@ -1554,12 +1554,12 @@ export const CalendarView: React.FC<Props> = ({
             {/* Gantt View */}
             <div className="group flex items-center">
               <span
-                className="mr-3 px-3 py-1.5 bg-slate-800 dark:bg-white text-white dark:text-slate-900 text-sm font-medium rounded-lg shadow-lg
+                className="me-3 px-3 py-1.5 bg-slate-800 dark:bg-white text-white dark:text-slate-900 text-sm font-medium rounded-lg shadow-lg
                   max-w-0 overflow-hidden whitespace-nowrap opacity-0 
                   group-hover:max-w-[150px] group-hover:opacity-100
                   transition-all duration-300 ease-out"
               >
-                Gantt View
+                {t('speed.gantt_view')}
               </span>
               <button
                 onClick={() => onNavigate(currentView === 'GANTT' ? 'CALENDAR' : 'GANTT')}
@@ -1574,12 +1574,12 @@ export const CalendarView: React.FC<Props> = ({
             {/* Add Event */}
             <div className="group flex items-center">
               <span
-                className="mr-3 px-3 py-1.5 bg-slate-800 dark:bg-white text-white dark:text-slate-900 text-sm font-medium rounded-lg shadow-lg
+                className="me-3 px-3 py-1.5 bg-slate-800 dark:bg-white text-white dark:text-slate-900 text-sm font-medium rounded-lg shadow-lg
                   max-w-0 overflow-hidden whitespace-nowrap opacity-0 
                   group-hover:max-w-[150px] group-hover:opacity-100
                   transition-all duration-300 ease-out"
               >
-                New Event
+                {t('speed.new_event')}
               </span>
               <button
                 onClick={() => { openModal(); }}
@@ -1621,22 +1621,22 @@ export const CalendarView: React.FC<Props> = ({
               <div className="space-y-3 mb-6">
                 {detailItem.type === 'EVENT' ? (
                   <>
-                    <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><Clock size={16} className="mr-3 flex-shrink-0" /><span>{new Date((detailItem.data as CalendarEvent).start).toLocaleString(settings.language)} - <br />{formatTime(new Date((detailItem.data as CalendarEvent).end))}</span></div>
-                    <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><User size={16} className="mr-3 flex-shrink-0" /><span>{teachers.find(t => t.id === (detailItem.data as CalendarEvent).teacherId)?.fullName}</span></div>
-                    <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><MapPin size={16} className="mr-3 flex-shrink-0" /><span>{rooms.find(r => r.id === (detailItem.data as CalendarEvent).roomId)?.name}</span></div>
+                    <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><Clock size={16} className="me-3 flex-shrink-0" /><span>{new Date((detailItem.data as CalendarEvent).start).toLocaleString(settings.language)} - <br />{formatTime(new Date((detailItem.data as CalendarEvent).end))}</span></div>
+                    <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><User size={16} className="me-3 flex-shrink-0" /><span>{teachers.find(t => t.id === (detailItem.data as CalendarEvent).teacherId)?.fullName}</span></div>
+                    <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><MapPin size={16} className="me-3 flex-shrink-0" /><span>{rooms.find(r => r.id === (detailItem.data as CalendarEvent).roomId)?.name}</span></div>
                     {(detailItem.data as CalendarEvent).isCanceled && <div className="mt-2 bg-red-100 text-red-700 text-xs px-2 py-1 rounded inline-block font-bold">{t('cal.canceled')}</div>}
-                    {(detailItem.data as CalendarEvent).recurrenceRule && <div className="mt-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-bold"><Repeat size={10} /> Recurring</div>}
-                    {(detailItem.data as CalendarEvent).recurrenceId && <div className="mt-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-bold"><Repeat size={10} /> Part of Series</div>}
+                    {(detailItem.data as CalendarEvent).recurrenceRule && <div className="mt-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-bold"><Repeat size={10} /> {t('cal.recurring')}</div>}
+                    {(detailItem.data as CalendarEvent).recurrenceId && <div className="mt-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-bold"><Repeat size={10} /> {t('cal.part_of_series')}</div>}
                   </>
                 ) : (
                   <>
-                    <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><CalendarRange size={16} className="mr-3 flex-shrink-0" /><span>{new Date((detailItem.data as GanttBlock).startDate).toLocaleDateString(settings.language)} - <br />{new Date((detailItem.data as GanttBlock).endDate).toLocaleDateString(settings.language)}</span></div>
-                    {(detailItem.data as GanttBlock).isBlackout && <div className="mt-2 bg-red-100 text-red-700 text-xs px-2 py-1 rounded flex items-center w-fit font-bold"><AlertOctagon size={12} className="mr-1" /> BLACKOUT PERIOD</div>}
+                    <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><CalendarRange size={16} className="me-3 flex-shrink-0" /><span>{new Date((detailItem.data as GanttBlock).startDate).toLocaleDateString(settings.language)} - <br />{new Date((detailItem.data as GanttBlock).endDate).toLocaleDateString(settings.language)}</span></div>
+                    {(detailItem.data as GanttBlock).isBlackout && <div className="mt-2 bg-red-100 text-red-700 text-xs px-2 py-1 rounded flex items-center w-fit font-bold"><AlertOctagon size={12} className="me-1" /> {t('cal.blackout_period')}</div>}
                   </>
                 )}
               </div>
               <div className="flex gap-3">
-                {detailItem.type === 'EVENT' && <button onClick={() => handleEditEvent(detailItem.data as CalendarEvent)} className="flex-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 py-2 rounded-lg flex items-center justify-center font-medium transition-colors"><Edit size={16} className="mr-2" /> Edit</button>}
+                {detailItem.type === 'EVENT' && <button onClick={() => handleEditEvent(detailItem.data as CalendarEvent)} className="flex-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 py-2 rounded-lg flex items-center justify-center font-medium transition-colors"><Edit size={16} className="me-2" /> {t('cal.detail.edit')}</button>}
                 {detailItem.type === 'EVENT' && (
                   <button
                     onClick={() => handleCancelEvent(detailItem.data as CalendarEvent)}
@@ -1646,12 +1646,12 @@ export const CalendarView: React.FC<Props> = ({
                       }`}
                   >
                     {(detailItem.data as CalendarEvent).isCanceled
-                      ? <><RotateCcw size={16} className="mr-2" /> Restore</>
-                      : <><Ban size={16} className="mr-2" /> Cancel</>
+                      ? <><RotateCcw size={16} className="me-2" /> {t('cal.detail.restore')}</>
+                      : <><Ban size={16} className="me-2" /> {t('cal.detail.cancel_event')}</>
                     }
                   </button>
                 )}
-                <button onClick={() => detailItem.type === 'EVENT' ? handleDeleteEvent(detailItem.data.id, detailItem.data as CalendarEvent) : handleDeleteGantt(detailItem.data.id)} className="flex-1 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 py-2 rounded-lg flex items-center justify-center font-medium transition-colors"><Trash2 size={16} className="mr-2" /> Delete</button>
+                <button onClick={() => detailItem.type === 'EVENT' ? handleDeleteEvent(detailItem.data.id, detailItem.data as CalendarEvent) : handleDeleteGantt(detailItem.data.id)} className="flex-1 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 py-2 rounded-lg flex items-center justify-center font-medium transition-colors"><Trash2 size={16} className="me-2" /> {t('cal.detail.delete')}</button>
               </div>
             </div>
           </div>
@@ -1661,25 +1661,25 @@ export const CalendarView: React.FC<Props> = ({
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg p-6 border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{editingEvent.id ? 'Edit Event' : 'New Event'}</h3>
+            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{editingEvent.id ? t('event.edit') : t('event.new')}</h3>
             <form onSubmit={saveEvent} className="space-y-4">
               {/* 1. Event Name */}
-              <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Event Name <span className="text-red-500">*</span></label><input autoFocus required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" value={editingEvent.name || ''} onChange={e => setEditingEvent({ ...editingEvent, name: e.target.value })} placeholder="e.g. Piano Lesson" /></div>
+              <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.name')} <span className="text-red-500">*</span></label><input autoFocus required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" value={editingEvent.name || ''} onChange={e => setEditingEvent({ ...editingEvent, name: e.target.value })} placeholder={t('event.name_placeholder')} /></div>
 
               {/* 2. Category */}
               <div>
                 <label className="block text-sm font-medium flex justify-between text-slate-700 dark:text-slate-300 mb-1">
-                  <span>Category <span className="text-red-500">*</span></span>
+                  <span>{t('event.category')} <span className="text-red-500">*</span></span>
                 </label>
                 <select required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.classification || ''} onChange={e => {
                   const val = e.target.value;
                   setEditingEvent({ ...editingEvent, classification: val, teacherId: undefined, positionId: undefined, roomId: undefined, overrideFlags: { ...editingEvent.overrideFlags, isOneOffPayment: false, paymentMethod: 'NONE' }, pricingSnapshot: undefined });
                 }}>
-                  <option value="" disabled>Select Category</option>
-                  <optgroup label="Teacher Lessons">
+                  <option value="" disabled>{t('event.select_category')}</option>
+                  <optgroup label={t('event.teacher_lessons')}>
                     {['Individual Lesson', 'Group Lesson'].map(c => <option key={c} value={c}>{c}</option>)}
                   </optgroup>
-                  <optgroup label="General Events">
+                  <optgroup label={t('event.general_events')}>
                     {activeLists.classifications.filter(c => !['Individual Lesson', 'Group Lesson'].includes(c)).map(c => <option key={c} value={c}>{c}</option>)}
                     {Object.values(CATEGORY_SCHEMAS).filter(s => !activeLists.classifications.includes(s.name) && !['Individual Lesson', 'Group Lesson'].includes(s.name)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </optgroup>
@@ -1689,7 +1689,7 @@ export const CalendarView: React.FC<Props> = ({
               {/* 2. Teacher */}
               <div>
                 <label className="block flex items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  <span>Teacher {['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">(Optional)</span>}</span>
+                  <span>{t('event.teacher')} {['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span>}</span>
                 </label>
                 <select
                   required={['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE'}
@@ -1718,7 +1718,7 @@ export const CalendarView: React.FC<Props> = ({
 
               {/* 3. Position */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Position {['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">(Optional)</span>}</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.position')} {['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">(Optional)</span>}</label>
                 {(() => {
                   const teacherForPos = teachers.find(t => t.id === editingEvent.teacherId);
                   const isLesson = ['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '');
@@ -1760,7 +1760,7 @@ export const CalendarView: React.FC<Props> = ({
                 {/* Payment Method for General Categories */}
                 {editingEvent.classification && !['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification) && (
                   <div className="mt-4 space-y-3 border-t border-slate-200 dark:border-slate-700 pt-3">
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Payment Method <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{t('event.payment_method')} <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
                     <div className="flex flex-col gap-2">
                       <label className="flex items-center text-sm cursor-pointer dark:text-white">
                         <input
@@ -1768,9 +1768,9 @@ export const CalendarView: React.FC<Props> = ({
                           name="payMethod"
                           checked={!editingEvent.overrideFlags?.paymentMethod || editingEvent.overrideFlags?.paymentMethod === 'NONE'}
                           onChange={() => setEditingEvent({ ...editingEvent, overrideFlags: { ...editingEvent.overrideFlags, paymentMethod: 'NONE', isOneOffPayment: false }, pricingSnapshot: undefined })}
-                          className="mr-2 focus:ring-blue-500"
+                          className="me-2 focus:ring-blue-500"
                         />
-                        No Payment (Scheduling Only)
+                        {t('event.no_payment')}
                       </label>
                       <label className={`flex items-center text-sm ${!editingEvent.teacherId || !editingEvent.positionId ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} dark:text-white`}>
                         <input
@@ -1779,9 +1779,9 @@ export const CalendarView: React.FC<Props> = ({
                           disabled={!editingEvent.teacherId || !editingEvent.positionId}
                           checked={editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE'}
                           onChange={() => setEditingEvent({ ...editingEvent, overrideFlags: { ...editingEvent.overrideFlags, paymentMethod: 'POSITION_RATE', isOneOffPayment: false }, pricingSnapshot: undefined })}
-                          className="mr-2 focus:ring-blue-500"
+                          className="me-2 focus:ring-blue-500"
                         />
-                        Use Position Rate {(!editingEvent.teacherId || !editingEvent.positionId) && <span className="ml-1 text-xs text-slate-400">(Requires Teacher & Position)</span>}
+                        {t('event.use_position_rate')} {(!editingEvent.teacherId || !editingEvent.positionId) && <span className="ms-1 text-xs text-slate-400">{t('event.requires_teacher_position')}</span>}
                       </label>
                       <label className="flex items-center text-sm cursor-pointer dark:text-white">
                         <input
@@ -1789,15 +1789,15 @@ export const CalendarView: React.FC<Props> = ({
                           name="payMethod"
                           checked={editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF'}
                           onChange={() => setEditingEvent({ ...editingEvent, overrideFlags: { ...editingEvent.overrideFlags, paymentMethod: 'ONE_OFF', isOneOffPayment: true }, positionId: undefined })}
-                          className="mr-2 focus:ring-blue-500"
+                          className="me-2 focus:ring-blue-500"
                         />
-                        One-Off Payment
+                        {t('event.one_off_payment')}
                       </label>
                     </div>
 
                     {editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF' && (
                       <div className="pt-2">
-                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">One-Off Price ({settings.currency}) <span className="text-red-500">*</span></label>
+                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.one_off_price')} ({settings.currency}) <span className="text-red-500">*</span></label>
                         <input
                           type="number"
                           min="0"
@@ -1809,7 +1809,7 @@ export const CalendarView: React.FC<Props> = ({
                             ...editingEvent,
                             pricingSnapshot: { rateValue: Number(e.target.value), rateType: 'ONE_OFF', source: 'OVERRIDE' }
                           })}
-                          placeholder="e.g. 150"
+                          placeholder={t('event.one_off_price')}
                         />
                       </div>
                     )}
@@ -1820,24 +1820,24 @@ export const CalendarView: React.FC<Props> = ({
               {/* 4. Room */}
               <div>
                 <label className="block flex items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  <span>Room <span className="text-xs text-slate-400 font-normal">(Optional)</span></span>
+                  <span>{t('event.room')} <span className="text-xs text-slate-400 font-normal">(Optional)</span></span>
                 </label>
                 <select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.roomId || ''} onChange={e => setEditingEvent({ ...editingEvent, roomId: e.target.value || undefined })}>
-                  <option value="">— No Room —</option>
+                  <option value="">— {t('event.no_room')} —</option>
                   {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
               </div>
 
               {/* 5. Start Time / End Time */}
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Start Time</label><input type="datetime-local" required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.start ? new Date(new Date(editingEvent.start).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setEditingEvent({ ...editingEvent, start: new Date(e.target.value).toISOString() })} /></div>
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">End Time</label><input type="datetime-local" required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.end ? new Date(new Date(editingEvent.end).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setEditingEvent({ ...editingEvent, end: new Date(e.target.value).toISOString() })} /></div>
+                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.start_time')}</label><input type="datetime-local" required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.start ? new Date(new Date(editingEvent.start).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setEditingEvent({ ...editingEvent, start: new Date(e.target.value).toISOString() })} /></div>
+                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.end_time')}</label><input type="datetime-local" required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.end ? new Date(new Date(editingEvent.end).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setEditingEvent({ ...editingEvent, end: new Date(e.target.value).toISOString() })} /></div>
               </div>
 
               {/* Recurrence Section */}
               {!editingEvent.isExceptionEdit && (
                 <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                  <label className="flex items-center space-x-3 cursor-pointer mb-3">
+                  <label className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer mb-3">
                     <input
                       type="checkbox"
                       className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-slate-300 dark:border-slate-600"
@@ -1857,7 +1857,7 @@ export const CalendarView: React.FC<Props> = ({
                     />
                     <div className="flex items-center gap-2">
                       <Repeat size={16} className="text-blue-500" />
-                      <span className="font-medium text-slate-900 dark:text-white">Recurring Event</span>
+                      <span className="font-medium text-slate-900 dark:text-white">{t('recurrence.recurring_event')}</span>
                     </div>
                   </label>
 
@@ -1872,10 +1872,10 @@ export const CalendarView: React.FC<Props> = ({
                         {/* Preset Buttons */}
                         <div className="flex gap-2 flex-wrap">
                           {[
-                            { label: 'Weekly', rule: { frequency: 'WEEKLY' as const, interval: 1, byDay: [editingEvent.start ? DAY_ABBR[new Date(editingEvent.start).getDay()] : 'MO' as DayOfWeek] } },
-                            { label: 'Bi-Weekly', rule: { frequency: 'WEEKLY' as const, interval: 2, byDay: [editingEvent.start ? DAY_ABBR[new Date(editingEvent.start).getDay()] : 'MO' as DayOfWeek] } },
-                            { label: 'Daily', rule: { frequency: 'DAILY' as const, interval: 1 } },
-                            { label: 'Monthly', rule: { frequency: 'MONTHLY' as const, interval: 1 } },
+                            { label: t('recurrence.weekly'), rule: { frequency: 'WEEKLY' as const, interval: 1, byDay: [editingEvent.start ? DAY_ABBR[new Date(editingEvent.start).getDay()] : 'MO' as DayOfWeek] } },
+                            { label: t('recurrence.biweekly'), rule: { frequency: 'WEEKLY' as const, interval: 2, byDay: [editingEvent.start ? DAY_ABBR[new Date(editingEvent.start).getDay()] : 'MO' as DayOfWeek] } },
+                            { label: t('recurrence.daily'), rule: { frequency: 'DAILY' as const, interval: 1 } },
+                            { label: t('recurrence.monthly'), rule: { frequency: 'MONTHLY' as const, interval: 1 } },
                           ].map(preset => (
                             <button
                               key={preset.label}
@@ -1893,7 +1893,7 @@ export const CalendarView: React.FC<Props> = ({
 
                         {/* Frequency & Interval */}
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-slate-600 dark:text-slate-400">Every</span>
+                          <span className="text-sm text-slate-600 dark:text-slate-400">{t('recurrence.every')}</span>
                           <input
                             type="number"
                             min={1}
@@ -1907,16 +1907,16 @@ export const CalendarView: React.FC<Props> = ({
                             value={rule.frequency}
                             onChange={e => updateRule({ frequency: e.target.value as RecurrenceRule['frequency'] })}
                           >
-                            <option value="DAILY">day(s)</option>
-                            <option value="WEEKLY">week(s)</option>
-                            <option value="MONTHLY">month(s)</option>
+                            <option value="DAILY">{t('recurrence.days')}</option>
+                            <option value="WEEKLY">{t('recurrence.weeks')}</option>
+                            <option value="MONTHLY">{t('recurrence.months')}</option>
                           </select>
                         </div>
 
                         {/* Day-of-week selector for WEEKLY */}
                         {rule.frequency === 'WEEKLY' && (
                           <div>
-                            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">On days</label>
+                            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{t('recurrence.on_days')}</label>
                             <div className="flex gap-1">
                               {DAY_ABBR.map(day => (
                                 <button
@@ -1952,7 +1952,7 @@ export const CalendarView: React.FC<Props> = ({
 
                           return (
                             <div className="space-y-2">
-                              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Monthly mode</label>
+                              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">{t('recurrence.monthly_mode')}</label>
                               <div className="space-y-1">
                                 <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
                                   <input
@@ -2009,7 +2009,7 @@ export const CalendarView: React.FC<Props> = ({
                               {rule.untilDate && (
                                 <input
                                   type="date"
-                                  className="border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none ml-1"
+                                  className="border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none ms-1"
                                   value={rule.untilDate}
                                   onChange={e => updateRule({ untilDate: e.target.value })}
                                 />
@@ -2046,12 +2046,12 @@ export const CalendarView: React.FC<Props> = ({
 
               {editingEvent.id && !editingEvent.recurrenceRule && (
                 <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 mt-2">
-                  <label className="flex items-center space-x-3 cursor-pointer">
+                  <label className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer">
                     <input type="checkbox" className="w-5 h-5 text-red-600 rounded focus:ring-red-500 border-slate-300 dark:border-slate-600" checked={editingEvent.isCanceled || false} onChange={e => setEditingEvent({ ...editingEvent, isCanceled: e.target.checked, cancellationPayStatus: e.target.checked && !editingEvent.cancellationPayStatus ? 'NO_PAY_CANCELLATION' : editingEvent.cancellationPayStatus })} />
                     <span className="font-medium text-slate-900 dark:text-white">{t('cal.mark_canceled')}</span>
                   </label>
                   {editingEvent.isCanceled && (
-                    <div className="mt-3 ml-8 border-t border-slate-200 dark:border-slate-700 pt-3">
+                    <div className="mt-3 ms-8 border-t border-slate-200 dark:border-slate-700 pt-3">
                       <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{t('cal.cancel_pay_status')}</label>
                       <select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none" value={editingEvent.cancellationPayStatus || 'NO_PAY_CANCELLATION'} onChange={e => setEditingEvent({ ...editingEvent, cancellationPayStatus: e.target.value as any })}>
                         <option value="NO_PAY_CANCELLATION">{t('cal.no_pay')}</option>
@@ -2063,7 +2063,7 @@ export const CalendarView: React.FC<Props> = ({
               )}
               <div className="flex justify-between mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
                 {editingEvent.id && <button type="button" onClick={() => { handleDeleteEvent(editingEvent.id!, editingEvent as CalendarEvent); setIsModalOpen(false); }} className="text-red-500 hover:text-red-700 text-sm font-medium">{t('cal.delete_event')}</button>}
-                <div className="flex space-x-3 ml-auto">
+                <div className="flex space-x-3 rtl:space-x-reverse ms-auto">
                   <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
                   <button type="submit" className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg">{t('cal.save_changes')}</button>
                 </div>

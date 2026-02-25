@@ -59,7 +59,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
             {onMobileMenuOpen && (
               <button
                 onClick={onMobileMenuOpen}
-                className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden"
+                className="p-2 -ms-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden"
                 title={t('tooltip.open_menu')}
               >
                 <Menu className="w-6 h-6 text-slate-600 dark:text-slate-300" />
@@ -74,7 +74,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
             onClick={() => handleOpenModal()}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm"
           >
-            <Plus size={18} className="mr-2" /> {t('room.add')}
+            <Plus size={18} className="me-2" /> {t('room.add')}
           </button>
         </div>
       )}
@@ -84,7 +84,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
             onClick={() => handleOpenModal()}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm"
           >
-            <Plus size={18} className="mr-2" /> {t('room.add')}
+            <Plus size={18} className="me-2" /> {t('room.add')}
           </button>
         </div>
       )}
@@ -93,13 +93,13 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
         {rooms.map(room => (
           <div key={room.id} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 flex flex-col hover:shadow-md transition-shadow">
             <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3 rtl:space-x-reverse">
                 <div className="bg-indigo-100 dark:bg-indigo-900/50 p-2 rounded-lg text-indigo-600 dark:text-indigo-300">
                   <Home size={20} />
                 </div>
                 <h3 className="font-bold text-lg text-slate-800 dark:text-white">{room.name}</h3>
               </div>
-              <div className="flex space-x-2">
+              <div className="flex space-x-2 rtl:space-x-reverse">
                 <button onClick={() => handleOpenModal(room)} className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400">
                   <Edit2 size={16} />
                 </button>
@@ -148,7 +148,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
                   placeholder="Details about equipment, capacity, etc."
                 />
               </div>
-              <div className="flex justify-end space-x-3 mt-6">
+              <div className="flex justify-end space-x-3 rtl:space-x-reverse mt-6">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}

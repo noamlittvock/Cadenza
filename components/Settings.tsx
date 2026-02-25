@@ -93,7 +93,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
             {onMobileMenuOpen && (
               <button
                 onClick={onMobileMenuOpen}
-                className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden"
+                className="p-2 -ms-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden"
                 title="Open Menu"
               >
                 <Menu className="w-6 h-6 text-slate-600 dark:text-slate-300" />
@@ -243,9 +243,9 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   value={tempSettings.weekNumberDisplay}
                   onChange={(e) => handleChange('weekNumberDisplay', e.target.value)}
                 >
-                  <option value="none">Hidden</option>
-                  <option value="week-number">Week Number</option>
-                  <option value="week-of">Week of...</option>
+                  <option value="none">{t('settings.hidden')}</option>
+                  <option value="week-number">{t('settings.week_number')}</option>
+                  <option value="week-of">{t('settings.week_of')}</option>
                 </select>
               </div>
             </div>
@@ -258,7 +258,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
             </h3>
             <div className={`bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border transition-colors ${tempSettings.googleCalendarSyncEnabled ? 'border-blue-500 shadow-sm' : 'border-slate-200 dark:border-slate-700'}`}>
               <div className="flex items-start justify-between">
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-4 rtl:space-x-reverse">
                   <div className="bg-white p-2 rounded-full shadow-sm shrink-0">
                     <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M22 6V19C22 20.6569 20.6569 22 19 22H5C3.34315 22 2 20.6569 2 19V6" stroke="#4285F4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -284,7 +284,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   ) : (
                     <div className="flex items-center gap-1.5 text-xs text-slate-400">
                       <Lock size={14} />
-                      <span>Admin only</span>
+                      <span>{t('settings.admin_only')}</span>
                     </div>
                   )
                 ) : (
@@ -298,7 +298,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   ) : (
                     <div className="flex items-center gap-1.5 text-xs text-slate-400">
                       <Lock size={14} />
-                      <span>Managed by tenant admin</span>
+                      <span>{t('settings.managed_by_tenant')}</span>
                     </div>
                   )
                 )}
@@ -321,10 +321,10 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
 
               {/* Connected Settings Expanded view — only visible to the calendar owner */}
               {tempSettings.googleCalendarSyncEnabled && isCalendarOwner && (
-                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 pl-14">
+                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 ps-14">
                   {!googleAccessToken ? (
                     <div className="flex items-center gap-3 text-sm text-amber-600 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-700/50">
-                      <span>Authentication token expired. Please reconnect to restore sync.</span>
+                      <span>{t('settings.token_expired')}</span>
                       <button onClick={handleConnectGoogle} className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium shadow-sm text-xs">Reconnect</button>
                     </div>
                   ) : isFetchingCals ? (
@@ -356,7 +356,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
 
               {/* Non-owner but connected — show read-only info */}
               {tempSettings.googleCalendarSyncEnabled && !isCalendarOwner && connectedByEmail && (
-                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 pl-14">
+                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 ps-14">
                   <div className="flex items-center gap-3 text-sm text-slate-500 bg-slate-100 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
                     <Lock size={16} className="text-slate-400 shrink-0" />
                     <div>
@@ -372,9 +372,9 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
 
         {/* Floating Save Bar */}
         {hasChanges && (
-          <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-6 z-50 animate-in slide-in-from-bottom-4">
+          <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-6 rtl:space-x-reverse z-50 animate-in slide-in-from-bottom-4">
             <span className="font-medium">{t('settings.unsaved')}</span>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 rtl:space-x-reverse">
               <button
                 onClick={handleCancel}
                 className="px-4 py-2 hover:bg-slate-800 rounded-lg transition-colors text-sm font-medium"

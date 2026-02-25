@@ -114,11 +114,11 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       <div
         className={`
           sidebar-transition
-          fixed inset-y-0 left-0 z-[110] lg:relative lg:z-50
+          fixed inset-y-0 start-0 z-[110] lg:relative lg:z-50
           ${isMobile ? 'shadow-2xl' : ''}
-          ${isMobile ? (isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full') : 'translate-x-0'}
+          ${isMobile ? (isMobileMenuOpen ? 'translate-x-0' : (isRtl ? 'translate-x-full' : '-translate-x-full')) : 'translate-x-0'}
           bg-slate-900/95 backdrop-blur-2xl dark:bg-slate-950/95 text-white flex flex-col shadow-cadenza-deep 
-          ${isRtl ? 'border-l' : 'border-r'} ${orgId === 'sandbox' ? 'border-amber-500/50 shadow-amber-500/10' : 'border-white/5 dark:border-slate-800/50'}
+          border-e ${orgId === 'sandbox' ? 'border-amber-500/50 shadow-amber-500/10' : 'border-white/5 dark:border-slate-800/50'}
           overflow-visible
         `}
         style={{
@@ -149,7 +149,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             )}
           </div>
           {isMobile && (
-            <button onClick={() => setIsMobileMenuOpen(false)} className="ml-auto p-2 text-slate-400 hover:text-white">
+            <button onClick={() => setIsMobileMenuOpen(false)} className="ms-auto p-2 text-slate-400 hover:text-white">
               <ChevronLeft size={24} />
             </button>
           )}

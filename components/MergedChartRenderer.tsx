@@ -621,15 +621,15 @@ const MergedTableRenderer: React.FC<MergedTableRendererProps> = ({
     };
 
     const SortIcon: React.FC<{ col: string }> = ({ col }) => {
-        if (sortCol !== col) return <ChevronDown size={10} className="text-slate-400 dark:text-slate-500 ml-0.5 inline" />;
+        if (sortCol !== col) return <ChevronDown size={10} className="text-slate-400 dark:text-slate-500 ms-0.5 inline" />;
         return sortDir === 'asc'
-            ? <ChevronUp size={10} className="text-blue-500 dark:text-blue-400 ml-0.5 inline" />
-            : <ChevronDown size={10} className="text-blue-500 dark:text-blue-400 ml-0.5 inline" />;
+            ? <ChevronUp size={10} className="text-blue-500 dark:text-blue-400 ms-0.5 inline" />
+            : <ChevronDown size={10} className="text-blue-500 dark:text-blue-400 ms-0.5 inline" />;
     };
 
     return (
         <div className="overflow-x-auto max-h-80 overflow-y-auto custom-scrollbar">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-start text-xs">
                 <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-medium sticky top-0 z-10">
                     <tr>
                         <th className="px-3 py-2 text-[10px] uppercase tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
@@ -640,7 +640,7 @@ const MergedTableRenderer: React.FC<MergedTableRendererProps> = ({
                             const dsLabel = seriesDatasetMap[k];
                             return (
                                 <th key={k}
-                                    className="px-3 py-2 text-right text-[10px] uppercase tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                                    className="px-3 py-2 text-end text-[10px] uppercase tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
                                     onClick={() => handleSort(k)}
                                     onMouseEnter={() => setHoveredDataset(dsLabel)}
                                     onMouseLeave={() => setHoveredDataset(null)}
@@ -665,7 +665,7 @@ const MergedTableRenderer: React.FC<MergedTableRendererProps> = ({
                                 const dsLabel = seriesDatasetMap[k];
                                 return (
                                     <td key={k}
-                                        className={`px-3 py-2 text-right tabular-nums transition-opacity duration-200 ${mMax ? 'font-bold text-emerald-500 dark:text-emerald-400' : mMin ? 'font-bold text-red-500 dark:text-red-400' : 'text-slate-600 dark:text-slate-300'}`}
+                                        className={`px-3 py-2 text-end tabular-nums transition-opacity duration-200 ${mMax ? 'font-bold text-emerald-500 dark:text-emerald-400' : mMin ? 'font-bold text-red-500 dark:text-red-400' : 'text-slate-600 dark:text-slate-300'}`}
                                         onMouseEnter={() => setHoveredDataset(dsLabel)}
                                         onMouseLeave={() => setHoveredDataset(null)}
                                         style={{
@@ -688,7 +688,7 @@ const MergedTableRenderer: React.FC<MergedTableRendererProps> = ({
                         {seriesKeys.map((k) => {
                             const total = sorted.reduce((sum, row) => sum + (typeof row[k] === 'number' ? (row[k] as number) : 0), 0);
                             return (
-                                <td key={k} className="px-3 py-2 text-right text-slate-800 dark:text-white tabular-nums"
+                                <td key={k} className="px-3 py-2 text-end text-slate-800 dark:text-white tabular-nums"
                                     style={{ opacity: hoveredDataset && hoveredDataset !== seriesDatasetMap[k] ? 0.3 : 1 }}>
                                     {formatValueSmart(total, k, metrics, currencySymbol)}
                                 </td>

@@ -118,7 +118,7 @@ const FilterSection: React.FC<FilterSectionProps> = ({ title, icon, items, selec
             <div className="space-y-0.5 max-h-32 overflow-y-auto custom-scrollbar">
                 {items.map(item => (
                     <button key={item} onClick={() => onToggle(item)}
-                        className={`w-full text-left text-[11px] px-2 py-1 rounded flex items-center gap-1.5 transition-colors ${selected.has(item) ? `bg-${accentColor}-50 dark:bg-${accentColor}-900/20 text-${accentColor}-700 dark:text-${accentColor}-300` : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+                        className={`w-full text-start text-[11px] px-2 py-1 rounded flex items-center gap-1.5 transition-colors ${selected.has(item) ? `bg-${accentColor}-50 dark:bg-${accentColor}-900/20 text-${accentColor}-700 dark:text-${accentColor}-300` : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
                         {colorDot && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: colorDot(item) || '#94a3b8' }} />}
                         <span className="truncate">{getLabel(item)}</span>
                     </button>
@@ -148,7 +148,7 @@ const InsightCard: React.FC<{ tile: InsightTile }> = ({ tile }) => {
 
     return (
         <div className={`relative bg-white dark:bg-slate-900 rounded-xl border-2 ${borderColor} p-4 shadow-sm overflow-hidden`}>
-            <div className={`absolute top-0 left-0 right-0 h-1 ${tile.gradient}`} />
+            <div className={`absolute top-0 start-0 end-0 h-1 ${tile.gradient}`} />
             <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 inline-block mb-2">{tile.icon}</div>
             <h4 className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 leading-tight">{tile.title}</h4>
             <p className={`text-xl font-bold ${valueColor} mb-0.5 tabular-nums`}>{tile.value}</p>
@@ -584,10 +584,10 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                 {/* Header */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                     <div className="flex items-center gap-3">
-                        <button onClick={onMobileMenuOpen} className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden" title={t('analysis.open_menu')}>
+                        <button onClick={onMobileMenuOpen} className="p-2 -ms-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden" title={t('analysis.open_menu')}>
                             <Menu className="w-6 h-6 text-slate-600 dark:text-slate-300" />
                         </button>
-                        <button onClick={onNavigateBack} className="p-2 -ml-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors" title={t('analysis.back_to_dashboard')}>
+                        <button onClick={onNavigateBack} className="p-2 -ms-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors" title={t('analysis.back_to_dashboard')}>
                             <ArrowLeft size={20} className="text-slate-500 dark:text-slate-400" />
                         </button>
                         <div>
@@ -599,13 +599,13 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                     </div>
                     <div className="flex flex-wrap gap-2 items-center">
                         <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg flex items-center px-2 py-1.5 shadow-sm">
-                            <CalIcon size={16} className="text-slate-400 mr-2" />
+                            <CalIcon size={16} className="text-slate-400 me-2" />
                             <select className="bg-transparent outline-none text-sm font-medium text-slate-700 dark:text-white" value={dateFilterType} onChange={e => setDateFilterType(e.target.value as DateFilterType)}>
                                 <option value="WEEK">{t('time.current_week')}</option><option value="MONTH">{t('time.current_month')}</option><option value="CUSTOM">{t('time.custom_range')}</option><option value="ALL">{t('time.all_time')}</option>
                             </select>
                         </div>
                         {dateFilterType === 'CUSTOM' && (
-                            <div className="flex items-center space-x-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-2 py-1.5 shadow-sm">
+                            <div className="flex items-center space-x-2 rtl:space-x-reverse bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-2 py-1.5 shadow-sm">
                                 <input type="date" className="bg-transparent text-xs outline-none dark:text-white" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} />
                                 <span className="text-slate-400">-</span>
                                 <input type="date" className="bg-transparent text-xs outline-none dark:text-white" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} />
@@ -613,9 +613,9 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                         )}
                         <button onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
                             className={`border rounded-lg flex items-center px-3 py-2 shadow-sm text-sm transition-colors ${isFilterPanelOpen || activeFilterCount > 0 ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-slate-700 dark:text-white'}`}>
-                            <SlidersHorizontal size={16} className="mr-2" />{t('analysis.filters')}
-                            {activeFilterCount > 0 && <span className="ml-1.5 bg-white/20 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>}
-                            <ChevronDown size={14} className={`ml-1 transition-transform ${isFilterPanelOpen ? 'rotate-180' : ''}`} />
+                            <SlidersHorizontal size={16} className="me-2" />{t('analysis.filters')}
+                            {activeFilterCount > 0 && <span className="ms-1.5 bg-white/20 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>}
+                            <ChevronDown size={14} className={`ms-1 transition-transform ${isFilterPanelOpen ? 'rotate-180' : ''}`} />
                         </button>
                     </div>
                 </div>
@@ -699,7 +699,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                                     <div className="flex items-center gap-2">
                                         <button
                                             onClick={() => setIsCustomInsightModalOpen(true)}
-                                            className="text-[11px] text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium flex items-center gap-1 transition-colors mr-2"
+                                            className="text-[11px] text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium flex items-center gap-1 transition-colors me-2"
                                         >
                                             <Plus size={12} /> {t('analysis.custom_insight')}
                                         </button>
@@ -720,7 +720,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                                             <button
                                                 key={tile.id}
                                                 onClick={() => toggleInsightVisibility(tile.id)}
-                                                className={`relative flex items-center gap-2 px-3 py-2.5 rounded-lg border text-left transition-all text-xs ${isVisible
+                                                className={`relative flex items-center gap-2 px-3 py-2.5 rounded-lg border text-start transition-all text-xs ${isVisible
                                                     ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-700 shadow-sm'
                                                     : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 opacity-50'
                                                     }`}
@@ -738,12 +738,12 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                                                     {tile.title}
                                                 </span>
                                                 {tile.isCustom && (
-                                                    <button onClick={(e) => handleDeleteCustomInsight(e, tile.id)} className="ml-1 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors text-slate-400 hover:text-red-500">
+                                                    <button onClick={(e) => handleDeleteCustomInsight(e, tile.id)} className="ms-1 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors text-slate-400 hover:text-red-500">
                                                         <Trash2 size={10} />
                                                     </button>
                                                 )}
                                                 {isVisible && (
-                                                    <Check size={12} className="text-blue-500 dark:text-blue-400 flex-shrink-0 ml-auto" />
+                                                    <Check size={12} className="text-blue-500 dark:text-blue-400 flex-shrink-0 ms-auto" />
                                                 )}
                                             </button>
                                         );

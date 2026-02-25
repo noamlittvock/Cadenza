@@ -115,7 +115,7 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
     <div className="p-4">
       <div className="flex flex-col mb-4">
         <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center mb-1">
-          <AlertOctagon size={20} className="mr-2 text-blue-500" />
+          <AlertOctagon size={20} className="me-2 text-blue-500" />
           {t('nav.gantt')}
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 leading-tight">
@@ -127,7 +127,7 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
         onClick={() => handleOpenModal()}
         className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center shadow-sm mb-6 transition-colors"
       >
-        <Plus size={16} className="mr-2" /> {t('btn.add')}
+        <Plus size={16} className="me-2" /> {t('btn.add')}
       </button>
 
       <div className="space-y-3">
@@ -136,15 +136,15 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
             <div className="flex items-start justify-between">
               <button
                 onClick={() => handleDelete(block)}
-                className="text-slate-400 hover:text-red-500 transition-colors mr-2 flex-shrink-0"
-                title="Delete"
+                className="text-slate-400 hover:text-red-500 transition-colors me-2 flex-shrink-0"
+                title={t('gantt.delete')}
               >
                 <Trash2 size={14} />
               </button>
 
               <div
                 onClick={() => handleOpenModal(block)}
-                className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity flex-1"
+                className="flex items-center space-x-2 rtl:space-x-reverse cursor-pointer hover:opacity-80 transition-opacity flex-1"
               >
                 <div
                   className="w-2 h-2 rounded-full flex-shrink-0"
@@ -157,16 +157,16 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
               </div>
             </div>
 
-            <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 mt-2 ml-4">
+            <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 mt-2 ms-4">
               <span>{formatDate(new Date(block.startDate), settings.dateFormat)}</span>
               <span className="mx-1">→</span>
               <span>{formatDate(new Date(block.endDate), settings.dateFormat)}</span>
             </div>
 
             {block.isBlackout && (
-              <div className="mt-2 ml-4">
+              <div className="mt-2 ms-4">
                 <span className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-[10px] px-2 py-0.5 rounded-full inline-flex items-center">
-                  <AlertOctagon size={10} className="mr-1" /> Blackout
+                  <AlertOctagon size={10} className="me-1" /> Blackout
                 </span>
               </div>
             )}
@@ -217,7 +217,7 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{t('gantt.display_color')}</label>
-                <div className="flex space-x-2">
+                <div className="flex space-x-2 rtl:space-x-reverse">
                   {COLORS.map(c => (
                     <button
                       key={c}
@@ -230,7 +230,7 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
               </div>
 
               <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                <label className="flex items-center space-x-3 cursor-pointer">
+                <label className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer">
                   <input
                     type="checkbox"
                     className="w-5 h-5 text-red-600 rounded focus:ring-red-500 border-slate-300 dark:border-slate-600"
@@ -244,13 +244,13 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
                 </label>
                 {formData.isBlackout && (
                   <div className="flex items-start mt-3 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 p-2 rounded">
-                    <AlertTriangle size={14} className="mr-1 mt-0.5 flex-shrink-0" />
+                    <AlertTriangle size={14} className="me-1 mt-0.5 flex-shrink-0" />
                     Caution: Existing events in this range will be hidden.
                   </div>
                 )}
               </div>
 
-              <div className="flex justify-end space-x-3 mt-6">
+              <div className="flex justify-end space-x-3 rtl:space-x-reverse mt-6">
                 <button
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"

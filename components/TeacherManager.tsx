@@ -501,7 +501,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
             {onMobileMenuOpen && (
               <button
                 onClick={onMobileMenuOpen}
-                className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden"
+                className="p-2 -ms-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden"
                 title={t('tooltip.open_menu')}
               >
                 <Menu className="w-6 h-6 text-slate-600 dark:text-slate-300" />
@@ -515,18 +515,18 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
 
           <div className="flex flex-wrap gap-2 items-center">
             {isAnalyzing && (
-              <div className="mr-3 flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-800">
+              <div className="me-3 flex items-center space-x-2 rtl:space-x-reverse bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-800">
                 <div className="w-24 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                   <div className="h-full bg-blue-600 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
                 </div>
                 <span className="text-xs font-bold text-blue-700 dark:text-blue-300">{uploadProgress}%</span>
               </div>
             )}
-            <button onClick={handleDownloadTemplate} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700"><FileDown size={16} className="mr-2" /> Template</button>
-            <button onClick={handleExportTeachers} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700"><Download size={16} className="mr-2" /> Export</button>
-            <button onClick={() => fileInputRef.current?.click()} disabled={isAnalyzing} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"><Upload size={16} className="mr-2" /> Import</button>
+            <button onClick={handleDownloadTemplate} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700"><FileDown size={16} className="me-2" /> Template</button>
+            <button onClick={handleExportTeachers} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700"><Download size={16} className="me-2" /> Export</button>
+            <button onClick={() => fileInputRef.current?.click()} disabled={isAnalyzing} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"><Upload size={16} className="me-2" /> Import</button>
             <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
-            <button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm"><Plus size={16} className="mr-2" /> {t('teach.add')}</button>
+            <button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm"><Plus size={16} className="me-2" /> {t('teach.add')}</button>
           </div>
         </div>
       )}
@@ -535,19 +535,19 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
       {embedded && (
         <div className="flex flex-wrap gap-2 items-center mb-6">
           {isAnalyzing && (
-            <div className="mr-3 flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-800">
+            <div className="me-3 flex items-center space-x-2 rtl:space-x-reverse bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-800">
               <div className="w-24 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                 <div className="h-full bg-blue-600 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
               </div>
               <span className="text-xs font-bold text-blue-700 dark:text-blue-300">{uploadProgress}%</span>
             </div>
           )}
-          <button onClick={handleDownloadTemplate} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700"><FileDown size={16} className="mr-2" /> Template</button>
-          <button onClick={handleExportTeachers} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700"><Download size={16} className="mr-2" /> Export</button>
-          <button onClick={() => fileInputRef.current?.click()} disabled={isAnalyzing} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"><Upload size={16} className="mr-2" /> Import</button>
+          <button onClick={handleDownloadTemplate} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700"><FileDown size={16} className="me-2" /> Template</button>
+          <button onClick={handleExportTeachers} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700"><Download size={16} className="me-2" /> Export</button>
+          <button onClick={() => fileInputRef.current?.click()} disabled={isAnalyzing} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"><Upload size={16} className="me-2" /> Import</button>
           <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
           <div className="flex-1" />
-          <button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm"><Plus size={16} className="mr-2" /> {t('teach.add')}</button>
+          <button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm"><Plus size={16} className="me-2" /> {t('teach.add')}</button>
         </div>
       )}
 
@@ -555,24 +555,24 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
         {/* Filters Bar */}
         <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row items-center gap-4">
           <div className="relative flex-1 w-full">
-            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder={t('placeholder.search_teachers')}
-              className="pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm w-full text-slate-800 dark:text-white outline-none focus:ring-1 focus:ring-blue-500"
+              className="ps-10 pe-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm w-full text-slate-800 dark:text-white outline-none focus:ring-1 focus:ring-blue-500"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 rtl:space-x-reverse">
             <select
               className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-white outline-none focus:ring-1 focus:ring-blue-500 w-[160px]"
               value={filterType}
               onChange={(e) => { setFilterType(e.target.value as any); setFilterValue(''); }}
             >
-              <option value="ALL">All Categories</option>
-              <option value="POSITION">Filter by Position</option>
-              <option value="TAG">Filter by Tag</option>
+              <option value="ALL">{t('teacher.all_categories')}</option>
+              <option value="POSITION">{t('teacher.filter_position')}</option>
+              <option value="TAG">{t('teacher.filter_tag')}</option>
             </select>
 
             {filterType !== 'ALL' && (
@@ -592,7 +592,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-start text-sm">
             <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-medium">
               <tr>
                 <th className="px-6 py-4 w-12">
@@ -608,7 +608,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                 <th className="px-6 py-4">Positions & Rates</th>
                 <th className="px-6 py-4">Tags</th>
                 <th className="px-6 py-4">Contact</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-6 py-4 text-end">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -624,7 +624,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                   </td>
                   <td className="px-6 py-4 font-medium text-slate-900 dark:text-white flex items-center">
                     <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center mr-3 shadow-sm border border-slate-200 dark:border-slate-700 text-white font-bold text-xs"
+                      className="w-8 h-8 rounded-full flex items-center justify-center me-3 shadow-sm border border-slate-200 dark:border-slate-700 text-white font-bold text-xs"
                       style={{ backgroundColor: teacher.color }}
                     >
                       {teacher.fullName.charAt(0)}
@@ -662,7 +662,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                     <div className="flex flex-wrap gap-1">
                       {teacher.tags.map((tag, i) => (
                         <span key={i} className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded text-xs border border-blue-100 dark:border-blue-800 flex items-center">
-                          <Tag size={10} className="mr-1" />
+                          <Tag size={10} className="me-1" />
                           {tag}
                         </span>
                       ))}
@@ -674,7 +674,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                       <span className="text-xs text-slate-400">{teacher.phone}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-right space-x-2">
+                  <td className="px-6 py-4 text-end space-x-2 rtl:space-x-reverse">
                     <button onClick={() => handleOpenModal(teacher)} className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"><Edit2 size={16} /></button>
                     <button onClick={() => handleDelete(teacher.id)} className="text-slate-400 hover:text-red-600 transition-colors"><Trash2 size={16} /></button>
                   </td>
@@ -736,8 +736,8 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                         <button
                           type="button"
                           onClick={() => removePositionAssignment(pa.id)}
-                          className="absolute top-2 right-2 text-slate-400 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
-                          title="Remove position"
+                          className="absolute top-2 end-2 text-slate-400 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                          title={t('teacher.remove_position')}
                         >
                           <X size={14} />
                         </button>
@@ -818,13 +818,13 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                             {pa.rateType === 'HOURLY' ? `Rate (${settings.currency}/hour)` : `Monthly Fee (${settings.currency})`}
                           </label>
                           <div className="relative">
-                            <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <DollarSign size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input
                               type="number"
                               min={0}
                               step={pa.rateType === 'HOURLY' ? 10 : 100}
                               placeholder={pa.rateType === 'HOURLY' ? '150' : '5000'}
-                              className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                              className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg ps-8 pe-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
                               value={pa.rateValue || ''}
                               onChange={e => updatePositionAssignment(pa.id, { rateValue: parseFloat(e.target.value) || 0 })}
                             />
@@ -864,7 +864,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                       e.target.value = '';
                     }}
                   >
-                    <option value="">Select from list...</option>
+                    <option value="">{t('teacher.select_from_list')}</option>
                     {activeLists.tags.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                   <input
@@ -880,7 +880,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                 <div className="flex flex-wrap gap-2">
                   {formData.tags?.map((tag, idx) => (
                     <span key={idx} className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded text-xs flex items-center border border-blue-200 dark:border-blue-800">
-                      {tag} <button type="button" onClick={() => removeTag(tag)} className="ml-1 hover:text-red-500"><X size={12} /></button>
+                      {tag} <button type="button" onClick={() => removeTag(tag)} className="ms-1 hover:text-red-500"><X size={12} /></button>
                     </span>
                   ))}
                 </div>
@@ -892,7 +892,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                 <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone</label><input type="text" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={formData.phone || ''} onChange={e => setFormData({ ...formData, phone: e.target.value })} /></div>
               </div>
 
-              <div className="flex justify-end space-x-3 mt-6">
+              <div className="flex justify-end space-x-3 rtl:space-x-reverse mt-6">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg">Save</button>
               </div>
@@ -908,7 +908,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
             <p className="text-sm text-slate-500 mb-4">Found {importCandidates.length} {t('teach.unique_teachers')}</p>
 
             <div className="flex-1 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg mb-4">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-start text-xs">
                 <thead className="bg-slate-50 dark:bg-slate-950 sticky top-0">
                   <tr>
                     <th className="p-3 w-8"><input type="checkbox" checked={importCandidates.every(c => c.selected)} onChange={e => setImportCandidates(prev => prev.map(c => ({ ...c, selected: e.target.checked })))} /></th>
@@ -940,7 +940,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
               <div className="text-xs text-slate-400">
                 * Colors will be auto-assigned
               </div>
-              <div className="flex space-x-3">
+              <div className="flex space-x-3 rtl:space-x-reverse">
                 <button onClick={() => setIsImportModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
                 <button
                   onClick={() => confirmImport(true)}
@@ -956,10 +956,10 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
       )}
       {/* Bulk Actions Bar */}
       {selectedTeacherIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-6 z-40 animate-in slide-in-from-bottom-4">
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-6 rtl:space-x-reverse z-40 animate-in slide-in-from-bottom-4">
           <span className="font-medium">{selectedTeacherIds.size} Selected</span>
           <div className="h-6 w-px bg-slate-700"></div>
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 rtl:space-x-reverse">
             <button
               onClick={() => setSelectedTeacherIds(new Set())}
               className="px-4 py-2 hover:bg-slate-800 rounded-lg transition-colors text-sm font-medium"
@@ -970,7 +970,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
               onClick={handleBulkDelete}
               className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg shadow-lg transition-all text-sm font-bold flex items-center"
             >
-              <Trash2 size={16} className="mr-2" />
+              <Trash2 size={16} className="me-2" />
               Delete Selection
             </button>
           </div>

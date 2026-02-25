@@ -178,13 +178,13 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
             <button
                 type="button"
                 onClick={() => setOpen(!open)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs text-left transition-all ${count > 0
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs text-start transition-all ${count > 0
                     ? 'border-violet-400 dark:border-violet-600 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300'
                     : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                     }`}
             >
                 <span className="truncate">{summary}</span>
-                <ChevronDown size={12} className={`flex-shrink-0 ml-1 transition-transform ${open ? 'rotate-180' : ''}`} />
+                <ChevronDown size={12} className={`flex-shrink-0 ms-1 transition-transform ${open ? 'rotate-180' : ''}`} />
             </button>
 
             {open && (
@@ -609,7 +609,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                 <div className="flex-1 overflow-hidden flex">
 
                     {/* ─── LEFT: Configuration ─── */}
-                    <div className="w-1/2 border-r border-slate-200 dark:border-slate-800 overflow-y-auto custom-scrollbar px-6 py-5 space-y-5">
+                    <div className="w-1/2 border-e border-slate-200 dark:border-slate-800 overflow-y-auto custom-scrollbar px-6 py-5 space-y-5">
 
                         {/* Title */}
                         <div>
@@ -687,7 +687,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                             ? 'bg-teal-600 text-white shadow-sm shadow-teal-500/25'
                                             : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                                     >
-                                        <span className="mr-1">{opt.icon}</span>{opt.label}
+                                        <span className="me-1">{opt.icon}</span>{opt.label}
                                     </button>
                                 ))}
                             </div>
@@ -731,7 +731,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                 <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                                     <GitCompareArrows size={12} /> Comparison Mode
                                     {compareEnabled && (
-                                        <span className="ml-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-500 text-white animate-pulse">
+                                        <span className="ms-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-500 text-white animate-pulse">
                                             ACTIVE · {comparisons.length}
                                         </span>
                                     )}
@@ -874,7 +874,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                             <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                                 <Filter size={12} /> Data Filters
                                 {chartFilterCount > 0 && (
-                                    <span className="ml-1 bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded-full text-[10px] font-bold">{chartFilterCount}</span>
+                                    <span className="ms-1 bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded-full text-[10px] font-bold">{chartFilterCount}</span>
                                 )}
                             </label>
                             <p className="text-[10px] text-slate-400 mb-3">
@@ -927,7 +927,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                             <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">Filter Mode</label>
                             <div className="grid grid-cols-2 gap-2">
                                 <button onClick={() => setFilterMode('live')}
-                                    className={`flex items-start gap-2 p-3 rounded-xl border text-left transition-all ${filterMode === 'live' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}>
+                                    className={`flex items-start gap-2 p-3 rounded-xl border text-start transition-all ${filterMode === 'live' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}>
                                     <Zap size={14} className={filterMode === 'live' ? 'text-blue-500 mt-0.5' : 'text-slate-400 mt-0.5'} />
                                     <div>
                                         <div className={`text-xs font-semibold ${filterMode === 'live' ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>Live</div>
@@ -935,7 +935,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                     </div>
                                 </button>
                                 <button onClick={() => setFilterMode('snapshot')}
-                                    className={`flex items-start gap-2 p-3 rounded-xl border text-left transition-all ${filterMode === 'snapshot' ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}>
+                                    className={`flex items-start gap-2 p-3 rounded-xl border text-start transition-all ${filterMode === 'snapshot' ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}>
                                     <Camera size={14} className={filterMode === 'snapshot' ? 'text-amber-500 mt-0.5' : 'text-slate-400 mt-0.5'} />
                                     <div>
                                         <div className={`text-xs font-semibold ${filterMode === 'snapshot' ? 'text-amber-700 dark:text-amber-300' : 'text-slate-700 dark:text-slate-300'}`}>Snapshot</div>
@@ -984,14 +984,14 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                             <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                                 <Eye size={12} /> Live Preview
                                 {compareEnabled && comparisons.length > 0 && (
-                                    <span className="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-500 font-bold">
+                                    <span className="ms-1 text-[9px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-500 font-bold">
                                         {compareLayout === 'merged' ? 'MERGED OVERLAY' : 'SIDE BY SIDE'}
                                     </span>
                                 )}
                             </label>
                             <p className="text-[10px] text-slate-400 mt-1">
                                 {timeFilteredEvents.length} events · {dimension} × {metrics.length} metric{metrics.length > 1 ? 's' : ''} → {visualization}
-                                {chartFilterCount > 0 && <span className="text-violet-500 ml-1">· {chartFilterCount} filter{chartFilterCount > 1 ? 's' : ''} applied</span>}
+                                {chartFilterCount > 0 && <span className="text-violet-500 ms-1">· {chartFilterCount} filter{chartFilterCount > 1 ? 's' : ''} applied</span>}
                             </p>
                         </div>
 
@@ -1028,7 +1028,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                         <div className="text-[10px] font-semibold text-teal-600 dark:text-teal-400 mb-1.5 flex items-center gap-1">
                                             <Calendar size={10} />
                                             {TIMEFRAME_OPTIONS.find(o => o.value === timeframe)?.label ?? 'Primary'}
-                                            <span className="text-slate-400 ml-1">({timeFilteredEvents.length} events)</span>
+                                            <span className="text-slate-400 ms-1">({timeFilteredEvents.length} events)</span>
                                         </div>
                                     )}
                                     <div className="w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex items-center justify-center overflow-hidden">
@@ -1051,7 +1051,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                             style={{ color: COMPARE_COLORS[idx % COMPARE_COLORS.length] }}>
                                             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COMPARE_COLORS[idx % COMPARE_COLORS.length] }} />
                                             {getCompareLabel(cmpResult)}
-                                            <span className="text-slate-400 ml-1">({cmpResult.eventCount} events)</span>
+                                            <span className="text-slate-400 ms-1">({cmpResult.eventCount} events)</span>
                                         </div>
                                         <div className="w-full bg-white dark:bg-slate-900 rounded-xl border p-4 flex items-center justify-center overflow-hidden"
                                             style={{ borderColor: COMPARE_COLORS[idx % COMPARE_COLORS.length] + '40' }}>

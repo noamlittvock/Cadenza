@@ -227,7 +227,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
         <div className="p-4 space-y-6">
             <div className="flex flex-col">
                 <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center mb-1">
-                    <div className="bg-slate-100 dark:bg-slate-800 p-1.5 rounded-lg mr-2 text-slate-600 dark:text-slate-300">
+                    <div className="bg-slate-100 dark:bg-slate-800 p-1.5 rounded-lg me-2 text-slate-600 dark:text-slate-300">
                         <BoxSelect size={20} />
                     </div>
                     Power Tools
@@ -243,21 +243,21 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                     onClick={() => setSelectionMethod('FILTER')}
                     className={`flex-1 py-1.5 text-xs font-bold rounded-md flex items-center justify-center transition-all ${selectionMethod === 'FILTER' ? 'bg-white dark:bg-slate-700 shadow text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                    <ListFilter size={14} className="mr-1.5" />
+                    <ListFilter size={14} className="me-1.5" />
                     By Filter
                 </button>
                 <button
                     onClick={() => setSelectionMethod('MANUAL')}
                     className={`flex-1 py-1.5 text-xs font-bold rounded-md items-center justify-center transition-all hidden md:flex ${selectionMethod === 'MANUAL' ? 'bg-white dark:bg-slate-700 shadow text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                    <Hand size={14} className="mr-1.5" />
+                    <Hand size={14} className="me-1.5" />
                     Manual Select
                 </button>
                 <button
                     onClick={() => setSelectionMethod('IMPORT_GANTT')}
                     className={`flex-1 py-1.5 text-xs font-bold rounded-md flex items-center justify-center transition-all ${selectionMethod === 'IMPORT_GANTT' ? 'bg-white dark:bg-slate-700 shadow text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                    <FileJson size={14} className="mr-1.5" />
+                    <FileJson size={14} className="me-1.5" />
                     Import Schedule
                 </button>
             </div>
@@ -306,7 +306,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                             value={filterTeacher}
                                             onChange={e => setFilterTeacher(e.target.value)}
                                         >
-                                            <option value="ALL">All Teachers</option>
+                                            <option value="ALL">{t('power.all_teachers')}</option>
                                             {teachers.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}
                                         </select>
                                         <div className="grid grid-cols-2 gap-2">
@@ -315,7 +315,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                                 value={filterType}
                                                 onChange={e => setFilterType(e.target.value)}
                                             >
-                                                <option value="ALL">All Types</option>
+                                                <option value="ALL">{t('power.all_types')}</option>
                                                 {(lists?.classifications || []).map(c => <option key={c} value={c}>{c}</option>)}
                                             </select>
                                             <select
@@ -323,7 +323,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                                 value={filterTag}
                                                 onChange={e => setFilterTag(e.target.value)}
                                             >
-                                                <option value="ALL">All Tags</option>
+                                                <option value="ALL">{t('power.all_tags')}</option>
                                                 {(lists?.tags || []).map(tag => <option key={tag} value={tag}>{tag}</option>)}
                                             </select>
                                         </div>
@@ -340,7 +340,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                 }}
                                 className="w-full py-2 text-xs text-slate-500 hover:text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700 dark:text-slate-400 rounded-lg transition-colors flex items-center justify-center font-bold shadow-sm"
                             >
-                                <XCircle size={14} className="mr-1.5" />
+                                <XCircle size={14} className="me-1.5" />
                                 Clear Filters
                             </button>
                         </div>
@@ -350,7 +350,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                         {/* Manual View */}
                         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 rounded-lg p-3 animate-in fade-in duration-300">
                             <div className="flex items-start">
-                                <MousePointer2 className="text-blue-500 mt-0.5 mr-2" size={16} />
+                                <MousePointer2 className="text-blue-500 mt-0.5 me-2" size={16} />
                                 <div>
                                     <h4 className="text-xs font-bold text-blue-700 dark:text-blue-300 mb-1">Interactive Selection</h4>
                                     <p className="text-[10px] text-blue-600 dark:text-blue-400 leading-relaxed">
@@ -371,7 +371,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                 onClick={() => setSelectedEventIds && setSelectedEventIds(new Set())}
                                 className="w-full mt-2 py-2 px-4 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold transition-colors flex items-center justify-center dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/20"
                             >
-                                <XCircle size={14} className="mr-2" />
+                                <XCircle size={14} className="me-2" />
                                 Clear Selection ({selectedEventIds?.size})
                             </button>
                         )}
@@ -387,7 +387,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
 
                             <div className="flex flex-col gap-3">
                                 <button onClick={downloadGanttTemplate} className="flex items-center text-xs text-blue-600 hover:underline">
-                                    <FileDown size={14} className="mr-1" /> Download CSV Template
+                                    <FileDown size={14} className="me-1" /> Download CSV Template
                                 </button>
 
                                 <label className="flex items-center justify-center w-full h-24 px-4 transition bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 border-dashed rounded-lg appearance-none cursor-pointer hover:border-blue-500 focus:outline-none">
@@ -423,7 +423,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                         onClick={confirmGanttImport}
                                         className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center"
                                     >
-                                        <Check size={14} className="mr-2" /> Confirm Import
+                                        <Check size={14} className="me-2" /> Confirm Import
                                     </button>
                                 </div>
                             </div>
@@ -455,7 +455,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                     : 'bg-slate-100 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600'
                                     }`}
                             >
-                                <XCircle size={14} className="mr-1.5" />
+                                <XCircle size={14} className="me-1.5" />
                                 Bulk Cancel
                             </button>
                             <button
@@ -466,7 +466,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                     : 'bg-slate-100 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600'
                                     }`}
                             >
-                                <Trash2 size={14} className="mr-1.5" />
+                                <Trash2 size={14} className="me-1.5" />
                                 Bulk Delete
                             </button>
                         </div>

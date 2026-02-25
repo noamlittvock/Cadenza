@@ -456,10 +456,10 @@ const TableRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys, co
     };
 
     const SortIcon: React.FC<{ col: string }> = ({ col }) => {
-        if (sortCol !== col) return <ChevronDown size={10} className="text-slate-400 dark:text-slate-500 ml-1 inline" />;
+        if (sortCol !== col) return <ChevronDown size={10} className="text-slate-400 dark:text-slate-500 ms-1 inline" />;
         return sortDir === 'asc'
-            ? <ChevronUp size={10} className="text-blue-500 dark:text-blue-400 ml-1 inline" />
-            : <ChevronDown size={10} className="text-blue-500 dark:text-blue-400 ml-1 inline" />;
+            ? <ChevronUp size={10} className="text-blue-500 dark:text-blue-400 ms-1 inline" />
+            : <ChevronDown size={10} className="text-blue-500 dark:text-blue-400 ms-1 inline" />;
     };
 
     /** Get the CSS class for a cell based on whether it's min, max, or neither */
@@ -471,7 +471,7 @@ const TableRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys, co
 
     return (
         <div className="overflow-x-auto max-h-96 overflow-y-auto custom-scrollbar">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-start text-sm">
                 <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-medium sticky top-0 z-10">
                     <tr>
                         <th
@@ -483,7 +483,7 @@ const TableRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys, co
                         {metricKeys.map(k => (
                             <th
                                 key={k}
-                                className="px-4 py-3 text-right text-xs uppercase tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                                className="px-4 py-3 text-end text-xs uppercase tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
                                 onClick={() => handleSort(k)}
                             >
                                 {k} <SortIcon col={k} />
@@ -503,7 +503,7 @@ const TableRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys, co
                                 const isMax = isMaxValue(val, k, minMax);
                                 const isMin = isMinValue(val, k, minMax);
                                 return (
-                                    <td key={k} className={`px-4 py-2.5 text-right tabular-nums ${cellClass}`}>
+                                    <td key={k} className={`px-4 py-2.5 text-end tabular-nums ${cellClass}`}>
                                         <span className="inline-flex items-center gap-1">
                                             {typeof row[k] === 'number' ? formatValueForKey(row[k] as number, k, config.metrics, currencySymbol) : row[k]}
                                             {isMax && <TrendingUp size={12} className="text-emerald-500" />}
@@ -522,7 +522,7 @@ const TableRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys, co
                         {metricKeys.map(k => {
                             const total = sorted.reduce((sum, row) => sum + (typeof row[k] === 'number' ? row[k] as number : 0), 0);
                             return (
-                                <td key={k} className="px-4 py-3 text-right text-slate-800 dark:text-white tabular-nums">
+                                <td key={k} className="px-4 py-3 text-end text-slate-800 dark:text-white tabular-nums">
                                     {formatValueForKey(total, k, config.metrics, currencySymbol)}
                                 </td>
                             );

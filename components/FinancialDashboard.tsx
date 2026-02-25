@@ -81,7 +81,7 @@ const FilterSection: React.FC<FilterSectionProps> = ({ title, icon, items, selec
           <button
             key={item}
             onClick={() => onToggle(item)}
-            className={`w-full text-left text-[11px] px-2 py-1 rounded flex items-center gap-1.5 transition-colors ${selected.has(item) ? `bg-${accentColor}-50 dark:bg-${accentColor}-900/20 text-${accentColor}-700 dark:text-${accentColor}-300` : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+            className={`w-full text-start text-[11px] px-2 py-1 rounded flex items-center gap-1.5 transition-colors ${selected.has(item) ? `bg-${accentColor}-50 dark:bg-${accentColor}-900/20 text-${accentColor}-700 dark:text-${accentColor}-300` : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
           >
             {colorDot && (
@@ -384,10 +384,10 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
   };
 
   const SortIcon: React.FC<{ col: SortColumn }> = ({ col }) => {
-    if (sortCol !== col) return <ArrowUpDown size={10} className="text-slate-400 dark:text-slate-500 ml-0.5 inline" />;
+    if (sortCol !== col) return <ArrowUpDown size={10} className="text-slate-400 dark:text-slate-500 ms-0.5 inline" />;
     return sortDir === 'asc'
-      ? <ChevronUp size={10} className="text-blue-500 dark:text-blue-400 ml-0.5 inline" />
-      : <ChevronDown size={10} className="text-blue-500 dark:text-blue-400 ml-0.5 inline" />;
+      ? <ChevronUp size={10} className="text-blue-500 dark:text-blue-400 ms-0.5 inline" />
+      : <ChevronDown size={10} className="text-blue-500 dark:text-blue-400 ms-0.5 inline" />;
   };
 
   const toggleExpandTeacher = (id: string) => {
@@ -450,7 +450,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div className="flex items-center gap-3">
-            <button onClick={onMobileMenuOpen} className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden" title={t('tooltip.open_menu')}>
+            <button onClick={onMobileMenuOpen} className="p-2 -ms-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden" title={t('tooltip.open_menu')}>
               <Menu className="w-6 h-6 text-slate-600 dark:text-slate-300" />
             </button>
             <div>
@@ -462,7 +462,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
           <div className="flex flex-wrap gap-2 items-center">
             {/* Date Filter */}
             <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg flex items-center px-2 py-1.5 shadow-sm">
-              <CalIcon size={16} className="text-slate-400 mr-2" />
+              <CalIcon size={16} className="text-slate-400 me-2" />
               <select className="bg-transparent outline-none text-sm font-medium text-slate-700 dark:text-white" value={dateFilterType} onChange={(e) => setDateFilterType(e.target.value as DateFilterType)}>
                 <option value="WEEK">{t('fin.current_week')}</option>
                 <option value="MONTH">{t('fin.monthly')}</option>
@@ -472,7 +472,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
             </div>
 
             {dateFilterType === 'CUSTOM' && (
-              <div className="flex items-center space-x-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-2 py-1.5 shadow-sm">
+              <div className="flex items-center space-x-2 rtl:space-x-reverse bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-2 py-1.5 shadow-sm">
                 <input type="date" className="bg-transparent text-xs outline-none dark:text-white" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} />
                 <span className="text-slate-400">-</span>
                 <input type="date" className="bg-transparent text-xs outline-none dark:text-white" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} />
@@ -481,16 +481,16 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
 
             <button onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
               className={`border rounded-lg flex items-center px-3 py-2 shadow-sm text-sm transition-colors ${isFilterPanelOpen || activeFilterCount > 0 ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-slate-700 dark:text-white'}`}>
-              <SlidersHorizontal size={16} className="mr-2" />{t('tooltip.toggle_filters')}
-              {activeFilterCount > 0 && <span className="ml-1.5 bg-white/20 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>}
-              <ChevronDown size={14} className={`ml-1 transition-transform ${isFilterPanelOpen ? 'rotate-180' : ''}`} />
+              <SlidersHorizontal size={16} className="me-2" />{t('tooltip.toggle_filters')}
+              {activeFilterCount > 0 && <span className="ms-1.5 bg-white/20 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>}
+              <ChevronDown size={14} className={`ms-1 transition-transform ${isFilterPanelOpen ? 'rotate-180' : ''}`} />
             </button>
 
             <button onClick={handleExport} className="hidden md:flex bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg items-center shadow-sm text-sm">
-              <Download size={16} className="mr-2" /> {t('btn.export')}
+              <Download size={16} className="me-2" /> {t('btn.export')}
             </button>
             <button onClick={() => { setIsEmailModalOpen(true); setEmailSuccess(false); }} className="hidden md:flex bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg items-center shadow-sm text-sm">
-              <Mail size={16} className="mr-2" /> Email Report
+              <Mail size={16} className="me-2" /> Email Report
             </button>
           </div>
         </div>
@@ -588,32 +588,32 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                 <span className="text-[10px] text-slate-400">{sortedReportData.length} {t('nav.teachers')} {t('fin.sort_hint')}</span>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
+                <table className="w-full text-start text-sm">
                   <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-medium">
                     <tr>
                       <th className="px-4 py-3 w-8"></th>
                       <th className="px-4 py-3 cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('name')}>
                         {t('label.teacher')} <SortIcon col="name" />
                       </th>
-                      <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('activeHrs')}>
+                      <th className="px-4 py-3 text-end cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('activeHrs')}>
                         {t('col.active_hrs')} <SortIcon col="activeHrs" />
                       </th>
-                      <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('canceledHrs')}>
+                      <th className="px-4 py-3 text-end cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('canceledHrs')}>
                         {t('col.canceled_hrs')} <SortIcon col="canceledHrs" />
                       </th>
-                      <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('canceledEvents')}>
+                      <th className="px-4 py-3 text-end cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('canceledEvents')}>
                         {t('col.cancel_count')} <SortIcon col="canceledEvents" />
                       </th>
-                      <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('hourlyCost')}>
+                      <th className="px-4 py-3 text-end cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('hourlyCost')}>
                         <span className="flex items-center justify-end gap-1"><Clock size={11} /> {t('dynamic.hourly_currency').replace('{currency}', settings.currency)}</span> <SortIcon col="hourlyCost" />
                       </th>
-                      <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('oneOffCost')}>
+                      <th className="px-4 py-3 text-end cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('oneOffCost')}>
                         <span className="flex items-center justify-end gap-1"><DollarSign size={11} /> {t('dynamic.one_off_currency').replace('{currency}', settings.currency)}</span> <SortIcon col="oneOffCost" />
                       </th>
-                      <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('globalCost')}>
+                      <th className="px-4 py-3 text-end cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none" onClick={() => handleSort('globalCost')}>
                         <span className="flex items-center justify-end gap-1"><CalendarDays size={11} /> {t('dynamic.global_currency').replace('{currency}', settings.currency)}</span> <SortIcon col="globalCost" />
                       </th>
-                      <th className="px-4 py-3 text-right cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none font-bold" onClick={() => handleSort('total')}>
+                      <th className="px-4 py-3 text-end cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none font-bold" onClick={() => handleSort('total')}>
                         {t('dynamic.total_currency').replace('{currency}', settings.currency)} <SortIcon col="total" />
                       </th>
                     </tr>
@@ -632,19 +632,19 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                               <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded">{r.positions.length} pos</span>
                             </div>
                           </td>
-                          <td className="px-4 py-4 text-right font-medium text-blue-600 dark:text-blue-400 tabular-nums">{formatHours(r.totalActiveHours)}</td>
-                          <td className="px-4 py-4 text-right text-red-500 tabular-nums">{formatHours(r.totalCanceledHours)}</td>
-                          <td className="px-4 py-4 text-right text-red-500 tabular-nums">{r.canceledEventCount}</td>
-                          <td className="px-4 py-4 text-right text-blue-600 dark:text-blue-400 font-medium tabular-nums">{formatCurrency(r.hourlyCostTotal, settings.currency)}</td>
-                          <td className="px-4 py-4 text-right text-violet-600 dark:text-violet-400 font-medium tabular-nums">{formatCurrency(r.oneOffCostTotal, settings.currency)}</td>
-                          <td className="px-4 py-4 text-right text-emerald-600 dark:text-emerald-400 font-medium tabular-nums">{formatCurrency(r.globalCostTotal, settings.currency)}</td>
-                          <td className="px-4 py-4 text-right font-bold text-slate-900 dark:text-white tabular-nums">{formatCurrency(r.grandTotal, settings.currency)}</td>
+                          <td className="px-4 py-4 text-end font-medium text-blue-600 dark:text-blue-400 tabular-nums">{formatHours(r.totalActiveHours)}</td>
+                          <td className="px-4 py-4 text-end text-red-500 tabular-nums">{formatHours(r.totalCanceledHours)}</td>
+                          <td className="px-4 py-4 text-end text-red-500 tabular-nums">{r.canceledEventCount}</td>
+                          <td className="px-4 py-4 text-end text-blue-600 dark:text-blue-400 font-medium tabular-nums">{formatCurrency(r.hourlyCostTotal, settings.currency)}</td>
+                          <td className="px-4 py-4 text-end text-violet-600 dark:text-violet-400 font-medium tabular-nums">{formatCurrency(r.oneOffCostTotal, settings.currency)}</td>
+                          <td className="px-4 py-4 text-end text-emerald-600 dark:text-emerald-400 font-medium tabular-nums">{formatCurrency(r.globalCostTotal, settings.currency)}</td>
+                          <td className="px-4 py-4 text-end font-bold text-slate-900 dark:text-white tabular-nums">{formatCurrency(r.grandTotal, settings.currency)}</td>
                         </tr>
                         {expandedTeachers.has(r.teacherId) && r.positions.map(p => (
                           <tr key={p.positionId} className="bg-slate-50/50 dark:bg-slate-800/30">
                             <td className="px-4 py-3"></td>
                             <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
-                              <div className="flex items-center gap-2 pl-4">
+                              <div className="flex items-center gap-2 ps-4">
                                 <span className="text-xs font-medium">{p.positionName}</span>
                                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${p.rateType === 'HOURLY'
                                   ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
@@ -655,13 +655,13 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                                 <span className="text-[9px] text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{p.category}</span>
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-right text-xs text-slate-500 tabular-nums">{formatHours(p.activeHours)}</td>
-                            <td className="px-4 py-3 text-right text-xs text-slate-500 tabular-nums">{formatHours(p.canceledHours)}</td>
-                            <td className="px-4 py-3 text-right text-xs text-slate-400">—</td>
-                            <td className="px-4 py-3 text-right text-xs text-blue-500 tabular-nums">{p.hourlyCost > 0 ? formatCurrency(p.hourlyCost, settings.currency) : '—'}</td>
-                            <td className="px-4 py-3 text-right text-xs text-violet-500 tabular-nums">{p.oneOffCost > 0 ? formatCurrency(p.oneOffCost, settings.currency) : '—'}</td>
-                            <td className="px-4 py-3 text-right text-xs text-emerald-500 tabular-nums">{p.globalCost > 0 ? formatCurrency(p.globalCost, settings.currency) : '—'}</td>
-                            <td className="px-4 py-3 text-right text-xs font-medium text-slate-700 dark:text-slate-300 tabular-nums">{formatCurrency(p.hourlyCost + p.oneOffCost + p.globalCost, settings.currency)}</td>
+                            <td className="px-4 py-3 text-end text-xs text-slate-500 tabular-nums">{formatHours(p.activeHours)}</td>
+                            <td className="px-4 py-3 text-end text-xs text-slate-500 tabular-nums">{formatHours(p.canceledHours)}</td>
+                            <td className="px-4 py-3 text-end text-xs text-slate-400">—</td>
+                            <td className="px-4 py-3 text-end text-xs text-blue-500 tabular-nums">{p.hourlyCost > 0 ? formatCurrency(p.hourlyCost, settings.currency) : '—'}</td>
+                            <td className="px-4 py-3 text-end text-xs text-violet-500 tabular-nums">{p.oneOffCost > 0 ? formatCurrency(p.oneOffCost, settings.currency) : '—'}</td>
+                            <td className="px-4 py-3 text-end text-xs text-emerald-500 tabular-nums">{p.globalCost > 0 ? formatCurrency(p.globalCost, settings.currency) : '—'}</td>
+                            <td className="px-4 py-3 text-end text-xs font-medium text-slate-700 dark:text-slate-300 tabular-nums">{formatCurrency(p.hourlyCost + p.oneOffCost + p.globalCost, settings.currency)}</td>
                           </tr>
                         ))}
                       </React.Fragment>
@@ -670,13 +670,13 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                     <tr className="bg-slate-100 dark:bg-slate-950 font-bold border-t-2 border-slate-200 dark:border-slate-700">
                       <td className="px-4 py-4"></td>
                       <td className="px-4 py-4 text-slate-800 dark:text-white">{t('fin.grand_total')}</td>
-                      <td className="px-4 py-4 text-right text-blue-600 dark:text-blue-400 tabular-nums">{formatHours(totals.activeHours)}</td>
-                      <td className="px-4 py-4 text-right text-red-500 tabular-nums">{formatHours(totals.canceledHours)}</td>
-                      <td className="px-4 py-4 text-right text-red-500 tabular-nums">{totals.canceledEvents}</td>
-                      <td className="px-4 py-4 text-right text-blue-600 dark:text-blue-400 tabular-nums">{formatCurrency(totals.hourlyCost, settings.currency)}</td>
-                      <td className="px-4 py-4 text-right text-violet-600 dark:text-violet-400 tabular-nums">{formatCurrency(totals.oneOffCost, settings.currency)}</td>
-                      <td className="px-4 py-4 text-right text-emerald-600 dark:text-emerald-400 tabular-nums">{formatCurrency(totals.globalCost, settings.currency)}</td>
-                      <td className="px-4 py-4 text-right text-slate-900 dark:text-white text-lg tabular-nums">{formatCurrency(totals.grandTotal, settings.currency)}</td>
+                      <td className="px-4 py-4 text-end text-blue-600 dark:text-blue-400 tabular-nums">{formatHours(totals.activeHours)}</td>
+                      <td className="px-4 py-4 text-end text-red-500 tabular-nums">{formatHours(totals.canceledHours)}</td>
+                      <td className="px-4 py-4 text-end text-red-500 tabular-nums">{totals.canceledEvents}</td>
+                      <td className="px-4 py-4 text-end text-blue-600 dark:text-blue-400 tabular-nums">{formatCurrency(totals.hourlyCost, settings.currency)}</td>
+                      <td className="px-4 py-4 text-end text-violet-600 dark:text-violet-400 tabular-nums">{formatCurrency(totals.oneOffCost, settings.currency)}</td>
+                      <td className="px-4 py-4 text-end text-emerald-600 dark:text-emerald-400 tabular-nums">{formatCurrency(totals.globalCost, settings.currency)}</td>
+                      <td className="px-4 py-4 text-end text-slate-900 dark:text-white text-lg tabular-nums">{formatCurrency(totals.grandTotal, settings.currency)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -712,12 +712,12 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                   </div>
                 ) : (
                   <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-sm">
-                    <table className="w-full text-left text-sm">
+                    <table className="w-full text-start text-sm">
                       <thead className="bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-medium">
                         <tr>
                           <th className="px-4 py-3">{t('col.recipient')}</th>
                           <th className="px-4 py-3">{t('col.email_address')}</th>
-                          <th className="px-4 py-3 text-right">{t('col.total_payout')}</th>
+                          <th className="px-4 py-3 text-end">{t('col.total_payout')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -730,7 +730,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                                 {r.teacherName}
                               </td>
                               <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{teacher?.email || 'No email saved'}</td>
-                              <td className="px-4 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400">{formatCurrency(r.grandTotal, settings.currency)}</td>
+                              <td className="px-4 py-3 text-end font-medium text-emerald-600 dark:text-emerald-400">{formatCurrency(r.grandTotal, settings.currency)}</td>
                             </tr>
                           );
                         })}
@@ -760,7 +760,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                     >
                       {isSendingEmails ? (
                         <>
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin me-2"></div>
                           Sending...
                         </>
                       ) : (

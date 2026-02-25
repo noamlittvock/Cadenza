@@ -35,7 +35,7 @@ const ListEditor = ({
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 flex flex-col h-full">
-      <div className="flex items-center space-x-3 mb-4">
+      <div className="flex items-center space-x-3 rtl:space-x-reverse mb-4">
         <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400">
           <Icon size={20} />
         </div>
@@ -60,7 +60,7 @@ const ListEditor = ({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar max-h-[300px]">
+      <div className="flex-1 overflow-y-auto space-y-2 pe-1 custom-scrollbar max-h-[300px]">
         {items.map((item, idx) => (
           <div key={idx} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-lg border border-slate-100 dark:border-slate-700 group">
             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{item}</span>
@@ -176,7 +176,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
             {onMobileMenuOpen && (
               <button
                 onClick={onMobileMenuOpen}
-                className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden"
+                className="p-2 -ms-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden"
                 title={t('tooltip.open_menu')}
               >
                 <Menu className="w-6 h-6 text-slate-600 dark:text-slate-300" />
@@ -189,10 +189,10 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
           </div>
           <div className="flex gap-2">
             <button onClick={handleDownloadTemplate} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700">
-              <FileDown size={16} className="mr-2" /> Template
+              <FileDown size={16} className="me-2" /> Template
             </button>
             <button onClick={() => fileInputRef.current?.click()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm">
-              <Upload size={16} className="mr-2" /> {t('lists.import_csv')}
+              <Upload size={16} className="me-2" /> {t('lists.import_csv')}
             </button>
             <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
           </div>
@@ -201,10 +201,10 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
       {embedded && (
         <div className="flex justify-end gap-2 mb-6">
           <button onClick={handleDownloadTemplate} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700">
-            <FileDown size={16} className="mr-2" /> Template
+            <FileDown size={16} className="me-2" /> Template
           </button>
           <button onClick={() => fileInputRef.current?.click()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm">
-            <Upload size={16} className="mr-2" /> {t('lists.import_csv')}
+            <Upload size={16} className="me-2" /> {t('lists.import_csv')}
           </button>
           <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
         </div>
@@ -270,7 +270,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
               )}
             </div>
 
-            <div className="flex justify-end space-x-3">
+            <div className="flex justify-end space-x-3 rtl:space-x-reverse">
               <button onClick={() => setIsImportModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
               <button
                 onClick={confirmImport}
