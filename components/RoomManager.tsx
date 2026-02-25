@@ -109,7 +109,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
               </div>
             </div>
             <div className="flex-1">
-              <h4 className="text-xs font-semibold uppercase text-slate-400 mb-2">{t('room.itinerary')} & Equipment</h4>
+              <h4 className="text-xs font-semibold uppercase text-slate-400 mb-2">{t('room.itinerary_equipment')}</h4>
               <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                 {room.itinerary || t('room.no_details')}
               </p>
@@ -118,7 +118,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
         ))}
         {rooms.length === 0 && (
           <div className="col-span-full py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
-            No rooms configured. Add one to get started.
+            {t('room.empty_state')}
           </div>
         )}
       </div>
@@ -154,13 +154,13 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
                 >
-                  Cancel
+                  {t('btn.cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg"
                 >
-                  Save
+                  {t('btn.save')}
                 </button>
               </div>
             </form>

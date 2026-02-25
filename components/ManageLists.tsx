@@ -17,7 +17,8 @@ const ListEditor = ({
   onAdd,
   onRemove,
   icon: Icon,
-  emptyLabel
+  emptyLabel,
+  addPlaceholder
 }: {
   title: string;
   items: string[];
@@ -25,6 +26,7 @@ const ListEditor = ({
   onRemove: (item: string) => void;
   icon: React.ElementType;
   emptyLabel?: string;
+  addPlaceholder?: string;
 }) => {
   const [input, setInput] = useState('');
 
@@ -50,7 +52,7 @@ const ListEditor = ({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-          placeholder={`Add ${title}...`}
+          placeholder={addPlaceholder || `Add ${title}...`}
           className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
         />
         <button
@@ -191,7 +193,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
           </div>
           <div className="flex gap-2">
             <button onClick={handleDownloadTemplate} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700">
-              <FileDown size={16} className="me-2" /> Template
+              <FileDown size={16} className="me-2" /> {t('lists.template')}
             </button>
             <button onClick={() => fileInputRef.current?.click()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm">
               <Upload size={16} className="me-2" /> {t('lists.import_csv')}
@@ -203,7 +205,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
       {embedded && (
         <div className="flex justify-end gap-2 mb-6">
           <button onClick={handleDownloadTemplate} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700">
-            <FileDown size={16} className="me-2" /> Template
+            <FileDown size={16} className="me-2" /> {t('lists.template')}
           </button>
           <button onClick={() => fileInputRef.current?.click()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm">
             <Upload size={16} className="me-2" /> {t('lists.import_csv')}
@@ -220,6 +222,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
           onAdd={(item) => addItem('positions', item)}
           onRemove={(item) => removeItem('positions', item)}
           emptyLabel={t('lists.no_items_found')}
+          addPlaceholder={t('lists.add_placeholder').replace('{title}', t('lists.positions'))}
         />
         <ListEditor
           title={t('lists.tags')}
@@ -228,6 +231,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
           onAdd={(item) => addItem('tags', item)}
           onRemove={(item) => removeItem('tags', item)}
           emptyLabel={t('lists.no_items_found')}
+          addPlaceholder={t('lists.add_placeholder').replace('{title}', t('lists.tags'))}
         />
         <ListEditor
           title={t('lists.classifications')}
@@ -236,6 +240,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
           onAdd={(item) => addItem('classifications', item)}
           onRemove={(item) => removeItem('classifications', item)}
           emptyLabel={t('lists.no_items_found')}
+          addPlaceholder={t('lists.add_placeholder').replace('{title}', t('lists.classifications'))}
         />
       </div>
 
@@ -243,7 +248,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg p-6 border border-slate-200 dark:border-slate-800">
             <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{t('lists.import_preview')}</h3>
-            <p className="text-sm text-slate-500 mb-4">Found {candidates.positions.length + candidates.tags.length + candidates.classifications.length} new unique items.</p>
+            <p className="text-sm text-slate-500 mb-4">{t('lists.found_items').replace('{count}', String(candidates.positions.length + candidates.tags.length + candidates.classifications.length))}</p>
 
             <div className="space-y-4 max-h-[60vh] overflow-y-auto mb-6">
               {candidates.positions.length > 0 && (
@@ -276,7 +281,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
             </div>
 
             <div className="flex justify-end space-x-3 rtl:space-x-reverse">
-              <button onClick={() => setIsImportModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
+              <button onClick={() => setIsImportModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">{t('btn.cancel')}</button>
               <button
                 onClick={confirmImport}
                 disabled={(candidates.positions.length + candidates.tags.length + candidates.classifications.length) === 0}

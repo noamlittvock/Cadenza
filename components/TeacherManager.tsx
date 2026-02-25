@@ -151,7 +151,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
     // Validation: must have at least one position with a name
     const validAssignments = (formData.positionAssignments || []).filter(pa => pa.positionName.trim() !== '');
     if (validAssignments.length === 0) {
-      setError('Please add at least one position with a name.');
+      setError(t('teach.err_no_position'));
       return;
     }
 
@@ -161,7 +161,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
     );
 
     if (colorTaken) {
-      setError("This color is already assigned to another teacher. Please select a unique color.");
+      setError(t('teach.err_color_taken'));
       return;
     }
 
@@ -488,8 +488,8 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
   const formatRate = (pa: PositionAssignment) => {
     if (pa.rateValue === 0) return '—';
     return pa.rateType === 'HOURLY'
-      ? `${settings.currency}${pa.rateValue}/hr`
-      : `${settings.currency}${pa.rateValue.toLocaleString()}/mo`;
+      ? `${settings.currency}${pa.rateValue}${t('fin.per_hr')}`
+      : `${settings.currency}${pa.rateValue.toLocaleString()}${t('fin.per_mo')}`;
   };
 
   return (
@@ -905,7 +905,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-2xl p-6 border border-slate-200 dark:border-slate-800 max-h-[90vh] flex flex-col">
             <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{t('teach.import_teachers')}</h3>
-            <p className="text-sm text-slate-500 mb-4">Found {importCandidates.length} {t('teach.unique_teachers')}</p>
+            <p className="text-sm text-slate-500 mb-4">{t('teach.found_prefix')} {importCandidates.length} {t('teach.unique_teachers')}</p>
 
             <div className="flex-1 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg mb-4">
               <table className="w-full text-start text-xs">

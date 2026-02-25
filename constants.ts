@@ -996,6 +996,13 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'recurrence.series_desc_cancel': 'This is part of a recurring series. What would you like to cancel?',
     'recurrence.just_this_one': 'Just This One',
     'recurrence.all_events': 'All Events',
+    'room.itinerary_equipment': 'Itinerary & Equipment',
+    'room.empty_state': 'No rooms configured. Add one to get started.',
+    'lists.add_placeholder': 'Add {title}...',
+    'lists.found_items': 'Found {count} new unique items.',
+    'teach.err_no_position': 'Please add at least one position with a name.',
+    'teach.err_color_taken': 'This color is already assigned to another teacher. Please select a unique color.',
+    'teach.found_prefix': 'Found',
   },
   'he-IL': {
     'app.title': 'מרכז המוזיקה אלפרט',
@@ -1931,6 +1938,13 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'recurrence.series_desc_cancel': 'זהו חלק מסדרה חוזרת. מה ברצונך לבטל?',
     'recurrence.just_this_one': 'רק את זה',
     'recurrence.all_events': 'כל האירועים',
+    'room.itinerary_equipment': 'ציוד ומלאי',
+    'room.empty_state': 'לא הוגדרו חדרים. הוסף חדר כדי להתחיל.',
+    'lists.add_placeholder': 'הוסף {title}...',
+    'lists.found_items': 'נמצאו {count} פריטים ייחודיים חדשים.',
+    'teach.err_no_position': 'נא להוסיף לפחות תפקיד אחד עם שם.',
+    'teach.err_color_taken': 'צבע זה כבר מוקצה למורה אחר. אנא בחר צבע ייחודי.',
+    'teach.found_prefix': 'נמצאו',
   }
 };
 
