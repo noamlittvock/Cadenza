@@ -84,7 +84,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
             setAccessRecords(accessData);
         } catch (err) {
             console.error("Error loading super admin data", err);
-            setErrorMsg("Failed to load data. Make sure rules allow super admin reading.");
+            setErrorMsg(t('sa.err_load_data'));
         }
         setLoading(false);
     };
@@ -110,17 +110,17 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
             setNewOrgName('');
             loadData(); // Reload to show new
         } catch (err) {
-            setErrorMsg("Failed to create organization.");
+            setErrorMsg(t('sa.err_create_org'));
         }
     };
 
     const handleDeleteOrg = async (slug: string, name: string) => {
-        if (!window.confirm(`Are you sure you want to delete the entire organization "${name}"? This will not delete the data within it, but will remove it from the selector list.`)) return;
+        if (!window.confirm(t('sa.confirm_delete_org').replace('{name}', name))) return;
         try {
             await deleteDoc(doc(db, 'organizations', slug));
             loadData();
         } catch (err) {
-            setErrorMsg("Failed to delete organization.");
+            setErrorMsg(t('sa.err_delete_org'));
         }
     };
 
@@ -134,18 +134,18 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                 setEditingOrgId(null);
                 loadData();
             } catch (err) {
-                setErrorMsg("Failed to update organization name.");
+                setErrorMsg(t('sa.err_update_org'));
             }
             return;
         }
 
-        if (!window.confirm(`WARNING: Changing the tenant ID from "${oldSlug}" to "${newSlug}" will migrate all records across the platform. Continue?`)) return;
+        if (!window.confirm(t('sa.confirm_migrate').replace('{old}', oldSlug).replace('{new}', newSlug))) return;
 
         setLoading(true);
         try {
             const existingDest = await getDoc(doc(db, 'organizations', newSlug));
             if (existingDest.exists()) {
-                setErrorMsg(`Cannot change ID to ${newSlug} because that organization already exists.`);
+                setErrorMsg(t('sa.err_org_exists').replace('{slug}', newSlug));
                 setLoading(false);
                 return;
             }
@@ -205,14 +205,14 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
             loadData();
         } catch (err) {
             console.error(err);
-            setErrorMsg("Failed to migrate organization data.");
+            setErrorMsg(t('sa.err_migrate'));
             setLoading(false);
         }
     };
 
     const handleLogoUpload = async (file: File, orgId: string) => {
         if (!file.type.startsWith('image/')) {
-            setErrorMsg("Please upload a valid image file.");
+            setErrorMsg(t('sa.err_upload_image'));
             return;
         }
 
@@ -227,7 +227,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
             null, // Could add progress bar here
             (error) => {
                 console.error("Upload failed", error);
-                setErrorMsg("Failed to upload logo.");
+                setErrorMsg(t('sa.err_upload_logo'));
                 setUploadingOrgId(null);
             },
             async () => {
@@ -238,7 +238,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                     });
                     loadData();
                 } catch (err) {
-                    setErrorMsg("Failed to update organization with new logo.");
+                    setErrorMsg(t('sa.err_update_logo'));
                 } finally {
                     setUploadingOrgId(null);
                 }
@@ -262,7 +262,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
             setNewUserEmail('');
             loadData();
         } catch (err) {
-            setErrorMsg("Failed to assign user access.");
+            setErrorMsg(t('sa.err_assign_user'));
         }
     };
 
@@ -298,18 +298,18 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
             setIsBulkMode(false);
             loadData();
         } catch (err) {
-            setErrorMsg("Failed to process bulk upload.");
+            setErrorMsg(t('sa.err_bulk_upload'));
             setLoading(false);
         }
     };
 
     const handleDeleteUser = async (recordId: string, email: string) => {
-        if (!window.confirm(`Are you sure you want to revoke access for ${email}?`)) return;
+        if (!window.confirm(t('sa.confirm_revoke').replace('{email}', email))) return;
         try {
             await deleteDoc(doc(db, 'access_control', recordId));
             loadData();
         } catch (err) {
-            setErrorMsg("Failed to delete user access.");
+            setErrorMsg(t('sa.err_delete_user'));
         }
     };
 
@@ -320,7 +320,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
             // Optimistically update local state
             setAccessRecords(prev => prev.map(r => r.id === recordId ? { ...r, role: newRole } : r));
         } catch (err) {
-            setErrorMsg("Failed to update user role.");
+            setErrorMsg(t('sa.err_update_role'));
             loadData(); // Revert on failure
         }
     };
@@ -386,7 +386,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                 {loading ? (
                     <div className="flex items-center justify-center py-20 text-slate-400">
                         <Loader2 className="animate-spin mr-3" size={24} />
-                        Loading super admin data...
+                        {t('sa.loading')}
                     </div>
                 ) : (
                     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -422,13 +422,13 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg px-4 py-2 text-sm font-medium flex items-center justify-center transition-colors"
                                             >
                                                 <Plus size={16} className="mr-2" />
-                                                Create Tenant
+                                                {t('sa.create_tenant')}
                                             </button>
                                         </div>
                                     </div>
                                 </form>
 
-                                <h3 className="font-semibold mb-4 text-slate-800 dark:text-slate-200">Active Organizations ({organizations.length})</h3>
+                                <h3 className="font-semibold mb-4 text-slate-800 dark:text-slate-200">{t('sa.active_orgs').replace('{count}', String(organizations.length))}</h3>
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -587,7 +587,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                 </select>
                                             </div>
                                             <div>
-                                                <label className="block text-xs text-slate-500 mb-1">Role</label>
+                                                <label className="block text-xs text-slate-500 mb-1">{t('sa.role_label')}</label>
                                                 <select
                                                     value={newUserRole}
                                                     onChange={(e) => setNewUserRole(e.target.value as 'ADMIN' | 'VIEWER')}
@@ -611,7 +611,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                     ) : (
                                         <div>
                                             <label className="block text-xs text-slate-500 mb-2">
-                                                Paste CSV data. Format: <code>{t('super.csv_format')}</code> (Role defaults to VIEWER if omitted, use ADMIN for admins)
+                                                {t('sa.csv_instructions')} <code>{t('super.csv_format')}</code> {t('sa.csv_role_hint')}
                                             </label>
                                             <textarea
                                                 value={bulkCsvData}
@@ -625,7 +625,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                     disabled={!bulkCsvData.trim()}
                                                     className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg px-6 py-2 text-sm font-medium transition-colors"
                                                 >
-                                                    Process Bulk Import
+                                                    {t('sa.process_bulk')}
                                                 </button>
                                             </div>
                                         </div>
@@ -633,7 +633,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                 </div>
 
                                 <div className="flex justify-between items-center mb-4">
-                                    <h3 className="font-semibold text-slate-800 dark:text-slate-200">Global Access Roster ({filteredRecords.length})</h3>
+                                    <h3 className="font-semibold text-slate-800 dark:text-slate-200">{t('sa.global_roster').replace('{count}', String(filteredRecords.length))}</h3>
                                     <select
                                         value={filterOrgId}
                                         onChange={(e) => setFilterOrgId(e.target.value)}
@@ -649,10 +649,10 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                     <table className="w-full text-left text-sm">
                                         <thead>
                                             <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500">
-                                                <th className="pb-3 font-medium">Email</th>
+                                                <th className="pb-3 font-medium">{t('sa.col_email')}</th>
                                                 <th className="pb-3 font-medium">{t('sa.organization')}</th>
-                                                <th className="pb-3 font-medium">Role</th>
-                                                <th className="pb-3 font-medium text-right">Actions</th>
+                                                <th className="pb-3 font-medium">{t('sa.role_label')}</th>
+                                                <th className="pb-3 font-medium text-right">{t('sa.col_actions')}</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -706,7 +706,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                             <div>
                                                 <h4 className="font-bold text-slate-900 dark:text-white">{t('sa.generate_test')}</h4>
                                                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                                    Populate the current workspace with realistic test teachers, events, rooms, and Gantt blocks for evaluation purposes.
+                                                    {t('sa.test_data_desc')}
                                                 </p>
                                             </div>
                                             <div className="flex gap-2 shrink-0">
@@ -735,7 +735,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                     }}
                                                     className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-bold transition-colors shadow-none border border-amber-600"
                                                 >
-                                                    Generate Test Data
+                                                    {t('sa.generate_btn')}
                                                 </button>
                                             </div>
                                         </div>
@@ -818,7 +818,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                 <span className="text-slate-900 dark:text-white font-bold text-lg">{accessRecords.length}</span>
                                             </div>
                                             <div>
-                                                <span className="text-slate-500 block">Role</span>
+                                                <span className="text-slate-500 block">{t('sa.role_label')}</span>
                                                 <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded font-bold">{t('sa.superadmin_badge')}</span>
                                             </div>
                                         </div>
