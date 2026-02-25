@@ -880,6 +880,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                     currentFilters={{ dateFilterType, customStartDate, customEndDate, selectedTeacherIds, selectedPositionNames, selectedTags, selectedCategories, selectedRateTypes }}
                     editingChart={editingChart}
                     currencySymbol={settings.currency}
+                    t={t}
                 />
 
                 {isCustomInsightModalOpen && (
