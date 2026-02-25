@@ -736,7 +736,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                     <GitCompareArrows size={12} /> {t('builder.comparison_mode')}
                                     {compareEnabled && (
                                         <span className="ms-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-500 text-white animate-pulse">
-                                            ACTIVE · {comparisons.length}
+                                            {t('builder.active_badge')} · {comparisons.length}
                                         </span>
                                     )}
                                 </label>
@@ -882,7 +882,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                 )}
                             </label>
                             <p className="text-[10px] text-slate-400 mb-3">
-                                Narrow chart data by specific teachers, positions, tags, or categories
+                                {t('builder.data_filters_desc')}
                             </p>
 
                             <div className="grid grid-cols-2 gap-3">
@@ -999,8 +999,8 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                 )}
                             </label>
                             <p className="text-[10px] text-slate-400 mt-1">
-                                {timeFilteredEvents.length} events · {dimension} × {metrics.length} metric{metrics.length > 1 ? 's' : ''} → {visualization}
-                                {chartFilterCount > 0 && <span className="text-violet-500 ms-1">· {chartFilterCount} filter{chartFilterCount > 1 ? 's' : ''} applied</span>}
+                                {t('builder.preview_summary').replace('{events}', String(timeFilteredEvents.length)).replace('{dim}', dimension).replace('{metrics}', String(metrics.length)).replace('{viz}', visualization)}
+                                {chartFilterCount > 0 && <span className="text-violet-500 ms-1">· {t('builder.filters_applied').replace('{count}', String(chartFilterCount))}</span>}
                             </p>
                         </div>
 
@@ -1012,7 +1012,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                         config={previewConfig}
                                         datasets={[
                                             {
-                                                label: TIMEFRAME_OPTIONS.find(o => o.value === timeframe)?.label ?? t('builder.primary'),
+                                                label: t({ 'today': 'builder.tf_today', 'currentWeek': 'builder.tf_current_week', 'currentMonth': 'builder.tf_current_month', 'customRange': 'builder.tf_custom_range', 'specificDay': 'builder.tf_specific_day', 'specificWeek': 'builder.tf_specific_week', 'specificMonth': 'builder.tf_specific_month' }[timeframe] || '') || t('builder.primary_label'),
                                                 color: '#4f46e5',
                                                 events: timeFilteredEvents,
                                                 isPrimary: true,
@@ -1036,8 +1036,8 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                     {compareEnabled && comparisons.length > 0 && (
                                         <div className="text-[10px] font-semibold text-teal-600 dark:text-teal-400 mb-1.5 flex items-center gap-1">
                                             <Calendar size={10} />
-                                            {TIMEFRAME_OPTIONS.find(o => o.value === timeframe)?.label ?? 'Primary'}
-                                            <span className="text-slate-400 ms-1">({timeFilteredEvents.length} events)</span>
+                                            {TIMEFRAME_OPTIONS.find(o => o.value === timeframe)?.label ?? t('builder.primary_label')}
+                                            <span className="text-slate-400 ms-1">{t('builder.n_events').replace('{count}', String(timeFilteredEvents.length))}</span>
                                         </div>
                                     )}
                                     <div className="w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex items-center justify-center overflow-hidden">
@@ -1060,7 +1060,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                             style={{ color: COMPARE_COLORS[idx % COMPARE_COLORS.length] }}>
                                             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COMPARE_COLORS[idx % COMPARE_COLORS.length] }} />
                                             {getCompareLabel(cmpResult)}
-                                            <span className="text-slate-400 ms-1">({cmpResult.eventCount} events)</span>
+                                            <span className="text-slate-400 ms-1">{t('builder.n_events').replace('{count}', String(cmpResult.eventCount))}</span>
                                         </div>
                                         <div className="w-full bg-white dark:bg-slate-900 rounded-xl border p-4 flex items-center justify-center overflow-hidden"
                                             style={{ borderColor: COMPARE_COLORS[idx % COMPARE_COLORS.length] + '40' }}>
@@ -1082,8 +1082,8 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                 {/* ── Footer ── */}
                 <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex-shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
                     <div className="text-[10px] text-slate-400">
-                        {dimension} × {metrics.length} metric{metrics.length > 1 ? 's' : ''} → {visualization}
-                        {chartFilterCount > 0 && ` · ${chartFilterCount} filter${chartFilterCount > 1 ? 's' : ''}`}
+                        {t('builder.footer_summary').replace('{dim}', dimension).replace('{metrics}', String(metrics.length)).replace('{viz}', visualization)}
+                        {chartFilterCount > 0 && t('builder.footer_filters').replace('{count}', String(chartFilterCount))}
                     </div>
                     <div className="flex gap-2">
                         <button onClick={onClose} className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">{t('builder.cancel')}</button>

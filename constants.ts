@@ -1003,6 +1003,13 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'teach.err_no_position': 'Please add at least one position with a name.',
     'teach.err_color_taken': 'This color is already assigned to another teacher. Please select a unique color.',
     'teach.found_prefix': 'Found',
+    'builder.active_badge': 'ACTIVE',
+    'builder.data_filters_desc': 'Narrow chart data by specific teachers, positions, tags, or categories',
+    'builder.preview_summary': '{events} events · {dim} × {metrics} metric(s) → {viz}',
+    'builder.n_events': '({count} events)',
+    'builder.primary_label': 'Primary',
+    'builder.footer_summary': '{dim} × {metrics} metric(s) → {viz}',
+    'builder.footer_filters': ' · {count} filter(s)',
   },
   'he-IL': {
     'app.title': 'מרכז המוזיקה אלפרט',
@@ -1945,6 +1952,13 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'teach.err_no_position': 'נא להוסיף לפחות תפקיד אחד עם שם.',
     'teach.err_color_taken': 'צבע זה כבר מוקצה למורה אחר. אנא בחר צבע ייחודי.',
     'teach.found_prefix': 'נמצאו',
+    'builder.active_badge': 'פעיל',
+    'builder.data_filters_desc': 'צמצם נתוני תרשים לפי מורים, תפקידים, תגיות או קטגוריות ספציפיות',
+    'builder.preview_summary': '{events} אירועים · {dim} × {metrics} מדד(ים) → {viz}',
+    'builder.n_events': '({count} אירועים)',
+    'builder.primary_label': 'ראשי',
+    'builder.footer_summary': '{dim} × {metrics} מדד(ים) → {viz}',
+    'builder.footer_filters': ' · {count} סינון(ים)',
   }
 };
 
