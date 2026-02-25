@@ -19,6 +19,7 @@ import {
 import { ChartBuilderModal } from './ChartBuilderModal';
 import { ChartRenderer } from './ChartRenderer';
 import { MergedChartRenderer, DatasetInput } from './MergedChartRenderer';
+import { TRANSLATIONS } from '../constants';
 
 // ---- Financial data structures ----
 interface PositionFinancials {
@@ -163,14 +164,14 @@ const InsightCard: React.FC<{ tile: InsightTile }> = ({ tile }) => {
 };
 
 // ---- Delete Confirmation Modal ----
-const DeleteConfirmModal: React.FC<{ chartTitle: string; onConfirm: () => void; onCancel: () => void }> = ({ chartTitle, onConfirm, onCancel }) => (
+const DeleteConfirmModal: React.FC<{ chartTitle: string; onConfirm: () => void; onCancel: () => void; t: (key: string) => string }> = ({ chartTitle, onConfirm, onCancel, t }) => (
     <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4" onClick={onCancel}>
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-sm w-full p-6 border border-slate-200 dark:border-slate-700" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg"><Trash2 size={20} className="text-red-500" /></div>
                 <div>
-                    <h3 className="font-bold text-slate-900 dark:text-white">Delete Chart</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">This action cannot be undone.</p>
+                    <h3 className="font-bold text-slate-900 dark:text-white">{t('modal.delete_chart')}</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{t('modal.cannot_undo')}</p>
                 </div>
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">
@@ -189,9 +190,10 @@ interface CustomInsightModalProps {
     teachers: Teacher[];
     onClose: () => void;
     onSave: (info: CustomInsightInfo) => void;
+    t: (key: string) => string;
 }
 
-const CustomInsightModal: React.FC<CustomInsightModalProps> = ({ teachers, onClose, onSave }) => {
+const CustomInsightModal: React.FC<CustomInsightModalProps> = ({ teachers, onClose, onSave, t }) => {
     const [title, setTitle] = useState('');
     const [metric, setMetric] = useState<CustomInsightInfo['metric']>('totalActiveHours');
     const [teacherId, setTeacherId] = useState('');
@@ -206,7 +208,7 @@ const CustomInsightModal: React.FC<CustomInsightModalProps> = ({ teachers, onClo
             <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-sm w-full border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
                 <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
                     <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        <Zap size={18} className="text-amber-500" /> New Insight
+                        <Zap size={18} className="text-amber-500" /> {t('modal.new_insight')}
                     </h3>
                     <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
                         <X size={16} className="text-slate-400" />
@@ -214,42 +216,42 @@ const CustomInsightModal: React.FC<CustomInsightModalProps> = ({ teachers, onClo
                 </div>
                 <div className="p-5 space-y-4">
                     <div>
-                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">Insight Title</label>
+                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">{t('modal.insight_title')}</label>
                         <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Piano Revenue" autoFocus className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-blue-500" />
                     </div>
                     <div>
-                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">Metric</label>
+                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">{t('modal.metric')}</label>
                         <select value={metric} onChange={e => setMetric(e.target.value as any)} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-blue-500">
-                            <optgroup label="Totals">
-                                <option value="totalActiveHours">Total Active Hours</option>
-                                <option value="totalCanceledHours">Total Canceled Hours</option>
-                                <option value="hourlyCostTotal">Hourly Payroll</option>
-                                <option value="oneOffCostTotal">One-Off Payroll</option>
-                                <option value="globalCostTotal">Global Payroll</option>
-                                <option value="grandTotal">Grand Total Payroll</option>
+                            <optgroup label={t('modal.totals')}>
+                                <option value="totalActiveHours">{t('metric.total_active_hours')}</option>
+                                <option value="totalCanceledHours">{t('metric.total_canceled_hours')}</option>
+                                <option value="hourlyCostTotal">{t('metric.hourly_payroll')}</option>
+                                <option value="oneOffCostTotal">{t('metric.oneoff_payroll')}</option>
+                                <option value="globalCostTotal">{t('metric.global_payroll')}</option>
+                                <option value="grandTotal">{t('metric.grand_total')}</option>
                             </optgroup>
-                            <optgroup label="Averages & Rates">
-                                <option value="avgActiveHours">Avg Hours per Teacher</option>
-                                <option value="avgGrandTotal">Avg Payroll per Teacher</option>
-                                <option value="cancellationRate">Cancellation Rate</option>
+                            <optgroup label={t('modal.averages_rates')}>
+                                <option value="avgActiveHours">{t('metric.avg_hours')}</option>
+                                <option value="avgGrandTotal">{t('metric.avg_payroll')}</option>
+                                <option value="cancellationRate">{t('insight.cancel_rate')}</option>
                             </optgroup>
-                            <optgroup label="Extremes">
-                                <option value="maxEarner">Highest Earner</option>
-                                <option value="minEarner">Lowest Earner</option>
+                            <optgroup label={t('modal.extremes')}>
+                                <option value="maxEarner">{t('metric.highest_earner')}</option>
+                                <option value="minEarner">{t('metric.lowest_earner')}</option>
                             </optgroup>
                         </select>
                     </div>
                     <div>
-                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">Filter by Teacher (Optional)</label>
+                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">{t('modal.filter_by_teacher')}</label>
                         <select value={teacherId} onChange={e => setTeacherId(e.target.value)} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-blue-500">
-                            <option value="">All Teachers</option>
+                            <option value="">{t('metric.all_teachers')}</option>
                             {teachers.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}
                         </select>
                     </div>
                 </div>
                 <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-end gap-2">
                     <button onClick={onClose} className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
-                    <button onClick={handleSave} disabled={!title.trim()} className="px-4 py-2 text-xs font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors">Save Insight</button>
+                    <button onClick={handleSave} disabled={!title.trim()} className="px-4 py-2 text-xs font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors">{t('modal.save_insight')}</button>
                 </div>
             </div>
         </div>
@@ -264,6 +266,7 @@ interface Props {
 }
 
 export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings, savedCharts, setSavedCharts, onMobileMenuOpen, onNavigateBack }) => {
+    const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
     const [dateFilterType, setDateFilterType] = useState<DateFilterType>('MONTH');
     const [customStartDate, setCustomStartDate] = useState('');
     const [customEndDate, setCustomEndDate] = useState('');
@@ -494,23 +497,23 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
         const activeCount = rwd.filter(r => r.totalActiveHours > 0).length;
 
         return [
-            { id: 'most-hours', title: 'Most Hours Taught', icon: <Award size={16} />, value: formatHours(mostHrs.totalActiveHours), entity: mostHrs.teacherName, entityColor: mostHrs.teacherColor, context: `${((mostHrs.totalActiveHours / Math.max(totals.activeHours, 1)) * 100).toFixed(0)}% of all active hours`, highlight: 'max', gradient: 'bg-gradient-to-r from-emerald-400 to-emerald-600' },
-            { id: 'most-canceled', title: 'Most Canceled Hours', icon: <AlertTriangle size={16} />, value: formatHours(mostCanc.totalCanceledHours), entity: mostCanc.teacherName, entityColor: mostCanc.teacherColor, context: mostCanc.totalCanceledHours > 0 ? `${((mostCanc.totalCanceledHours / Math.max(mostCanc.totalHours, 1)) * 100).toFixed(0)}% of their total hours` : 'No cancellations', highlight: mostCanc.totalCanceledHours > 0 ? 'min' : 'neutral', gradient: 'bg-gradient-to-r from-red-400 to-red-600' },
-            { id: 'highest-payroll', title: 'Highest Payroll', icon: <DollarSign size={16} />, value: formatCurrency(highPay.grandTotal, settings.currency), entity: highPay.teacherName, entityColor: highPay.teacherColor, context: `${((highPay.grandTotal / Math.max(totals.grandTotal, 1)) * 100).toFixed(0)}% of total payroll`, highlight: 'max', gradient: 'bg-gradient-to-r from-blue-400 to-indigo-600' },
-            { id: 'lowest-payroll', title: 'Lowest Payroll', icon: <TrendingDown size={16} />, value: lowPay ? formatCurrency(lowPay.grandTotal, settings.currency) : '—', entity: lowPay?.teacherName, entityColor: lowPay?.teacherColor, context: lowPay ? `${((lowPay.grandTotal / Math.max(totals.grandTotal, 1)) * 100).toFixed(1)}% of total` : 'No data', highlight: 'min', gradient: 'bg-gradient-to-r from-orange-400 to-red-500' },
-            { id: 'cancel-rate', title: 'Cancellation Rate', icon: <Percent size={16} />, value: `${cancelRate.toFixed(1)}%`, context: `${formatHours(totals.canceledHours)} canceled of ${formatHours(totals.totalHours)} total`, highlight: cancelRate > 25 ? 'min' : cancelRate > 15 ? 'warning' : 'neutral', gradient: cancelRate > 15 ? 'bg-gradient-to-r from-amber-400 to-amber-600' : 'bg-gradient-to-r from-slate-300 to-slate-500' },
-            { id: 'avg-cost', title: 'Avg Cost / Teacher', icon: <Target size={16} />, value: formatCurrency(avgCost, settings.currency), context: `Across ${rwd.length} active teacher${rwd.length !== 1 ? 's' : ''}`, highlight: 'neutral', gradient: 'bg-gradient-to-r from-violet-400 to-purple-600' },
-            { id: 'top-position', title: 'Top Position (Hrs)', icon: <Briefcase size={16} />, value: topPos ? formatHours(topPos[1]) : '0:00', entity: topPos ? topPos[0] : undefined, context: 'Most active position', highlight: 'neutral', gradient: 'bg-gradient-to-r from-teal-400 to-cyan-600' },
-            { id: 'cost-split', title: 'Hourly vs Global', icon: <CreditCard size={16} />, value: `${hourlyPct.toFixed(0)}% / ${(100 - hourlyPct).toFixed(0)}%`, context: `${formatCurrency(totals.hourlyCost, settings.currency)} hourly · ${formatCurrency(totals.globalCost, settings.currency)} global`, highlight: 'neutral', gradient: 'bg-gradient-to-r from-blue-400 to-emerald-500' },
-            { id: 'most-positions', title: 'Most Positions', icon: <UsersIcon size={16} />, value: `${mostPos.positions.length}`, entity: mostPos.teacherName, entityColor: mostPos.teacherColor, context: mostPos.positions.map(p => p.positionName).join(', '), highlight: 'neutral', gradient: 'bg-gradient-to-r from-pink-400 to-rose-600' },
-            { id: 'active-teachers', title: 'Active Teachers', icon: <Activity size={16} />, value: `${activeCount}`, context: `Out of ${teachers.length} total`, highlight: 'neutral', gradient: 'bg-gradient-to-r from-sky-400 to-blue-600' },
+            { id: 'most-hours', title: t('insight.most_hours'), icon: <Award size={16} />, value: formatHours(mostHrs.totalActiveHours), entity: mostHrs.teacherName, entityColor: mostHrs.teacherColor, context: `${((mostHrs.totalActiveHours / Math.max(totals.activeHours, 1)) * 100).toFixed(0)}% of all active hours`, highlight: 'max', gradient: 'bg-gradient-to-r from-emerald-400 to-emerald-600' },
+            { id: 'most-canceled', title: t('insight.most_canceled'), icon: <AlertTriangle size={16} />, value: formatHours(mostCanc.totalCanceledHours), entity: mostCanc.teacherName, entityColor: mostCanc.teacherColor, context: mostCanc.totalCanceledHours > 0 ? `${((mostCanc.totalCanceledHours / Math.max(mostCanc.totalHours, 1)) * 100).toFixed(0)}% of their total hours` : 'No cancellations', highlight: mostCanc.totalCanceledHours > 0 ? 'min' : 'neutral', gradient: 'bg-gradient-to-r from-red-400 to-red-600' },
+            { id: 'highest-payroll', title: t('insight.highest_payroll'), icon: <DollarSign size={16} />, value: formatCurrency(highPay.grandTotal, settings.currency), entity: highPay.teacherName, entityColor: highPay.teacherColor, context: `${((highPay.grandTotal / Math.max(totals.grandTotal, 1)) * 100).toFixed(0)}% of total payroll`, highlight: 'max', gradient: 'bg-gradient-to-r from-blue-400 to-indigo-600' },
+            { id: 'lowest-payroll', title: t('insight.lowest_payroll'), icon: <TrendingDown size={16} />, value: lowPay ? formatCurrency(lowPay.grandTotal, settings.currency) : '—', entity: lowPay?.teacherName, entityColor: lowPay?.teacherColor, context: lowPay ? `${((lowPay.grandTotal / Math.max(totals.grandTotal, 1)) * 100).toFixed(1)}% of total` : 'No data', highlight: 'min', gradient: 'bg-gradient-to-r from-orange-400 to-red-500' },
+            { id: 'cancel-rate', title: t('insight.cancel_rate'), icon: <Percent size={16} />, value: `${cancelRate.toFixed(1)}%`, context: `${formatHours(totals.canceledHours)} canceled of ${formatHours(totals.totalHours)} total`, highlight: cancelRate > 25 ? 'min' : cancelRate > 15 ? 'warning' : 'neutral', gradient: cancelRate > 15 ? 'bg-gradient-to-r from-amber-400 to-amber-600' : 'bg-gradient-to-r from-slate-300 to-slate-500' },
+            { id: 'avg-cost', title: t('insight.avg_cost'), icon: <Target size={16} />, value: formatCurrency(avgCost, settings.currency), context: `Across ${rwd.length} active teacher${rwd.length !== 1 ? 's' : ''}`, highlight: 'neutral', gradient: 'bg-gradient-to-r from-violet-400 to-purple-600' },
+            { id: 'top-position', title: t('insight.top_position'), icon: <Briefcase size={16} />, value: topPos ? formatHours(topPos[1]) : '0:00', entity: topPos ? topPos[0] : undefined, context: t('insight.most_active_position'), highlight: 'neutral', gradient: 'bg-gradient-to-r from-teal-400 to-cyan-600' },
+            { id: 'cost-split', title: t('insight.cost_split'), icon: <CreditCard size={16} />, value: `${hourlyPct.toFixed(0)}% / ${(100 - hourlyPct).toFixed(0)}%`, context: `${formatCurrency(totals.hourlyCost, settings.currency)} hourly · ${formatCurrency(totals.globalCost, settings.currency)} global`, highlight: 'neutral', gradient: 'bg-gradient-to-r from-blue-400 to-emerald-500' },
+            { id: 'most-positions', title: t('insight.most_positions'), icon: <UsersIcon size={16} />, value: `${mostPos.positions.length}`, entity: mostPos.teacherName, entityColor: mostPos.teacherColor, context: mostPos.positions.map(p => p.positionName).join(', '), highlight: 'neutral', gradient: 'bg-gradient-to-r from-pink-400 to-rose-600' },
+            { id: 'active-teachers', title: t('insight.active_teachers'), icon: <Activity size={16} />, value: `${activeCount}`, context: `Out of ${teachers.length} total`, highlight: 'neutral', gradient: 'bg-gradient-to-r from-sky-400 to-blue-600' },
         ];
     }, [reportData, totals, teachers, settings.currency]);
 
     const customInsightTiles: InsightTile[] = useMemo(() => {
         return customInsights.map(ci => {
             let valueStr = '';
-            let entity = ci.teacherId ? teachers.find(t => t.id === ci.teacherId)?.fullName : 'All Teachers';
+            let entity = ci.teacherId ? teachers.find(t => t.id === ci.teacherId)?.fullName : t('metric.all_teachers');
 
             const ds = ci.teacherId ? reportData.filter(r => r.teacherId === ci.teacherId) : reportData;
             const totalHrs = ds.reduce((s, r) => s + r.totalActiveHours, 0);
@@ -563,7 +566,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
     selectedPositionNames.forEach(pn => activeFilterPills.push({ label: pn, color: 'emerald', onRemove: () => toggleInSet(selectedPositionNames, setSelectedPositionNames, pn) }));
     selectedTags.forEach(tag => activeFilterPills.push({ label: `#${tag}`, color: 'amber', onRemove: () => toggleInSet(selectedTags, setSelectedTags, tag) }));
     selectedCategories.forEach(cat => activeFilterPills.push({ label: cat, color: 'violet', onRemove: () => toggleInSet(selectedCategories, setSelectedCategories, cat) }));
-    selectedRateTypes.forEach(rt => activeFilterPills.push({ label: rt === 'HOURLY' ? '⏱ Hourly' : '📅 Global Monthly', color: 'rose', onRemove: () => toggleInSet(selectedRateTypes, setSelectedRateTypes, rt) }));
+    selectedRateTypes.forEach(rt => activeFilterPills.push({ label: rt === 'HOURLY' ? '⏱ ' + t('filter.hourly') : '📅 ' + t('filter.global_monthly'), color: 'rose', onRemove: () => toggleInSet(selectedRateTypes, setSelectedRateTypes, rt) }));
 
     const pillColorClasses: Record<string, string> = {
         blue: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
@@ -581,24 +584,24 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                 {/* Header */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                     <div className="flex items-center gap-3">
-                        <button onClick={onMobileMenuOpen} className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden" title="Open Menu">
+                        <button onClick={onMobileMenuOpen} className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors lg:hidden" title={t('analysis.open_menu')}>
                             <Menu className="w-6 h-6 text-slate-600 dark:text-slate-300" />
                         </button>
-                        <button onClick={onNavigateBack} className="p-2 -ml-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors" title="Back to Dashboard">
+                        <button onClick={onNavigateBack} className="p-2 -ml-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors" title={t('analysis.back_to_dashboard')}>
                             <ArrowLeft size={20} className="text-slate-500 dark:text-slate-400" />
                         </button>
                         <div>
                             <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                <LineChartIcon size={24} className="text-blue-500" />Financial Analysis
+                                <LineChartIcon size={24} className="text-blue-500" />{t('analysis.title')}
                             </h2>
-                            <p className="text-slate-500 dark:text-slate-400 text-sm">Insights, charts, comparisons, and deep data exploration.</p>
+                            <p className="text-slate-500 dark:text-slate-400 text-sm">{t('analysis.subtitle')}</p>
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2 items-center">
                         <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg flex items-center px-2 py-1.5 shadow-sm">
                             <CalIcon size={16} className="text-slate-400 mr-2" />
                             <select className="bg-transparent outline-none text-sm font-medium text-slate-700 dark:text-white" value={dateFilterType} onChange={e => setDateFilterType(e.target.value as DateFilterType)}>
-                                <option value="WEEK">Current Week</option><option value="MONTH">Current Month</option><option value="CUSTOM">Custom Range</option><option value="ALL">All Time</option>
+                                <option value="WEEK">{t('time.current_week')}</option><option value="MONTH">{t('time.current_month')}</option><option value="CUSTOM">{t('time.custom_range')}</option><option value="ALL">{t('time.all_time')}</option>
                             </select>
                         </div>
                         {dateFilterType === 'CUSTOM' && (
@@ -610,7 +613,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                         )}
                         <button onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
                             className={`border rounded-lg flex items-center px-3 py-2 shadow-sm text-sm transition-colors ${isFilterPanelOpen || activeFilterCount > 0 ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-slate-700 dark:text-white'}`}>
-                            <SlidersHorizontal size={16} className="mr-2" />Filters
+                            <SlidersHorizontal size={16} className="mr-2" />{t('analysis.filters')}
                             {activeFilterCount > 0 && <span className="ml-1.5 bg-white/20 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>}
                             <ChevronDown size={14} className={`ml-1 transition-transform ${isFilterPanelOpen ? 'rotate-180' : ''}`} />
                         </button>
@@ -621,22 +624,22 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                 {isFilterPanelOpen && (
                     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg mb-6 p-5">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2"><Filter size={14} /> Advanced Filters</h3>
+                            <h3 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2"><Filter size={14} /> {t('analysis.advanced_filters')}</h3>
                             <div className="flex items-center gap-2">
-                                {activeFilterCount > 0 && <button onClick={clearAllFilters} className="text-xs text-red-500 hover:text-red-700 font-medium">Clear All</button>}
+                                {activeFilterCount > 0 && <button onClick={clearAllFilters} className="text-xs text-red-500 hover:text-red-700 font-medium">{t('analysis.clear_all')}</button>}
                                 <button onClick={() => setIsFilterPanelOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                            <FilterSection title="Teachers" icon={<User size={12} />} items={teachers.map(t => t.id)} selected={selectedTeacherIds}
+                            <FilterSection title={t('filter.teachers')} icon={<User size={12} />} items={teachers.map(t => t.id)} selected={selectedTeacherIds}
                                 onToggle={id => toggleInSet(selectedTeacherIds, setSelectedTeacherIds, id)} colorDot={id => teacherColorMap[id]} displayLabel={id => teachers.find(t => t.id === id)?.fullName || id} accentColor="blue" />
-                            <FilterSection title="Positions" icon={<Briefcase size={12} />} items={allPositionNames} selected={selectedPositionNames}
+                            <FilterSection title={t('filter.positions')} icon={<Briefcase size={12} />} items={allPositionNames} selected={selectedPositionNames}
                                 onToggle={pn => toggleInSet(selectedPositionNames, setSelectedPositionNames, pn)} accentColor="emerald" />
-                            <FilterSection title="Tags" icon={<Tag size={12} />} items={allTags} selected={selectedTags}
+                            <FilterSection title={t('filter.tags')} icon={<Tag size={12} />} items={allTags} selected={selectedTags}
                                 onToggle={tag => toggleInSet(selectedTags, setSelectedTags, tag)} accentColor="amber" />
-                            <FilterSection title="Categories" icon={<CalendarDays size={12} />} items={allCategories} selected={selectedCategories}
+                            <FilterSection title={t('filter.categories')} icon={<CalendarDays size={12} />} items={allCategories} selected={selectedCategories}
                                 onToggle={cat => toggleInSet(selectedCategories, setSelectedCategories, cat)} accentColor="violet" />
-                            <FilterSection title="Rate Type" icon={<ToggleLeft size={12} />} items={['HOURLY', 'GLOBAL_MONTHLY']} selected={selectedRateTypes}
+                            <FilterSection title={t('filter.rate_type')} icon={<ToggleLeft size={12} />} items={['HOURLY', 'GLOBAL_MONTHLY']} selected={selectedRateTypes}
                                 onToggle={rt => toggleInSet(selectedRateTypes, setSelectedRateTypes, rt)} accentColor="rose" />
                         </div>
                     </div>
@@ -650,7 +653,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                                 {pill.label}<button onClick={pill.onRemove} className="hover:opacity-60"><X size={10} /></button>
                             </span>
                         ))}
-                        <button onClick={clearAllFilters} className="text-[11px] text-slate-400 hover:text-red-500 px-2 py-0.5 flex items-center gap-0.5"><X size={10} /> Clear all</button>
+                        <button onClick={clearAllFilters} className="text-[11px] text-slate-400 hover:text-red-500 px-2 py-0.5 flex items-center gap-0.5"><X size={10} /> {t('analysis.clear_all')}</button>
                     </div>
                 )}
 
@@ -661,7 +664,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                     <div className="mb-8">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                <Zap size={18} className="text-amber-500" /> Key Insights
+                                <Zap size={18} className="text-amber-500" /> {t('analysis.key_insights')}
                                 <span className="text-xs font-normal bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full">
                                     {insightShowAll ? allInsightTiles.length : `${visibleInsightIds.size} / ${allInsightTiles.length}`}
                                 </span>
@@ -676,7 +679,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                                         }`}
                                 >
                                     <SettingsIcon size={12} />
-                                    {isInsightPickerOpen ? 'Done' : 'Edit'}
+                                    {isInsightPickerOpen ? t('chart.done') : t('chart.edit')}
                                 </button>
                             </div>
                         </div>
@@ -686,7 +689,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg mb-4 p-4 animate-in slide-in-from-top">
                                 <div className="flex items-center justify-between mb-3">
                                     <div className="flex items-center gap-2">
-                                        <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Choose Visible Insights</h4>
+                                        <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">{t('analysis.choose_insights')}</h4>
                                         {!insightShowAll && (
                                             <span className="text-[10px] bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
                                                 {visibleInsightIds.size} selected
@@ -698,14 +701,14 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                                             onClick={() => setIsCustomInsightModalOpen(true)}
                                             className="text-[11px] text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium flex items-center gap-1 transition-colors mr-2"
                                         >
-                                            <Plus size={12} /> Custom Insight
+                                            <Plus size={12} /> {t('analysis.custom_insight')}
                                         </button>
                                         {!insightShowAll && (
                                             <button
                                                 onClick={resetInsightsToDefault}
                                                 className="text-[11px] text-slate-400 hover:text-blue-500 dark:text-slate-500 dark:hover:text-blue-400 font-medium flex items-center gap-1 transition-colors"
                                             >
-                                                <RotateCcw size={10} /> Show All
+                                                <RotateCcw size={10} /> {t('analysis.show_all')}
                                             </button>
                                         )}
                                     </div>
@@ -769,12 +772,12 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                 {/* ═══════════════════════════════════════ */}
                 <div className="mb-6 flex items-center justify-between">
                     <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        <BarChart3 size={18} className="text-blue-500" /> Charts
+                        <BarChart3 size={18} className="text-blue-500" /> {t('analysis.charts')}
                         {savedCharts.length > 0 && <span className="text-xs font-normal bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full">{savedCharts.length}</span>}
                     </h3>
                     <button onClick={handleNewChart}
                         className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors shadow-sm">
-                        <Plus size={16} /> New Chart
+                        <Plus size={16} /> {t('analysis.new_chart')}
                     </button>
                 </div>
 
@@ -785,8 +788,8 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                     <div onClick={handleNewChart}
                         className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-10 text-center cursor-pointer hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-all group mb-8">
                         <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">📊</div>
-                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Create your first custom chart</p>
-                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Group data by any dimension, pick metrics, and choose a visualization</p>
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{t('analysis.create_first_chart')}</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t('analysis.create_first_chart_desc')}</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
@@ -882,6 +885,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                 {isCustomInsightModalOpen && (
                     <CustomInsightModal
                         teachers={teachers}
+                        t={t}
                         onClose={() => setIsCustomInsightModalOpen(false)}
                         onSave={(info) => {
                             saveCustomInsights([...customInsights, info]);
@@ -898,6 +902,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                 {deletingChart && (
                     <DeleteConfirmModal
                         chartTitle={deletingChart.title}
+                        t={t}
                         onConfirm={() => handleDeleteChart(deletingChartId!)}
                         onCancel={() => setDeletingChartId(null)}
                     />

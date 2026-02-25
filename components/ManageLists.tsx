@@ -183,8 +183,8 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
               </button>
             )}
             <div>
-              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Manage Lists</h2>
-              <p className="text-slate-500 dark:text-slate-400">Configure global dropdown options for Positions, Tags, and Classifications.</p>
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{t('lists.manage_title')}</h2>
+              <p className="text-slate-500 dark:text-slate-400">{t('lists.configure_desc')}</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -192,7 +192,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
               <FileDown size={16} className="mr-2" /> Template
             </button>
             <button onClick={() => fileInputRef.current?.click()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm">
-              <Upload size={16} className="mr-2" /> Import CSV
+              <Upload size={16} className="mr-2" /> {t('lists.import_csv')}
             </button>
             <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
           </div>
@@ -204,7 +204,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
             <FileDown size={16} className="mr-2" /> Template
           </button>
           <button onClick={() => fileInputRef.current?.click()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm">
-            <Upload size={16} className="mr-2" /> Import CSV
+            <Upload size={16} className="mr-2" /> {t('lists.import_csv')}
           </button>
           <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
         </div>
@@ -212,21 +212,21 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <ListEditor
-          title="Positions"
+          title={t('lists.positions')}
           icon={Briefcase}
           items={lists.positions}
           onAdd={(item) => addItem('positions', item)}
           onRemove={(item) => removeItem('positions', item)}
         />
         <ListEditor
-          title="Tags"
+          title={t('lists.tags')}
           icon={Tag}
           items={lists.tags}
           onAdd={(item) => addItem('tags', item)}
           onRemove={(item) => removeItem('tags', item)}
         />
         <ListEditor
-          title="Classifications"
+          title={t('lists.classifications')}
           icon={Bookmark}
           items={lists.classifications}
           onAdd={(item) => addItem('classifications', item)}
@@ -237,13 +237,13 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
       {isImportModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg p-6 border border-slate-200 dark:border-slate-800">
-            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">Import Preview</h3>
+            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{t('lists.import_preview')}</h3>
             <p className="text-sm text-slate-500 mb-4">Found {candidates.positions.length + candidates.tags.length + candidates.classifications.length} new unique items.</p>
 
             <div className="space-y-4 max-h-[60vh] overflow-y-auto mb-6">
               {candidates.positions.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">New Positions</h4>
+                  <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">{t('lists.new_positions')}</h4>
                   <div className="flex flex-wrap gap-2">
                     {candidates.positions.map(i => <span key={i} className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-xs border border-slate-200 dark:border-slate-700">{i}</span>)}
                   </div>
@@ -251,7 +251,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
               )}
               {candidates.tags.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">New Tags</h4>
+                  <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">{t('lists.new_tags')}</h4>
                   <div className="flex flex-wrap gap-2">
                     {candidates.tags.map(i => <span key={i} className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded text-xs border border-blue-100 dark:border-blue-800">{i}</span>)}
                   </div>
@@ -259,7 +259,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
               )}
               {candidates.classifications.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">New Classifications</h4>
+                  <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">{t('lists.new_classifications')}</h4>
                   <div className="flex flex-wrap gap-2">
                     {candidates.classifications.map(i => <span key={i} className="bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-2 py-1 rounded text-xs border border-purple-100 dark:border-purple-800">{i}</span>)}
                   </div>
@@ -277,7 +277,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
                 disabled={(candidates.positions.length + candidates.tags.length + candidates.classifications.length) === 0}
                 className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg disabled:opacity-50"
               >
-                Import All
+                {t('lists.import_all')}
               </button>
             </div>
           </div>

@@ -74,7 +74,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
             onClick={() => handleOpenModal()}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm"
           >
-            <Plus size={18} className="mr-2" /> Add Room
+            <Plus size={18} className="mr-2" /> {t('room.add')}
           </button>
         </div>
       )}
@@ -84,7 +84,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
             onClick={() => handleOpenModal()}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm"
           >
-            <Plus size={18} className="mr-2" /> Add Room
+            <Plus size={18} className="mr-2" /> {t('room.add')}
           </button>
         </div>
       )}
@@ -111,7 +111,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
             <div className="flex-1">
               <h4 className="text-xs font-semibold uppercase text-slate-400 mb-2">{t('room.itinerary')} & Equipment</h4>
               <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                {room.itinerary || 'No details provided.'}
+                {room.itinerary || t('room.no_details')}
               </p>
             </div>
           </div>
@@ -126,7 +126,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-md p-6 border border-slate-200 dark:border-slate-800">
-            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{editingId ? 'Edit Room' : 'Add New Room'}</h3>
+            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{editingId ? t('room.edit') : t('room.add_new')}</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('label.room_name')}</label>
@@ -140,7 +140,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Itinerary / Description</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('room.itinerary_desc')}</label>
                 <textarea
                   className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none h-32"
                   value={formData.itinerary || ''}
