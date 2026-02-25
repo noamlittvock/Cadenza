@@ -1038,6 +1038,15 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'sa.col_actions': 'Actions',
     'sa.test_data_desc': 'Populate the current workspace with realistic test teachers, events, rooms, and Gantt blocks for evaluation purposes.',
     'sa.generate_btn': 'Generate Test Data',
+    'layout.loading': 'Loading...',
+    'layout.expand_sidebar': 'Expand Sidebar',
+    'layout.collapse_sidebar': 'Collapse Sidebar',
+    'layout.switch_light': 'Switch to Light Mode',
+    'layout.switch_dark': 'Switch to Dark Mode',
+    'layout.light_mode': 'Light Mode',
+    'layout.dark_mode': 'Dark Mode',
+    'layout.mobile_access': 'Mobile Access',
+    'layout.copyright': 'Copyright Noam Solutions.',
   },
   'he-IL': {
     'app.title': 'מרכז המוזיקה אלפרט',
@@ -2015,6 +2024,15 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'sa.col_actions': 'פעולות',
     'sa.test_data_desc': 'מלא את סביבת העבודה הנוכחית במורים, אירועים, חדרים ובלוקי גאנט מציאותיים למטרות הערכה.',
     'sa.generate_btn': 'צור נתוני בדיקה',
+    'layout.loading': 'טוען...',
+    'layout.expand_sidebar': 'הרחב סרגל צד',
+    'layout.collapse_sidebar': 'צמצם סרגל צד',
+    'layout.switch_light': 'עבור למצב בהיר',
+    'layout.switch_dark': 'עבור למצב כהה',
+    'layout.light_mode': 'מצב בהיר',
+    'layout.dark_mode': 'מצב כהה',
+    'layout.mobile_access': 'גישה מנייד',
+    'layout.copyright': 'זכויות יוצרים Noam Solutions.',
   }
 };
 

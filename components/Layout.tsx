@@ -54,9 +54,11 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 1024 : false);
   const { isAdmin, isSuperAdmin, currentUser, orgId, logout, availableOrgs } = useAuth();
+  const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
+  const isRtl = settings.language === 'he-IL';
 
   const currentOrg = availableOrgs?.find(o => o.id === orgId);
-  const displayOrgName = currentOrg?.name || (orgId ? orgId.charAt(0).toUpperCase() + orgId.slice(1) : 'Loading...');
+  const displayOrgName = currentOrg?.name || (orgId ? orgId.charAt(0).toUpperCase() + orgId.slice(1) : t('layout.loading'));
 
   useEffect(() => {
     const handleResize = () => {
@@ -93,8 +95,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
 
 
-  const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
-  const isRtl = settings.language === 'he-IL';
+
 
   return (
     <div
@@ -268,7 +269,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
               className={`absolute end-0 ${isRtl ? '-translate-x-1/2' : 'translate-x-1/2'} bg-slate-800 hover:bg-cadenza-light text-white rounded-full w-10 h-10 flex items-center justify-center shadow-cadenza-deep hover:scale-110 z-50 border-4 border-slate-50 dark:border-slate-900 btn-cadenza`}
-              title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+              title={isCollapsed ? t('layout.expand_sidebar') : t('layout.collapse_sidebar')}
             >
               {isCollapsed ? (isRtl ? <ChevronLeft size={20} /> : <ChevronRight size={20} />) : (isRtl ? <ChevronRight size={20} /> : <ChevronLeft size={20} />)}
             </button>
@@ -309,7 +310,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
           <button
             onClick={toggleDarkMode}
-            title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            title={darkMode ? t('layout.switch_light') : t('layout.switch_dark')}
             className={`flex items-center justify-center py-2 bg-slate-800/50 hover:bg-slate-700/80 rounded-xl text-slate-300 btn-cadenza ${isCollapsed ? 'w-10 h-10 p-0' : 'w-full px-4'}`}
           >
             <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
@@ -321,7 +322,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 maxWidth: isCollapsed ? 0 : 150,
                 marginLeft: isCollapsed ? 0 : 8,
                 transition: 'opacity 300ms ease, max-width 500ms ease, margin-left 500ms ease',
-              }}>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
+              }}>{darkMode ? t('layout.light_mode') : t('layout.dark_mode')}</span>
           </button>
 
           {!isMobile && (
@@ -329,7 +330,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               href="/mobile-access.html"
               target="_blank"
               rel="noopener noreferrer"
-              title={isCollapsed ? "Mobile Access" : undefined}
+              title={isCollapsed ? t('layout.mobile_access') : undefined}
               className={`flex items-center justify-center mt-2 bg-white/5 hover:bg-white/10 rounded-xl text-slate-300 hover:text-white btn-cadenza ${isCollapsed ? 'w-10 h-10 p-0' : 'w-full py-2 px-4'}`}
             >
               <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
@@ -352,7 +353,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               marginTop: isCollapsed ? 0 : 8,
               transition: 'opacity 200ms ease, max-height 400ms ease, margin-top 400ms ease',
             }}>
-            Copyright Noam Solutions.
+            {t('layout.copyright')}
           </div>
         </div>
       </div>
