@@ -358,7 +358,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-slate-100 dark:bg-slate-900 absolute right-0 top-0 bottom-0"
+      <div className="flex-1 flex flex-col overflow-hidden bg-slate-100 dark:bg-slate-900 absolute end-0 top-0 bottom-0"
         style={{
           width: isMobile ? '100%' : (isCollapsed ? 'calc(100% - 80px)' : 'max(calc(100% - 300px), 75vw)'),
           transition: 'width 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
