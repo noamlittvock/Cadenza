@@ -22,6 +22,7 @@ import { SuperAdmin } from './components/SuperAdmin';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { UserRole } from './context/AuthContext';
+import { TranslationProvider, useTranslation } from './context/TranslationContext';
 
 
 interface ErrorBoundaryProps {
@@ -75,6 +76,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 function AppContent() {
   const { currentUser, login, isAdmin } = useAuth();
   const [currentView, setCurrentView] = useState<ViewState>('CALENDAR');
+  const { liveTranslations } = useTranslation();
 
   // Initialize darkMode synchronously from localStorage to prevent flash
   const [darkMode, setDarkMode] = useState(() => {
@@ -105,6 +107,7 @@ function AppContent() {
   const [viewMode, setViewMode] = useState<'DAY' | 'WEEK' | 'MONTH'>('WEEK');
 
   const isRtl = settings.language === 'he-IL';
+  const local_t = (key: string) => (settings.language === 'he-IL' && liveTranslations[key]) || TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
 
   // Sync Language to DOM
   useEffect(() => {
@@ -176,7 +179,7 @@ function AppContent() {
                 ...(isRtl ? { left: '364px' } : { right: '364px' }), /* 384px sidebar width minus half the button */
                 bottom: '26%',
               }}
-              title={t('app.collapse_sidebar')}
+              title={local_t('app.collapse_sidebar')}
             >
               {isRtl ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
             </button>
@@ -262,7 +265,7 @@ function AppContent() {
               setGanttBlocks(data.ganttBlocks);
             }}
             onWipeData={() => {
-              if (window.confirm(t('app.confirm_wipe'))) {
+              if (window.confirm(local_t('app.confirm_wipe'))) {
                 setTeachers([]);
                 setRooms([]);
                 setEvents([]);
@@ -280,7 +283,7 @@ function AppContent() {
           />
         );
       default:
-        return <div>{t('app.not_found')}</div>;
+        return <div>{local_t('app.not_found')}</div>;
     }
   };
 
@@ -301,10 +304,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ErrorBoundary>
-        <AppContent />
-      </ErrorBoundary>
-    </AuthProvider>
+    <TranslationProvider>
+      <AuthProvider>
+        <ErrorBoundary>
+          <AppContent />
+        </ErrorBoundary>
+      </AuthProvider>
+    </TranslationProvider>
   );
 }

@@ -5,7 +5,8 @@ import { db, storage } from '../utils/firebase';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
 import { AppSettings } from '../types';
-import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus, Wrench, Edit2, Save, X } from 'lucide-react';
+import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus, Wrench, Edit2, Save, X, Globe } from 'lucide-react';
+import { TranslationManager } from './TranslationManager';
 
 interface Organization {
     id: string; // The slug
@@ -31,7 +32,7 @@ interface SuperAdminProps {
 export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeData, settings }) => {
     const { currentUser, isSuperAdmin } = useAuth();
     const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
-    const [activeTab, setActiveTab] = useState<'ORGS' | 'USERS' | 'DEV_TOOLS'>('ORGS');
+    const [activeTab, setActiveTab] = useState<'ORGS' | 'USERS' | 'DEV_TOOLS' | 'TRANSLATIONS'>('ORGS');
     const [loading, setLoading] = useState(true);
 
     // Data State
@@ -379,6 +380,16 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                         <div className="flex items-center space-x-2">
                             <Wrench size={18} />
                             <span>{t('sa.tab_dev')}</span>
+                        </div>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('TRANSLATIONS')}
+                        className={`pb-4 px-2 font-medium transition-colors border-b-2 ${activeTab === 'TRANSLATIONS' ? 'border-cadenza-light text-cadenza-light' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+                            }`}
+                    >
+                        <div className="flex items-center space-x-2">
+                            <Globe size={18} />
+                            <span>{t('sa.tab_translations') || 'Translations'}</span>
                         </div>
                     </button>
                 </div>
@@ -826,6 +837,12 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                 </div>
                             </div>
                         )}
+                    </div>
+                )}
+
+                {activeTab === 'TRANSLATIONS' && (
+                    <div className="h-full pb-20 mt-4">
+                        <TranslationManager settings={settings} />
                     </div>
                 )}
             </div>
