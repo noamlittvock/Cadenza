@@ -33,7 +33,7 @@ const NavItem = ({
     onClick={onClick}
     title={collapsed ? label : undefined}
     className={`flex items-center w-full py-3 rounded-xl text-start ${collapsed ? 'justify-center px-3' : 'px-4 space-x-2 rtl:space-x-reverse'} ${active
-      ? 'bg-cadenza-gradient text-white shadow-cadenza-soft font-semibold'
+      ? 'bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft font-semibold'
       : 'text-slate-400 hover:text-white hover:bg-white/5 hover:shadow-cadenza-soft'
       } btn-cadenza`}
     style={{ transition: 'padding 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}

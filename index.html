@@ -34,12 +34,12 @@
               950: '#1e1b4b', // cadenza-dark
             },
             cadenza: {
-              light: '#4f46e5', // vibrant indigo
-              dark: '#1e1b4b', // deep navy
+              light: '#584be3', // vibrant indigo matching logo
+              dark: '#362a9c', // deep navy matching logo
             }
           },
           backgroundImage: {
-            'cadenza-gradient': 'linear-gradient(135deg, #1e1b4b 0%, #4f46e5 100%)',
+            'cadenza-gradient': 'linear-gradient(135deg, #5c44c8 0%, #3f299b 100%)',
           },
           transitionTimingFunction: {
             'cadenza': 'cubic-bezier(0.33, 1, 0.68, 1)',
@@ -96,6 +96,22 @@
         70% { box-shadow: 0 0 0 6px rgba(79, 70, 229, 0); }
         100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); }
       }
+      
+      /* Logo grain texture overlay */
+      .texture-cadenza {
+        position: relative;
+        overflow: hidden;
+      }
+      .texture-cadenza::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        pointer-events: none;
+        opacity: 0.15;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+      }
+
       @keyframes page-turn {
         0% {
           opacity: 0;
