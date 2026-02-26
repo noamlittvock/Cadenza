@@ -12,7 +12,7 @@ import { formatHours, formatCurrency } from '../utils/formatters';
 import {
     Download, Filter, Calendar as CalIcon, ChevronDown, Menu, Clock, CalendarDays, DollarSign,
     TrendingUp, X, SlidersHorizontal, Tag, User, Briefcase, ToggleLeft, Plus, Pencil, Trash2,
-    Copy, BarChart3, Zap, Camera, ArrowLeft, LineChart as LineChartIcon,
+    Copy, BarChart3, Zap, Camera, ArrowLeft, ArrowRight, LineChart as LineChartIcon,
     Award, AlertTriangle, TrendingDown, Percent, Target, CreditCard, Users as UsersIcon, Activity,
     Settings as SettingsIcon, Check, Eye, EyeOff, RotateCcw
 } from 'lucide-react';
@@ -267,6 +267,7 @@ interface Props {
 
 export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings, savedCharts, setSavedCharts, onMobileMenuOpen, onNavigateBack }) => {
     const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
+    const isRtl = settings?.language === 'he-IL';
     const [dateFilterType, setDateFilterType] = useState<DateFilterType>('MONTH');
     const [customStartDate, setCustomStartDate] = useState('');
     const [customEndDate, setCustomEndDate] = useState('');
@@ -588,7 +589,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                             <Menu className="w-6 h-6 text-slate-600 dark:text-slate-300" />
                         </button>
                         <button onClick={onNavigateBack} className="p-2 -ms-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors" title={t('analysis.back_to_dashboard')}>
-                            <ArrowLeft size={20} className="text-slate-500 dark:text-slate-400" />
+                            {isRtl ? <ArrowRight size={20} className="text-slate-500 dark:text-slate-400" /> : <ArrowLeft size={20} className="text-slate-500 dark:text-slate-400" />}
                         </button>
                         <div>
                             <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">

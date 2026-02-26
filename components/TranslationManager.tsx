@@ -248,7 +248,7 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
     };
 
     if (loading) {
-        return <div className="p-8 flex items-center justify-center h-full"><Globe className="animate-spin text-cadenza-light mr-2" /> Loading Translations Data...</div>;
+        return <div className="p-8 flex items-center justify-center h-full"><Globe className="animate-spin text-cadenza-light me-2" /> Loading Translations Data...</div>;
     }
 
     return (
@@ -284,7 +284,7 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
                             placeholder="Search keys or text..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cadenza-light outline-none"
+                            className="w-full ps-9 pe-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cadenza-light outline-none"
                         />
                     </div>
                     <button
@@ -292,7 +292,7 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
                         className="btn-cadenza-secondary px-4 py-2 border border-slate-200 dark:border-slate-700 shadow-sm text-sm"
                         disabled={autoTranslateLoading}
                     >
-                        {autoTranslateLoading ? <RefreshCw className="animate-spin w-4 h-4 mr-2" /> : null}
+                        {autoTranslateLoading ? <RefreshCw className="animate-spin w-4 h-4 me-2" /> : null}
                         Auto-Translate Missing
                     </button>
                     <button
@@ -320,7 +320,7 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
                                     className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-cadenza-soft hover:shadow-cadenza-deep cursor-pointer transition-all hover:-translate-y-1 flex flex-col group relative"
                                 >
                                     <div className="flex justify-between items-start mb-3">
-                                        <h4 className="font-bold text-slate-800 dark:text-slate-100 truncate pr-4" title={g.name}>{g.name}</h4>
+                                        <h4 className="font-bold text-slate-800 dark:text-slate-100 truncate pe-4" title={g.name}>{g.name}</h4>
                                         <div className="p-1.5 bg-slate-50 dark:bg-slate-900 text-slate-400 rounded-full group-hover:text-cadenza-light group-hover:bg-cadenza-light/10 transition-colors">
                                             {isRtl ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
                                         </div>
@@ -354,7 +354,7 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
                             onClick={() => setSelectedGroup(null)}
                             className="mb-6 flex items-center text-sm font-medium text-slate-500 hover:text-cadenza-light transition-colors"
                         >
-                            {isRtl ? <ChevronRight size={16} className="ml-1" /> : <ChevronLeft size={16} className="mr-1" />}
+                            {isRtl ? <ChevronRight size={16} className="ms-1" /> : <ChevronLeft size={16} className="me-1" />}
                             Back to Groups
                         </button>
 
@@ -399,15 +399,15 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
 
                                         {/* Original English (Strict LTR) */}
                                         <div className="flex-1 space-y-1" dir="ltr">
-                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block text-left">Original (en-US)</label>
-                                            <div className="text-sm font-medium text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800 text-left">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block text-start">Original (en-US)</label>
+                                            <div className="text-sm font-medium text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800 text-start">
                                                 {record.original_english}
                                             </div>
                                         </div>
 
                                         {/* Target Hebrew (Strict RTL) */}
                                         <div className="flex-1 space-y-1 relative" dir="rtl">
-                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block text-right">Translation (he-IL)</label>
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block text-start">Translation (he-IL)</label>
                                             <textarea
                                                 value={record.he_IL}
                                                 onChange={(e) => {
@@ -416,7 +416,7 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
                                                         updateRecord(record.key, 'status', 'reviewed');
                                                     }
                                                 }}
-                                                className={`w-full text-sm font-medium p-3 rounded-lg border ${record.manual_override ? 'bg-cadenza-light/5 border-cadenza-light/30 focus:border-cadenza-light focus:ring-1 focus:ring-cadenza-light outline-none text-slate-900 dark:text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none'} text-right resize-none`}
+                                                className={`w-full text-sm font-medium p-3 rounded-lg border ${record.manual_override ? 'bg-cadenza-light/5 border-cadenza-light/30 focus:border-cadenza-light focus:ring-1 focus:ring-cadenza-light outline-none text-slate-900 dark:text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none'} text-start resize-none`}
                                                 rows={Math.max(2, Math.ceil(record.original_english.length / 40))}
                                                 placeholder="..."
                                             />

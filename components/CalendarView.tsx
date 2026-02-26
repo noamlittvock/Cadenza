@@ -67,6 +67,7 @@ export const CalendarView: React.FC<Props> = ({
   currentDate, setCurrentDate, viewMode, setViewMode
 }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
+  const isRtl = settings?.language === 'he-IL';
   const { googleAccessToken, currentUser } = useAuth();
 
   // Google Calendar sync is locked to the tenant admin who connected it
@@ -1034,7 +1035,7 @@ export const CalendarView: React.FC<Props> = ({
           ) : (
             /* Standard multi-line layout for normal events */
             <>
-              <div className="font-bold truncate pr-4 text-black dark:text-white" style={{ opacity: 0.9 }}>{evt.name}</div>
+              <div className="font-bold truncate pe-4 text-black dark:text-white" style={{ opacity: 0.9 }}>{evt.name}</div>
               <div className="truncate opacity-75" style={{ fontSize: timeFontSize }}>
                 {formatTime(start)} - {formatTime(end)}
               </div>
@@ -1397,7 +1398,7 @@ export const CalendarView: React.FC<Props> = ({
                 else d.setDate(d.getDate() - 1);
                 setCurrentDate(d);
               }} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded shadow-sm transition-all text-slate-600 dark:text-slate-300">
-                <ChevronLeft size={18} />
+                {isRtl ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
               </button>
               <div className="px-3 flex items-center relative group">
                 <input type="date" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => { if (e.target.value) setCurrentDate(new Date(e.target.value)); }} />
@@ -1425,7 +1426,7 @@ export const CalendarView: React.FC<Props> = ({
                 else d.setDate(d.getDate() + 1);
                 setCurrentDate(d);
               }} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded shadow-sm transition-all text-slate-600 dark:text-slate-300">
-                <ChevronRight size={18} />
+                {isRtl ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
               </button>
             </div>
             <button onClick={() => setCurrentDate(new Date())} className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 text-xs font-bold rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">{t('cal.today')}</button>
@@ -1456,7 +1457,7 @@ export const CalendarView: React.FC<Props> = ({
               <span
                 className="status-toggle-thumb"
                 style={{
-                  transform: !showCanceled ? 'translateX(16px)' : 'translateX(2px)',
+                  transform: !showCanceled ? (isRtl ? 'translateX(-16px)' : 'translateX(16px)') : (isRtl ? 'translateX(-2px)' : 'translateX(2px)'),
                 }}
               />
             </button>
@@ -1478,7 +1479,7 @@ export const CalendarView: React.FC<Props> = ({
               <span
                 className="status-toggle-thumb"
                 style={{
-                  transform: !showBlackouts ? 'translateX(16px)' : 'translateX(2px)',
+                  transform: !showBlackouts ? (isRtl ? 'translateX(-16px)' : 'translateX(16px)') : (isRtl ? 'translateX(-2px)' : 'translateX(2px)'),
                 }}
               />
             </button>

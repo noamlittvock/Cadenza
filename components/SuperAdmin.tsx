@@ -333,7 +333,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
     return (
         <div className="flex-1 flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-y-auto">
             <div className="p-8 max-w-5xl mx-auto w-full">
-                <div className="flex items-center space-x-4 mb-8">
+                <div className="flex items-center space-x-4 rtl:space-x-reverse mb-8">
                     <div className="w-12 h-12 bg-red-100 dark:bg-red-900/40 text-red-600 rounded-xl flex items-center justify-center">
                         <ShieldCheck size={28} />
                     </div>
@@ -345,19 +345,19 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
 
                 {errorMsg && (
                     <div className="mb-6 bg-red-50 text-red-600 p-4 rounded-lg flex items-center">
-                        <AlertCircle size={20} className="mr-3" />
+                        <AlertCircle size={20} className="me-3" />
                         {errorMsg}
                     </div>
                 )}
 
                 {/* Tabs */}
-                <div className="flex space-x-4 mb-6 border-b border-slate-200 dark:border-slate-800">
+                <div className="flex space-x-4 rtl:space-x-reverse mb-6 border-b border-slate-200 dark:border-slate-800">
                     <button
                         onClick={() => setActiveTab('ORGS')}
                         className={`pb-4 px-2 font-medium transition-colors border-b-2 ${activeTab === 'ORGS' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
                             }`}
                     >
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 rtl:space-x-reverse">
                             <Building size={18} />
                             <span>{t('sa.tab_orgs')}</span>
                         </div>
@@ -367,7 +367,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                         className={`pb-4 px-2 font-medium transition-colors border-b-2 ${activeTab === 'USERS' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
                             }`}
                     >
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 rtl:space-x-reverse">
                             <Users size={18} />
                             <span>{t('sa.tab_access')}</span>
                         </div>
@@ -377,7 +377,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                         className={`pb-4 px-2 font-medium transition-colors border-b-2 ${activeTab === 'DEV_TOOLS' ? 'border-amber-500 text-amber-600 dark:text-amber-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
                             }`}
                     >
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 rtl:space-x-reverse">
                             <Wrench size={18} />
                             <span>{t('sa.tab_dev')}</span>
                         </div>
@@ -387,7 +387,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                         className={`pb-4 px-2 font-medium transition-colors border-b-2 ${activeTab === 'TRANSLATIONS' ? 'border-cadenza-light text-cadenza-light' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
                             }`}
                     >
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 rtl:space-x-reverse">
                             <Globe size={18} />
                             <span>{t('sa.tab_translations') || 'Translations'}</span>
                         </div>
@@ -396,7 +396,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
 
                 {loading ? (
                     <div className="flex items-center justify-center py-20 text-slate-400">
-                        <Loader2 className="animate-spin mr-3" size={24} />
+                        <Loader2 className="animate-spin me-3" size={24} />
                         {t('sa.loading')}
                     </div>
                 ) : (
@@ -432,7 +432,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                 disabled={!newOrgName || !newOrgSlug}
                                                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg px-4 py-2 text-sm font-medium flex items-center justify-center transition-colors"
                                             >
-                                                <Plus size={16} className="mr-2" />
+                                                <Plus size={16} className="me-2" />
                                                 {t('sa.create_tenant')}
                                             </button>
                                         </div>
@@ -457,7 +457,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
 
                                         return (
                                             <div key={org.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800 rounded-lg">
-                                                <div className="flex items-center space-x-3 w-full max-w-lg">
+                                                <div className="flex items-center space-x-3 rtl:space-x-reverse w-full max-w-lg">
                                                     <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/40 text-blue-600 rounded-lg flex items-center justify-center font-bold overflow-hidden shrink-0">
                                                         {org.logoUrl ? (
                                                             <img src={org.logoUrl} alt={org.name} className="w-full h-full object-contain bg-white" />
@@ -476,7 +476,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                                     placeholder={t('sa.org_name')}
                                                                 />
                                                                 <div className="flex items-center text-xs">
-                                                                    <span className="text-slate-500 mr-1">{t('sa.id_label')}</span>
+                                                                    <span className="text-slate-500 me-1">{t('sa.id_label')}</span>
                                                                     <input
                                                                         type="text"
                                                                         value={editOrgSlug}
@@ -494,7 +494,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                         )}
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center space-x-2 shrink-0 ml-4">
+                                                <div className="flex items-center space-x-2 rtl:space-x-reverse shrink-0 ms-4">
                                                     {!isEditing ? (
                                                         <>
                                                             <div className="text-sm text-slate-500 bg-slate-200 dark:bg-slate-800 px-3 py-1 rounded-full hidden md:block">
@@ -614,7 +614,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                     disabled={!newUserEmail || !newUserOrgId}
                                                     className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg px-4 py-2 text-sm font-medium flex items-center justify-center transition-colors"
                                                 >
-                                                    <Plus size={16} className="mr-2" />
+                                                    <Plus size={16} className="me-2" />
                                                     {t('super.add_btn')}
                                                 </button>
                                             </div>
@@ -657,13 +657,13 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                     </select>
                                 </div>
                                 <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-sm">
+                                    <table className="w-full text-start text-sm">
                                         <thead>
                                             <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500">
                                                 <th className="pb-3 font-medium">{t('sa.col_email')}</th>
                                                 <th className="pb-3 font-medium">{t('sa.organization')}</th>
                                                 <th className="pb-3 font-medium">{t('sa.role_label')}</th>
-                                                <th className="pb-3 font-medium text-right">{t('sa.col_actions')}</th>
+                                                <th className="pb-3 font-medium text-end">{t('sa.col_actions')}</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -685,7 +685,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                             <option value="ADMIN" className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">{t('sa.admin')}</option>
                                                         </select>
                                                     </td>
-                                                    <td className="py-3 text-right">
+                                                    <td className="py-3 text-end">
                                                         <button
                                                             onClick={() => handleDeleteUser(record.id, record.email || record.id)}
                                                             className="text-red-500 hover:text-red-700 p-1 transition-colors"

@@ -32,7 +32,7 @@ const NavItem = ({
   <button
     onClick={onClick}
     title={collapsed ? label : undefined}
-    className={`flex items-center w-full py-3 rounded-xl text-left ${collapsed ? 'justify-center px-3' : 'px-4 space-x-2'} ${active
+    className={`flex items-center w-full py-3 rounded-xl text-start ${collapsed ? 'justify-center px-3' : 'px-4 space-x-2 rtl:space-x-reverse'} ${active
       ? 'bg-cadenza-gradient text-white shadow-cadenza-soft font-semibold'
       : 'text-slate-400 hover:text-white hover:bg-white/5 hover:shadow-cadenza-soft'
       } btn-cadenza`}
@@ -151,7 +151,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
           </div>
           {isMobile && (
             <button onClick={() => setIsMobileMenuOpen(false)} className="ms-auto p-2 text-slate-400 hover:text-white">
-              <ChevronLeft size={24} />
+              {isRtl ? <ChevronRight size={24} /> : <ChevronLeft size={24} />}
             </button>
           )}
         </div>
@@ -282,7 +282,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             style={{
               transition: 'all 500ms ease',
             }}>
-            <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3 mb-3'}`}>
+            <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3 rtl:space-x-reverse mb-3'}`}>
               <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold overflow-hidden shrink-0">
                 {currentUser?.avatar ? (
                   <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
@@ -300,7 +300,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
             <button
               onClick={() => logout()}
-              className={`flex items-center justify-center space-x-2 py-2 w-full bg-red-950/30 hover:bg-red-900/40 text-red-400 rounded-xl border border-red-900/20 btn-cadenza ${isCollapsed ? 'p-2' : 'px-4'}`}
+              className={`flex items-center justify-center space-x-2 rtl:space-x-reverse py-2 w-full bg-red-950/30 hover:bg-red-900/40 text-red-400 rounded-xl border border-red-900/20 btn-cadenza ${isCollapsed ? 'p-2' : 'px-4'}`}
               title={t('common.sign_out')}
             >
               <Users size={16} />
