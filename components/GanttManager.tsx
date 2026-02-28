@@ -21,7 +21,7 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
     color: COLORS[0],
     isBlackout: false
   });
-  const [endDateModified, setEndDateModified] = useState(false);
+  const [hasManuallySetEndDate, setHasManuallySetEndDate] = useState(false);
 
   // Blackout Logic: Apply to events in range (HIDE events)
   const applyBlackout = (block: GanttBlock) => {
@@ -56,11 +56,11 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
     if (block) {
       setEditingId(block.id);
       setFormData({ ...block });
-      setEndDateModified(true);
+      setHasManuallySetEndDate(true);
     } else {
       setEditingId(null);
       setFormData({ color: COLORS[0], isBlackout: false });
-      setEndDateModified(false);
+      setHasManuallySetEndDate(false);
     }
     setIsModalOpen(true);
   };
@@ -202,17 +202,17 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.start_date')}</label>
                   <input
                     type="date"
-                    onClick={e => e.stopPropagation()}
                     className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
                     value={formData.startDate ? new Date(formData.startDate).toISOString().split('T')[0] : ''}
                     onChange={e => {
-                      try {
-                        if (endDateModified) {
-                          setFormData({ ...formData, startDate: e.target.value });
-                        } else {
-                          setFormData({ ...formData, startDate: e.target.value, endDate: e.target.value });
-                        }
-                      } catch { }
+                      const newStart = e.target.value;
+                      if (!newStart) return;
+
+                      const updates: Partial<GanttBlock> = { startDate: new Date(newStart).toISOString() };
+                      if (!hasManuallySetEndDate) {
+                        updates.endDate = new Date(newStart).toISOString();
+                      }
+                      setFormData({ ...formData, ...updates });
                     }}
                   />
                 </div>
@@ -220,14 +220,11 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.end_date')}</label>
                   <input
                     type="date"
-                    onClick={e => e.stopPropagation()}
                     className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
                     value={formData.endDate ? new Date(formData.endDate).toISOString().split('T')[0] : ''}
                     onChange={e => {
-                      try {
-                        setEndDateModified(true);
-                        setFormData({ ...formData, endDate: e.target.value });
-                      } catch { }
+                      setHasManuallySetEndDate(true);
+                      setFormData({ ...formData, endDate: new Date(e.target.value).toISOString() });
                     }}
                   />
                 </div>

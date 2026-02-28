@@ -127,6 +127,20 @@ function AppContent() {
     }
   }, [darkMode]);
 
+  // Global Date Picker Fix: automatically close native date pickers correctly on select
+  useEffect(() => {
+    const handleGlobalChange = (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      if (target && target.tagName === 'INPUT' && (target.type === 'date' || target.type === 'datetime-local')) {
+        target.blur();
+      }
+    };
+
+    // Use capture phase to ensure we intercept it as early as possible on bubble-up
+    document.addEventListener('change', handleGlobalChange, true);
+    return () => document.removeEventListener('change', handleGlobalChange, true);
+  }, []);
+
   // Route Rendering
   const renderContent = () => {
     const isSidebarMode = ['GANTT', 'POWER_TOOLS'].includes(currentView);

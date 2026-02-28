@@ -98,6 +98,7 @@ export const CalendarView: React.FC<Props> = ({
   // Modal State (Edit/Create)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Partial<CalendarEvent>>({});
+  const [hasManuallySetEndDate, setHasManuallySetEndDate] = useState(false);
 
   // Detail Popover State
   const [detailItem, setDetailItem] = useState<DetailItem>(null);
@@ -592,8 +593,8 @@ export const CalendarView: React.FC<Props> = ({
 
   // --- Event Editor (Modal) ---
 
-  const [endDateModified, setEndDateModified] = useState(false);
   const openModal = (evt?: Partial<CalendarEvent>) => {
+    setHasManuallySetEndDate(!!evt?.id);
     const defaultStart = new Date();
     defaultStart.setMinutes(0, 0, 0);
     const defaultEnd = new Date(defaultStart);
@@ -608,7 +609,6 @@ export const CalendarView: React.FC<Props> = ({
       roomId: rooms[0]?.id,
       positionId: defaultTeacher?.positionAssignments?.[0]?.id || undefined,
     });
-    setEndDateModified(!!evt?.end);
     setIsModalOpen(true);
     setDetailItem(null);
   };
@@ -1457,7 +1457,7 @@ export const CalendarView: React.FC<Props> = ({
                 {isRtl ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
               </button>
               <div className="px-3 flex items-center relative group">
-                <input type="date" className="absolute inset-0 opacity-0 cursor-pointer" onClick={e => e.stopPropagation()} onChange={(e) => { if (e.target.value) setCurrentDate(new Date(e.target.value)); }} />
+                <input type="date" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => { if (e.target.value) setCurrentDate(new Date(e.target.value)); }} />
                 <div className="flex flex-col items-center justify-center min-w-[150px]">
                   <span className="text-sm font-bold text-slate-800 dark:text-slate-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex items-center">
                     {viewMode === 'MONTH'
@@ -1887,27 +1887,46 @@ export const CalendarView: React.FC<Props> = ({
 
               {/* 5. Start Time / End Time */}
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.start_time')}</label><input type="datetime-local" required onClick={e => e.stopPropagation()} className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.start ? new Date(new Date(editingEvent.start).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => {
-                  try {
-                    const newStart = new Date(e.target.value);
-                    const newStartIso = newStart.toISOString();
-                    if (endDateModified) {
-                      setEditingEvent({ ...editingEvent, start: newStartIso });
-                    } else {
-                      const oldStart = editingEvent.start ? new Date(editingEvent.start) : new Date();
-                      const oldEnd = editingEvent.end ? new Date(editingEvent.end) : new Date(oldStart.getTime() + settings.defaultEventDuration * 60000);
-                      const duration = oldEnd.getTime() - oldStart.getTime();
-                      const newEndIso = new Date(newStart.getTime() + (duration > 0 ? duration : settings.defaultEventDuration * 60000)).toISOString();
-                      setEditingEvent({ ...editingEvent, start: newStartIso, end: newEndIso });
-                    }
-                  } catch (err) { }
-                }} /></div>
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.end_time')}</label><input type="datetime-local" required onClick={e => e.stopPropagation()} className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.end ? new Date(new Date(editingEvent.end).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => {
-                  try {
-                    setEndDateModified(true);
-                    setEditingEvent({ ...editingEvent, end: new Date(e.target.value).toISOString() });
-                  } catch (err) { }
-                }} /></div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.start_time')}</label>
+                  <input
+                    type="datetime-local"
+                    required
+                    className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+                    value={editingEvent.start ? new Date(new Date(editingEvent.start).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}
+                    onChange={e => {
+                      const newStartString = e.target.value;
+                      if (!newStartString) return;
+                      const newStart = new Date(newStartString);
+                      const updates: Partial<CalendarEvent> = { start: newStart.toISOString() };
+
+                      if (!hasManuallySetEndDate && editingEvent.end) {
+                        const currentEnd = new Date(editingEvent.end);
+                        currentEnd.setFullYear(newStart.getFullYear(), newStart.getMonth(), newStart.getDate());
+
+                        if (currentEnd < newStart) {
+                          currentEnd.setTime(newStart.getTime() + settings.defaultEventDuration * 60000);
+                        }
+                        updates.end = currentEnd.toISOString();
+                      }
+
+                      setEditingEvent({ ...editingEvent, ...updates });
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.end_time')}</label>
+                  <input
+                    type="datetime-local"
+                    required
+                    className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+                    value={editingEvent.end ? new Date(new Date(editingEvent.end).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}
+                    onChange={e => {
+                      setHasManuallySetEndDate(true);
+                      setEditingEvent({ ...editingEvent, end: new Date(e.target.value).toISOString() });
+                    }}
+                  />
+                </div>
               </div>
 
               {/* Recurrence Section */}
