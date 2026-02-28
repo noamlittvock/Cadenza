@@ -2642,5 +2642,37 @@
   {
     "key": "teach.per_event",
     "screen_group": "TeacherManager"
+  },
+  {
+    "key": "btn.collapse",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "common.close",
+    "screen_group": "Modal"
+  },
+  {
+    "key": "modal.unsaved_changes",
+    "screen_group": "Modal"
+  },
+  {
+    "key": "modal.discard_prompt",
+    "screen_group": "Modal"
+  },
+  {
+    "key": "common.cancel",
+    "screen_group": "Modal"
+  },
+  {
+    "key": "common.discard",
+    "screen_group": "Modal"
+  },
+  {
+    "key": "common.save",
+    "screen_group": "Modal"
+  },
+  {
+    "key": "teach.overhead_type",
+    "screen_group": "TeacherManager"
   }
 ]

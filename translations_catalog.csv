@@ -1034,4 +1034,10 @@ layout.switch_dark,auto,"Switch to Dark Mode","עבור למצב כהה","עבו
 layout.light_mode,auto,"Light Mode","מצב בהיר","מצב בהיר","מצב בהיר","מצב בהיר",,"מצב בהיר"
 layout.dark_mode,auto,"Dark Mode","מצב כהה","מצב כהה","מצב כהה","מצב כהה",,"מצב כהה"
 layout.mobile_access,auto,"Mobile Access","גישה מנייד","גישה מנייד","גישה מנייד","גישה מנייד",,"גישה מנייד"
-layout.copyright,auto,"Copyright Noam Solutions.","זכויות יוצרים Noam Solutions.","זכויות יוצרים Noam Solutions.","זכויות יוצרים Noam Solutions.","זכויות יוצרים Noam Solutions.",,"זכויות יוצרים Noam Solutions."
+layout.copyright,auto,"Copyright Noam Solutions.","זכויות יוצרים Noam Solutions.","זכויות יוצרים Noam Solutions.","זכויות יוצרים Noam Solutions.","זכויות יוצרים Noam Solutions.",,"זכויות יוצרים Noam Solutions."modal_unsaved_changes,Standard modal term,"Unsaved Changes","שינויים שלא נשמרו","שינויים שלא נשמרו","שינויים שלא נשמרו","שינויים שלא נשמרו",,"שינויים שלא נשמרו"
+modal_discard_prompt,Standard modal term,"You have unsaved changes. Would you like to save or discard them?","ישנם שינויים שלא נשמרו. האם ברצונך לשמור או לבטל אותם?","קיימים שינויים שלא נשמרו במערכת. האם ברצונך לבצע שמירה או לוותר על השינויים?","לשמור שינויים או לבטל?","יש שינויים, לשמור או לזרוק? ",,"ישנם שינויים שלא נשמרו. האם ברצונך לשמור או לבטל אותם?"
+common_discard,Standard modal term,"Discard","ביטול שינויים","ביטול שינויים","ביטול","לוותר על שינויים",,"ביטול שינויים"
+btn_sending,Standard sending state,Sending...,שולח...,בביצוע...,שליחה,רגע...,,שולח...
+btn_send,Standard send button,Send,שלח,שלח,שלח,לשלוח,,שלח
+fin_reports,Reports,Reports,דוחות,דוחות נתונים,דוחות,דוחות,,דוחות
+btn_done,Standard done button,Done,סיימתי,בוצע,סימתי,גמרתי,,סיימתי

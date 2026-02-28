@@ -4,6 +4,7 @@ import { generateId, COLORS, INITIAL_LISTS } from '../constants';
 import { Plus, Edit2, Trash2, Search, CheckCircle2, Palette, X, Download, Upload, FileDown, Tag, Briefcase, Menu, DollarSign, Clock, CalendarDays, ChevronDown, ToggleLeft, ToggleRight } from 'lucide-react';
 
 import { TRANSLATIONS } from '../constants';
+import { Modal } from './Modal';
 interface Props {
   teachers: Teacher[];
   setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>;
@@ -39,6 +40,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Teacher>>({ positions: [], positionAssignments: [], tags: [] });
+  const [initialFormData, setInitialFormData] = useState<Partial<Teacher>>({ positions: [], positionAssignments: [], tags: [] });
   const [tagInput, setTagInput] = useState('');
 
   // Safe Fallback
@@ -114,22 +116,26 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
     setError(null);
     if (teacher) {
       setEditingId(teacher.id);
-      setFormData({
+      const data = {
         ...teacher,
         positionAssignments: teacher.positionAssignments || [],
-      });
+      };
+      setFormData(data);
+      setInitialFormData(data);
     } else {
       setEditingId(null);
       // Pick first available color or default
       const usedColors = teachers.map(t => t.color);
       const availableColor = COLORS.find(c => !usedColors.includes(c)) || COLORS[0];
 
-      setFormData({
+      const data = {
         positions: [],
         positionAssignments: [createEmptyAssignment()], // Start with one empty slot
         tags: [],
         color: availableColor,
-      });
+      };
+      setFormData(data);
+      setInitialFormData(data);
     }
     setIsModalOpen(true);
   };
@@ -737,344 +743,358 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
       </div>
 
       {/* Edit/Add Teacher Modal — Enhanced with Position Assignments */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-2xl p-6 border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{editingId ? t('teach.edit_teacher') : t('teach.add_new_teacher')}</h3>
-            {error && <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg border border-red-200 dark:border-red-800">{error}</div>}
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Name + Color Row */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('label.full_name')}</label>
-                  <input required type="text" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.fullName || ''} onChange={e => setFormData({ ...formData, fullName: e.target.value })} />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{t('label.teacher_color')}</label>
-                  <div className="flex gap-2 mb-2">
-                    {COLORS.map(c => (
-                      <button key={c} type="button" onClick={() => setFormData({ ...formData, color: c })} className={`w-6 h-6 rounded-full border ${formData.color === c ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`} style={{ backgroundColor: c }} />
-                    ))}
-                  </div>
-                  <input type="color" value={formData.color || '#000000'} onChange={e => setFormData({ ...formData, color: e.target.value })} className="w-full h-8" />
-                </div>
+      {/* Edit/Add Teacher Modal — Enhanced with Position Assignments */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingId ? t('teach.edit_teacher') : t('teach.add_new_teacher')}
+        isDirty={JSON.stringify(formData) !== JSON.stringify(initialFormData)}
+        onSave={(e?: React.FormEvent) => handleSubmit(e)}
+        t={t}
+        maxWidth="max-w-2xl"
+        footerContent={
+          <div className="flex justify-end space-x-3 rtl:space-x-reverse w-full">
+            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">{t('teach.cancel')}</button>
+            <button type="button" onClick={() => handleSubmit(undefined)} className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg">{t('teach.save')}</button>
+          </div>
+        }
+      >
+        {error && <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg border border-red-200 dark:border-red-800">{error}</div>}
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Name + Color Row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('label.full_name')}</label>
+              <input required type="text" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.fullName || ''} onChange={e => setFormData({ ...formData, fullName: e.target.value })} />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{t('label.teacher_color')}</label>
+              <div className="flex gap-2 mb-2">
+                {COLORS.map(c => (
+                  <button key={c} type="button" onClick={() => setFormData({ ...formData, color: c })} className={`w-6 h-6 rounded-full border ${formData.color === c ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`} style={{ backgroundColor: c }} />
+                ))}
               </div>
+              <input type="color" value={formData.color || '#000000'} onChange={e => setFormData({ ...formData, color: e.target.value })} className="w-full h-8" />
+            </div>
+          </div>
 
-              {/* === Position Assignments Section === */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <label className="block text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                    <Briefcase size={16} />
-                    {t('teach.position_assignments_label')}
-                  </label>
-                  <button
-                    type="button"
-                    onClick={addPositionAssignment}
-                    className="text-xs btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors "
-                  >
-                    <Plus size={12} /> {t('teach.add_position')}
-                  </button>
-                </div>
+          {/* === Position Assignments Section === */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <Briefcase size={16} />
+                {t('teach.position_assignments_label')}
+              </label>
+              <button
+                type="button"
+                onClick={addPositionAssignment}
+                className="text-xs btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors "
+              >
+                <Plus size={12} /> {t('teach.add_position')}
+              </button>
+            </div>
 
-                <div className="space-y-3">
-                  {(formData.positionAssignments || []).map((pa, idx) => (
-                    <div
-                      key={pa.id}
-                      className="relative bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 transition-all hover:border-blue-300 dark:hover:border-blue-700"
-                    >
-                      {/* Remove button */}
-                      {(formData.positionAssignments || []).length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removePositionAssignment(pa.id)}
-                          className="absolute top-2 end-2 text-slate-400 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
-                          title={t('teacher.remove_position')}
-                        >
-                          <X size={14} />
-                        </button>
-                      )}
-
-                      {/* Position Header: Number badge */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 text-[10px] font-bold flex items-center justify-center">
-                          {idx + 1}
-                        </span>
-                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('teach.position_assignment')}</span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        {/* Position Name */}
-                        <div>
-                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{t('teach.position_name')}</label>
-                          <div className="relative">
-                            <input
-                              type="text"
-                              list={`position-options-${pa.id}`}
-                              placeholder={t('teach.position_placeholder')}
-                              className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
-                              value={pa.positionName}
-                              onChange={e => updatePositionAssignment(pa.id, { positionName: e.target.value })}
-                            />
-                            <datalist id={`position-options-${pa.id}`}>
-                              {activeLists.positions.map(p => <option key={p} value={p} />)}
-                            </datalist>
-                          </div>
-                        </div>
-
-                        {/* Category */}
-                        <div>
-                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{t('teach.category')}</label>
-                          <select
-                            className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
-                            value={pa.category}
-                            onChange={e => updatePositionAssignment(pa.id, { category: e.target.value })}
-                          >
-                            {activeLists.classifications.map(c => (
-                              <option key={c} value={c}>{c}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Rate Type Toggle */}
-                        <div>
-                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{t('teach.rate_type')}</label>
-                          <button
-                            type="button"
-                            onClick={() => updatePositionAssignment(pa.id, {
-                              rateType: pa.rateType === 'HOURLY' ? 'GLOBAL_MONTHLY' : (pa.rateType === 'GLOBAL_MONTHLY' ? 'PER_EVENT' : 'HOURLY')
-                            })}
-                            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm font-medium transition-all ${pa.rateType === 'HOURLY'
-                              ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300'
-                              : pa.rateType === 'GLOBAL_MONTHLY' ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300'
-                                : 'bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300'
-                              }`}
-                          >
-                            <span className="flex items-center gap-1.5">
-                              {pa.rateType === 'HOURLY' ? (
-                                <><Clock size={14} /> {t('teach.hourly')}</>
-                              ) : pa.rateType === 'GLOBAL_MONTHLY' ? (
-                                <><CalendarDays size={14} /> {t('teach.global_monthly')}</>
-                              ) : (
-                                <><Briefcase size={14} /> {t('teach.per_event') || 'Per Event'}</>
-                              )}
-                            </span>
-                            {pa.rateType === 'HOURLY' ? (
-                              <ToggleLeft size={18} className="text-blue-400" />
-                            ) : pa.rateType === 'GLOBAL_MONTHLY' ? (
-                              <ToggleRight size={18} className="text-emerald-400" />
-                            ) : (
-                              <div className="w-4 h-4 rounded-full bg-purple-400 ms-1 me-0.5 shadow-sm" />
-                            )}
-                          </button>
-                        </div>
-
-                        {/* Rate Value */}
-                        <div>
-                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                            {pa.rateType === 'HOURLY' ? `${t('teach.rate_hourly_label')} (${settings.currency}${t('teach.per_hour') || '/hr'})` : pa.rateType === 'GLOBAL_MONTHLY' ? `${t('teach.monthly_fee')} (${settings.currency})` : `${t('teach.per_event') || 'Per Event'} (${settings.currency})`}
-                          </label>
-                          <div className="relative">
-                            <DollarSign size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input
-                              type="number"
-                              min={0}
-                              step={pa.rateType === 'HOURLY' ? 10 : pa.rateType === 'GLOBAL_MONTHLY' ? 100 : 10}
-                              placeholder={pa.rateType === 'HOURLY' ? '150' : pa.rateType === 'GLOBAL_MONTHLY' ? '5000' : '200'}
-                              className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg ps-8 pe-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
-                              value={pa.rateValue !== undefined && pa.rateValue !== null ? pa.rateValue : ''}
-                              onChange={e => updatePositionAssignment(pa.id, { rateValue: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-4 gap-3 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
-                        <div className="col-span-1">
-                          <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">VAT Type</label>
-                          <select
-                            className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg px-2 py-1.5 text-xs outline-none"
-                            value={pa.vat?.type || 'PERCENTAGE'}
-                            onChange={e => updatePositionAssignment(pa.id, { vat: { type: e.target.value as 'PERCENTAGE' | 'FLAT', value: pa.vat?.value || 0 } })}
-                          >
-                            <option value="PERCENTAGE">%</option>
-                            <option value="FLAT">{settings.currency}</option>
-                          </select>
-                        </div>
-                        <div className="col-span-1">
-                          <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">VAT Value</label>
-                          <input
-                            type="number" step="0.1"
-                            className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg px-2 py-1.5 text-xs outline-none"
-                            value={pa.vat?.value ?? ''}
-                            onChange={e => updatePositionAssignment(pa.id, { vat: { type: pa.vat?.type || 'PERCENTAGE', value: parseFloat(e.target.value) || 0 } })}
-                          />
-                        </div>
-
-                        <div className="col-span-1">
-                          <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Overhead</label>
-                          <div className="flex bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden focus-within:ring-1 focus-within:ring-blue-500">
-                            <select
-                              className="bg-transparent text-xs px-1 border-e border-slate-300 dark:border-slate-600 outline-none w-[45px] text-slate-500 cursor-pointer"
-                              value={pa.overheadFeeType || 'FLAT'}
-                              onChange={e => updatePositionAssignment(pa.id, { overheadFeeType: e.target.value as 'PERCENTAGE' | 'FLAT' })}
-                            >
-                              <option value="PERCENTAGE">%</option>
-                              <option value="FLAT">{settings.currency.substring(0, 1)}</option>
-                            </select>
-                            <input
-                              type="number" step="0.01"
-                              className="flex-1 bg-transparent px-2 py-1.5 text-xs outline-none text-slate-900 dark:text-white"
-                              value={pa.overheadFeeValue ?? ''}
-                              onChange={e => updatePositionAssignment(pa.id, { overheadFeeValue: parseFloat(e.target.value) || 0 })}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="col-span-1">
-                          <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Social</label>
-                          <div className="flex bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden focus-within:ring-1 focus-within:ring-blue-500">
-                            <select
-                              className="bg-transparent text-xs px-1 border-e border-slate-300 dark:border-slate-600 outline-none w-[45px] text-slate-500 cursor-pointer"
-                              value={pa.socialBenefitsType || 'PERCENTAGE'}
-                              onChange={e => updatePositionAssignment(pa.id, { socialBenefitsType: e.target.value as 'PERCENTAGE' | 'FLAT' })}
-                            >
-                              <option value="PERCENTAGE">%</option>
-                              <option value="FLAT">{settings.currency.substring(0, 1)}</option>
-                            </select>
-                            <input
-                              type="number" step="0.01"
-                              className="flex-1 bg-transparent px-2 py-1.5 text-xs outline-none text-slate-900 dark:text-white"
-                              value={pa.socialBenefitsValue ?? ''}
-                              onChange={e => updatePositionAssignment(pa.id, { socialBenefitsValue: parseFloat(e.target.value) || 0 })}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Empty state */}
-                {(formData.positionAssignments || []).length === 0 && (
-                  <div className="text-center py-6 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
-                    <Briefcase size={24} className="mx-auto mb-2 text-slate-300 dark:text-slate-600" />
-                    <p className="text-sm text-slate-400 dark:text-slate-500">{t('teach.no_positions_yet')}</p>
+            <div className="space-y-3">
+              {(formData.positionAssignments || []).map((pa, idx) => (
+                <div
+                  key={pa.id}
+                  className="relative bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 transition-all hover:border-blue-300 dark:hover:border-blue-700"
+                >
+                  {/* Remove button */}
+                  {(formData.positionAssignments || []).length > 1 && (
                     <button
                       type="button"
-                      onClick={addPositionAssignment}
-                      className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                      onClick={() => removePositionAssignment(pa.id)}
+                      className="absolute top-2 end-2 text-slate-400 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                      title={t('teacher.remove_position')}
                     >
-                      {t('teach.add_first_position')}
+                      <X size={14} />
                     </button>
-                  </div>
-                )}
-              </div>
+                  )}
 
-              {/* Tags Input */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.tags_label')}</label>
-                <div className="flex gap-2 mb-2">
-                  <select
-                    className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
-                    onChange={(e) => {
-                      if (e.target.value && !formData.tags?.includes(e.target.value)) {
-                        setFormData({ ...formData, tags: [...(formData.tags || []), e.target.value] });
-                      }
-                      e.target.value = '';
-                    }}
-                  >
-                    <option value="">{t('teacher.select_from_list')}</option>
-                    {activeLists.tags.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                  <input
-                    type="text"
-                    className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
-                    value={tagInput}
-                    onChange={e => setTagInput(e.target.value)}
-                    onKeyDown={handleAddTag}
-                    placeholder={t('teacher.or_type_new')}
-                  />
-                  <button type="button" onClick={handleAddTag} className="bg-slate-200 dark:bg-slate-700 px-3 py-2 rounded-lg">{t('teach.add_tag')}</button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {formData.tags?.map((tag, idx) => (
-                    <span key={idx} className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded text-xs flex items-center border border-blue-200 dark:border-blue-800">
-                      {tag} <button type="button" onClick={() => removeTag(tag)} className="ms-1 hover:text-red-500"><X size={12} /></button>
+                  {/* Position Header: Number badge */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 text-[10px] font-bold flex items-center justify-center">
+                      {idx + 1}
                     </span>
-                  ))}
+                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('teach.position_assignment')}</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Position Name */}
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{t('teach.position_name')}</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          list={`position-options-${pa.id}`}
+                          placeholder={t('teach.position_placeholder')}
+                          className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                          value={pa.positionName}
+                          onChange={e => updatePositionAssignment(pa.id, { positionName: e.target.value })}
+                        />
+                        <datalist id={`position-options-${pa.id}`}>
+                          {activeLists.positions.map(p => <option key={p} value={p} />)}
+                        </datalist>
+                      </div>
+                    </div>
+
+                    {/* Category */}
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{t('teach.category')}</label>
+                      <select
+                        className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                        value={pa.category}
+                        onChange={e => updatePositionAssignment(pa.id, { category: e.target.value })}
+                      >
+                        {activeLists.classifications.map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Rate Type Toggle */}
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{t('teach.rate_type')}</label>
+                      <button
+                        type="button"
+                        onClick={() => updatePositionAssignment(pa.id, {
+                          rateType: pa.rateType === 'HOURLY' ? 'GLOBAL_MONTHLY' : (pa.rateType === 'GLOBAL_MONTHLY' ? 'PER_EVENT' : 'HOURLY')
+                        })}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm font-medium transition-all ${pa.rateType === 'HOURLY'
+                          ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300'
+                          : pa.rateType === 'GLOBAL_MONTHLY' ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300'
+                            : 'bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300'
+                          }`}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          {pa.rateType === 'HOURLY' ? (
+                            <><Clock size={14} /> {t('teach.hourly')}</>
+                          ) : pa.rateType === 'GLOBAL_MONTHLY' ? (
+                            <><CalendarDays size={14} /> {t('teach.global_monthly')}</>
+                          ) : (
+                            <><Briefcase size={14} /> {t('teach.per_event') || 'Per Event'}</>
+                          )}
+                        </span>
+                        {pa.rateType === 'HOURLY' ? (
+                          <ToggleLeft size={18} className="text-blue-400" />
+                        ) : pa.rateType === 'GLOBAL_MONTHLY' ? (
+                          <ToggleRight size={18} className="text-emerald-400" />
+                        ) : (
+                          <div className="w-4 h-4 rounded-full bg-purple-400 ms-1 me-0.5 shadow-sm" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Rate Value */}
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                        {pa.rateType === 'HOURLY' ? `${t('teach.rate_hourly_label')} (${settings.currency}${t('teach.per_hour') || '/hr'})` : pa.rateType === 'GLOBAL_MONTHLY' ? `${t('teach.monthly_fee')} (${settings.currency})` : `${t('teach.per_event') || 'Per Event'} (${settings.currency})`}
+                      </label>
+                      <div className="relative">
+                        <DollarSign size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="number"
+                          min={0}
+                          step={pa.rateType === 'HOURLY' ? 10 : pa.rateType === 'GLOBAL_MONTHLY' ? 100 : 10}
+                          placeholder={pa.rateType === 'HOURLY' ? '150' : pa.rateType === 'GLOBAL_MONTHLY' ? '5000' : '200'}
+                          className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg ps-8 pe-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                          value={pa.rateValue !== undefined && pa.rateValue !== null ? pa.rateValue : ''}
+                          onChange={e => updatePositionAssignment(pa.id, { rateValue: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-3 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+                    <div className="col-span-1">
+                      <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">VAT Type</label>
+                      <select
+                        className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg px-2 py-1.5 text-xs outline-none"
+                        value={pa.vat?.type || 'PERCENTAGE'}
+                        onChange={e => updatePositionAssignment(pa.id, { vat: { type: e.target.value as 'PERCENTAGE' | 'FLAT', value: pa.vat?.value || 0 } })}
+                      >
+                        <option value="PERCENTAGE">%</option>
+                        <option value="FLAT">{settings.currency}</option>
+                      </select>
+                    </div>
+                    <div className="col-span-1">
+                      <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">VAT Value</label>
+                      <input
+                        type="number" step="0.1"
+                        className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg px-2 py-1.5 text-xs outline-none"
+                        value={pa.vat?.value ?? ''}
+                        onChange={e => updatePositionAssignment(pa.id, { vat: { type: pa.vat?.type || 'PERCENTAGE', value: parseFloat(e.target.value) || 0 } })}
+                      />
+                    </div>
+
+                    <div className="col-span-1">
+                      <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Overhead</label>
+                      <div className="flex bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden focus-within:ring-1 focus-within:ring-blue-500">
+                        <select
+                          className="bg-transparent text-xs px-1 border-e border-slate-300 dark:border-slate-600 outline-none w-[45px] text-slate-500 cursor-pointer"
+                          value={pa.overheadFeeType || 'FLAT'}
+                          onChange={e => updatePositionAssignment(pa.id, { overheadFeeType: e.target.value as 'PERCENTAGE' | 'FLAT' })}
+                        >
+                          <option value="PERCENTAGE">%</option>
+                          <option value="FLAT">{settings.currency.substring(0, 1)}</option>
+                        </select>
+                        <input
+                          type="number" step="0.01"
+                          className="flex-1 bg-transparent px-2 py-1.5 text-xs outline-none text-slate-900 dark:text-white"
+                          value={pa.overheadFeeValue ?? ''}
+                          onChange={e => updatePositionAssignment(pa.id, { overheadFeeValue: parseFloat(e.target.value) || 0 })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="col-span-1">
+                      <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Social</label>
+                      <div className="flex bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden focus-within:ring-1 focus-within:ring-blue-500">
+                        <select
+                          className="bg-transparent text-xs px-1 border-e border-slate-300 dark:border-slate-600 outline-none w-[45px] text-slate-500 cursor-pointer"
+                          value={pa.socialBenefitsType || 'PERCENTAGE'}
+                          onChange={e => updatePositionAssignment(pa.id, { socialBenefitsType: e.target.value as 'PERCENTAGE' | 'FLAT' })}
+                        >
+                          <option value="PERCENTAGE">%</option>
+                          <option value="FLAT">{settings.currency.substring(0, 1)}</option>
+                        </select>
+                        <input
+                          type="number" step="0.01"
+                          className="flex-1 bg-transparent px-2 py-1.5 text-xs outline-none text-slate-900 dark:text-white"
+                          value={pa.socialBenefitsValue ?? ''}
+                          onChange={e => updatePositionAssignment(pa.id, { socialBenefitsValue: parseFloat(e.target.value) || 0 })}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              {/* Email/Phone Inputs */}
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.email')}</label><input type="email" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} /></div>
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.phone')}</label><input type="text" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={formData.phone || ''} onChange={e => setFormData({ ...formData, phone: e.target.value })} /></div>
-              </div>
-
-
-
-              <div className="flex justify-end space-x-3 rtl:space-x-reverse mt-6">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">{t('teach.cancel')}</button>
-                <button type="submit" className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg">{t('teach.save')}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-      {/* Import Modal */}
-      {isImportModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-2xl p-6 border border-slate-200 dark:border-slate-800 max-h-[90vh] flex flex-col">
-            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{t('teach.import_teachers')}</h3>
-            <p className="text-sm text-slate-500 mb-4">{t('teach.found_prefix')} {importCandidates.length} {t('teach.unique_teachers')}</p>
-
-            <div className="flex-1 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg mb-4">
-              <table className="w-full text-start text-xs">
-                <thead className="bg-slate-50 dark:bg-slate-950 sticky top-0">
-                  <tr>
-                    <th className="p-3 w-8"><input type="checkbox" checked={importCandidates.every(c => c.selected)} onChange={e => setImportCandidates(prev => prev.map(c => ({ ...c, selected: e.target.checked })))} /></th>
-                    <th className="p-3 text-slate-500 font-medium">{t('teach.col_name')}</th>
-                    <th className="p-3 text-slate-500 font-medium">{t('teach.import_col_email')}</th>
-                    <th className="p-3 text-slate-500 font-medium">{t('teach.import_col_positions')}</th>
-                    <th className="p-3 text-slate-500 font-medium">{t('teach.import_col_rates')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {importCandidates.map(c => (
-                    <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
-                      <td className="p-3"><input type="checkbox" checked={c.selected} onChange={e => setImportCandidates(prev => prev.map(p => p.id === c.id ? { ...p, selected: e.target.checked } : p))} /></td>
-                      <td className="p-3 font-medium text-slate-900 dark:text-white">{c.fullName}</td>
-                      <td className="p-3 text-slate-500">{c.email}</td>
-                      <td className="p-3 text-slate-500">{c.positionAssignments.map(pa => pa.positionName).join(', ') || c.positions.join(', ')}</td>
-                      <td className="p-3 text-slate-500">
-                        {c.positionAssignments.map(pa =>
-                          `${pa.rateType === 'HOURLY' ? '⏱' : '📅'} ${settings.currency}${pa.rateValue}`
-                        ).join(', ') || '—'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              ))}
             </div>
 
-            <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
-              <div className="text-xs text-slate-400">
-                {t('teach.colors_auto')}
-              </div>
-              <div className="flex space-x-3 rtl:space-x-reverse">
-                <button onClick={() => setIsImportModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">{t('teach.cancel')}</button>
+            {/* Empty state */}
+            {(formData.positionAssignments || []).length === 0 && (
+              <div className="text-center py-6 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+                <Briefcase size={24} className="mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+                <p className="text-sm text-slate-400 dark:text-slate-500">{t('teach.no_positions_yet')}</p>
                 <button
-                  onClick={() => confirmImport(true)}
-                  disabled={importCandidates.filter(c => c.selected).length === 0}
-                  className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  type="button"
+                  onClick={addPositionAssignment}
+                  className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium"
                 >
-                  {t('teach.import_n_teachers')} {importCandidates.filter(c => c.selected).length} {t('teach.teachers_word')}
+                  {t('teach.add_first_position')}
                 </button>
               </div>
+            )}
+          </div>
+
+          {/* Tags Input */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.tags_label')}</label>
+            <div className="flex gap-2 mb-2">
+              <select
+                className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+                onChange={(e) => {
+                  if (e.target.value && !formData.tags?.includes(e.target.value)) {
+                    setFormData({ ...formData, tags: [...(formData.tags || []), e.target.value] });
+                  }
+                  e.target.value = '';
+                }}
+              >
+                <option value="">{t('teacher.select_from_list')}</option>
+                {activeLists.tags.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <input
+                type="text"
+                className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={handleAddTag}
+                placeholder={t('teacher.or_type_new')}
+              />
+              <button type="button" onClick={handleAddTag} className="bg-slate-200 dark:bg-slate-700 px-3 py-2 rounded-lg">{t('teach.add_tag')}</button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {formData.tags?.map((tag, idx) => (
+                <span key={idx} className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded text-xs flex items-center border border-blue-200 dark:border-blue-800">
+                  {tag} <button type="button" onClick={() => removeTag(tag)} className="ms-1 hover:text-red-500"><X size={12} /></button>
+                </span>
+              ))}
             </div>
           </div>
+
+          {/* Email/Phone Inputs */}
+          <div className="grid grid-cols-2 gap-4">
+            <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.email')}</label><input type="email" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} /></div>
+            <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.phone')}</label><input type="text" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={formData.phone || ''} onChange={e => setFormData({ ...formData, phone: e.target.value })} /></div>
+          </div>
+
+
+
+        </form>
+      </Modal>
+
+      {/* Import Modal */}
+      <Modal
+        isOpen={isImportModalOpen}
+        onClose={() => {
+          setIsImportModalOpen(false);
+          setImportCandidates([]);
+        }}
+        title={t('teach.import_teachers')}
+        isDirty={importCandidates.some(c => c.selected)}
+        t={t}
+        maxWidth="max-w-2xl"
+        footerContent={
+          <div className="flex justify-between items-center w-full">
+            <div className="text-xs text-slate-400">
+              {t('teach.colors_auto')}
+            </div>
+            <div className="flex space-x-3 rtl:space-x-reverse">
+              <button onClick={() => setIsImportModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">{t('teach.cancel')}</button>
+              <button
+                onClick={() => confirmImport(true)}
+                disabled={importCandidates.filter(c => c.selected).length === 0}
+                className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {t('teach.import_n_teachers')} {importCandidates.filter(c => c.selected).length} {t('teach.teachers_word')}
+              </button>
+            </div>
+          </div>
+        }
+      >
+        <p className="text-sm text-slate-500 mb-4">{t('teach.found_prefix')} {importCandidates.length} {t('teach.unique_teachers')}</p>
+
+        <div className="border border-slate-200 dark:border-slate-700 rounded-lg mb-4">
+          <table className="w-full text-start text-xs">
+            <thead className="bg-slate-50 dark:bg-slate-950 sticky top-0">
+              <tr>
+                <th className="p-3 w-8"><input type="checkbox" checked={importCandidates.every(c => c.selected)} onChange={e => setImportCandidates(prev => prev.map(c => ({ ...c, selected: e.target.checked })))} /></th>
+                <th className="p-3 text-slate-500 font-medium">{t('teach.col_name')}</th>
+                <th className="p-3 text-slate-500 font-medium">{t('teach.import_col_email')}</th>
+                <th className="p-3 text-slate-500 font-medium">{t('teach.import_col_positions')}</th>
+                <th className="p-3 text-slate-500 font-medium">{t('teach.import_col_rates')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {importCandidates.map(c => (
+                <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
+                  <td className="p-3"><input type="checkbox" checked={c.selected} onChange={e => setImportCandidates(prev => prev.map(p => p.id === c.id ? { ...p, selected: e.target.checked } : p))} /></td>
+                  <td className="p-3 font-medium text-slate-900 dark:text-white">{c.fullName}</td>
+                  <td className="p-3 text-slate-500">{c.email}</td>
+                  <td className="p-3 text-slate-500">{c.positionAssignments.map(pa => pa.positionName).join(', ') || c.positions.join(', ')}</td>
+                  <td className="p-3 text-slate-500">
+                    {c.positionAssignments.map(pa =>
+                      `${pa.rateType === 'HOURLY' ? '⏱' : '📅'} ${settings.currency}${pa.rateValue}`
+                    ).join(', ') || '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
+      </Modal>
+
       {/* Bulk Actions Bar */}
       {selectedTeacherIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-6 rtl:space-x-reverse z-40 animate-in slide-in-from-bottom-4">
@@ -1103,119 +1123,124 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
             </button>
           </div>
         </div>
-      )}
+      )
+      }
 
       {/* Bulk Financial Update Modal */}
-      {isBulkFinancialModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-md p-6 border border-slate-200 dark:border-slate-800">
-            <h3 className="text-lg font-bold mb-2 text-slate-900 dark:text-white flex items-center gap-2">
-              <DollarSign size={20} className="text-blue-500" />
-              {t('teach.bulk_financial_update') || 'Bulk Financial Update'}
-            </h3>
-            <p className="text-sm text-slate-500 mb-6 flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-lg text-blue-700 dark:text-blue-300">
-              <CheckCircle2 size={14} />
-              {t('teach.applying_to_teachers_prefix') || 'Applying to'} {selectedTeacherIds.size} {t('teach.teachers_word') || 'teachers'}
-            </p>
-
-            <form onSubmit={handleBulkFinancialUpdate} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.cost_per_position') || 'Cost per position'} ({settings.currency})</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
-                  value={bulkFinancialData.cost}
-                  onChange={e => setBulkFinancialData({ ...bulkFinancialData, cost: e.target.value })}
-                  placeholder={t('teach.leave_blank_no_change') || 'Leave blank to skip'}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.vat_type') || 'VAT Type'}</label>
-                  <select
-                    className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
-                    value={bulkFinancialData.vatType}
-                    onChange={e => setBulkFinancialData({ ...bulkFinancialData, vatType: e.target.value as any })}
-                  >
-                    <option value="PERCENTAGE">% {t('teach.percentage')}</option>
-                    <option value="FLAT">{settings.currency} {t('teach.flat_amount')}</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.vat_value') || 'VAT Value'}</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
-                    value={bulkFinancialData.vatValue}
-                    onChange={e => setBulkFinancialData({ ...bulkFinancialData, vatValue: e.target.value })}
-                    placeholder={t('teach.leave_blank_no_change') || 'Leave blank to skip'}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.overhead_type') || 'Overhead Type'}</label>
-                  <select
-                    className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
-                    value={bulkFinancialData.overheadType}
-                    onChange={e => setBulkFinancialData({ ...bulkFinancialData, overheadType: e.target.value as any })}
-                  >
-                    <option value="PERCENTAGE">% {t('teach.percentage')}</option>
-                    <option value="FLAT">{settings.currency} {t('teach.flat_amount')}</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.overhead_fee') || 'Overhead Fee'}</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
-                    value={bulkFinancialData.overheadFee}
-                    onChange={e => setBulkFinancialData({ ...bulkFinancialData, overheadFee: e.target.value })}
-                    placeholder={t('teach.leave_blank_no_change') || 'Leave blank to skip'}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.social_benefits') || 'Social Benefits'} ({settings.currency})</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
-                  value={bulkFinancialData.socialBenefits}
-                  onChange={e => setBulkFinancialData({ ...bulkFinancialData, socialBenefits: e.target.value })}
-                  placeholder={t('teach.leave_blank_no_change') || 'Leave blank to skip'}
-                />
-              </div>
-
-              <div className="flex justify-end space-x-3 rtl:space-x-reverse pt-4 border-t border-slate-100 dark:border-slate-800 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setIsBulkFinancialModalOpen(false)}
-                  className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium text-sm"
-                >
-                  {t('teach.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-6 py-2 rounded-lg font-bold text-sm transition-all"
-                >
-                  {t('teach.apply_updates') || 'Apply Updates'}
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={isBulkFinancialModalOpen}
+        onClose={() => setIsBulkFinancialModalOpen(false)}
+        title={
+          <div className="flex items-center gap-2">
+            <DollarSign size={20} className="text-blue-500" />
+            {t('teach.bulk_financial_update') || 'Bulk Financial Update'}
           </div>
-        </div>
-      )}
-    </div>
+        }
+        isDirty={Object.values(bulkFinancialData).some(val => val !== '' && val !== 'FLAT' && val !== 'PERCENTAGE')}
+        t={t}
+        maxWidth="max-w-md"
+      >
+        <p className="text-sm text-slate-500 mb-6 flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-lg text-blue-700 dark:text-blue-300">
+          <CheckCircle2 size={14} />
+          {t('teach.applying_to_teachers_prefix') || 'Applying to'} {selectedTeacherIds.size} {t('teach.teachers_word') || 'teachers'}
+        </p>
+
+        <form onSubmit={handleBulkFinancialUpdate} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.cost_per_position') || 'Cost per position'} ({settings.currency})</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+              value={bulkFinancialData.cost}
+              onChange={e => setBulkFinancialData({ ...bulkFinancialData, cost: e.target.value })}
+              placeholder={t('teach.leave_blank_no_change') || 'Leave blank to skip'}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.vat_type') || 'VAT Type'}</label>
+              <select
+                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+                value={bulkFinancialData.vatType}
+                onChange={e => setBulkFinancialData({ ...bulkFinancialData, vatType: e.target.value as any })}
+              >
+                <option value="PERCENTAGE">% {t('teach.percentage')}</option>
+                <option value="FLAT">{settings.currency} {t('teach.flat_amount')}</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.vat_value') || 'VAT Value'}</label>
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+                value={bulkFinancialData.vatValue}
+                onChange={e => setBulkFinancialData({ ...bulkFinancialData, vatValue: e.target.value })}
+                placeholder={t('teach.leave_blank_no_change') || 'Leave blank to skip'}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.overhead_type') || 'Overhead Type'}</label>
+              <select
+                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+                value={bulkFinancialData.overheadType}
+                onChange={e => setBulkFinancialData({ ...bulkFinancialData, overheadType: e.target.value as any })}
+              >
+                <option value="PERCENTAGE">% {t('teach.percentage')}</option>
+                <option value="FLAT">{settings.currency} {t('teach.flat_amount')}</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.overhead_fee') || 'Overhead Fee'}</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+                value={bulkFinancialData.overheadFee}
+                onChange={e => setBulkFinancialData({ ...bulkFinancialData, overheadFee: e.target.value })}
+                placeholder={t('teach.leave_blank_no_change') || 'Leave blank to skip'}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.social_benefits') || 'Social Benefits'} ({settings.currency})</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+              value={bulkFinancialData.socialBenefits}
+              onChange={e => setBulkFinancialData({ ...bulkFinancialData, socialBenefits: e.target.value })}
+              placeholder={t('teach.leave_blank_no_change') || 'Leave blank to skip'}
+            />
+          </div>
+
+          <div className="flex justify-end space-x-3 rtl:space-x-reverse pt-4 border-t border-slate-100 dark:border-slate-800 mt-6">
+            <button
+              type="button"
+              onClick={() => setIsBulkFinancialModalOpen(false)}
+              className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium text-sm"
+            >
+              {t('teach.cancel')}
+            </button>
+            <button
+              type="submit"
+              className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-6 py-2 rounded-lg font-bold text-sm transition-all"
+            >
+              {t('teach.apply_updates') || 'Apply Updates'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    </div >
   );
 };

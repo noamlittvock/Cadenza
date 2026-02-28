@@ -19,7 +19,9 @@ import {
 import { ChartBuilderModal } from './ChartBuilderModal';
 import { ChartRenderer } from './ChartRenderer';
 import { MergedChartRenderer, DatasetInput } from './MergedChartRenderer';
+import { DatePicker } from './DatePicker';
 import { TRANSLATIONS } from '../constants';
+import { Modal } from './Modal';
 
 // ---- Financial data structures ----
 interface PositionFinancials {
@@ -165,24 +167,28 @@ const InsightCard: React.FC<{ tile: InsightTile }> = ({ tile }) => {
 
 // ---- Delete Confirmation Modal ----
 const DeleteConfirmModal: React.FC<{ chartTitle: string; onConfirm: () => void; onCancel: () => void; t: (key: string) => string }> = ({ chartTitle, onConfirm, onCancel, t }) => (
-    <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4" onClick={onCancel}>
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-sm w-full p-6 border border-slate-200 dark:border-slate-700" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg"><Trash2 size={20} className="text-red-500" /></div>
-                <div>
-                    <h3 className="font-bold text-slate-900 dark:text-white">{t('modal.delete_chart')}</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{t('modal.cannot_undo')}</p>
-                </div>
-            </div>
-            <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">
-                Are you sure you want to delete <strong>"{chartTitle}"</strong>?
-            </p>
-            <div className="flex items-center gap-2 justify-end">
-                <button onClick={onCancel} className="px-4 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancel</button>
-                <button onClick={onConfirm} className="px-4 py-2 text-sm rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors">Delete</button>
+    <Modal
+        isOpen={true}
+        onClose={onCancel}
+        title={t('modal.delete_chart')}
+        isDirty={false}
+        t={t}
+        maxWidth="max-w-sm"
+    >
+        <div className="flex items-center gap-3 mb-4 mt-2">
+            <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg"><Trash2 size={20} className="text-red-500" /></div>
+            <div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{t('modal.cannot_undo')}</p>
             </div>
         </div>
-    </div>
+        <p className="text-sm text-slate-600 dark:text-slate-300 mb-6 font-medium">
+            Are you sure you want to delete <strong>"{chartTitle}"</strong>?
+        </p>
+        <div className="flex items-center gap-2 justify-end">
+            <button onClick={onCancel} className="px-4 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancel</button>
+            <button onClick={onConfirm} className="px-4 py-2 text-sm rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors">Delete</button>
+        </div>
+    </Modal>
 );
 
 // ---- Custom Insight Builder Modal ----
@@ -204,57 +210,56 @@ const CustomInsightModal: React.FC<CustomInsightModalProps> = ({ teachers, onClo
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-sm w-full border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-                <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-                    <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        <Zap size={18} className="text-amber-500" /> {t('modal.new_insight')}
-                    </h3>
-                    <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
-                        <X size={16} className="text-slate-400" />
-                    </button>
-                </div>
-                <div className="p-5 space-y-4">
-                    <div>
-                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">{t('modal.insight_title')}</label>
-                        <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder={t('analysis.chart_name_placeholder')} autoFocus className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-blue-500" />
-                    </div>
-                    <div>
-                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">{t('modal.metric')}</label>
-                        <select value={metric} onChange={e => setMetric(e.target.value as any)} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-blue-500">
-                            <optgroup label={t('modal.totals')}>
-                                <option value="totalActiveHours">{t('metric.total_active_hours')}</option>
-                                <option value="totalCanceledHours">{t('metric.total_canceled_hours')}</option>
-                                <option value="hourlyCostTotal">{t('metric.hourly_payroll')}</option>
-                                <option value="oneOffCostTotal">{t('metric.oneoff_payroll')}</option>
-                                <option value="globalCostTotal">{t('metric.global_payroll')}</option>
-                                <option value="grandTotal">{t('metric.grand_total')}</option>
-                            </optgroup>
-                            <optgroup label={t('modal.averages_rates')}>
-                                <option value="avgActiveHours">{t('metric.avg_hours')}</option>
-                                <option value="avgGrandTotal">{t('metric.avg_payroll')}</option>
-                                <option value="cancellationRate">{t('insight.cancel_rate')}</option>
-                            </optgroup>
-                            <optgroup label={t('modal.extremes')}>
-                                <option value="maxEarner">{t('metric.highest_earner')}</option>
-                                <option value="minEarner">{t('metric.lowest_earner')}</option>
-                            </optgroup>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">{t('modal.filter_by_teacher')}</label>
-                        <select value={teacherId} onChange={e => setTeacherId(e.target.value)} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-blue-500">
-                            <option value="">{t('metric.all_teachers')}</option>
-                            {teachers.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}
-                        </select>
-                    </div>
-                </div>
-                <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-end gap-2">
-                    <button onClick={onClose} className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
+        <Modal
+            isOpen={true}
+            onClose={onClose}
+            title={<><Zap size={18} className="text-amber-500 inline mr-2" /> {t('modal.new_insight')}</>}
+            isDirty={Boolean(title.trim() || teacherId)}
+            t={t}
+            maxWidth="max-w-sm"
+            footerContent={
+                <div className="flex justify-end gap-2 w-full">
+                    <button onClick={onClose} className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">{t('common.cancel')}</button>
                     <button onClick={handleSave} disabled={!title.trim()} className="px-4 py-2 text-xs font-medium btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 shadow-cadenza-soft rounded-lg transition-colors">{t('modal.save_insight')}</button>
                 </div>
+            }
+        >
+            <div className="space-y-4">
+                <div>
+                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">{t('modal.insight_title')}</label>
+                    <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder={t('analysis.chart_name_placeholder')} autoFocus className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-blue-500" />
+                </div>
+                <div>
+                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">{t('modal.metric')}</label>
+                    <select value={metric} onChange={e => setMetric(e.target.value as any)} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-blue-500">
+                        <optgroup label={t('modal.totals')}>
+                            <option value="totalActiveHours">{t('metric.total_active_hours')}</option>
+                            <option value="totalCanceledHours">{t('metric.total_canceled_hours')}</option>
+                            <option value="hourlyCostTotal">{t('metric.hourly_payroll')}</option>
+                            <option value="oneOffCostTotal">{t('metric.oneoff_payroll')}</option>
+                            <option value="globalCostTotal">{t('metric.global_payroll')}</option>
+                            <option value="grandTotal">{t('metric.grand_total')}</option>
+                        </optgroup>
+                        <optgroup label={t('modal.averages_rates')}>
+                            <option value="avgActiveHours">{t('metric.avg_hours')}</option>
+                            <option value="avgGrandTotal">{t('metric.avg_payroll')}</option>
+                            <option value="cancellationRate">{t('insight.cancel_rate')}</option>
+                        </optgroup>
+                        <optgroup label={t('modal.extremes')}>
+                            <option value="maxEarner">{t('metric.highest_earner')}</option>
+                            <option value="minEarner">{t('metric.lowest_earner')}</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div>
+                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">{t('modal.filter_by_teacher')}</label>
+                    <select value={teacherId} onChange={e => setTeacherId(e.target.value)} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-blue-500">
+                        <option value="">{t('metric.all_teachers')}</option>
+                        {teachers.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}
+                    </select>
+                </div>
             </div>
-        </div>
+        </Modal>
     );
 };
 
@@ -607,9 +612,31 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                         </div>
                         {dateFilterType === 'CUSTOM' && (
                             <div className="flex items-center space-x-2 rtl:space-x-reverse bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-2 py-1.5 shadow-sm">
-                                <input type="date" className="bg-transparent text-xs outline-none dark:text-white" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} />
+                                <DatePicker
+                                    type="date"
+                                    className="bg-transparent text-xs outline-none dark:text-white"
+                                    value={customStartDate}
+                                    onChange={e => {
+                                        const newStart = e.target.value;
+                                        setCustomStartDate(newStart);
+                                        if (!customEndDate || new Date(newStart) > new Date(customEndDate)) {
+                                            setCustomEndDate(newStart);
+                                        }
+                                    }}
+                                />
                                 <span className="text-slate-400">-</span>
-                                <input type="date" className="bg-transparent text-xs outline-none dark:text-white" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} />
+                                <DatePicker
+                                    type="date"
+                                    className="bg-transparent text-xs outline-none dark:text-white"
+                                    value={customEndDate}
+                                    onChange={e => {
+                                        const newEnd = e.target.value;
+                                        setCustomEndDate(newEnd);
+                                        if (customStartDate && new Date(newEnd) < new Date(customStartDate)) {
+                                            setCustomStartDate(newEnd);
+                                        }
+                                    }}
+                                />
                             </div>
                         )}
                         <button onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}

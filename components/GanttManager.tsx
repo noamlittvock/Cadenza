@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { GanttBlock, CalendarEvent, AppSettings } from '../types';
 import { generateId, COLORS, TRANSLATIONS, formatDate } from '../constants';
 import { AlertOctagon, Plus, Trash2, AlertTriangle, CalendarRange, Edit2 } from 'lucide-react';
+import { DatePicker } from './DatePicker';
+import { Modal } from './Modal';
 
 interface Props {
   blocks: GanttBlock[];
@@ -21,7 +23,10 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
     color: COLORS[0],
     isBlackout: false
   });
-  const [hasManuallySetEndDate, setHasManuallySetEndDate] = useState(false);
+  const [initialFormData, setInitialFormData] = useState<Partial<GanttBlock>>({
+    color: COLORS[0],
+    isBlackout: false
+  });
 
   // Blackout Logic: Apply to events in range (HIDE events)
   const applyBlackout = (block: GanttBlock) => {
@@ -56,11 +61,12 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
     if (block) {
       setEditingId(block.id);
       setFormData({ ...block });
-      setHasManuallySetEndDate(true);
+      setInitialFormData({ ...block });
     } else {
       setEditingId(null);
-      setFormData({ color: COLORS[0], isBlackout: false });
-      setHasManuallySetEndDate(false);
+      const newBlockData = { color: COLORS[0], isBlackout: false };
+      setFormData(newBlockData);
+      setInitialFormData(newBlockData);
     }
     setIsModalOpen(true);
   };
@@ -182,107 +188,118 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
         )}
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-md p-6 border border-slate-200 dark:border-slate-800">
-            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{editingId ? t('gantt.edit_period') : t('gantt.add_period')}</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.label_title')}</label>
-                <input
-                  type="text"
-                  className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                  value={formData.title || ''}
-                  onChange={e => setFormData({ ...formData, title: e.target.value })}
-                  placeholder={t('gantt.name_placeholder')}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.start_date')}</label>
-                  <input
-                    type="date"
-                    className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                    value={formData.startDate ? new Date(formData.startDate).toISOString().split('T')[0] : ''}
-                    onChange={e => {
-                      const newStart = e.target.value;
-                      if (!newStart) return;
-
-                      const updates: Partial<GanttBlock> = { startDate: new Date(newStart).toISOString() };
-                      if (!hasManuallySetEndDate) {
-                        updates.endDate = new Date(newStart).toISOString();
-                      }
-                      setFormData({ ...formData, ...updates });
-                    }}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.end_date')}</label>
-                  <input
-                    type="date"
-                    className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                    value={formData.endDate ? new Date(formData.endDate).toISOString().split('T')[0] : ''}
-                    onChange={e => {
-                      setHasManuallySetEndDate(true);
-                      setFormData({ ...formData, endDate: new Date(e.target.value).toISOString() });
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{t('gantt.display_color')}</label>
-                <div className="flex space-x-2 rtl:space-x-reverse">
-                  {COLORS.map(c => (
-                    <button
-                      key={c}
-                      onClick={() => setFormData({ ...formData, color: c })}
-                      className={`w-8 h-8 rounded-full border-2 ${formData.color === c ? 'border-slate-800 dark:border-white' : 'border-transparent'}`}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                <label className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="w-5 h-5 text-red-600 rounded focus:ring-red-500 border-slate-300 dark:border-slate-600"
-                    checked={formData.isBlackout}
-                    onChange={e => setFormData({ ...formData, isBlackout: e.target.checked })}
-                  />
-                  <div>
-                    <span className="block font-medium text-slate-900 dark:text-white">{t('gantt.apply_blackout')}</span>
-                    <span className="block text-xs text-slate-500 dark:text-slate-400">{t('gantt.blackout_desc')}</span>
-                  </div>
-                </label>
-                {formData.isBlackout && (
-                  <div className="flex items-start mt-3 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 p-2 rounded">
-                    <AlertTriangle size={14} className="me-1 mt-0.5 flex-shrink-0" />
-                    {t('gantt.blackout_warning')}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-end space-x-3 rtl:space-x-reverse mt-6">
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
-                >
-                  {t('btn.cancel')}
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg"
-                >
-                  {editingId ? t('gantt.save_changes') : (formData.isBlackout ? t('gantt.create_apply') : t('btn.create'))}
-                </button>
-              </div>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingId ? t('gantt.edit_period') : t('gantt.add_period')}
+        isDirty={JSON.stringify(formData) !== JSON.stringify(initialFormData)}
+        onSave={handleSubmit}
+        t={t}
+        maxWidth="max-w-md"
+        footerContent={
+          <div className="flex justify-end space-x-3 rtl:space-x-reverse w-full">
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+            >
+              {t('btn.cancel')}
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg"
+            >
+              {editingId ? t('gantt.save_changes') : (formData.isBlackout ? t('gantt.create_apply') : t('btn.create'))}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.label_title')}</label>
+            <input
+              type="text"
+              className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+              value={formData.title || ''}
+              onChange={e => setFormData({ ...formData, title: e.target.value })}
+              placeholder={t('gantt.name_placeholder')}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.start_date')}</label>
+              <DatePicker
+                type="date"
+                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                value={formData.startDate ? new Date(formData.startDate).toISOString().split('T')[0] : ''}
+                onChange={e => {
+                  const newStart = e.target.value;
+                  setFormData(prev => {
+                    const next = { ...prev, startDate: newStart };
+                    if (!prev.endDate || (new Date(newStart) > new Date(prev.endDate))) {
+                      next.endDate = newStart;
+                    }
+                    return next;
+                  });
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.end_date')}</label>
+              <DatePicker
+                type="date"
+                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                value={formData.endDate ? new Date(formData.endDate).toISOString().split('T')[0] : ''}
+                onChange={e => {
+                  const newEnd = e.target.value;
+                  setFormData(prev => {
+                    const next = { ...prev, endDate: newEnd };
+                    if (prev.startDate && (new Date(newEnd) < new Date(prev.startDate))) {
+                      next.startDate = newEnd;
+                    }
+                    return next;
+                  });
+                }}
+              />
             </div>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{t('gantt.display_color')}</label>
+            <div className="flex space-x-2 rtl:space-x-reverse">
+              {COLORS.map(c => (
+                <button
+                  key={c}
+                  onClick={() => setFormData({ ...formData, color: c })}
+                  className={`w-8 h-8 rounded-full border-2 ${formData.color === c ? 'border-slate-800 dark:border-white' : 'border-transparent'}`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+            <label className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer">
+              <input
+                type="checkbox"
+                className="w-5 h-5 text-red-600 rounded focus:ring-red-500 border-slate-300 dark:border-slate-600"
+                checked={formData.isBlackout}
+                onChange={e => setFormData({ ...formData, isBlackout: e.target.checked })}
+              />
+              <div>
+                <span className="block font-medium text-slate-900 dark:text-white">{t('gantt.apply_blackout')}</span>
+                <span className="block text-xs text-slate-500 dark:text-slate-400">{t('gantt.blackout_desc')}</span>
+              </div>
+            </label>
+            {formData.isBlackout && (
+              <div className="flex items-start mt-3 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 p-2 rounded">
+                <AlertTriangle size={14} className="me-1 mt-0.5 flex-shrink-0" />
+                {t('gantt.blackout_warning')}
+              </div>
+            )}
+          </div>
+
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

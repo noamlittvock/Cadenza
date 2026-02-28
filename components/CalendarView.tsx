@@ -6,6 +6,8 @@ import { lookupRate } from '../utils/rateLookup';
 import { ChevronLeft, ChevronRight, AlertCircle, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronUp, ChevronDown, Repeat, Ban, RotateCcw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { syncEventToGoogle, removeEventFromGoogle, updateEventInGoogle } from '../utils/googleCalendarSync';
+import { DatePicker } from './DatePicker';
+import { Modal } from './Modal';
 
 import { TRANSLATIONS } from '../constants';
 interface Props {
@@ -98,7 +100,7 @@ export const CalendarView: React.FC<Props> = ({
   // Modal State (Edit/Create)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Partial<CalendarEvent>>({});
-  const [hasManuallySetEndDate, setHasManuallySetEndDate] = useState(false);
+  const [initialEditingEvent, setInitialEditingEvent] = useState<Partial<CalendarEvent>>({});
 
   // Detail Popover State
   const [detailItem, setDetailItem] = useState<DetailItem>(null);
@@ -594,21 +596,22 @@ export const CalendarView: React.FC<Props> = ({
   // --- Event Editor (Modal) ---
 
   const openModal = (evt?: Partial<CalendarEvent>) => {
-    setHasManuallySetEndDate(!!evt?.id);
     const defaultStart = new Date();
     defaultStart.setMinutes(0, 0, 0);
     const defaultEnd = new Date(defaultStart);
     defaultEnd.setMinutes(defaultStart.getMinutes() + settings.defaultEventDuration);
 
     const defaultTeacher = teachers[0];
-    setEditingEvent(evt || {
+    const newEvent = evt || {
       start: defaultStart.toISOString(),
       end: defaultEnd.toISOString(),
       classification: activeLists.classifications[0], // Use activeLists
       teacherId: defaultTeacher?.id,
       roomId: rooms[0]?.id,
       positionId: defaultTeacher?.positionAssignments?.[0]?.id || undefined,
-    });
+    };
+    setEditingEvent(newEvent);
+    setInitialEditingEvent(newEvent);
     setIsModalOpen(true);
     setDetailItem(null);
   };
@@ -655,8 +658,8 @@ export const CalendarView: React.FC<Props> = ({
     }
   };
 
-  const saveEvent = (e: React.FormEvent) => {
-    e.preventDefault();
+  const saveEvent = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!editingEvent.name) return;
 
     if (new Date(editingEvent.end!) <= new Date(editingEvent.start!)) {
@@ -1457,7 +1460,7 @@ export const CalendarView: React.FC<Props> = ({
                 {isRtl ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
               </button>
               <div className="px-3 flex items-center relative group">
-                <input type="date" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => { if (e.target.value) setCurrentDate(new Date(e.target.value)); }} />
+                <DatePicker type="date" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e: any) => { if (e.target.value) setCurrentDate(new Date(e.target.value)); }} />
                 <div className="flex flex-col items-center justify-center min-w-[150px]">
                   <span className="text-sm font-bold text-slate-800 dark:text-slate-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex items-center">
                     {viewMode === 'MONTH'
@@ -1715,475 +1718,501 @@ export const CalendarView: React.FC<Props> = ({
         </>
       )}
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg p-6 border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{editingEvent.id ? t('event.edit') : t('event.new')}</h3>
-            <form onSubmit={saveEvent} className="space-y-4">
-              {/* 1. Event Name */}
-              <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.name')} <span className="text-red-500">*</span></label><input autoFocus required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" value={editingEvent.name || ''} onChange={e => setEditingEvent({ ...editingEvent, name: e.target.value })} placeholder={t('event.name_placeholder')} /></div>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingEvent.id ? t('event.edit') : t('event.new')}
+        isDirty={JSON.stringify(editingEvent) !== JSON.stringify(initialEditingEvent)}
+        onSave={() => saveEvent()}
+        t={t}
+        maxWidth="max-w-lg"
+        footerContent={
+          <div className="flex justify-between w-full mt-2">
+            <div>
+              {editingEvent.id && (
+                <button
+                  type="button"
+                  onClick={() => { handleDeleteEvent(editingEvent.id!, editingEvent as CalendarEvent); setIsModalOpen(false); }}
+                  className="text-red-500 hover:text-red-700 text-sm font-medium pt-2"
+                >
+                  {t('cal.delete_event')}
+                </button>
+              )}
+            </div>
+            <div className="flex space-x-3 rtl:space-x-reverse">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"
+              >
+                {t('btn.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => saveEvent()}
+                className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium transition-all"
+              >
+                {t('cal.save_changes')}
+              </button>
+            </div>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {/* 1. Event Name */}
+          <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.name')} <span className="text-red-500">*</span></label><input autoFocus required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" value={editingEvent.name || ''} onChange={e => setEditingEvent({ ...editingEvent, name: e.target.value })} placeholder={t('event.name_placeholder')} /></div>
 
-              {/* 2. Category */}
-              <div>
-                <label className="block text-sm font-medium flex justify-between text-slate-700 dark:text-slate-300 mb-1">
-                  <span>{t('event.category')} <span className="text-red-500">*</span></span>
-                </label>
-                <select required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.classification || ''} onChange={e => {
-                  const val = e.target.value;
-                  setEditingEvent({ ...editingEvent, classification: val, teacherId: undefined, positionId: undefined, roomId: undefined, overrideFlags: { ...editingEvent.overrideFlags, isOneOffPayment: false, paymentMethod: 'NONE' }, pricingSnapshot: undefined });
-                }}>
-                  <option value="" disabled>{t('event.select_category')}</option>
-                  <optgroup label={t('event.teacher_lessons')}>
-                    {['Individual Lesson', 'Group Lesson'].map(c => <option key={c} value={c}>{c}</option>)}
-                  </optgroup>
-                  <optgroup label={t('event.general_events')}>
-                    {activeLists.classifications.filter(c => !['Individual Lesson', 'Group Lesson'].includes(c)).map(c => <option key={c} value={c}>{c}</option>)}
-                    {Object.values(CATEGORY_SCHEMAS).filter(s => !activeLists.classifications.includes(s.name) && !['Individual Lesson', 'Group Lesson'].includes(s.name)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </optgroup>
-                </select>
-              </div>
+          {/* 2. Category */}
+          <div>
+            <label className="block text-sm font-medium flex justify-between text-slate-700 dark:text-slate-300 mb-1">
+              <span>{t('event.category')} <span className="text-red-500">*</span></span>
+            </label>
+            <select required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.classification || ''} onChange={e => {
+              const val = e.target.value;
+              setEditingEvent({ ...editingEvent, classification: val, teacherId: undefined, positionId: undefined, roomId: undefined, overrideFlags: { ...editingEvent.overrideFlags, isOneOffPayment: false, paymentMethod: 'NONE' }, pricingSnapshot: undefined });
+            }}>
+              <option value="" disabled>{t('event.select_category')}</option>
+              <optgroup label={t('event.teacher_lessons')}>
+                {['Individual Lesson', 'Group Lesson'].map(c => <option key={c} value={c}>{c}</option>)}
+              </optgroup>
+              <optgroup label={t('event.general_events')}>
+                {activeLists.classifications.filter(c => !['Individual Lesson', 'Group Lesson'].includes(c)).map(c => <option key={c} value={c}>{c}</option>)}
+                {Object.values(CATEGORY_SCHEMAS).filter(s => !activeLists.classifications.includes(s.name) && !['Individual Lesson', 'Group Lesson'].includes(s.name)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </optgroup>
+            </select>
+          </div>
 
-              {/* 2. Teacher */}
-              <div>
-                <label className="block flex items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  <span>{t('event.teacher')} {['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span>}</span>
-                </label>
+          {/* 2. Teacher */}
+          <div>
+            <label className="block flex items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <span>{t('event.teacher')} {['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span>}</span>
+            </label>
+            <select
+              required={['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE'}
+              disabled={!editingEvent.classification}
+              className={`w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none ${!editingEvent.classification ? 'opacity-50 cursor-not-allowed' : ''}`}
+              value={editingEvent.teacherId || ''}
+              onChange={e => {
+                const val = e.target.value;
+                if (val === '') {
+                  let newFlags = { ...editingEvent.overrideFlags };
+                  if (newFlags.paymentMethod === 'POSITION_RATE') newFlags.paymentMethod = 'NONE';
+                  setEditingEvent({ ...editingEvent, teacherId: undefined, positionId: undefined, roomId: undefined, overrideFlags: newFlags });
+                } else {
+                  setEditingEvent({ ...editingEvent, teacherId: val, positionId: undefined, roomId: undefined });
+                }
+              }}
+            >
+              <option value="">— {editingEvent.classification ? (['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification) || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? t('event.select_teacher') : t('event.org_no_teacher')) : t('event.select_category_first')} —</option>
+              {teachers.filter(t => {
+                if (!editingEvent.classification) return false;
+                if (!['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification)) return true; // Show all teachers for general categories
+                return t.positionAssignments.some(pa => pa.category === editingEvent.classification || pa.category === Object.values(CATEGORY_SCHEMAS).find(s => s.id === editingEvent.classification)?.name);
+              }).map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}
+            </select>
+          </div>
+
+          {/* 3. Position */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.position')} {['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span>}</label>
+            {(() => {
+              const teacherForPos = teachers.find(t => t.id === editingEvent.teacherId);
+              const isLesson = ['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '');
+              const positionOptions = teacherForPos ? teacherForPos.positionAssignments.filter(pa => {
+                if (!editingEvent.classification) return false;
+                if (!isLesson) return true;
+                return pa.category === editingEvent.classification || pa.category === Object.values(CATEGORY_SCHEMAS).find(s => s.id === editingEvent.classification)?.name;
+              }) : [];
+
+              return (
                 <select
                   required={['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE'}
-                  disabled={!editingEvent.classification}
-                  className={`w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none ${!editingEvent.classification ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  value={editingEvent.teacherId || ''}
+                  disabled={!editingEvent.teacherId || editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF' || (editingEvent.teacherId && positionOptions.length === 0)}
+                  className={`w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none ${(!editingEvent.teacherId || editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF' || (editingEvent.teacherId && positionOptions.length === 0)) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  value={editingEvent.positionId || ''}
                   onChange={e => {
                     const val = e.target.value;
-                    if (val === '') {
-                      let newFlags = { ...editingEvent.overrideFlags };
-                      if (newFlags.paymentMethod === 'POSITION_RATE') newFlags.paymentMethod = 'NONE';
-                      setEditingEvent({ ...editingEvent, teacherId: undefined, positionId: undefined, roomId: undefined, overrideFlags: newFlags });
-                    } else {
-                      setEditingEvent({ ...editingEvent, teacherId: val, positionId: undefined, roomId: undefined });
-                    }
+                    let newFlags = { ...editingEvent.overrideFlags };
+                    if (!val && newFlags.paymentMethod === 'POSITION_RATE') newFlags.paymentMethod = 'NONE';
+                    setEditingEvent({ ...editingEvent, positionId: val || undefined, roomId: undefined, overrideFlags: newFlags });
                   }}
                 >
-                  <option value="">— {editingEvent.classification ? (['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification) || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? t('event.select_teacher') : t('event.org_no_teacher')) : t('event.select_category_first')} —</option>
-                  {teachers.filter(t => {
-                    if (!editingEvent.classification) return false;
-                    if (!['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification)) return true; // Show all teachers for general categories
-                    return t.positionAssignments.some(pa => pa.category === editingEvent.classification || pa.category === Object.values(CATEGORY_SCHEMAS).find(s => s.id === editingEvent.classification)?.name);
-                  }).map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}
+                  <option value="">
+                    {!editingEvent.teacherId
+                      ? t('event.select_teacher_first')
+                      : positionOptions.length === 0
+                        ? t('event.no_positions')
+                        : t('event.select_position')}
+                  </option>
+                  {positionOptions.map(pa => (
+                    <option key={pa.id} value={pa.id}>
+                      {pa.positionName} ({pa.rateType === 'HOURLY' ? `${settings.currency}${pa.rateValue}${t('fin.per_hr')}` : `${settings.currency}${pa.rateValue.toLocaleString()}${t('fin.per_mo')}`})
+                    </option>
+                  ))}
                 </select>
-              </div>
+              );
+            })()}
 
-              {/* 3. Position */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.position')} {['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span>}</label>
-                {(() => {
-                  const teacherForPos = teachers.find(t => t.id === editingEvent.teacherId);
-                  const isLesson = ['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '');
-                  const positionOptions = teacherForPos ? teacherForPos.positionAssignments.filter(pa => {
-                    if (!editingEvent.classification) return false;
-                    if (!isLesson) return true;
-                    return pa.category === editingEvent.classification || pa.category === Object.values(CATEGORY_SCHEMAS).find(s => s.id === editingEvent.classification)?.name;
-                  }) : [];
+            {/* Payment Method for General Categories */}
+            {editingEvent.classification && !['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification) && (
+              <div className="mt-4 space-y-3 border-t border-slate-200 dark:border-slate-700 pt-3">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{t('event.payment_method')} <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span></label>
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center text-sm cursor-pointer dark:text-white">
+                    <input
+                      type="radio"
+                      name="payMethod"
+                      checked={!editingEvent.overrideFlags?.paymentMethod || editingEvent.overrideFlags?.paymentMethod === 'NONE'}
+                      onChange={() => setEditingEvent({ ...editingEvent, overrideFlags: { ...editingEvent.overrideFlags, paymentMethod: 'NONE', isOneOffPayment: false }, pricingSnapshot: undefined })}
+                      className="me-2 focus:ring-blue-500"
+                    />
+                    {t('event.no_payment')}
+                  </label>
+                  <label className={`flex items-center text-sm ${!editingEvent.teacherId || !editingEvent.positionId ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} dark:text-white`}>
+                    <input
+                      type="radio"
+                      name="payMethod"
+                      disabled={!editingEvent.teacherId || !editingEvent.positionId}
+                      checked={editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE'}
+                      onChange={() => setEditingEvent({ ...editingEvent, overrideFlags: { ...editingEvent.overrideFlags, paymentMethod: 'POSITION_RATE', isOneOffPayment: false }, pricingSnapshot: undefined })}
+                      className="me-2 focus:ring-blue-500"
+                    />
+                    {t('event.use_position_rate')} {(!editingEvent.teacherId || !editingEvent.positionId) && <span className="ms-1 text-xs text-slate-400">{t('event.requires_teacher_position')}</span>}
+                  </label>
+                  <label className="flex items-center text-sm cursor-pointer dark:text-white">
+                    <input
+                      type="radio"
+                      name="payMethod"
+                      checked={editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF'}
+                      onChange={() => setEditingEvent({ ...editingEvent, overrideFlags: { ...editingEvent.overrideFlags, paymentMethod: 'ONE_OFF', isOneOffPayment: true }, positionId: undefined })}
+                      className="me-2 focus:ring-blue-500"
+                    />
+                    {t('event.one_off_payment')}
+                  </label>
+                </div>
 
-                  return (
-                    <select
-                      required={['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE'}
-                      disabled={!editingEvent.teacherId || editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF' || (editingEvent.teacherId && positionOptions.length === 0)}
-                      className={`w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none ${(!editingEvent.teacherId || editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF' || (editingEvent.teacherId && positionOptions.length === 0)) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      value={editingEvent.positionId || ''}
-                      onChange={e => {
-                        const val = e.target.value;
-                        let newFlags = { ...editingEvent.overrideFlags };
-                        if (!val && newFlags.paymentMethod === 'POSITION_RATE') newFlags.paymentMethod = 'NONE';
-                        setEditingEvent({ ...editingEvent, positionId: val || undefined, roomId: undefined, overrideFlags: newFlags });
-                      }}
-                    >
-                      <option value="">
-                        {!editingEvent.teacherId
-                          ? t('event.select_teacher_first')
-                          : positionOptions.length === 0
-                            ? t('event.no_positions')
-                            : t('event.select_position')}
-                      </option>
-                      {positionOptions.map(pa => (
-                        <option key={pa.id} value={pa.id}>
-                          {pa.positionName} ({pa.rateType === 'HOURLY' ? `${settings.currency}${pa.rateValue}${t('fin.per_hr')}` : `${settings.currency}${pa.rateValue.toLocaleString()}${t('fin.per_mo')}`})
-                        </option>
-                      ))}
-                    </select>
-                  );
-                })()}
-
-                {/* Payment Method for General Categories */}
-                {editingEvent.classification && !['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification) && (
-                  <div className="mt-4 space-y-3 border-t border-slate-200 dark:border-slate-700 pt-3">
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{t('event.payment_method')} <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span></label>
-                    <div className="flex flex-col gap-2">
-                      <label className="flex items-center text-sm cursor-pointer dark:text-white">
-                        <input
-                          type="radio"
-                          name="payMethod"
-                          checked={!editingEvent.overrideFlags?.paymentMethod || editingEvent.overrideFlags?.paymentMethod === 'NONE'}
-                          onChange={() => setEditingEvent({ ...editingEvent, overrideFlags: { ...editingEvent.overrideFlags, paymentMethod: 'NONE', isOneOffPayment: false }, pricingSnapshot: undefined })}
-                          className="me-2 focus:ring-blue-500"
-                        />
-                        {t('event.no_payment')}
-                      </label>
-                      <label className={`flex items-center text-sm ${!editingEvent.teacherId || !editingEvent.positionId ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} dark:text-white`}>
-                        <input
-                          type="radio"
-                          name="payMethod"
-                          disabled={!editingEvent.teacherId || !editingEvent.positionId}
-                          checked={editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE'}
-                          onChange={() => setEditingEvent({ ...editingEvent, overrideFlags: { ...editingEvent.overrideFlags, paymentMethod: 'POSITION_RATE', isOneOffPayment: false }, pricingSnapshot: undefined })}
-                          className="me-2 focus:ring-blue-500"
-                        />
-                        {t('event.use_position_rate')} {(!editingEvent.teacherId || !editingEvent.positionId) && <span className="ms-1 text-xs text-slate-400">{t('event.requires_teacher_position')}</span>}
-                      </label>
-                      <label className="flex items-center text-sm cursor-pointer dark:text-white">
-                        <input
-                          type="radio"
-                          name="payMethod"
-                          checked={editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF'}
-                          onChange={() => setEditingEvent({ ...editingEvent, overrideFlags: { ...editingEvent.overrideFlags, paymentMethod: 'ONE_OFF', isOneOffPayment: true }, positionId: undefined })}
-                          className="me-2 focus:ring-blue-500"
-                        />
-                        {t('event.one_off_payment')}
-                      </label>
-                    </div>
-
-                    {editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF' && (
-                      <div className="pt-2">
-                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.one_off_price')} ({settings.currency}) <span className="text-red-500">*</span></label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          required
-                          className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                          value={editingEvent.pricingSnapshot?.rateValue ?? ''}
-                          onChange={e => setEditingEvent({
-                            ...editingEvent,
-                            pricingSnapshot: { rateValue: Number(e.target.value), rateType: 'ONE_OFF', source: 'OVERRIDE' }
-                          })}
-                          placeholder={t('event.one_off_price')}
-                        />
-                      </div>
-                    )}
+                {editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF' && (
+                  <div className="pt-2">
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.one_off_price')} ({settings.currency}) <span className="text-red-500">*</span></label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      required
+                      className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                      value={editingEvent.pricingSnapshot?.rateValue ?? ''}
+                      onChange={e => setEditingEvent({
+                        ...editingEvent,
+                        pricingSnapshot: { rateValue: Number(e.target.value), rateType: 'ONE_OFF', source: 'OVERRIDE' }
+                      })}
+                      placeholder={t('event.one_off_price')}
+                    />
                   </div>
                 )}
               </div>
+            )}
+          </div>
 
-              {/* 4. Room */}
-              <div>
-                <label className="block flex items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  <span>{t('event.room')} <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span></span>
-                </label>
-                <select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.roomId || ''} onChange={e => setEditingEvent({ ...editingEvent, roomId: e.target.value || undefined })}>
-                  <option value="">— {t('event.no_room')} —</option>
-                  {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                </select>
-              </div>
+          {/* 4. Room */}
+          <div>
+            <label className="block flex items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <span>{t('event.room')} <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span></span>
+            </label>
+            <select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.roomId || ''} onChange={e => setEditingEvent({ ...editingEvent, roomId: e.target.value || undefined })}>
+              <option value="">— {t('event.no_room')} —</option>
+              {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+          </div>
 
-              {/* 5. Start Time / End Time */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.start_time')}</label>
-                  <input
-                    type="datetime-local"
-                    required
-                    className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
-                    value={editingEvent.start ? new Date(new Date(editingEvent.start).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}
-                    onChange={e => {
-                      const newStartString = e.target.value;
-                      if (!newStartString) return;
-                      const newStart = new Date(newStartString);
-                      const updates: Partial<CalendarEvent> = { start: newStart.toISOString() };
+          {/* 5. Start Time / End Time */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.start_time')}</label>
+              <DatePicker
+                type="datetime-local"
+                required
+                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+                value={editingEvent.start ? new Date(new Date(editingEvent.start).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}
+                onChange={e => {
+                  const newStart = new Date(e.target.value).toISOString();
+                  let newEnd = editingEvent.end;
+                  if (!newEnd || new Date(newStart) > new Date(newEnd)) {
+                    newEnd = newStart;
+                  }
+                  setEditingEvent({ ...editingEvent, start: newStart, end: newEnd });
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.end_time')}</label>
+              <DatePicker
+                type="datetime-local"
+                required
+                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+                value={editingEvent.end ? new Date(new Date(editingEvent.end).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}
+                onChange={e => {
+                  const newEnd = new Date(e.target.value).toISOString();
+                  let newStart = editingEvent.start;
+                  if (newStart && new Date(newEnd) < new Date(newStart)) {
+                    newStart = newEnd;
+                  }
+                  setEditingEvent({ ...editingEvent, end: newEnd, start: newStart });
+                }}
+              />
+            </div>
+          </div>
 
-                      if (!hasManuallySetEndDate && editingEvent.end) {
-                        const currentEnd = new Date(editingEvent.end);
-                        currentEnd.setFullYear(newStart.getFullYear(), newStart.getMonth(), newStart.getDate());
-
-                        if (currentEnd < newStart) {
-                          currentEnd.setTime(newStart.getTime() + settings.defaultEventDuration * 60000);
-                        }
-                        updates.end = currentEnd.toISOString();
-                      }
-
-                      setEditingEvent({ ...editingEvent, ...updates });
-                    }}
-                  />
+          {/* Recurrence Section */}
+          {!editingEvent.isExceptionEdit && (
+            <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+              <label className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer mb-3">
+                <input
+                  type="checkbox"
+                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-slate-300 dark:border-slate-600"
+                  checked={!!editingEvent.recurrenceRule}
+                  onChange={e => {
+                    if (e.target.checked) {
+                      const startDay = editingEvent.start ? DAY_ABBR[new Date(editingEvent.start).getDay()] : 'MO';
+                      setEditingEvent({
+                        ...editingEvent,
+                        recurrenceRule: { frequency: 'WEEKLY', interval: 1, byDay: [startDay] }
+                      });
+                    } else {
+                      const { recurrenceRule, ...rest } = editingEvent;
+                      setEditingEvent(rest);
+                    }
+                  }}
+                />
+                <div className="flex items-center gap-2">
+                  <Repeat size={16} className="text-blue-500" />
+                  <span className="font-medium text-slate-900 dark:text-white">{t('recurrence.recurring_event')}</span>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.end_time')}</label>
-                  <input
-                    type="datetime-local"
-                    required
-                    className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
-                    value={editingEvent.end ? new Date(new Date(editingEvent.end).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}
-                    onChange={e => {
-                      setHasManuallySetEndDate(true);
-                      setEditingEvent({ ...editingEvent, end: new Date(e.target.value).toISOString() });
-                    }}
-                  />
-                </div>
-              </div>
+              </label>
 
-              {/* Recurrence Section */}
-              {!editingEvent.isExceptionEdit && (
-                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                  <label className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer mb-3">
-                    <input
-                      type="checkbox"
-                      className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-slate-300 dark:border-slate-600"
-                      checked={!!editingEvent.recurrenceRule}
-                      onChange={e => {
-                        if (e.target.checked) {
-                          const startDay = editingEvent.start ? DAY_ABBR[new Date(editingEvent.start).getDay()] : 'MO';
-                          setEditingEvent({
-                            ...editingEvent,
-                            recurrenceRule: { frequency: 'WEEKLY', interval: 1, byDay: [startDay] }
-                          });
-                        } else {
-                          const { recurrenceRule, ...rest } = editingEvent;
-                          setEditingEvent(rest);
-                        }
-                      }}
-                    />
-                    <div className="flex items-center gap-2">
-                      <Repeat size={16} className="text-blue-500" />
-                      <span className="font-medium text-slate-900 dark:text-white">{t('recurrence.recurring_event')}</span>
+              {editingEvent.recurrenceRule && (() => {
+                const rule = editingEvent.recurrenceRule!;
+                const updateRule = (updates: Partial<RecurrenceRule>) => {
+                  setEditingEvent({ ...editingEvent, recurrenceRule: { ...rule, ...updates } });
+                };
+
+                return (
+                  <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    {/* Preset Buttons */}
+                    <div className="flex gap-2 flex-wrap">
+                      {[
+                        { label: t('recurrence.weekly'), rule: { frequency: 'WEEKLY' as const, interval: 1, byDay: [editingEvent.start ? DAY_ABBR[new Date(editingEvent.start).getDay()] : 'MO' as DayOfWeek] } },
+                        { label: t('recurrence.biweekly'), rule: { frequency: 'WEEKLY' as const, interval: 2, byDay: [editingEvent.start ? DAY_ABBR[new Date(editingEvent.start).getDay()] : 'MO' as DayOfWeek] } },
+                        { label: t('recurrence.daily'), rule: { frequency: 'DAILY' as const, interval: 1 } },
+                        { label: t('recurrence.monthly'), rule: { frequency: 'MONTHLY' as const, interval: 1 } },
+                      ].map(preset => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => updateRule({ ...preset.rule, untilDate: rule.untilDate, count: rule.count })}
+                          className={`px-3 py-1 text-xs rounded-full border transition-colors ${rule.frequency === preset.rule.frequency && rule.interval === preset.rule.interval
+                            ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700'
+                            : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600'
+                            }`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
                     </div>
-                  </label>
 
-                  {editingEvent.recurrenceRule && (() => {
-                    const rule = editingEvent.recurrenceRule!;
-                    const updateRule = (updates: Partial<RecurrenceRule>) => {
-                      setEditingEvent({ ...editingEvent, recurrenceRule: { ...rule, ...updates } });
-                    };
+                    {/* Frequency & Interval */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-slate-600 dark:text-slate-400">{t('recurrence.every')}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={52}
+                        className="w-16 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none"
+                        value={rule.interval}
+                        onChange={e => updateRule({ interval: Math.max(1, parseInt(e.target.value) || 1) })}
+                      />
+                      <select
+                        className="border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none"
+                        value={rule.frequency}
+                        onChange={e => updateRule({ frequency: e.target.value as RecurrenceRule['frequency'] })}
+                      >
+                        <option value="DAILY">{t('recurrence.days')}</option>
+                        <option value="WEEKLY">{t('recurrence.weeks')}</option>
+                        <option value="MONTHLY">{t('recurrence.months')}</option>
+                      </select>
+                    </div>
 
-                    return (
-                      <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-700">
-                        {/* Preset Buttons */}
-                        <div className="flex gap-2 flex-wrap">
-                          {[
-                            { label: t('recurrence.weekly'), rule: { frequency: 'WEEKLY' as const, interval: 1, byDay: [editingEvent.start ? DAY_ABBR[new Date(editingEvent.start).getDay()] : 'MO' as DayOfWeek] } },
-                            { label: t('recurrence.biweekly'), rule: { frequency: 'WEEKLY' as const, interval: 2, byDay: [editingEvent.start ? DAY_ABBR[new Date(editingEvent.start).getDay()] : 'MO' as DayOfWeek] } },
-                            { label: t('recurrence.daily'), rule: { frequency: 'DAILY' as const, interval: 1 } },
-                            { label: t('recurrence.monthly'), rule: { frequency: 'MONTHLY' as const, interval: 1 } },
-                          ].map(preset => (
+                    {/* Day-of-week selector for WEEKLY */}
+                    {rule.frequency === 'WEEKLY' && (
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{t('recurrence.on_days')}</label>
+                        <div className="flex gap-1">
+                          {DAY_ABBR.map(day => (
                             <button
-                              key={preset.label}
+                              key={day}
                               type="button"
-                              onClick={() => updateRule({ ...preset.rule, untilDate: rule.untilDate, count: rule.count })}
-                              className={`px-3 py-1 text-xs rounded-full border transition-colors ${rule.frequency === preset.rule.frequency && rule.interval === preset.rule.interval
-                                ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700'
-                                : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600'
+                              onClick={() => {
+                                const current = rule.byDay || [];
+                                const next = current.includes(day)
+                                  ? current.filter(d => d !== day)
+                                  : [...current, day];
+                                updateRule({ byDay: next.length > 0 ? next : [day] });
+                              }}
+                              className={`w-8 h-8 text-xs rounded-full font-medium transition-colors ${(rule.byDay || []).includes(day)
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
                                 }`}
                             >
-                              {preset.label}
+                              {day}
                             </button>
                           ))}
                         </div>
-
-                        {/* Frequency & Interval */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-slate-600 dark:text-slate-400">{t('recurrence.every')}</span>
-                          <input
-                            type="number"
-                            min={1}
-                            max={52}
-                            className="w-16 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none"
-                            value={rule.interval}
-                            onChange={e => updateRule({ interval: Math.max(1, parseInt(e.target.value) || 1) })}
-                          />
-                          <select
-                            className="border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none"
-                            value={rule.frequency}
-                            onChange={e => updateRule({ frequency: e.target.value as RecurrenceRule['frequency'] })}
-                          >
-                            <option value="DAILY">{t('recurrence.days')}</option>
-                            <option value="WEEKLY">{t('recurrence.weeks')}</option>
-                            <option value="MONTHLY">{t('recurrence.months')}</option>
-                          </select>
-                        </div>
-
-                        {/* Day-of-week selector for WEEKLY */}
-                        {rule.frequency === 'WEEKLY' && (
-                          <div>
-                            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{t('recurrence.on_days')}</label>
-                            <div className="flex gap-1">
-                              {DAY_ABBR.map(day => (
-                                <button
-                                  key={day}
-                                  type="button"
-                                  onClick={() => {
-                                    const current = rule.byDay || [];
-                                    const next = current.includes(day)
-                                      ? current.filter(d => d !== day)
-                                      : [...current, day];
-                                    updateRule({ byDay: next.length > 0 ? next : [day] });
-                                  }}
-                                  className={`w-8 h-8 text-xs rounded-full font-medium transition-colors ${(rule.byDay || []).includes(day)
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
-                                    }`}
-                                >
-                                  {day}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Monthly mode selector */}
-                        {rule.frequency === 'MONTHLY' && editingEvent.start && (() => {
-                          const startDate = new Date(editingEvent.start);
-                          const dayNum = startDate.getDate();
-                          const dayName = [t('recurrence.day_sunday'), t('recurrence.day_monday'), t('recurrence.day_tuesday'), t('recurrence.day_wednesday'), t('recurrence.day_thursday'), t('recurrence.day_friday'), t('recurrence.day_saturday')][startDate.getDay()];
-                          const weekOfMonth = Math.ceil(dayNum / 7);
-                          const posLabels = ['', t('recurrence.pos_1st'), t('recurrence.pos_2nd'), t('recurrence.pos_3rd'), t('recurrence.pos_4th'), t('recurrence.pos_5th')];
-                          const isPositionalMode = !!rule.bySetPos;
-
-                          return (
-                            <div className="space-y-2">
-                              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">{t('recurrence.monthly_mode')}</label>
-                              <div className="space-y-1">
-                                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
-                                  <input
-                                    type="radio"
-                                    name="monthlyMode"
-                                    checked={!isPositionalMode}
-                                    onChange={() => updateRule({ byMonthDay: dayNum, bySetPos: undefined, byDayOfWeek: undefined })}
-                                    className="text-blue-600"
-                                  />
-                                  {t('recurrence.on_day_of_month').replace('{ordinal}', String(dayNum) + (dayNum === 1 ? t('recurrence.ordinal_st') : dayNum === 2 ? t('recurrence.ordinal_nd') : dayNum === 3 ? t('recurrence.ordinal_rd') : t('recurrence.ordinal_th')))}
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
-                                  <input
-                                    type="radio"
-                                    name="monthlyMode"
-                                    checked={isPositionalMode}
-                                    onChange={() => updateRule({ bySetPos: weekOfMonth, byDayOfWeek: DAY_ABBR[startDate.getDay()], byMonthDay: undefined })}
-                                    className="text-blue-600"
-                                  />
-                                  {t('recurrence.on_pos_day_of_month').replace('{pos}', posLabels[weekOfMonth]).replace('{dayName}', dayName)}
-                                </label>
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                        {/* End Condition */}
-                        <div className="space-y-2">
-                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">{t('recurrence.ends')}</label>
-                          <div className="space-y-2">
-                            <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
-                              <input
-                                type="radio"
-                                name="endMode"
-                                checked={!rule.untilDate && !rule.count}
-                                onChange={() => updateRule({ untilDate: undefined, count: undefined })}
-                                className="text-blue-600"
-                              />
-                              {t('recurrence.never')}
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
-                              <input
-                                type="radio"
-                                name="endMode"
-                                checked={!!rule.untilDate}
-                                onChange={() => {
-                                  const defaultEnd = new Date();
-                                  defaultEnd.setMonth(defaultEnd.getMonth() + 3);
-                                  updateRule({ untilDate: defaultEnd.toISOString().split('T')[0], count: undefined });
-                                }}
-                                className="text-blue-600"
-                              />
-                              {t('recurrence.on_date')}
-                              {rule.untilDate && (
-                                <input
-                                  type="date"
-                                  className="border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none ms-1"
-                                  value={rule.untilDate}
-                                  onChange={e => updateRule({ untilDate: e.target.value })}
-                                />
-                              )}
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
-                              <input
-                                type="radio"
-                                name="endMode"
-                                checked={!!rule.count}
-                                onChange={() => updateRule({ count: 12, untilDate: undefined })}
-                                className="text-blue-600"
-                              />
-                              {t('recurrence.after')}
-                              {rule.count !== undefined && (
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={365}
-                                  className="w-16 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none"
-                                  value={rule.count}
-                                  onChange={e => updateRule({ count: Math.max(1, parseInt(e.target.value) || 1) })}
-                                />
-                              )}
-                              {rule.count !== undefined && <span>{t('recurrence.occurrences')}</span>}
-                            </label>
-                          </div>
-                        </div>
                       </div>
-                    );
-                  })()}
-                </div>
-              )}
+                    )}
 
-              {editingEvent.id && !editingEvent.recurrenceRule && (
-                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 mt-2">
-                  <label className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer">
-                    <input type="checkbox" className="w-5 h-5 text-red-600 rounded focus:ring-red-500 border-slate-300 dark:border-slate-600" checked={editingEvent.isCanceled || false} onChange={e => setEditingEvent({ ...editingEvent, isCanceled: e.target.checked, cancellationPayStatus: e.target.checked && !editingEvent.cancellationPayStatus ? 'NO_PAY_CANCELLATION' : editingEvent.cancellationPayStatus })} />
-                    <span className="font-medium text-slate-900 dark:text-white">{t('cal.mark_canceled')}</span>
-                  </label>
-                  {editingEvent.isCanceled && (
-                    <div className="mt-3 ms-8 border-t border-slate-200 dark:border-slate-700 pt-3">
-                      <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{t('cal.cancel_pay_status')}</label>
-                      <select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none" value={editingEvent.cancellationPayStatus || 'NO_PAY_CANCELLATION'} onChange={e => setEditingEvent({ ...editingEvent, cancellationPayStatus: e.target.value as any })}>
-                        <option value="NO_PAY_CANCELLATION">{t('cal.no_pay')}</option>
-                        <option value="PAID_CANCELLATION">{t('cal.paid_cancel')}</option>
-                      </select>
+                    {/* Monthly mode selector */}
+                    {rule.frequency === 'MONTHLY' && editingEvent.start && (() => {
+                      const startDate = new Date(editingEvent.start);
+                      const dayNum = startDate.getDate();
+                      const dayName = [t('recurrence.day_sunday'), t('recurrence.day_monday'), t('recurrence.day_tuesday'), t('recurrence.day_wednesday'), t('recurrence.day_thursday'), t('recurrence.day_friday'), t('recurrence.day_saturday')][startDate.getDay()];
+                      const weekOfMonth = Math.ceil(dayNum / 7);
+                      const posLabels = ['', t('recurrence.pos_1st'), t('recurrence.pos_2nd'), t('recurrence.pos_3rd'), t('recurrence.pos_4th'), t('recurrence.pos_5th')];
+                      const isPositionalMode = !!rule.bySetPos;
+
+                      return (
+                        <div className="space-y-2">
+                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">{t('recurrence.monthly_mode')}</label>
+                          <div className="space-y-1">
+                            <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
+                              <input
+                                type="radio"
+                                name="monthlyMode"
+                                checked={!isPositionalMode}
+                                onChange={() => updateRule({ byMonthDay: dayNum, bySetPos: undefined, byDayOfWeek: undefined })}
+                                className="text-blue-600"
+                              />
+                              {t('recurrence.on_day_of_month').replace('{ordinal}', String(dayNum) + (dayNum === 1 ? t('recurrence.ordinal_st') : dayNum === 2 ? t('recurrence.ordinal_nd') : dayNum === 3 ? t('recurrence.ordinal_rd') : t('recurrence.ordinal_th')))}
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
+                              <input
+                                type="radio"
+                                name="monthlyMode"
+                                checked={isPositionalMode}
+                                onChange={() => updateRule({ bySetPos: weekOfMonth, byDayOfWeek: DAY_ABBR[startDate.getDay()], byMonthDay: undefined })}
+                                className="text-blue-600"
+                              />
+                              {t('recurrence.on_pos_day_of_month').replace('{pos}', posLabels[weekOfMonth]).replace('{dayName}', dayName)}
+                            </label>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* End Condition */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">{t('recurrence.ends')}</label>
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
+                          <input
+                            type="radio"
+                            name="endMode"
+                            checked={!rule.untilDate && !rule.count}
+                            onChange={() => updateRule({ untilDate: undefined, count: undefined })}
+                            className="text-blue-600"
+                          />
+                          {t('recurrence.never')}
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
+                          <input
+                            type="radio"
+                            name="endMode"
+                            checked={!!rule.untilDate}
+                            onChange={() => {
+                              const defaultEnd = new Date();
+                              defaultEnd.setMonth(defaultEnd.getMonth() + 3);
+                              updateRule({ untilDate: defaultEnd.toISOString().split('T')[0], count: undefined });
+                            }}
+                            className="text-blue-600"
+                          />
+                          {t('recurrence.on_date')}
+                          {rule.untilDate && (
+                            <input
+                              type="date"
+                              className="border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none ms-1"
+                              value={rule.untilDate}
+                              onChange={e => updateRule({ untilDate: e.target.value })}
+                            />
+                          )}
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
+                          <input
+                            type="radio"
+                            name="endMode"
+                            checked={!!rule.count}
+                            onChange={() => updateRule({ count: 12, untilDate: undefined })}
+                            className="text-blue-600"
+                          />
+                          {t('recurrence.after')}
+                          {rule.count !== undefined && (
+                            <input
+                              type="number"
+                              min={1}
+                              max={365}
+                              className="w-16 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none"
+                              value={rule.count}
+                              onChange={e => updateRule({ count: Math.max(1, parseInt(e.target.value) || 1) })}
+                            />
+                          )}
+                          {rule.count !== undefined && <span>{t('recurrence.occurrences')}</span>}
+                        </label>
+                      </div>
                     </div>
-                  )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {editingEvent.id && !editingEvent.recurrenceRule && (
+            <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 mt-2">
+              <label className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer">
+                <input type="checkbox" className="w-5 h-5 text-red-600 rounded focus:ring-red-500 border-slate-300 dark:border-slate-600" checked={editingEvent.isCanceled || false} onChange={e => setEditingEvent({ ...editingEvent, isCanceled: e.target.checked, cancellationPayStatus: e.target.checked && !editingEvent.cancellationPayStatus ? 'NO_PAY_CANCELLATION' : editingEvent.cancellationPayStatus })} />
+                <span className="font-medium text-slate-900 dark:text-white">{t('cal.mark_canceled')}</span>
+              </label>
+              {editingEvent.isCanceled && (
+                <div className="mt-3 ms-8 border-t border-slate-200 dark:border-slate-700 pt-3">
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{t('cal.cancel_pay_status')}</label>
+                  <select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none" value={editingEvent.cancellationPayStatus || 'NO_PAY_CANCELLATION'} onChange={e => setEditingEvent({ ...editingEvent, cancellationPayStatus: e.target.value as any })}>
+                    <option value="NO_PAY_CANCELLATION">{t('cal.no_pay')}</option>
+                    <option value="PAID_CANCELLATION">{t('cal.paid_cancel')}</option>
+                  </select>
                 </div>
               )}
-              <div className="flex justify-between mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
-                {editingEvent.id && <button type="button" onClick={() => { handleDeleteEvent(editingEvent.id!, editingEvent as CalendarEvent); setIsModalOpen(false); }} className="text-red-500 hover:text-red-700 text-sm font-medium">{t('cal.delete_event')}</button>}
-                <div className="flex space-x-3 rtl:space-x-reverse ms-auto">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">{t('btn.cancel')}</button>
-                  <button type="submit" className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg">{t('cal.save_changes')}</button>
-                </div>
-              </div>
-            </form>
-          </div>
+            </div>
+          )}
         </div>
-      )}
+      </Modal>
 
       {/* Recurrence Series Dialog - "Just This One" vs "All Events" */}
-      {recurrenceDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-sm p-6 border border-slate-200 dark:border-slate-800">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
+      <Modal
+        isOpen={!!recurrenceDialog}
+        onClose={() => setRecurrenceDialog(null)}
+        title={recurrenceDialog ? (recurrenceDialog.type === 'EDIT' ? t('recurrence.edit_series_title') : recurrenceDialog.type === 'DELETE' ? t('recurrence.delete_series_title') : recurrenceDialog.event.isCanceled ? t('recurrence.restore_series_title') : t('recurrence.cancel_series_title')) : ''}
+        isDirty={false}
+        t={t}
+        maxWidth="max-w-sm"
+        footerContent={<></>}
+      >
+        {recurrenceDialog && (
+          <div>
+            <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg flex-shrink-0">
                 <Repeat size={20} className="text-blue-600 dark:text-blue-400" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                {recurrenceDialog.type === 'EDIT' ? t('recurrence.edit_series_title') : recurrenceDialog.type === 'DELETE' ? t('recurrence.delete_series_title') : recurrenceDialog.event.isCanceled ? t('recurrence.restore_series_title') : t('recurrence.cancel_series_title')}
-              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                {recurrenceDialog.type === 'EDIT' ? t('recurrence.series_desc_edit') : recurrenceDialog.type === 'DELETE' ? t('recurrence.series_desc_delete') : recurrenceDialog.event.isCanceled ? t('recurrence.series_desc_restore') : t('recurrence.series_desc_cancel')}
+              </p>
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
-              {recurrenceDialog.type === 'EDIT' ? t('recurrence.series_desc_edit') : recurrenceDialog.type === 'DELETE' ? t('recurrence.series_desc_delete') : recurrenceDialog.event.isCanceled ? t('recurrence.series_desc_restore') : t('recurrence.series_desc_cancel')}
-            </p>
-            <div className="flex gap-3 mb-4">
+            <div className="flex gap-3 mb-4 mt-6">
               <button
                 onClick={() => handleSeriesAction('THIS')}
                 className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 py-3 rounded-lg font-medium transition-colors text-sm"
@@ -2199,13 +2228,13 @@ export const CalendarView: React.FC<Props> = ({
             </div>
             <button
               onClick={() => setRecurrenceDialog(null)}
-              className="w-full text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 py-2"
+              className="w-full text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 py-2 transition-colors"
             >
               {t('btn.cancel')}
             </button>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 };

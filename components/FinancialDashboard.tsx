@@ -8,6 +8,8 @@ import {
   DollarSign, TrendingUp, X, SlidersHorizontal, Tag, User, Briefcase, ToggleLeft,
   ArrowRight, BarChart3, ArrowUpDown, Mail, Trash2, CheckCircle2
 } from 'lucide-react';
+import { DatePicker } from './DatePicker';
+import { Modal } from './Modal';
 
 interface Props {
   events: CalendarEvent[];
@@ -531,9 +533,31 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeach
 
             {dateFilterType === 'CUSTOM' && (
               <div className="flex items-center space-x-2 rtl:space-x-reverse bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-2 py-1.5 shadow-sm">
-                <input type="date" className="bg-transparent text-xs outline-none dark:text-white" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} />
+                <DatePicker
+                  type="date"
+                  className="bg-transparent text-xs outline-none dark:text-white"
+                  value={customStartDate}
+                  onChange={e => {
+                    const newStart = e.target.value;
+                    setCustomStartDate(newStart);
+                    if (!customEndDate || new Date(newStart) > new Date(customEndDate)) {
+                      setCustomEndDate(newStart);
+                    }
+                  }}
+                />
                 <span className="text-slate-400">-</span>
-                <input type="date" className="bg-transparent text-xs outline-none dark:text-white" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} />
+                <DatePicker
+                  type="date"
+                  className="bg-transparent text-xs outline-none dark:text-white"
+                  value={customEndDate}
+                  onChange={e => {
+                    const newEnd = e.target.value;
+                    setCustomEndDate(newEnd);
+                    if (customStartDate && new Date(newEnd) < new Date(customStartDate)) {
+                      setCustomStartDate(newEnd);
+                    }
+                  }}
+                />
               </div>
             )}
 
@@ -761,93 +785,90 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeach
         )}
 
         {/* Email Report Modal */}
-        {isEmailModalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh]">
-              <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 rounded-t-xl">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><Mail size={20} className="text-blue-500" /> {t('fin.send_reports_title')}</h3>
-                  <p className="text-sm text-slate-500 mt-1">{t('dashboard.report_desc')}</p>
-                </div>
-                <button onClick={() => setIsEmailModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-200/50 dark:bg-slate-800 p-2 rounded-full transition-colors"><X size={20} /></button>
-              </div>
+        <Modal
+          isOpen={isEmailModalOpen}
+          onClose={() => setIsEmailModalOpen(false)}
+          title={<div className="flex items-center gap-2"><Mail size={20} className="text-blue-500" /> {t('fin.send_reports_title')}</div>}
+          isDirty={false}
+          t={t}
+          maxWidth="max-w-2xl"
+        >
+          <p className="text-sm text-slate-500 -mt-2 mb-4">{t('dashboard.report_desc')}</p>
 
-              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-50/50 dark:bg-slate-900">
-                {emailSuccess ? (
-                  <div className="flex flex-col items-center justify-center text-center py-12">
-                    <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 text-green-500 rounded-full flex items-center justify-center mb-4">
-                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
-                    </div>
-                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('dashboard.report_success')}</h4>
-                    <p className="text-slate-500 dark:text-slate-400 max-w-md">{t('fin.email_dispatched')} {reportData.length} {t('fin.recipients')}.</p>
-                  </div>
-                ) : reportData.length === 0 ? (
-                  <div className="text-center py-12 text-slate-500">
-                    No reports match the current filters to send.
-                  </div>
-                ) : (
-                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-sm">
-                    <table className="w-full text-start text-sm">
-                      <thead className="bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-medium">
-                        <tr>
-                          <th className="px-4 py-3">{t('col.recipient')}</th>
-                          <th className="px-4 py-3">{t('col.email_address')}</th>
-                          <th className="px-4 py-3 text-end">{t('col.total_payout')}</th>
+          <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 mb-6 max-h-[50vh]">
+            {emailSuccess ? (
+              <div className="flex flex-col items-center justify-center text-center py-12">
+                <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 text-green-500 rounded-full flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+                <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('dashboard.report_success')}</h4>
+                <p className="text-slate-500 dark:text-slate-400 max-w-md">{t('fin.email_dispatched')} {reportData.length} {t('fin.recipients')}.</p>
+              </div>
+            ) : reportData.length === 0 ? (
+              <div className="text-center py-12 text-slate-500">
+                No reports match the current filters to send.
+              </div>
+            ) : (
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-sm">
+                <table className="w-full text-start text-sm">
+                  <thead className="bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-medium">
+                    <tr>
+                      <th className="px-4 py-3 text-start">{t('col.recipient')}</th>
+                      <th className="px-4 py-3 text-start">{t('col.email_address')}</th>
+                      <th className="px-4 py-3 text-end">{t('col.total_payout')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {reportData.map(r => {
+                      const teacher = teachers.find(t => t.id === r.teacherId);
+                      return (
+                        <tr key={r.teacherId}>
+                          <td className="px-4 py-3 font-medium text-slate-800 dark:text-white flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: r.teacherColor }}>{r.teacherName.charAt(0)}</div>
+                            {r.teacherName}
+                          </td>
+                          <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-start">{teacher?.email || 'No email saved'}</td>
+                          <td className="px-4 py-3 text-end font-medium text-emerald-600 dark:text-emerald-400">{formatCurrency(r.grandTotal, settings.currency)}</td>
                         </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {reportData.map(r => {
-                          const teacher = teachers.find(t => t.id === r.teacherId);
-                          return (
-                            <tr key={r.teacherId}>
-                              <td className="px-4 py-3 font-medium text-slate-800 dark:text-white flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: r.teacherColor }}>{r.teacherName.charAt(0)}</div>
-                                {r.teacherName}
-                              </td>
-                              <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{teacher?.email || 'No email saved'}</td>
-                              <td className="px-4 py-3 text-end font-medium text-emerald-600 dark:text-emerald-400">{formatCurrency(r.grandTotal, settings.currency)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-
-              {!emailSuccess && (
-                <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex justify-between items-center rounded-b-xl">
-                  <div className="text-sm text-slate-500 dark:text-slate-400">
-                    Filter settings applied: <strong className="text-slate-700 dark:text-slate-300">{activeFilterCount} active filters</strong>
-                  </div>
-                  <div className="flex gap-3">
-                    <button onClick={() => setIsEmailModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors rounded-lg font-medium text-sm">{t('btn.cancel')}</button>
-                    <button
-                      onClick={() => {
-                        setIsSendingEmails(true);
-                        setTimeout(() => {
-                          setIsSendingEmails(false);
-                          setEmailSuccess(true);
-                        }, 1500);
-                      }}
-                      disabled={isSendingEmails || reportData.length === 0}
-                      className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 shadow-cadenza-soft px-6 py-2 rounded-lg font-bold text-sm  transition-all flex items-center"
-                    >
-                      {isSendingEmails ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin me-2"></div>
-                          Sending...
-                        </>
-                      ) : (
-                        `Send ${reportData.length} Reports`
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            )}
           </div>
-        )}
+
+          {!emailSuccess && (
+            <div className="flex justify-between items-center sm:flex-row flex-col gap-4">
+              <div className="text-sm text-slate-500 dark:text-slate-400">
+                Filter settings applied: <strong className="text-slate-700 dark:text-slate-300">{activeFilterCount} active filters</strong>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setIsEmailModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors rounded-lg font-medium text-sm">{t('btn.cancel')}</button>
+                <button
+                  onClick={() => {
+                    setIsSendingEmails(true);
+                    setTimeout(() => {
+                      setIsSendingEmails(false);
+                      setEmailSuccess(true);
+                    }, 1500);
+                  }}
+                  disabled={isSendingEmails || reportData.length === 0}
+                  className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 shadow-cadenza-soft px-6 py-2 rounded-lg font-bold text-sm  transition-all flex items-center"
+                >
+                  {isSendingEmails ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin me-2"></div>
+                      Sending...
+                    </>
+                  ) : (
+                    `Send ${reportData.length} Reports`
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </Modal>
       </div>
     </div>
   );

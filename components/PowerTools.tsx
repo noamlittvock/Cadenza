@@ -3,6 +3,7 @@ import { CalendarEvent, Teacher, Room, AppSettings, ListsState, GanttBlock } fro
 import { TRANSLATIONS, generateId, COLORS } from '../constants';
 import { Trash2, Filter, AlertTriangle, Check, Calendar, User, Tag, BoxSelect, MousePointer2, ListFilter, Hand, XCircle, FileDown, Upload, FileJson } from 'lucide-react';
 import Papa from 'papaparse';
+import { DatePicker } from './DatePicker';
 
 interface Props {
     events: CalendarEvent[];
@@ -273,20 +274,32 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                 <div className="grid grid-cols-2 gap-2">
                                     <div>
                                         <label className="block text-[10px] font-medium text-slate-400 mb-1">{t('power.label_from')}</label>
-                                        <input
+                                        <DatePicker
                                             type="date"
                                             className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-500"
                                             value={deleteStartDate}
-                                            onChange={e => setDeleteStartDate(e.target.value)}
+                                            onChange={e => {
+                                                const newStart = e.target.value;
+                                                setDeleteStartDate(newStart);
+                                                if (!deleteEndDate || (new Date(newStart) > new Date(deleteEndDate))) {
+                                                    setDeleteEndDate(newStart);
+                                                }
+                                            }}
                                         />
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-medium text-slate-400 mb-1">{t('power.label_to')}</label>
-                                        <input
+                                        <DatePicker
                                             type="date"
                                             className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-500"
                                             value={deleteEndDate}
-                                            onChange={e => setDeleteEndDate(e.target.value)}
+                                            onChange={e => {
+                                                const newEnd = e.target.value;
+                                                setDeleteEndDate(newEnd);
+                                                if (deleteStartDate && (new Date(newEnd) < new Date(deleteStartDate))) {
+                                                    setDeleteStartDate(newEnd);
+                                                }
+                                            }}
                                         />
                                     </div>
                                 </div>

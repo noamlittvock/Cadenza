@@ -24,7 +24,9 @@ import {
 } from '../chartBuilder/smartDefaults';
 import { ChartRenderer } from './ChartRenderer';
 import { MergedChartRenderer, DatasetInput } from './MergedChartRenderer';
+import { DatePicker } from './DatePicker';
 import { CalendarEvent, Teacher } from '../types';
+import { Modal } from './Modal';
 import {
     X, Plus, Trash2, BarChart3, TrendingUp,
     PieChart as PieIcon, Table, BarChart2, Layers,
@@ -592,508 +594,528 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
     // RENDER — Side-by-side layout
     // ══════════════════════════════════════════════
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-            onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            isDirty={title !== (editingChart?.title || '')}
+            hideHeader={true}
+            maxWidth="max-w-7xl"
+            t={t}
+            className="h-[92vh]"
         >
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-7xl max-h-[92vh] overflow-hidden flex flex-col animate-in zoom-in-95 fade-in duration-200">
+            {/* ── Header ── */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
+                <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                    <BarChart3 size={20} className="text-blue-500" />
+                    {editingChart ? t('builder.edit_chart') : t('builder.create_chart')}
+                </h2>
+                <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                    <X size={18} className="text-slate-400" />
+                </button>
+            </div>
 
-                {/* ── Header ── */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
-                    <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        <BarChart3 size={20} className="text-blue-500" />
-                        {editingChart ? t('builder.edit_chart') : t('builder.create_chart')}
-                    </h2>
-                    <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                        <X size={18} className="text-slate-400" />
-                    </button>
-                </div>
+            {/* ── Two-Column Body ── */}
+            <div className="flex-1 overflow-hidden flex">
 
-                {/* ── Two-Column Body ── */}
-                <div className="flex-1 overflow-hidden flex">
+                {/* ─── LEFT: Configuration ─── */}
+                <div className="w-1/2 border-e border-slate-200 dark:border-slate-800 overflow-y-auto custom-scrollbar px-6 py-5 space-y-5">
 
-                    {/* ─── LEFT: Configuration ─── */}
-                    <div className="w-1/2 border-e border-slate-200 dark:border-slate-800 overflow-y-auto custom-scrollbar px-6 py-5 space-y-5">
+                    {/* Title */}
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">{t('builder.chart_title')}</label>
+                        <input
+                            type="text" placeholder={t('builder.chart_title_placeholder')}
+                            value={title} onChange={e => setTitle(e.target.value)} autoFocus
+                            className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all placeholder:text-slate-400"
+                        />
+                    </div>
 
-                        {/* Title */}
-                        <div>
-                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">{t('builder.chart_title')}</label>
-                            <input
-                                type="text" placeholder={t('builder.chart_title_placeholder')}
-                                value={title} onChange={e => setTitle(e.target.value)} autoFocus
-                                className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all placeholder:text-slate-400"
-                            />
-                        </div>
-
-                        {/* Dimension Selector — non-temporal only */}
-                        <div>
-                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                <Hash size={12} /> {t('builder.group_by')}
-                            </label>
-                            <p className="text-[10px] text-slate-400 mb-2">{t('builder.group_by_desc')}</p>
-                            <div className="flex flex-wrap gap-1.5">
-                                {Object.values(DIMENSION_REGISTRY).filter(dim => !dim.isTemporal).map(dim => (
-                                    <button key={dim.id} onClick={() => handleDimensionChange(dim.id)}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${dimension === dim.id
-                                            ? 'btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft'
-                                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
-                                    >
-                                        {dim.tKey ? t(dim.tKey) : dim.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Metrics — moved above Timeframe */}
-                        <div>
-                            <div className="flex items-center justify-between mb-2">
-                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                                    <BarChart2 size={12} /> {t('builder.metrics')}
-                                </label>
-                                {metrics.length < METRIC_OPTIONS.length && (
-                                    <button onClick={addMetric} className="text-[11px] text-blue-600 dark:text-blue-400 hover:text-blue-800 font-medium flex items-center gap-1 transition-colors">
-                                        <Plus size={12} /> {t('builder.add')}
-                                    </button>
-                                )}
-                            </div>
-                            <div className="space-y-2">
-                                {metrics.map((m, idx) => (
-                                    <div key={idx} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-3 py-2 border border-slate-100 dark:border-slate-700/50">
-                                        <select value={m.metricId} onChange={e => updateMetric(idx, { metricId: e.target.value as MetricId })}
-                                            className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-xs outline-none focus:ring-2 focus:ring-blue-500/30">
-                                            {METRIC_OPTIONS.map(o => { const meta = METRIC_REGISTRY[o.value]; return <option key={o.value} value={o.value}>{meta?.tKey ? t(meta.tKey) : o.label}</option>; })}
-                                        </select>
-                                        <span className="text-[10px] text-slate-400 font-medium">{t('builder.by')}</span>
-                                        <select value={m.aggregation} onChange={e => updateMetric(idx, { aggregation: e.target.value as AggregationFn })}
-                                            className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-xs outline-none focus:ring-2 focus:ring-blue-500/30">
-                                            {AGG_OPTIONS.map(o => <option key={o.value} value={o.value}>{t({ 'SUM': 'builder.agg_sum', 'AVG': 'builder.agg_average', 'COUNT': 'builder.agg_count', 'MIN': 'builder.agg_min', 'MAX': 'builder.agg_max' }[o.value] || o.label)}</option>)}
-                                        </select>
-                                        {metrics.length > 1 && (
-                                            <button onClick={() => removeMetric(idx)} className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                                                <Trash2 size={13} className="text-red-400 hover:text-red-600" />
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* ── Timeframe ── */}
-                        <div>
-                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                <Calendar size={12} /> {t('builder.timeframe')}
-                            </label>
-                            <p className="text-[10px] text-slate-400 mb-2">{t('builder.timeframe_desc')}</p>
-                            <div className="flex flex-wrap gap-1.5 mb-2">
-                                {TIMEFRAME_OPTIONS.map(opt => (
-                                    <button key={opt.value} onClick={() => setTimeframe(opt.value)}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${timeframe === opt.value
-                                            ? 'bg-teal-600 text-white shadow-sm shadow-teal-500/25'
-                                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
-                                    >
-                                        <span className="me-1">{opt.icon}</span>{t({ 'today': 'builder.tf_today', 'currentWeek': 'builder.tf_current_week', 'currentMonth': 'builder.tf_current_month', 'customRange': 'builder.tf_custom_range', 'specificDay': 'builder.tf_specific_day', 'specificWeek': 'builder.tf_specific_week', 'specificMonth': 'builder.tf_specific_month' }[opt.value] || opt.label)}
-                                    </button>
-                                ))}
-                            </div>
-                            {/* Conditional inputs */}
-                            {timeframe === 'customRange' && (
-                                <div className="flex items-center gap-2 mt-2 bg-slate-50 dark:bg-slate-800/30 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
-                                    <input type="date" value={tfCustomStart} onChange={e => setTfCustomStart(e.target.value)}
-                                        className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
-                                    <span className="text-slate-400 text-xs">{t('builder.to')}</span>
-                                    <input type="date" value={tfCustomEnd} onChange={e => setTfCustomEnd(e.target.value)}
-                                        className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
-                                </div>
-                            )}
-                            {timeframe === 'specificDay' && (
-                                <div className="mt-2 bg-slate-50 dark:bg-slate-800/30 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
-                                    <input type="date" value={tfSpecificDate} onChange={e => setTfSpecificDate(e.target.value)}
-                                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
-                                </div>
-                            )}
-                            {timeframe === 'specificWeek' && (
-                                <div className="mt-2 bg-slate-50 dark:bg-slate-800/30 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
-                                    <label className="text-[10px] text-slate-500 mb-1 block">{t('builder.pick_date_desired_week')}</label>
-                                    <input type="date" value={tfSpecificDate} onChange={e => setTfSpecificDate(e.target.value)}
-                                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
-                                </div>
-                            )}
-                            {timeframe === 'specificMonth' && (
-                                <div className="mt-2 bg-slate-50 dark:bg-slate-800/30 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
-                                    <input type="month" value={tfSpecificDate} onChange={e => setTfSpecificDate(e.target.value)}
-                                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
-                                </div>
-                            )}
-                            <p className="text-[10px] text-teal-500 mt-1.5">
-                                {timeFilteredEvents.length} {t('builder.events_in_timeframe')}
-                            </p>
-                        </div>
-
-                        {/* ── Comparison Mode — Multi-comparison with layout toggle ── */}
-                        <div>
-                            <div className="flex items-center justify-between mb-2">
-                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                                    <GitCompareArrows size={12} /> {t('builder.comparison_mode')}
-                                    {compareEnabled && (
-                                        <span className="ms-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-500 text-white animate-pulse">
-                                            {t('builder.active_badge')} · {comparisons.length}
-                                        </span>
-                                    )}
-                                </label>
-                                <button
-                                    onClick={() => {
-                                        const next = !compareEnabled;
-                                        setCompareEnabled(next);
-                                        if (next && comparisons.length === 0) addComparison();
-                                    }}
-                                    className={`relative w-12 h-6 rounded-full transition-all duration-300 ${compareEnabled
-                                        ? 'bg-gradient-to-r from-orange-500 to-amber-500 shadow-md shadow-orange-500/30'
-                                        : 'bg-slate-300 dark:bg-slate-600'}`}
+                    {/* Dimension Selector — non-temporal only */}
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <Hash size={12} /> {t('builder.group_by')}
+                        </label>
+                        <p className="text-[10px] text-slate-400 mb-2">{t('builder.group_by_desc')}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                            {Object.values(DIMENSION_REGISTRY).filter(dim => !dim.isTemporal).map(dim => (
+                                <button key={dim.id} onClick={() => handleDimensionChange(dim.id)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${dimension === dim.id
+                                        ? 'btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft'
+                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                                 >
-                                    <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-300 ${compareEnabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                                    {dim.tKey ? t(dim.tKey) : dim.label}
                                 </button>
-                            </div>
-                            <p className="text-[10px] text-slate-400 mb-2">
-                                {compareEnabled
-                                    ? t('builder.comparison_active')
-                                    : t('builder.comparison_inactive')}
-                            </p>
-
-                            {compareEnabled && (
-                                <div className="space-y-2">
-                                    {/* Layout toggle */}
-                                    <div className="flex items-center gap-1.5 mb-2">
-                                        <button onClick={() => setCompareLayout('side-by-side')}
-                                            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all ${compareLayout === 'side-by-side'
-                                                ? 'bg-orange-500 text-white shadow-sm'
-                                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
-                                            <Columns size={10} /> {t('builder.side_by_side')}
-                                        </button>
-                                        <button onClick={() => setCompareLayout('merged')}
-                                            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all ${compareLayout === 'merged'
-                                                ? 'bg-orange-500 text-white shadow-sm'
-                                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
-                                            <Merge size={10} /> {t('builder.merged')}
-                                        </button>
-                                    </div>
-
-                                    {/* Comparison entries */}
-                                    {comparisons.map((cmp, idx) => (
-                                        <div key={cmp.id} className="bg-orange-50 dark:bg-orange-900/10 rounded-xl p-3 border border-orange-200 dark:border-orange-800/30 space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <label className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5"
-                                                    style={{ color: COMPARE_COLORS[idx % COMPARE_COLORS.length] }}>
-                                                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COMPARE_COLORS[idx % COMPARE_COLORS.length] }} />
-                                                    {t('builder.comparison_n')} {idx + 1} — {t({ 'today': 'tf.today', 'currentWeek': 'tf.current_week', 'currentMonth': 'tf.current_month', 'customRange': 'tf.custom_range', 'specificDay': 'tf.specific_day', 'specificWeek': 'tf.specific_week', 'specificMonth': 'tf.specific_month' }[timeframe] || 'Period')}
-                                                </label>
-                                                <button onClick={() => removeComparison(cmp.id)}
-                                                    className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors">
-                                                    <Trash2 size={12} className="text-red-400 hover:text-red-600" />
-                                                </button>
-                                            </div>
-
-                                            {/* Day picker */}
-                                            {(timeframe === 'today' || timeframe === 'specificDay') && (
-                                                <div>
-                                                    <label className="text-[10px] text-slate-500 mb-1 block">{t('builder.select_comparison_day')}</label>
-                                                    <input type="date" value={cmp.specificDate}
-                                                        onChange={e => updateComparison(cmp.id, { specificDate: e.target.value })}
-                                                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
-                                                </div>
-                                            )}
-                                            {/* Week picker */}
-                                            {(timeframe === 'currentWeek' || timeframe === 'specificWeek') && (
-                                                <div>
-                                                    <label className="text-[10px] text-slate-500 mb-1 block">{t('builder.pick_date_in_week')}</label>
-                                                    <input type="date" value={cmp.specificDate}
-                                                        onChange={e => updateComparison(cmp.id, { specificDate: e.target.value })}
-                                                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
-                                                </div>
-                                            )}
-                                            {/* Month picker */}
-                                            {(timeframe === 'currentMonth' || timeframe === 'specificMonth') && (
-                                                <div>
-                                                    <label className="text-[10px] text-slate-500 mb-1 block">{t('builder.select_comparison_month')}</label>
-                                                    <input type="month" value={cmp.specificDate}
-                                                        onChange={e => updateComparison(cmp.id, { specificDate: e.target.value })}
-                                                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
-                                                </div>
-                                            )}
-                                            {/* Custom range */}
-                                            {timeframe === 'customRange' && (
-                                                <div>
-                                                    <label className="text-[10px] text-slate-500 mb-1 block">{t('builder.select_comparison_range')}</label>
-                                                    <div className="flex items-center gap-2">
-                                                        <input type="date" value={cmp.customStart}
-                                                            onChange={e => updateComparison(cmp.id, { customStart: e.target.value })}
-                                                            className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
-                                                        <span className="text-slate-400 text-xs">{t('builder.to')}</span>
-                                                        <input type="date" value={cmp.customEnd}
-                                                            onChange={e => updateComparison(cmp.id, { customEnd: e.target.value })}
-                                                            className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            <p className="text-[10px] mt-1" style={{ color: COMPARE_COLORS[idx % COMPARE_COLORS.length] }}>
-                                                {comparisonResults[idx]?.eventCount ?? 0} {t('builder.events')} · {getCompareLabel(cmp)}
-                                            </p>
-                                        </div>
-                                    ))}
-
-                                    {/* Add comparison button */}
-                                    <button onClick={addComparison}
-                                        className="w-full py-2 rounded-xl border-2 border-dashed border-orange-300 dark:border-orange-700/40 text-orange-500 text-[11px] font-medium hover:bg-orange-50 dark:hover:bg-orange-900/10 transition-colors flex items-center justify-center gap-1.5">
-                                        <Plus size={12} /> {t('builder.add_another')}
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Visualization — only show compatible options */}
-                        <div>
-                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Eye size={12} /> {t('builder.visualization')}</label>
-                            <div className="flex flex-wrap gap-1.5">
-                                {VIZ_OPTIONS.filter(viz => compatibleViz.includes(viz.type)).map(viz => {
-                                    const active = visualization === viz.type;
-                                    return (
-                                        <button key={viz.type} onClick={() => setVisualization(viz.type)}
-                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${active
-                                                ? 'btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft'
-                                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
-                                            {viz.icon}{t({ 'bar': 'builder.viz_bar', 'stacked-bar': 'builder.viz_stacked', 'line': 'builder.viz_line', 'pie': 'builder.viz_pie', 'table': 'builder.viz_table' }[viz.type] || viz.label)}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                            {metrics.length > 1 && visualization !== 'table' && (
-                                <p className="text-[10px] text-blue-500 mt-1.5 flex items-center gap-1">
-                                    <Zap size={10} /> {metrics.length} {t('builder.metrics_displayed')} {visualization === 'stacked-bar' ? t('builder.stacked_segments') : t('builder.grouped_series')}
-                                </p>
-                            )}
-                        </div>
-
-                        {/* ── Data Filters (Dropdown-based) ── */}
-                        <div>
-                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                                <Filter size={12} /> {t('builder.data_filters')}
-                                {chartFilterCount > 0 && (
-                                    <span className="ms-1 bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded-full text-[10px] font-bold">{chartFilterCount}</span>
-                                )}
-                            </label>
-                            <p className="text-[10px] text-slate-400 mb-3">
-                                {t('builder.data_filters_desc')}
-                            </p>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <MultiSelectDropdown
-                                    label={t('filter.teachers')} items={filterOptions.teachers}
-                                    selected={chartFilterTeachers}
-                                    onToggle={(id) => toggleIn(chartFilterTeachers, setChartFilterTeachers, id)}
-                                    onClear={() => setChartFilterTeachers(new Set())}
-                                    t={t}
-                                />
-                                <MultiSelectDropdown
-                                    label={t('filter.positions')} items={filterOptions.positions}
-                                    selected={chartFilterPositions}
-                                    onToggle={(id) => toggleIn(chartFilterPositions, setChartFilterPositions, id)}
-                                    onClear={() => setChartFilterPositions(new Set())}
-                                    t={t}
-                                />
-                                <MultiSelectDropdown
-                                    label={t('filter.tags')} items={filterOptions.tags}
-                                    selected={chartFilterTags}
-                                    onToggle={(id) => toggleIn(chartFilterTags, setChartFilterTags, id)}
-                                    onClear={() => setChartFilterTags(new Set())}
-                                    t={t}
-                                />
-                                <MultiSelectDropdown
-                                    label={t('filter.categories')} items={filterOptions.categories}
-                                    selected={chartFilterCategories}
-                                    onToggle={(id) => toggleIn(chartFilterCategories, setChartFilterCategories, id)}
-                                    onClear={() => setChartFilterCategories(new Set())}
-                                    t={t}
-                                />
-                                <MultiSelectDropdown
-                                    label={t('filter.rate_types')} items={filterOptions.rateTypes}
-                                    selected={chartFilterRateTypes}
-                                    onToggle={(id) => toggleIn(chartFilterRateTypes, setChartFilterRateTypes, id)}
-                                    onClear={() => setChartFilterRateTypes(new Set())}
-                                    t={t}
-                                />
-                            </div>
-
-                            {chartFilterCount > 0 && (
-                                <button onClick={() => { setChartFilterTeachers(new Set()); setChartFilterPositions(new Set()); setChartFilterTags(new Set()); setChartFilterCategories(new Set()); setChartFilterRateTypes(new Set()); }}
-                                    className="mt-2.5 text-[10px] text-red-500 hover:text-red-700 font-medium flex items-center gap-1 transition-colors">
-                                    <X size={10} /> {t('builder.clear_all_filters')}
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Filter Mode */}
-                        <div>
-                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">{t('builder.filter_mode')}</label>
-                            <div className="grid grid-cols-2 gap-2">
-                                <button onClick={() => setFilterMode('live')}
-                                    className={`flex items-start gap-2 p-3 rounded-xl border text-start transition-all ${filterMode === 'live' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}>
-                                    <Zap size={14} className={filterMode === 'live' ? 'text-blue-500 mt-0.5' : 'text-slate-400 mt-0.5'} />
-                                    <div>
-                                        <div className={`text-xs font-semibold ${filterMode === 'live' ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>{t('builder.live')}</div>
-                                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">{t('builder.live_desc')}</div>
-                                    </div>
-                                </button>
-                                <button onClick={() => setFilterMode('snapshot')}
-                                    className={`flex items-start gap-2 p-3 rounded-xl border text-start transition-all ${filterMode === 'snapshot' ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}>
-                                    <Camera size={14} className={filterMode === 'snapshot' ? 'text-amber-500 mt-0.5' : 'text-slate-400 mt-0.5'} />
-                                    <div>
-                                        <div className={`text-xs font-semibold ${filterMode === 'snapshot' ? 'text-amber-700 dark:text-amber-300' : 'text-slate-700 dark:text-slate-300'}`}>{t('builder.snapshot')}</div>
-                                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">{t('builder.snapshot_desc')}</div>
-                                    </div>
-                                </button>
-                            </div>
-                            <div className="mt-1.5 text-[10px] text-slate-400 px-1">{t('builder.active')} {filterDescription}</div>
-                        </div>
-
-                        {/* Advanced Options */}
-                        <div>
-                            <button onClick={() => setShowAdvanced(!showAdvanced)}
-                                className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium flex items-center gap-1.5 transition-colors">
-                                <ArrowUpDown size={12} /> {t('builder.advanced')}
-                                <span className={`transition-transform ${showAdvanced ? 'rotate-180' : ''}`}>▾</span>
-                            </button>
-                            {showAdvanced && (
-                                <div className="mt-3 grid grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/30 rounded-xl p-4 border border-slate-100 dark:border-slate-700/50">
-                                    <div>
-                                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1 block">{t('builder.sort_by')}</label>
-                                        <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
-                                            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none">
-                                            <option value="dimension">{t('builder.dimension_label')}</option>
-                                            {metrics.map(m => { const meta = METRIC_REGISTRY[m.metricId]; return <option key={m.metricId} value={m.metricId}>{meta?.tKey ? t(meta.tKey) : (meta?.label ?? m.metricId)}</option>; })}
-                                        </select>
-                                        <div className="flex gap-1 mt-1.5">
-                                            <button onClick={() => setSortDir('asc')} className={`text-[10px] px-2 py-0.5 rounded ${sortDir === 'asc' ? 'btn-cadenza bg-cadenza-gradient texture-cadenza text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>{t('builder.ascending')}</button>
-                                            <button onClick={() => setSortDir('desc')} className={`text-[10px] px-2 py-0.5 rounded ${sortDir === 'desc' ? 'btn-cadenza bg-cadenza-gradient texture-cadenza text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>{t('builder.descending')}</button>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1 block">{t('builder.limit_topn')}</label>
-                                        <input type="number" min={0} max={100} value={topN} onChange={e => setTopN(parseInt(e.target.value) || 0)} placeholder={t('builder.no_limit')}
-                                            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
-                                        <p className="text-[10px] text-slate-400 mt-1">{t('builder.show_all')}</p>
-                                    </div>
-                                </div>
-                            )}
+                            ))}
                         </div>
                     </div>
 
-                    {/* ─── RIGHT: Live Preview (sticky) ─── */}
-                    <div className="w-1/2 flex flex-col bg-slate-50/50 dark:bg-slate-950/30 overflow-y-auto custom-scrollbar">
-                        <div className="px-5 pt-5 pb-2 flex-shrink-0">
+                    {/* Metrics — moved above Timeframe */}
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
                             <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                                <Eye size={12} /> {t('builder.live_preview')}
-                                {compareEnabled && comparisons.length > 0 && (
-                                    <span className="ms-1 text-[9px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-500 font-bold">
-                                        {compareLayout === 'merged' ? t('builder.merged_overlay') : t('builder.side_by_side_label')}
+                                <BarChart2 size={12} /> {t('builder.metrics')}
+                            </label>
+                            {metrics.length < METRIC_OPTIONS.length && (
+                                <button onClick={addMetric} className="text-[11px] text-blue-600 dark:text-blue-400 hover:text-blue-800 font-medium flex items-center gap-1 transition-colors">
+                                    <Plus size={12} /> {t('builder.add')}
+                                </button>
+                            )}
+                        </div>
+                        <div className="space-y-2">
+                            {metrics.map((m, idx) => (
+                                <div key={idx} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-3 py-2 border border-slate-100 dark:border-slate-700/50">
+                                    <select value={m.metricId} onChange={e => updateMetric(idx, { metricId: e.target.value as MetricId })}
+                                        className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-xs outline-none focus:ring-2 focus:ring-blue-500/30">
+                                        {METRIC_OPTIONS.map(o => { const meta = METRIC_REGISTRY[o.value]; return <option key={o.value} value={o.value}>{meta?.tKey ? t(meta.tKey) : o.label}</option>; })}
+                                    </select>
+                                    <span className="text-[10px] text-slate-400 font-medium">{t('builder.by')}</span>
+                                    <select value={m.aggregation} onChange={e => updateMetric(idx, { aggregation: e.target.value as AggregationFn })}
+                                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-xs outline-none focus:ring-2 focus:ring-blue-500/30">
+                                        {AGG_OPTIONS.map(o => <option key={o.value} value={o.value}>{t({ 'SUM': 'builder.agg_sum', 'AVG': 'builder.agg_average', 'COUNT': 'builder.agg_count', 'MIN': 'builder.agg_min', 'MAX': 'builder.agg_max' }[o.value] || o.label)}</option>)}
+                                    </select>
+                                    {metrics.length > 1 && (
+                                        <button onClick={() => removeMetric(idx)} className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                            <Trash2 size={13} className="text-red-400 hover:text-red-600" />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* ── Timeframe ── */}
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <Calendar size={12} /> {t('builder.timeframe')}
+                        </label>
+                        <p className="text-[10px] text-slate-400 mb-2">{t('builder.timeframe_desc')}</p>
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                            {TIMEFRAME_OPTIONS.map(opt => (
+                                <button key={opt.value} onClick={() => setTimeframe(opt.value)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${timeframe === opt.value
+                                        ? 'bg-teal-600 text-white shadow-sm shadow-teal-500/25'
+                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                                >
+                                    <span className="me-1">{opt.icon}</span>{t({ 'today': 'builder.tf_today', 'currentWeek': 'builder.tf_current_week', 'currentMonth': 'builder.tf_current_month', 'customRange': 'builder.tf_custom_range', 'specificDay': 'builder.tf_specific_day', 'specificWeek': 'builder.tf_specific_week', 'specificMonth': 'builder.tf_specific_month' }[opt.value] || opt.label)}
+                                </button>
+                            ))}
+                        </div>
+                        {/* Conditional inputs */}
+                        {timeframe === 'customRange' && (
+                            <div className="flex items-center gap-2 mt-2 bg-slate-50 dark:bg-slate-800/30 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
+                                <DatePicker type="date" value={tfCustomStart} onChange={e => {
+                                    const newStart = e.target.value;
+                                    setTfCustomStart(newStart);
+                                    if (!tfCustomEnd || new Date(newStart) > new Date(tfCustomEnd)) setTfCustomEnd(newStart);
+                                }}
+                                    className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
+                                <span className="text-slate-400 text-xs">{t('builder.to')}</span>
+                                <DatePicker type="date" value={tfCustomEnd} onChange={e => {
+                                    const newEnd = e.target.value;
+                                    setTfCustomEnd(newEnd);
+                                    if (tfCustomStart && new Date(newEnd) < new Date(tfCustomStart)) setTfCustomStart(newEnd);
+                                }}
+                                    className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
+                            </div>
+                        )}
+                        {timeframe === 'specificDay' && (
+                            <div className="mt-2 bg-slate-50 dark:bg-slate-800/30 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
+                                <DatePicker type="date" value={tfSpecificDate} onChange={e => setTfSpecificDate(e.target.value)}
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
+                            </div>
+                        )}
+                        {timeframe === 'specificWeek' && (
+                            <div className="mt-2 bg-slate-50 dark:bg-slate-800/30 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
+                                <label className="text-[10px] text-slate-500 mb-1 block">{t('builder.pick_date_desired_week')}</label>
+                                <DatePicker type="date" value={tfSpecificDate} onChange={e => setTfSpecificDate(e.target.value)}
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
+                            </div>
+                        )}
+                        {timeframe === 'specificMonth' && (
+                            <div className="mt-2 bg-slate-50 dark:bg-slate-800/30 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
+                                <DatePicker type="month" value={tfSpecificDate} onChange={e => setTfSpecificDate(e.target.value)}
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
+                            </div>
+                        )}
+                        <p className="text-[10px] text-teal-500 mt-1.5">
+                            {timeFilteredEvents.length} {t('builder.events_in_timeframe')}
+                        </p>
+                    </div>
+
+                    {/* ── Comparison Mode — Multi-comparison with layout toggle ── */}
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <GitCompareArrows size={12} /> {t('builder.comparison_mode')}
+                                {compareEnabled && (
+                                    <span className="ms-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-500 text-white animate-pulse">
+                                        {t('builder.active_badge')} · {comparisons.length}
                                     </span>
                                 )}
                             </label>
-                            <p className="text-[10px] text-slate-400 mt-1">
-                                {t('builder.preview_summary').replace('{events}', String(timeFilteredEvents.length)).replace('{dim}', dimension).replace('{metrics}', String(metrics.length)).replace('{viz}', visualization)}
-                                {chartFilterCount > 0 && <span className="text-violet-500 ms-1">· {t('builder.filters_applied').replace('{count}', String(chartFilterCount))}</span>}
-                            </p>
+                            <button
+                                onClick={() => {
+                                    const next = !compareEnabled;
+                                    setCompareEnabled(next);
+                                    if (next && comparisons.length === 0) addComparison();
+                                }}
+                                className={`relative w-12 h-6 rounded-full transition-all duration-300 ${compareEnabled
+                                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 shadow-md shadow-orange-500/30'
+                                    : 'bg-slate-300 dark:bg-slate-600'}`}
+                            >
+                                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-300 ${compareEnabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                            </button>
                         </div>
+                        <p className="text-[10px] text-slate-400 mb-2">
+                            {compareEnabled
+                                ? t('builder.comparison_active')
+                                : t('builder.comparison_inactive')}
+                        </p>
 
-                        {/* ── Merged overlay mode — single unified chart ── */}
-                        {compareEnabled && compareLayout === 'merged' && comparisons.length > 0 ? (
-                            <div className="px-5 pb-3 flex-1">
-                                <div className="w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4 overflow-hidden">
-                                    <MergedChartRenderer
-                                        config={previewConfig}
-                                        datasets={[
-                                            {
-                                                label: t({ 'today': 'builder.tf_today', 'currentWeek': 'builder.tf_current_week', 'currentMonth': 'builder.tf_current_month', 'customRange': 'builder.tf_custom_range', 'specificDay': 'builder.tf_specific_day', 'specificWeek': 'builder.tf_specific_week', 'specificMonth': 'builder.tf_specific_month' }[timeframe] || '') || t('builder.primary_label'),
-                                                color: '#4f46e5',
-                                                events: timeFilteredEvents,
-                                                isPrimary: true,
-                                            },
-                                            ...comparisonResults.map((cmpResult, idx) => ({
-                                                label: getCompareLabel(cmpResult),
-                                                color: COMPARE_COLORS[idx % COMPARE_COLORS.length],
-                                                events: cmpResult.events,
-                                            })),
-                                        ]}
-                                        teachers={teachers}
-                                        height={380}
-                                        currencySymbol={currencySymbol}
-                                    />
-                                </div>
-                            </div>
-                        ) : (
-                            <>
-                                {/* Primary chart (non-merged or no comparisons) */}
-                                <div className="px-5 pb-3 flex-shrink-0">
-                                    {compareEnabled && comparisons.length > 0 && (
-                                        <div className="text-[10px] font-semibold text-teal-600 dark:text-teal-400 mb-1.5 flex items-center gap-1">
-                                            <Calendar size={10} />
-                                            {TIMEFRAME_OPTIONS.find(o => o.value === timeframe)?.label ?? t('builder.primary_label')}
-                                            <span className="text-slate-400 ms-1">{t('builder.n_events').replace('{count}', String(timeFilteredEvents.length))}</span>
-                                        </div>
-                                    )}
-                                    <div className="w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex items-center justify-center overflow-hidden">
-                                        <ChartRenderer
-                                            config={previewConfig}
-                                            events={timeFilteredEvents}
-                                            teachers={teachers}
-                                            height={compareEnabled && comparisons.length > 0
-                                                ? Math.max(200, 380 - comparisons.length * 80)
-                                                : 380}
-                                            currencySymbol={currencySymbol}
-                                        />
-                                    </div>
+                        {compareEnabled && (
+                            <div className="space-y-2">
+                                {/* Layout toggle */}
+                                <div className="flex items-center gap-1.5 mb-2">
+                                    <button onClick={() => setCompareLayout('side-by-side')}
+                                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all ${compareLayout === 'side-by-side'
+                                            ? 'bg-orange-500 text-white shadow-sm'
+                                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
+                                        <Columns size={10} /> {t('builder.side_by_side')}
+                                    </button>
+                                    <button onClick={() => setCompareLayout('merged')}
+                                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all ${compareLayout === 'merged'
+                                            ? 'bg-orange-500 text-white shadow-sm'
+                                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
+                                        <Merge size={10} /> {t('builder.merged')}
+                                    </button>
                                 </div>
 
-                                {/* Side-by-side comparison charts */}
-                                {compareEnabled && compareLayout === 'side-by-side' && comparisonResults.map((cmpResult, idx) => (
-                                    <div key={cmpResult.id} className="px-5 pb-3 flex-shrink-0">
-                                        <div className="text-[10px] font-semibold mb-1.5 flex items-center gap-1"
-                                            style={{ color: COMPARE_COLORS[idx % COMPARE_COLORS.length] }}>
-                                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COMPARE_COLORS[idx % COMPARE_COLORS.length] }} />
-                                            {getCompareLabel(cmpResult)}
-                                            <span className="text-slate-400 ms-1">{t('builder.n_events').replace('{count}', String(cmpResult.eventCount))}</span>
+                                {/* Comparison entries */}
+                                {comparisons.map((cmp, idx) => (
+                                    <div key={cmp.id} className="bg-orange-50 dark:bg-orange-900/10 rounded-xl p-3 border border-orange-200 dark:border-orange-800/30 space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5"
+                                                style={{ color: COMPARE_COLORS[idx % COMPARE_COLORS.length] }}>
+                                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COMPARE_COLORS[idx % COMPARE_COLORS.length] }} />
+                                                {t('builder.comparison_n')} {idx + 1} — {t({ 'today': 'tf.today', 'currentWeek': 'tf.current_week', 'currentMonth': 'tf.current_month', 'customRange': 'tf.custom_range', 'specificDay': 'tf.specific_day', 'specificWeek': 'tf.specific_week', 'specificMonth': 'tf.specific_month' }[timeframe] || 'Period')}
+                                            </label>
+                                            <button onClick={() => removeComparison(cmp.id)}
+                                                className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors">
+                                                <Trash2 size={12} className="text-red-400 hover:text-red-600" />
+                                            </button>
                                         </div>
-                                        <div className="w-full bg-white dark:bg-slate-900 rounded-xl border p-4 flex items-center justify-center overflow-hidden"
-                                            style={{ borderColor: COMPARE_COLORS[idx % COMPARE_COLORS.length] + '40' }}>
-                                            <ChartRenderer
-                                                config={previewConfig}
-                                                events={cmpResult.events}
-                                                teachers={teachers}
-                                                height={Math.max(180, 260 - (comparisons.length - 1) * 40)}
-                                                currencySymbol={currencySymbol}
-                                            />
-                                        </div>
+
+                                        {/* Day picker */}
+                                        {(timeframe === 'today' || timeframe === 'specificDay') && (
+                                            <div>
+                                                <label className="text-[10px] text-slate-500 mb-1 block">{t('builder.select_comparison_day')}</label>
+                                                <DatePicker type="date" value={cmp.specificDate}
+                                                    onChange={e => updateComparison(cmp.id, { specificDate: e.target.value })}
+                                                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
+                                            </div>
+                                        )}
+                                        {/* Week picker */}
+                                        {(timeframe === 'currentWeek' || timeframe === 'specificWeek') && (
+                                            <div>
+                                                <label className="text-[10px] text-slate-500 mb-1 block">{t('builder.pick_date_in_week')}</label>
+                                                <DatePicker type="date" value={cmp.specificDate}
+                                                    onChange={e => updateComparison(cmp.id, { specificDate: e.target.value })}
+                                                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
+                                            </div>
+                                        )}
+                                        {/* Month picker */}
+                                        {(timeframe === 'currentMonth' || timeframe === 'specificMonth') && (
+                                            <div>
+                                                <label className="text-[10px] text-slate-500 mb-1 block">{t('builder.select_comparison_month')}</label>
+                                                <DatePicker type="month" value={cmp.specificDate}
+                                                    onChange={e => updateComparison(cmp.id, { specificDate: e.target.value })}
+                                                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
+                                            </div>
+                                        )}
+                                        {/* Custom range */}
+                                        {timeframe === 'customRange' && (
+                                            <div>
+                                                <label className="text-[10px] text-slate-500 mb-1 block">{t('builder.select_comparison_range')}</label>
+                                                <div className="flex items-center gap-2">
+                                                    <DatePicker type="date" value={cmp.customStart}
+                                                        onChange={e => {
+                                                            const newStart = e.target.value;
+                                                            let updates: any = { customStart: newStart };
+                                                            if (!cmp.customEnd || new Date(newStart) > new Date(cmp.customEnd)) updates.customEnd = newStart;
+                                                            updateComparison(cmp.id, updates);
+                                                        }}
+                                                        className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
+                                                    <span className="text-slate-400 text-xs">{t('builder.to')}</span>
+                                                    <DatePicker type="date" value={cmp.customEnd}
+                                                        onChange={e => {
+                                                            const newEnd = e.target.value;
+                                                            let updates: any = { customEnd: newEnd };
+                                                            if (cmp.customStart && new Date(newEnd) < new Date(cmp.customStart)) updates.customStart = newEnd;
+                                                            updateComparison(cmp.id, updates);
+                                                        }}
+                                                        className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <p className="text-[10px] mt-1" style={{ color: COMPARE_COLORS[idx % COMPARE_COLORS.length] }}>
+                                            {comparisonResults[idx]?.eventCount ?? 0} {t('builder.events')} · {getCompareLabel(cmp)}
+                                        </p>
                                     </div>
                                 ))}
-                            </>
+
+                                {/* Add comparison button */}
+                                <button onClick={addComparison}
+                                    className="w-full py-2 rounded-xl border-2 border-dashed border-orange-300 dark:border-orange-700/40 text-orange-500 text-[11px] font-medium hover:bg-orange-50 dark:hover:bg-orange-900/10 transition-colors flex items-center justify-center gap-1.5">
+                                    <Plus size={12} /> {t('builder.add_another')}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Visualization — only show compatible options */}
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Eye size={12} /> {t('builder.visualization')}</label>
+                        <div className="flex flex-wrap gap-1.5">
+                            {VIZ_OPTIONS.filter(viz => compatibleViz.includes(viz.type)).map(viz => {
+                                const active = visualization === viz.type;
+                                return (
+                                    <button key={viz.type} onClick={() => setVisualization(viz.type)}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${active
+                                            ? 'btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft'
+                                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
+                                        {viz.icon}{t({ 'bar': 'builder.viz_bar', 'stacked-bar': 'builder.viz_stacked', 'line': 'builder.viz_line', 'pie': 'builder.viz_pie', 'table': 'builder.viz_table' }[viz.type] || viz.label)}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {metrics.length > 1 && visualization !== 'table' && (
+                            <p className="text-[10px] text-blue-500 mt-1.5 flex items-center gap-1">
+                                <Zap size={10} /> {metrics.length} {t('builder.metrics_displayed')} {visualization === 'stacked-bar' ? t('builder.stacked_segments') : t('builder.grouped_series')}
+                            </p>
+                        )}
+                    </div>
+
+                    {/* ── Data Filters (Dropdown-based) ── */}
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                            <Filter size={12} /> {t('builder.data_filters')}
+                            {chartFilterCount > 0 && (
+                                <span className="ms-1 bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded-full text-[10px] font-bold">{chartFilterCount}</span>
+                            )}
+                        </label>
+                        <p className="text-[10px] text-slate-400 mb-3">
+                            {t('builder.data_filters_desc')}
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <MultiSelectDropdown
+                                label={t('filter.teachers')} items={filterOptions.teachers}
+                                selected={chartFilterTeachers}
+                                onToggle={(id) => toggleIn(chartFilterTeachers, setChartFilterTeachers, id)}
+                                onClear={() => setChartFilterTeachers(new Set())}
+                                t={t}
+                            />
+                            <MultiSelectDropdown
+                                label={t('filter.positions')} items={filterOptions.positions}
+                                selected={chartFilterPositions}
+                                onToggle={(id) => toggleIn(chartFilterPositions, setChartFilterPositions, id)}
+                                onClear={() => setChartFilterPositions(new Set())}
+                                t={t}
+                            />
+                            <MultiSelectDropdown
+                                label={t('filter.tags')} items={filterOptions.tags}
+                                selected={chartFilterTags}
+                                onToggle={(id) => toggleIn(chartFilterTags, setChartFilterTags, id)}
+                                onClear={() => setChartFilterTags(new Set())}
+                                t={t}
+                            />
+                            <MultiSelectDropdown
+                                label={t('filter.categories')} items={filterOptions.categories}
+                                selected={chartFilterCategories}
+                                onToggle={(id) => toggleIn(chartFilterCategories, setChartFilterCategories, id)}
+                                onClear={() => setChartFilterCategories(new Set())}
+                                t={t}
+                            />
+                            <MultiSelectDropdown
+                                label={t('filter.rate_types')} items={filterOptions.rateTypes}
+                                selected={chartFilterRateTypes}
+                                onToggle={(id) => toggleIn(chartFilterRateTypes, setChartFilterRateTypes, id)}
+                                onClear={() => setChartFilterRateTypes(new Set())}
+                                t={t}
+                            />
+                        </div>
+
+                        {chartFilterCount > 0 && (
+                            <button onClick={() => { setChartFilterTeachers(new Set()); setChartFilterPositions(new Set()); setChartFilterTags(new Set()); setChartFilterCategories(new Set()); setChartFilterRateTypes(new Set()); }}
+                                className="mt-2.5 text-[10px] text-red-500 hover:text-red-700 font-medium flex items-center gap-1 transition-colors">
+                                <X size={10} /> {t('builder.clear_all_filters')}
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Filter Mode */}
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">{t('builder.filter_mode')}</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button onClick={() => setFilterMode('live')}
+                                className={`flex items-start gap-2 p-3 rounded-xl border text-start transition-all ${filterMode === 'live' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}>
+                                <Zap size={14} className={filterMode === 'live' ? 'text-blue-500 mt-0.5' : 'text-slate-400 mt-0.5'} />
+                                <div>
+                                    <div className={`text-xs font-semibold ${filterMode === 'live' ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>{t('builder.live')}</div>
+                                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">{t('builder.live_desc')}</div>
+                                </div>
+                            </button>
+                            <button onClick={() => setFilterMode('snapshot')}
+                                className={`flex items-start gap-2 p-3 rounded-xl border text-start transition-all ${filterMode === 'snapshot' ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}>
+                                <Camera size={14} className={filterMode === 'snapshot' ? 'text-amber-500 mt-0.5' : 'text-slate-400 mt-0.5'} />
+                                <div>
+                                    <div className={`text-xs font-semibold ${filterMode === 'snapshot' ? 'text-amber-700 dark:text-amber-300' : 'text-slate-700 dark:text-slate-300'}`}>{t('builder.snapshot')}</div>
+                                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">{t('builder.snapshot_desc')}</div>
+                                </div>
+                            </button>
+                        </div>
+                        <div className="mt-1.5 text-[10px] text-slate-400 px-1">{t('builder.active')} {filterDescription}</div>
+                    </div>
+
+                    {/* Advanced Options */}
+                    <div>
+                        <button onClick={() => setShowAdvanced(!showAdvanced)}
+                            className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium flex items-center gap-1.5 transition-colors">
+                            <ArrowUpDown size={12} /> {t('builder.advanced')}
+                            <span className={`transition-transform ${showAdvanced ? 'rotate-180' : ''}`}>▾</span>
+                        </button>
+                        {showAdvanced && (
+                            <div className="mt-3 grid grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/30 rounded-xl p-4 border border-slate-100 dark:border-slate-700/50">
+                                <div>
+                                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1 block">{t('builder.sort_by')}</label>
+                                    <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
+                                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none">
+                                        <option value="dimension">{t('builder.dimension_label')}</option>
+                                        {metrics.map(m => { const meta = METRIC_REGISTRY[m.metricId]; return <option key={m.metricId} value={m.metricId}>{meta?.tKey ? t(meta.tKey) : (meta?.label ?? m.metricId)}</option>; })}
+                                    </select>
+                                    <div className="flex gap-1 mt-1.5">
+                                        <button onClick={() => setSortDir('asc')} className={`text-[10px] px-2 py-0.5 rounded ${sortDir === 'asc' ? 'btn-cadenza bg-cadenza-gradient texture-cadenza text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>{t('builder.ascending')}</button>
+                                        <button onClick={() => setSortDir('desc')} className={`text-[10px] px-2 py-0.5 rounded ${sortDir === 'desc' ? 'btn-cadenza bg-cadenza-gradient texture-cadenza text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>{t('builder.descending')}</button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1 block">{t('builder.limit_topn')}</label>
+                                    <input type="number" min={0} max={100} value={topN} onChange={e => setTopN(parseInt(e.target.value) || 0)} placeholder={t('builder.no_limit')}
+                                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white outline-none" />
+                                    <p className="text-[10px] text-slate-400 mt-1">{t('builder.show_all')}</p>
+                                </div>
+                            </div>
                         )}
                     </div>
                 </div>
 
-                {/* ── Footer ── */}
-                <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex-shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
-                    <div className="text-[10px] text-slate-400">
-                        {t('builder.footer_summary').replace('{dim}', dimension).replace('{metrics}', String(metrics.length)).replace('{viz}', visualization)}
-                        {chartFilterCount > 0 && t('builder.footer_filters').replace('{count}', String(chartFilterCount))}
+                {/* ─── RIGHT: Live Preview (sticky) ─── */}
+                <div className="w-1/2 flex flex-col bg-slate-50/50 dark:bg-slate-950/30 overflow-y-auto custom-scrollbar">
+                    <div className="px-5 pt-5 pb-2 flex-shrink-0">
+                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <Eye size={12} /> {t('builder.live_preview')}
+                            {compareEnabled && comparisons.length > 0 && (
+                                <span className="ms-1 text-[9px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-500 font-bold">
+                                    {compareLayout === 'merged' ? t('builder.merged_overlay') : t('builder.side_by_side_label')}
+                                </span>
+                            )}
+                        </label>
+                        <p className="text-[10px] text-slate-400 mt-1">
+                            {t('builder.preview_summary').replace('{events}', String(timeFilteredEvents.length)).replace('{dim}', dimension).replace('{metrics}', String(metrics.length)).replace('{viz}', visualization)}
+                            {chartFilterCount > 0 && <span className="text-violet-500 ms-1">· {t('builder.filters_applied').replace('{count}', String(chartFilterCount))}</span>}
+                        </p>
                     </div>
-                    <div className="flex gap-2">
-                        <button onClick={onClose} className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">{t('builder.cancel')}</button>
-                        <button onClick={handleSave} disabled={!title.trim()}
-                            className="px-5 py-2 rounded-xl btn-cadenza bg-cadenza-gradient texture-cadenza text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-cadenza-soft">
-                            {editingChart ? `💾 ${t('builder.update_chart')}` : `💾 ${t('builder.save_chart')}`}
-                        </button>
-                    </div>
+
+                    {/* ── Merged overlay mode — single unified chart ── */}
+                    {compareEnabled && compareLayout === 'merged' && comparisons.length > 0 ? (
+                        <div className="px-5 pb-3 flex-1">
+                            <div className="w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4 overflow-hidden">
+                                <MergedChartRenderer
+                                    config={previewConfig}
+                                    datasets={[
+                                        {
+                                            label: t({ 'today': 'builder.tf_today', 'currentWeek': 'builder.tf_current_week', 'currentMonth': 'builder.tf_current_month', 'customRange': 'builder.tf_custom_range', 'specificDay': 'builder.tf_specific_day', 'specificWeek': 'builder.tf_specific_week', 'specificMonth': 'builder.tf_specific_month' }[timeframe] || '') || t('builder.primary_label'),
+                                            color: '#4f46e5',
+                                            events: timeFilteredEvents,
+                                            isPrimary: true,
+                                        },
+                                        ...comparisonResults.map((cmpResult, idx) => ({
+                                            label: getCompareLabel(cmpResult),
+                                            color: COMPARE_COLORS[idx % COMPARE_COLORS.length],
+                                            events: cmpResult.events,
+                                        })),
+                                    ]}
+                                    teachers={teachers}
+                                    height={380}
+                                    currencySymbol={currencySymbol}
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Primary chart (non-merged or no comparisons) */}
+                            <div className="px-5 pb-3 flex-shrink-0">
+                                {compareEnabled && comparisons.length > 0 && (
+                                    <div className="text-[10px] font-semibold text-teal-600 dark:text-teal-400 mb-1.5 flex items-center gap-1">
+                                        <Calendar size={10} />
+                                        {TIMEFRAME_OPTIONS.find(o => o.value === timeframe)?.label ?? t('builder.primary_label')}
+                                        <span className="text-slate-400 ms-1">{t('builder.n_events').replace('{count}', String(timeFilteredEvents.length))}</span>
+                                    </div>
+                                )}
+                                <div className="w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex items-center justify-center overflow-hidden">
+                                    <ChartRenderer
+                                        config={previewConfig}
+                                        events={timeFilteredEvents}
+                                        teachers={teachers}
+                                        height={compareEnabled && comparisons.length > 0
+                                            ? Math.max(200, 380 - comparisons.length * 80)
+                                            : 380}
+                                        currencySymbol={currencySymbol}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Side-by-side comparison charts */}
+                            {compareEnabled && compareLayout === 'side-by-side' && comparisonResults.map((cmpResult, idx) => (
+                                <div key={cmpResult.id} className="px-5 pb-3 flex-shrink-0">
+                                    <div className="text-[10px] font-semibold mb-1.5 flex items-center gap-1"
+                                        style={{ color: COMPARE_COLORS[idx % COMPARE_COLORS.length] }}>
+                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COMPARE_COLORS[idx % COMPARE_COLORS.length] }} />
+                                        {getCompareLabel(cmpResult)}
+                                        <span className="text-slate-400 ms-1">{t('builder.n_events').replace('{count}', String(cmpResult.eventCount))}</span>
+                                    </div>
+                                    <div className="w-full bg-white dark:bg-slate-900 rounded-xl border p-4 flex items-center justify-center overflow-hidden"
+                                        style={{ borderColor: COMPARE_COLORS[idx % COMPARE_COLORS.length] + '40' }}>
+                                        <ChartRenderer
+                                            config={previewConfig}
+                                            events={cmpResult.events}
+                                            teachers={teachers}
+                                            height={Math.max(180, 260 - (comparisons.length - 1) * 40)}
+                                            currencySymbol={currencySymbol}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                        </>
+                    )}
                 </div>
             </div>
-        </div>
+
+            {/* ── Footer ── */}
+            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex-shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="text-[10px] text-slate-400">
+                    {t('builder.footer_summary').replace('{dim}', dimension).replace('{metrics}', String(metrics.length)).replace('{viz}', visualization)}
+                    {chartFilterCount > 0 && t('builder.footer_filters').replace('{count}', String(chartFilterCount))}
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={onClose} className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">{t('builder.cancel')}</button>
+                    <button onClick={handleSave} disabled={!title.trim()}
+                        className="px-5 py-2 rounded-xl btn-cadenza bg-cadenza-gradient texture-cadenza text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-cadenza-soft">
+                        {editingChart ? `💾 ${t('builder.update_chart')}` : `💾 ${t('builder.save_chart')}`}
+                    </button>
+                </div>
+            </div>
+        </Modal>
     );
 };

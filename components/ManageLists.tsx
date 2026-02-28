@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { ListsState, AppSettings } from '../types';
 import { Plus, X, Tag, Briefcase, Bookmark, Download, Upload, FileDown, CheckCircle2, Menu } from 'lucide-react';
-
 import { TRANSLATIONS } from '../constants';
+import { Modal } from './Modal';
 interface Props {
   lists: ListsState;
   setLists: React.Dispatch<React.SetStateAction<ListsState>>;
@@ -244,55 +244,66 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
         />
       </div>
 
-      {isImportModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg p-6 border border-slate-200 dark:border-slate-800">
-            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{t('lists.import_preview')}</h3>
-            <p className="text-sm text-slate-500 mb-4">{t('lists.found_items').replace('{count}', String(candidates.positions.length + candidates.tags.length + candidates.classifications.length))}</p>
-
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto mb-6">
-              {candidates.positions.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">{t('lists.new_positions')}</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {candidates.positions.map(i => <span key={i} className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-xs border border-slate-200 dark:border-slate-700">{i}</span>)}
-                  </div>
-                </div>
-              )}
-              {candidates.tags.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">{t('lists.new_tags')}</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {candidates.tags.map(i => <span key={i} className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded text-xs border border-blue-100 dark:border-blue-800">{i}</span>)}
-                  </div>
-                </div>
-              )}
-              {candidates.classifications.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">{t('lists.new_classifications')}</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {candidates.classifications.map(i => <span key={i} className="bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-2 py-1 rounded text-xs border border-purple-100 dark:border-purple-800">{i}</span>)}
-                  </div>
-                </div>
-              )}
-              {(candidates.positions.length + candidates.tags.length + candidates.classifications.length) === 0 && (
-                <p className="text-sm text-amber-500">{t('lists.csv_no_unique')}</p>
-              )}
-            </div>
-
-            <div className="flex justify-end space-x-3 rtl:space-x-reverse">
-              <button onClick={() => setIsImportModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">{t('btn.cancel')}</button>
-              <button
-                onClick={confirmImport}
-                disabled={(candidates.positions.length + candidates.tags.length + candidates.classifications.length) === 0}
-                className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg disabled:opacity-50"
-              >
-                {t('lists.import_all')}
-              </button>
-            </div>
+      <Modal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        title={t('lists.import_preview')}
+        isDirty={(candidates.positions.length + candidates.tags.length + candidates.classifications.length) > 0}
+        onSave={confirmImport}
+        t={t}
+        maxWidth="max-w-md"
+        footerContent={
+          <div className="flex justify-end space-x-3 rtl:space-x-reverse w-full">
+            <button
+              type="button"
+              onClick={() => setIsImportModalOpen(false)}
+              className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+            >
+              {t('btn.cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={confirmImport}
+              disabled={(candidates.positions.length + candidates.tags.length + candidates.classifications.length) === 0}
+              className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg disabled:opacity-50"
+            >
+              {t('lists.import_all')}
+            </button>
           </div>
+        }
+      >
+        <p className="text-sm text-slate-500 mb-4">{t('lists.found_items').replace('{count}', String(candidates.positions.length + candidates.tags.length + candidates.classifications.length))}</p>
+
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto mb-6">
+          {candidates.positions.length > 0 && (
+            <div>
+              <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">{t('lists.new_positions')}</h4>
+              <div className="flex flex-wrap gap-2">
+                {candidates.positions.map(i => <span key={i} className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-xs border border-slate-200 dark:border-slate-700">{i}</span>)}
+              </div>
+            </div>
+          )}
+          {candidates.tags.length > 0 && (
+            <div>
+              <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">{t('lists.new_tags')}</h4>
+              <div className="flex flex-wrap gap-2">
+                {candidates.tags.map(i => <span key={i} className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded text-xs border border-blue-100 dark:border-blue-800">{i}</span>)}
+              </div>
+            </div>
+          )}
+          {candidates.classifications.length > 0 && (
+            <div>
+              <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">{t('lists.new_classifications')}</h4>
+              <div className="flex flex-wrap gap-2">
+                {candidates.classifications.map(i => <span key={i} className="bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-2 py-1 rounded text-xs border border-purple-100 dark:border-purple-800">{i}</span>)}
+              </div>
+            </div>
+          )}
+          {(candidates.positions.length + candidates.tags.length + candidates.classifications.length) === 0 && (
+            <p className="text-sm text-amber-500">{t('lists.csv_no_unique')}</p>
+          )}
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

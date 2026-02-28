@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Room, AppSettings } from '../types';
 import { generateId } from '../constants';
 import { Plus, Edit2, Trash2, Home, Menu } from 'lucide-react';
-
 import { TRANSLATIONS } from '../constants';
+import { Modal } from './Modal';
 interface Props {
   rooms: Room[];
   setRooms: React.Dispatch<React.SetStateAction<Room[]>>;
@@ -17,14 +17,17 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Room>>({});
+  const [initialFormData, setInitialFormData] = useState<Partial<Room>>({});
 
   const handleOpenModal = (room?: Room) => {
     if (room) {
       setEditingId(room.id);
       setFormData(room);
+      setInitialFormData(room);
     } else {
       setEditingId(null);
       setFormData({});
+      setInitialFormData({});
     }
     setIsModalOpen(true);
   };
@@ -123,50 +126,53 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
         )}
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-md p-6 border border-slate-200 dark:border-slate-800">
-            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{editingId ? t('room.edit') : t('room.add_new')}</h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('label.room_name')}</label>
-                <input
-                  required
-                  type="text"
-                  className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-                  value={formData.name || ''}
-                  onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  placeholder={t('room.name_placeholder')}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('room.itinerary_desc')}</label>
-                <textarea
-                  className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none h-32"
-                  value={formData.itinerary || ''}
-                  onChange={e => setFormData({ ...formData, itinerary: e.target.value })}
-                  placeholder={t('room.details_placeholder')}
-                />
-              </div>
-              <div className="flex justify-end space-x-3 rtl:space-x-reverse mt-6">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
-                >
-                  {t('btn.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg"
-                >
-                  {t('btn.save')}
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingId ? t('room.edit') : t('room.add_new')}
+        isDirty={JSON.stringify(formData) !== JSON.stringify(initialFormData)}
+        onSave={(e?: React.FormEvent) => handleSubmit(e || {} as React.FormEvent)}
+        t={t}
+        maxWidth="max-w-md"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('label.room_name')}</label>
+            <input
+              required
+              type="text"
+              className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+              value={formData.name || ''}
+              onChange={e => setFormData({ ...formData, name: e.target.value })}
+              placeholder={t('room.name_placeholder')}
+            />
           </div>
-        </div>
-      )}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('room.itinerary_desc')}</label>
+            <textarea
+              className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none h-32"
+              value={formData.itinerary || ''}
+              onChange={e => setFormData({ ...formData, itinerary: e.target.value })}
+              placeholder={t('room.details_placeholder')}
+            />
+          </div>
+          <div className="flex justify-end space-x-3 rtl:space-x-reverse mt-6">
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+            >
+              {t('btn.cancel')}
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg"
+            >
+              {t('btn.save')}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };
