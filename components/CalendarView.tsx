@@ -3,7 +3,7 @@ import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, ListsState, Recu
 import { generateId, INITIAL_LISTS, INITIAL_RATE_CARDS } from '../constants';
 import { CATEGORY_SCHEMAS } from '../utils/schemaRegistry';
 import { lookupRate } from '../utils/rateLookup';
-import { ChevronLeft, ChevronRight, AlertCircle, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronUp, Repeat, Ban, RotateCcw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertCircle, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronUp, ChevronDown, Repeat, Ban, RotateCcw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { syncEventToGoogle, removeEventFromGoogle, updateEventInGoogle } from '../utils/googleCalendarSync';
 
@@ -117,6 +117,9 @@ export const CalendarView: React.FC<Props> = ({
   const [marqueeStart, setMarqueeStart] = useState<{ x: number; y: number } | null>(null);
   const [marqueeEnd, setMarqueeEnd] = useState<{ x: number; y: number } | null>(null);
   const marqueeContainerRef = useRef<HTMLDivElement>(null);
+
+  // Gantt Collapsible State
+  const [isGanttExpanded, setIsGanttExpanded] = useState(true);
 
   // Preserve scroll position across re-mounts (view switching to/from Power Tools/Gantt)
   useEffect(() => {
@@ -589,6 +592,7 @@ export const CalendarView: React.FC<Props> = ({
 
   // --- Event Editor (Modal) ---
 
+  const [endDateModified, setEndDateModified] = useState(false);
   const openModal = (evt?: Partial<CalendarEvent>) => {
     const defaultStart = new Date();
     defaultStart.setMinutes(0, 0, 0);
@@ -604,6 +608,7 @@ export const CalendarView: React.FC<Props> = ({
       roomId: rooms[0]?.id,
       positionId: defaultTeacher?.positionAssignments?.[0]?.id || undefined,
     });
+    setEndDateModified(!!evt?.end);
     setIsModalOpen(true);
     setDetailItem(null);
   };
@@ -914,42 +919,69 @@ export const CalendarView: React.FC<Props> = ({
     const totalHeight = Math.max(30, lanes.length * laneHeight + 10);
 
     return (
-      <div className="grid border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 relative" style={{ gridTemplateColumns: `50px 1fr` }}>
-        <div className="border-e border-slate-100 dark:border-slate-800 p-2 text-[10px] text-slate-400 text-center flex items-center justify-center font-bold">
-          GANTT
-        </div>
-        <div className="relative py-1" style={{ height: `${totalHeight}px` }}>
-          {lanes.map((lane, laneIdx) => (
-            lane.map(block => {
-              const blockStart = new Date(block.startDate);
-              const blockEnd = new Date(block.endDate);
+      <div className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 flex flex-col transition-all duration-300 relative">
+        {/* Collapsed Header */}
+        {!isGanttExpanded && (
+          <div
+            className="flex items-center px-3 py-1.5 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-bold text-slate-500 transition-colors"
+            onClick={() => setIsGanttExpanded(true)}
+          >
+            <ChevronRight size={14} className={`opacity-70 ${isRtl ? 'ms-1 rotate-180' : 'me-1'}`} />
+            <span className="tracking-wider uppercase">GANTT</span>
+          </div>
+        )}
 
-              const totalDuration = viewEnd.getTime() - viewStart.getTime();
-              const effectiveStart = Math.max(blockStart.getTime(), viewStart.getTime());
-              const effectiveEnd = Math.min(blockEnd.getTime(), viewEnd.getTime());
+        {/* Expanded Content Grid */}
+        <div
+          className={`grid transition-all duration-300 overflow-hidden ${isGanttExpanded ? 'opacity-100' : 'opacity-0'}`}
+          style={{
+            gridTemplateColumns: `50px 1fr`,
+            height: isGanttExpanded ? 'auto' : 0,
+            visibility: isGanttExpanded ? 'visible' : 'hidden'
+          }}
+        >
+          <div
+            className="border-e border-slate-100 dark:border-slate-800 p-2 text-[10px] text-slate-400 text-center flex flex-col items-center justify-center font-bold cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            onClick={() => setIsGanttExpanded(false)}
+            title={t('btn.collapse')}
+          >
+            <ChevronDown size={14} className="opacity-70 mb-0.5" />
+            <span>GANTT</span>
+          </div>
+          <div className="relative py-1" style={{ height: `${totalHeight}px` }}>
+            {lanes.map((lane, laneIdx) => (
+              lane.map(block => {
+                const blockStart = new Date(block.startDate);
+                const blockEnd = new Date(block.endDate);
 
-              const leftPercent = ((effectiveStart - viewStart.getTime()) / totalDuration) * 100;
-              const widthPercent = ((effectiveEnd - effectiveStart) / totalDuration) * 100;
+                const totalDuration = viewEnd.getTime() - viewStart.getTime();
+                const effectiveStart = Math.max(blockStart.getTime(), viewStart.getTime());
+                const effectiveEnd = Math.min(blockEnd.getTime(), viewEnd.getTime());
 
-              return (
-                <div
-                  key={block.id}
-                  onClick={(e) => { e.stopPropagation(); setDetailItem({ type: 'GANTT', data: block }); }}
-                  className={`absolute rounded px-2 flex items-center text-[10px] text-white font-medium truncate opacity-90 hover:opacity-100 transition-opacity cursor-pointer z-10 hover:shadow-cadenza-deep hover:z-20 border border-white/20 animate-cadenza-arrive ${recentlySaved.has(block.id) ? 'animate-cadenza-pulse' : ''}`}
-                  style={{
-                    left: `${leftPercent}%`,
-                    width: `${widthPercent}%`,
-                    top: `${laneIdx * laneHeight}px`,
-                    height: `${laneHeight - 2}px`,
-                    backgroundColor: block.color,
-                  }}
-                  title={block.title}
-                >
-                  {block.title} {block.isBlackout && '(Blackout)'}
-                </div>
-              );
-            })
-          ))}
+                const leftPercent = ((effectiveStart - viewStart.getTime()) / totalDuration) * 100;
+                const widthPercent = ((effectiveEnd - effectiveStart) / totalDuration) * 100;
+
+                return (
+                  <div
+                    key={block.id}
+                    onClick={(e) => { e.stopPropagation(); setDetailItem({ type: 'GANTT', data: block }); }}
+                    className={`absolute rounded px-2 flex items-center text-[10px] text-white font-medium truncate opacity-90 hover:opacity-100 transition-opacity cursor-pointer z-10 hover:shadow-cadenza-deep hover:z-20 border border-white/20 animate-cadenza-arrive ${recentlySaved.has(block.id) ? 'animate-cadenza-pulse' : ''}`}
+                    style={{
+                      insetInlineStart: `${leftPercent}%`,
+                      width: `${widthPercent}%`,
+                      top: `${laneIdx * laneHeight}px`,
+                      height: `${laneHeight - 2}px`,
+                      backgroundColor: block.color,
+                      transformOrigin: isRtl ? 'right center' : 'left center',
+                    }}
+                    title={block.title}
+                  >
+                    {block.title} {block.isBlackout && '(Blackout)'}
+                  </div>
+                );
+              })
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -1075,18 +1107,20 @@ export const CalendarView: React.FC<Props> = ({
     return (
       <div className={`flex-1 overflow-auto bg-white dark:bg-slate-900 relative ${selectionMode === 'MARQUEE' ? 'cursor-crosshair' : ''}`} ref={containerRef} onMouseDown={handleMarqueeMouseDown}>
         <div className="min-w-[800px] relative" ref={marqueeContainerRef}>
-          <div className="grid border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-900 z-20 shadow-sm" style={{ gridTemplateColumns: `50px repeat(${days.length}, 1fr)` }}>
-            <div className="p-4 border-e border-slate-100 dark:border-slate-800"></div>
-            {days.map(day => (
-              <div key={day.toISOString()} className={`p-3 text-center border-e border-slate-100 dark:border-slate-800 ${day.toDateString() === new Date().toDateString() ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{day.toLocaleDateString(settings.language, { weekday: 'short' })}</div>
-                <div className={`text-xl font-bold mt-1 ${day.toDateString() === new Date().toDateString() ? 'text-blue-600 dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}>
-                  {day.getDate()}
+          <div className="sticky top-0 z-20 flex flex-col shadow-sm">
+            <div className="grid border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900" style={{ gridTemplateColumns: `50px repeat(${days.length}, 1fr)` }}>
+              <div className="p-4 border-e border-slate-100 dark:border-slate-800"></div>
+              {days.map(day => (
+                <div key={day.toISOString()} className={`p-3 text-center border-e border-slate-100 dark:border-slate-800 ${day.toDateString() === new Date().toDateString() ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
+                  <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{day.toLocaleDateString(settings.language, { weekday: 'short' })}</div>
+                  <div className={`text-xl font-bold mt-1 ${day.toDateString() === new Date().toDateString() ? 'text-blue-600 dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                    {day.getDate()}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+            {renderGanttStrip(days)}
           </div>
-          {renderGanttStrip(days)}
           <div className="relative" style={{ height: `${(END_HOUR - START_HOUR + 1) * 60}px` }}>
             <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `50px repeat(${days.length}, 1fr)` }}>
               <div className="border-e border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
@@ -1423,7 +1457,7 @@ export const CalendarView: React.FC<Props> = ({
                 {isRtl ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
               </button>
               <div className="px-3 flex items-center relative group">
-                <input type="date" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => { if (e.target.value) setCurrentDate(new Date(e.target.value)); }} />
+                <input type="date" className="absolute inset-0 opacity-0 cursor-pointer" onClick={e => e.stopPropagation()} onChange={(e) => { if (e.target.value) setCurrentDate(new Date(e.target.value)); }} />
                 <div className="flex flex-col items-center justify-center min-w-[150px]">
                   <span className="text-sm font-bold text-slate-800 dark:text-slate-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex items-center">
                     {viewMode === 'MONTH'
@@ -1853,8 +1887,27 @@ export const CalendarView: React.FC<Props> = ({
 
               {/* 5. Start Time / End Time */}
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.start_time')}</label><input type="datetime-local" required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.start ? new Date(new Date(editingEvent.start).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setEditingEvent({ ...editingEvent, start: new Date(e.target.value).toISOString() })} /></div>
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.end_time')}</label><input type="datetime-local" required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.end ? new Date(new Date(editingEvent.end).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setEditingEvent({ ...editingEvent, end: new Date(e.target.value).toISOString() })} /></div>
+                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.start_time')}</label><input type="datetime-local" required onClick={e => e.stopPropagation()} className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.start ? new Date(new Date(editingEvent.start).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => {
+                  try {
+                    const newStart = new Date(e.target.value);
+                    const newStartIso = newStart.toISOString();
+                    if (endDateModified) {
+                      setEditingEvent({ ...editingEvent, start: newStartIso });
+                    } else {
+                      const oldStart = editingEvent.start ? new Date(editingEvent.start) : new Date();
+                      const oldEnd = editingEvent.end ? new Date(editingEvent.end) : new Date(oldStart.getTime() + settings.defaultEventDuration * 60000);
+                      const duration = oldEnd.getTime() - oldStart.getTime();
+                      const newEndIso = new Date(newStart.getTime() + (duration > 0 ? duration : settings.defaultEventDuration * 60000)).toISOString();
+                      setEditingEvent({ ...editingEvent, start: newStartIso, end: newEndIso });
+                    }
+                  } catch (err) { }
+                }} /></div>
+                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.end_time')}</label><input type="datetime-local" required onClick={e => e.stopPropagation()} className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.end ? new Date(new Date(editingEvent.end).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => {
+                  try {
+                    setEndDateModified(true);
+                    setEditingEvent({ ...editingEvent, end: new Date(e.target.value).toISOString() });
+                  } catch (err) { }
+                }} /></div>
               </div>
 
               {/* Recurrence Section */}
