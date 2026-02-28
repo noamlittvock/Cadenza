@@ -38,7 +38,7 @@ interface ErrorBoundaryState {
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
+    (this as any).state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
@@ -47,17 +47,18 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("Uncaught error:", error, errorInfo);
-    this.setState({ errorInfo });
+    (this as any).setState({ errorInfo });
   }
 
   render() {
-    if (this.state.hasError) {
+    const state = (this as any).state;
+    if (state.hasError) {
       return (
         <div className="p-6 bg-red-50 text-red-900 min-h-screen flex flex-col items-center justify-center">
           <h1 className="text-2xl font-bold mb-4">{t('app.something_wrong')}</h1>
           <div className="bg-white p-4 rounded shadow-lg max-w-lg w-full overflow-auto">
-            <p className="font-mono text-sm text-red-600 mb-2">{this.state.error?.toString()}</p>
-            <pre className="text-xs text-slate-500 whitespace-pre-wrap">{this.state.errorInfo?.componentStack}</pre>
+            <p className="font-mono text-sm text-red-600 mb-2">{state.error?.toString()}</p>
+            <pre className="text-xs text-slate-500 whitespace-pre-wrap">{state.errorInfo?.componentStack}</pre>
           </div>
           <button
             onClick={() => window.location.reload()}
@@ -69,6 +70,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       );
     }
 
+    // @ts-ignore
     return this.props.children;
   }
 }
@@ -249,7 +251,7 @@ function AppContent() {
           />
         );
       case 'FINANCIAL':
-        return <FinancialDashboard events={events} teachers={teachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} />;
+        return <FinancialDashboard events={events} teachers={teachers} setTeachers={setTeachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} />;
       case 'FINANCIAL_ANALYSIS':
         return <FinancialAnalysis events={events} teachers={teachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} onNavigateBack={() => setCurrentView('FINANCIAL')} />;
       case 'SUPER_ADMIN':

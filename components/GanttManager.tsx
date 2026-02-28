@@ -125,7 +125,7 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
 
       <button
         onClick={() => handleOpenModal()}
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center shadow-sm mb-6 transition-colors"
+        className="w-full btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg flex items-center justify-center  mb-6 transition-colors"
       >
         <Plus size={16} className="me-2" /> {t('btn.add')}
       </button>
@@ -259,7 +259,7 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
                 </button>
                 <button
                   onClick={handleSubmit}
-                  className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg"
+                  className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg"
                 >
                   {editingId ? t('gantt.save_changes') : (formData.isBlackout ? t('gantt.create_apply') : t('btn.create'))}
                 </button>

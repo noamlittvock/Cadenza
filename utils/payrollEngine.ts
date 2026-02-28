@@ -93,6 +93,8 @@ export function computePayroll(
             eventPay = evt.pricingSnapshot.rateValue; // One-Off amount is a flat fee, distinct from hourly rate calculation
         } else if (rateType === 'HOURLY') {
             eventPay = durationHours * rateValue;
+        } else if (rateType === 'PER_EVENT') {
+            eventPay = rateValue;
         } else {
             // GLOBAL_MONTHLY will be added separately, or we portion it?
             // Usually GLOBAL_MONTHLY is a flat sum paid at end of month, independent of events.

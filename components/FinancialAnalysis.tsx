@@ -251,7 +251,7 @@ const CustomInsightModal: React.FC<CustomInsightModalProps> = ({ teachers, onClo
                 </div>
                 <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-end gap-2">
                     <button onClick={onClose} className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
-                    <button onClick={handleSave} disabled={!title.trim()} className="px-4 py-2 text-xs font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors">{t('modal.save_insight')}</button>
+                    <button onClick={handleSave} disabled={!title.trim()} className="px-4 py-2 text-xs font-medium btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 shadow-cadenza-soft rounded-lg transition-colors">{t('modal.save_insight')}</button>
                 </div>
             </div>
         </div>
@@ -613,7 +613,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                             </div>
                         )}
                         <button onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-                            className={`border rounded-lg flex items-center px-3 py-2 shadow-sm text-sm transition-colors ${isFilterPanelOpen || activeFilterCount > 0 ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-slate-700 dark:text-white'}`}>
+                            className={`border rounded-lg flex items-center px-3 py-2 shadow-sm text-sm transition-colors ${isFilterPanelOpen || activeFilterCount > 0 ? 'btn-cadenza bg-cadenza-gradient texture-cadenza text-white border-transparent' : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-slate-700 dark:text-white'}`}>
                             <SlidersHorizontal size={16} className="me-2" />{t('analysis.filters')}
                             {activeFilterCount > 0 && <span className="ms-1.5 bg-white/20 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>}
                             <ChevronDown size={14} className={`ms-1 transition-transform ${isFilterPanelOpen ? 'rotate-180' : ''}`} />
@@ -777,7 +777,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                         {savedCharts.length > 0 && <span className="text-xs font-normal bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full">{savedCharts.length}</span>}
                     </h3>
                     <button onClick={handleNewChart}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors shadow-sm">
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft text-sm font-medium transition-colors ">
                         <Plus size={16} /> {t('analysis.new_chart')}
                     </button>
                 </div>

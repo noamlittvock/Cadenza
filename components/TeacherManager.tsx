@@ -61,6 +61,17 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
   // Bulk Selection State
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<Set<string>>(new Set());
 
+  // Bulk Financial Update State
+  const [isBulkFinancialModalOpen, setIsBulkFinancialModalOpen] = useState(false);
+  const [bulkFinancialData, setBulkFinancialData] = useState({
+    cost: '',
+    vatType: 'PERCENTAGE' as 'PERCENTAGE' | 'FLAT',
+    vatValue: '',
+    overheadType: 'FLAT' as 'PERCENTAGE' | 'FLAT',
+    overheadFee: '',
+    socialBenefits: ''
+  });
+
   // --- Position Assignment Helpers ---
 
   const syncPositionsFromAssignments = (assignments: PositionAssignment[]): string[] => {
@@ -146,7 +157,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
     e.preventDefault();
     setError(null);
 
-    if (!formData.fullName || !formData.email || !formData.color) return;
+    if (!formData.fullName || !formData.color) return;
 
     // Validation: must have at least one position with a name
     const validAssignments = (formData.positionAssignments || []).filter(pa => pa.positionName.trim() !== '');
@@ -182,7 +193,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
         positionAssignments: validAssignments,
         tags: formData.tags || [],
         phone: formData.phone || '',
-        email: formData.email!,
+        email: formData.email || '',
         color: formData.color!
       };
       setTeachers(prev => [...prev, newTeacher]);
@@ -209,7 +220,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
   // --- CSV Import / Export ---
 
   const handleDownloadTemplate = () => {
-    const headers = "FullName,Email,Phone,Position,Category,RateType (HOURLY / GLOBAL_MONTHLY),RateValue,Tags(semicolon sep)";
+    const headers = "FullName,Email,Phone,Position,Category,RateType (HOURLY / GLOBAL_MONTHLY / PER_EVENT),RateValue,Tags(semicolon sep)";
     const exampleRow = "Jane Doe,jane@music.com,555-0199,Piano Instructor,Individual Lesson,HOURLY,150,Piano Dept;Senior Staff";
     const blob = new Blob([headers + '\n' + exampleRow], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -302,7 +313,8 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
       // Parse position data from CSV columns
       const positionName = cols[3] || '';
       const category = cols[4] || 'Individual Lesson';
-      const rateType: RateType = (cols[5]?.toUpperCase() === 'GLOBAL_MONTHLY' ? 'GLOBAL_MONTHLY' : 'HOURLY');
+      const parsedRateString = cols[5]?.toUpperCase();
+      const rateType: RateType = parsedRateString === 'PER_EVENT' ? 'PER_EVENT' : parsedRateString === 'GLOBAL_MONTHLY' ? 'GLOBAL_MONTHLY' : 'HOURLY';
       const rateValue = parseFloat(cols[6]) || 0;
       const tags = cols[7] ? cols[7].split(';').map(t => t.trim()).filter(t => t) : [];
 
@@ -481,15 +493,50 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
     }
   };
 
+  const handleBulkFinancialUpdate = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    setTeachers(prev => prev.map(t => {
+      if (!selectedTeacherIds.has(t.id)) return t;
+
+      const updatedTeacher = { ...t };
+
+      updatedTeacher.positionAssignments = updatedTeacher.positionAssignments.map(pa => {
+        let newPa = { ...pa };
+        if (bulkFinancialData.cost !== '') newPa.cost = parseFloat(bulkFinancialData.cost) || 0;
+        if (bulkFinancialData.vatValue !== '') {
+          newPa.vat = { type: bulkFinancialData.vatType, value: parseFloat(bulkFinancialData.vatValue) || 0 };
+        }
+        if (bulkFinancialData.overheadFee !== '') {
+          newPa.overheadFeeType = bulkFinancialData.overheadType;
+          newPa.overheadFeeValue = parseFloat(bulkFinancialData.overheadFee) || 0;
+        }
+        if (bulkFinancialData.socialBenefits !== '') {
+          newPa.socialBenefits = parseFloat(bulkFinancialData.socialBenefits) || 0;
+        }
+        return newPa;
+      });
+
+      return updatedTeacher;
+    }));
+
+    setIsBulkFinancialModalOpen(false);
+    setSelectedTeacherIds(new Set());
+    setBulkFinancialData({ cost: '', vatType: 'PERCENTAGE', vatValue: '', overheadType: 'FLAT', overheadFee: '', socialBenefits: '' });
+  };
+
   const isAllSelected = filteredTeachers.length > 0 && filteredTeachers.every(t => selectedTeacherIds.has(t.id));
   const isIndeterminate = selectedTeacherIds.size > 0 && !isAllSelected;
 
   // --- Rate formatting helpers ---
   const formatRate = (pa: PositionAssignment) => {
-    if (pa.rateValue === 0) return '—';
-    return pa.rateType === 'HOURLY'
-      ? `${settings.currency}${pa.rateValue}${t('fin.per_hr')}`
-      : `${settings.currency}${pa.rateValue.toLocaleString()}${t('fin.per_mo')}`;
+    if (pa.rateType === 'HOURLY') {
+      return `${settings.currency}${pa.rateValue}${t('fin.per_hr') || '/hr'}`;
+    } else if (pa.rateType === 'GLOBAL_MONTHLY') {
+      return `${settings.currency}${pa.rateValue.toLocaleString()}${t('fin.per_mo') || '/mo'}`;
+    } else {
+      return `${settings.currency}${pa.rateValue} ${t('teach.per_event') || 'per ev'}`;
+    }
   };
 
   return (
@@ -526,7 +573,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
             <button onClick={handleExportTeachers} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700"><Download size={16} className="me-2" /> {t('teach.export')}</button>
             <button onClick={() => fileInputRef.current?.click()} disabled={isAnalyzing} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"><Upload size={16} className="me-2" /> {t('teach.import')}</button>
             <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
-            <button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm"><Plus size={16} className="me-2" /> {t('teach.add')}</button>
+            <button onClick={() => handleOpenModal()} className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg flex items-center  text-sm"><Plus size={16} className="me-2" /> {t('teach.add')}</button>
           </div>
         </div>
       )}
@@ -547,7 +594,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
           <button onClick={() => fileInputRef.current?.click()} disabled={isAnalyzing} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"><Upload size={16} className="me-2" /> {t('teach.import')}</button>
           <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
           <div className="flex-1" />
-          <button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm"><Plus size={16} className="me-2" /> {t('teach.add')}</button>
+          <button onClick={() => handleOpenModal()} className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg flex items-center  text-sm"><Plus size={16} className="me-2" /> {t('teach.add')}</button>
         </div>
       )}
 
@@ -640,12 +687,16 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                           </span>
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${pa.rateType === 'HOURLY'
                             ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                            : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                            : pa.rateType === 'GLOBAL_MONTHLY'
+                              ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                              : 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
                             }`}>
                             {pa.rateType === 'HOURLY' ? (
                               <span className="flex items-center gap-0.5"><Clock size={9} /> {formatRate(pa)}</span>
-                            ) : (
+                            ) : pa.rateType === 'GLOBAL_MONTHLY' ? (
                               <span className="flex items-center gap-0.5"><CalendarDays size={9} /> {formatRate(pa)}</span>
+                            ) : (
+                              <span className="flex items-center gap-0.5"><Briefcase size={9} /> {formatRate(pa)}</span>
                             )}
                           </span>
                         </div>
@@ -719,7 +770,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                   <button
                     type="button"
                     onClick={addPositionAssignment}
-                    className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors shadow-sm"
+                    className="text-xs btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors "
                   >
                     <Plus size={12} /> {t('teach.add_position')}
                   </button>
@@ -790,24 +841,29 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                           <button
                             type="button"
                             onClick={() => updatePositionAssignment(pa.id, {
-                              rateType: pa.rateType === 'HOURLY' ? 'GLOBAL_MONTHLY' : 'HOURLY'
+                              rateType: pa.rateType === 'HOURLY' ? 'GLOBAL_MONTHLY' : (pa.rateType === 'GLOBAL_MONTHLY' ? 'PER_EVENT' : 'HOURLY')
                             })}
                             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm font-medium transition-all ${pa.rateType === 'HOURLY'
                               ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300'
-                              : 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300'
+                              : pa.rateType === 'GLOBAL_MONTHLY' ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300'
+                                : 'bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300'
                               }`}
                           >
                             <span className="flex items-center gap-1.5">
                               {pa.rateType === 'HOURLY' ? (
                                 <><Clock size={14} /> {t('teach.hourly')}</>
-                              ) : (
+                              ) : pa.rateType === 'GLOBAL_MONTHLY' ? (
                                 <><CalendarDays size={14} /> {t('teach.global_monthly')}</>
+                              ) : (
+                                <><Briefcase size={14} /> {t('teach.per_event') || 'Per Event'}</>
                               )}
                             </span>
                             {pa.rateType === 'HOURLY' ? (
                               <ToggleLeft size={18} className="text-blue-400" />
-                            ) : (
+                            ) : pa.rateType === 'GLOBAL_MONTHLY' ? (
                               <ToggleRight size={18} className="text-emerald-400" />
+                            ) : (
+                              <div className="w-4 h-4 rounded-full bg-purple-400 ms-1 me-0.5 shadow-sm" />
                             )}
                           </button>
                         </div>
@@ -815,18 +871,81 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                         {/* Rate Value */}
                         <div>
                           <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                            {pa.rateType === 'HOURLY' ? `${t('teach.rate_hourly_label')} (${settings.currency}${t('teach.per_hour')})` : `${t('teach.monthly_fee')} (${settings.currency})`}
+                            {pa.rateType === 'HOURLY' ? `${t('teach.rate_hourly_label')} (${settings.currency}${t('teach.per_hour') || '/hr'})` : pa.rateType === 'GLOBAL_MONTHLY' ? `${t('teach.monthly_fee')} (${settings.currency})` : `${t('teach.per_event') || 'Per Event'} (${settings.currency})`}
                           </label>
                           <div className="relative">
                             <DollarSign size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input
                               type="number"
                               min={0}
-                              step={pa.rateType === 'HOURLY' ? 10 : 100}
-                              placeholder={pa.rateType === 'HOURLY' ? '150' : '5000'}
+                              step={pa.rateType === 'HOURLY' ? 10 : pa.rateType === 'GLOBAL_MONTHLY' ? 100 : 10}
+                              placeholder={pa.rateType === 'HOURLY' ? '150' : pa.rateType === 'GLOBAL_MONTHLY' ? '5000' : '200'}
                               className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg ps-8 pe-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
-                              value={pa.rateValue || ''}
-                              onChange={e => updatePositionAssignment(pa.id, { rateValue: parseFloat(e.target.value) || 0 })}
+                              value={pa.rateValue !== undefined && pa.rateValue !== null ? pa.rateValue : ''}
+                              onChange={e => updatePositionAssignment(pa.id, { rateValue: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-3 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+                        <div className="col-span-1">
+                          <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">VAT Type</label>
+                          <select
+                            className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg px-2 py-1.5 text-xs outline-none"
+                            value={pa.vat?.type || 'PERCENTAGE'}
+                            onChange={e => updatePositionAssignment(pa.id, { vat: { type: e.target.value as 'PERCENTAGE' | 'FLAT', value: pa.vat?.value || 0 } })}
+                          >
+                            <option value="PERCENTAGE">%</option>
+                            <option value="FLAT">{settings.currency}</option>
+                          </select>
+                        </div>
+                        <div className="col-span-1">
+                          <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">VAT Value</label>
+                          <input
+                            type="number" step="0.1"
+                            className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg px-2 py-1.5 text-xs outline-none"
+                            value={pa.vat?.value ?? ''}
+                            onChange={e => updatePositionAssignment(pa.id, { vat: { type: pa.vat?.type || 'PERCENTAGE', value: parseFloat(e.target.value) || 0 } })}
+                          />
+                        </div>
+
+                        <div className="col-span-1">
+                          <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Overhead</label>
+                          <div className="flex bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden focus-within:ring-1 focus-within:ring-blue-500">
+                            <select
+                              className="bg-transparent text-xs px-1 border-e border-slate-300 dark:border-slate-600 outline-none w-[45px] text-slate-500 cursor-pointer"
+                              value={pa.overheadFeeType || 'FLAT'}
+                              onChange={e => updatePositionAssignment(pa.id, { overheadFeeType: e.target.value as 'PERCENTAGE' | 'FLAT' })}
+                            >
+                              <option value="PERCENTAGE">%</option>
+                              <option value="FLAT">{settings.currency.substring(0, 1)}</option>
+                            </select>
+                            <input
+                              type="number" step="0.01"
+                              className="flex-1 bg-transparent px-2 py-1.5 text-xs outline-none text-slate-900 dark:text-white"
+                              value={pa.overheadFeeValue ?? ''}
+                              onChange={e => updatePositionAssignment(pa.id, { overheadFeeValue: parseFloat(e.target.value) || 0 })}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="col-span-1">
+                          <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Social</label>
+                          <div className="flex bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden focus-within:ring-1 focus-within:ring-blue-500">
+                            <select
+                              className="bg-transparent text-xs px-1 border-e border-slate-300 dark:border-slate-600 outline-none w-[45px] text-slate-500 cursor-pointer"
+                              value={pa.socialBenefitsType || 'PERCENTAGE'}
+                              onChange={e => updatePositionAssignment(pa.id, { socialBenefitsType: e.target.value as 'PERCENTAGE' | 'FLAT' })}
+                            >
+                              <option value="PERCENTAGE">%</option>
+                              <option value="FLAT">{settings.currency.substring(0, 1)}</option>
+                            </select>
+                            <input
+                              type="number" step="0.01"
+                              className="flex-1 bg-transparent px-2 py-1.5 text-xs outline-none text-slate-900 dark:text-white"
+                              value={pa.socialBenefitsValue ?? ''}
+                              onChange={e => updatePositionAssignment(pa.id, { socialBenefitsValue: parseFloat(e.target.value) || 0 })}
                             />
                           </div>
                         </div>
@@ -888,13 +1007,15 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
 
               {/* Email/Phone Inputs */}
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.email')}</label><input required type="email" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} /></div>
+                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.email')}</label><input type="email" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} /></div>
                 <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.phone')}</label><input type="text" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={formData.phone || ''} onChange={e => setFormData({ ...formData, phone: e.target.value })} /></div>
               </div>
 
+
+
               <div className="flex justify-end space-x-3 rtl:space-x-reverse mt-6">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">{t('teach.cancel')}</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg">{t('teach.save')}</button>
+                <button type="submit" className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg">{t('teach.save')}</button>
               </div>
             </form>
           </div>
@@ -945,7 +1066,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                 <button
                   onClick={() => confirmImport(true)}
                   disabled={importCandidates.filter(c => c.selected).length === 0}
-                  className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {t('teach.import_n_teachers')} {importCandidates.filter(c => c.selected).length} {t('teach.teachers_word')}
                 </button>
@@ -973,6 +1094,125 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
               <Trash2 size={16} className="me-2" />
               {t('teach.delete_selection')}
             </button>
+            <button
+              onClick={() => setIsBulkFinancialModalOpen(true)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg shadow-lg transition-all text-sm font-bold flex items-center"
+            >
+              <DollarSign size={16} className="me-2" />
+              {t('teach.bulk_financial_update') || 'Update Financials'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Financial Update Modal */}
+      {isBulkFinancialModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-md p-6 border border-slate-200 dark:border-slate-800">
+            <h3 className="text-lg font-bold mb-2 text-slate-900 dark:text-white flex items-center gap-2">
+              <DollarSign size={20} className="text-blue-500" />
+              {t('teach.bulk_financial_update') || 'Bulk Financial Update'}
+            </h3>
+            <p className="text-sm text-slate-500 mb-6 flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-lg text-blue-700 dark:text-blue-300">
+              <CheckCircle2 size={14} />
+              {t('teach.applying_to_teachers_prefix') || 'Applying to'} {selectedTeacherIds.size} {t('teach.teachers_word') || 'teachers'}
+            </p>
+
+            <form onSubmit={handleBulkFinancialUpdate} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.cost_per_position') || 'Cost per position'} ({settings.currency})</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+                  value={bulkFinancialData.cost}
+                  onChange={e => setBulkFinancialData({ ...bulkFinancialData, cost: e.target.value })}
+                  placeholder={t('teach.leave_blank_no_change') || 'Leave blank to skip'}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.vat_type') || 'VAT Type'}</label>
+                  <select
+                    className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+                    value={bulkFinancialData.vatType}
+                    onChange={e => setBulkFinancialData({ ...bulkFinancialData, vatType: e.target.value as any })}
+                  >
+                    <option value="PERCENTAGE">% {t('teach.percentage')}</option>
+                    <option value="FLAT">{settings.currency} {t('teach.flat_amount')}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.vat_value') || 'VAT Value'}</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+                    value={bulkFinancialData.vatValue}
+                    onChange={e => setBulkFinancialData({ ...bulkFinancialData, vatValue: e.target.value })}
+                    placeholder={t('teach.leave_blank_no_change') || 'Leave blank to skip'}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.overhead_type') || 'Overhead Type'}</label>
+                  <select
+                    className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+                    value={bulkFinancialData.overheadType}
+                    onChange={e => setBulkFinancialData({ ...bulkFinancialData, overheadType: e.target.value as any })}
+                  >
+                    <option value="PERCENTAGE">% {t('teach.percentage')}</option>
+                    <option value="FLAT">{settings.currency} {t('teach.flat_amount')}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.overhead_fee') || 'Overhead Fee'}</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+                    value={bulkFinancialData.overheadFee}
+                    onChange={e => setBulkFinancialData({ ...bulkFinancialData, overheadFee: e.target.value })}
+                    placeholder={t('teach.leave_blank_no_change') || 'Leave blank to skip'}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.social_benefits') || 'Social Benefits'} ({settings.currency})</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+                  value={bulkFinancialData.socialBenefits}
+                  onChange={e => setBulkFinancialData({ ...bulkFinancialData, socialBenefits: e.target.value })}
+                  placeholder={t('teach.leave_blank_no_change') || 'Leave blank to skip'}
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 rtl:space-x-reverse pt-4 border-t border-slate-100 dark:border-slate-800 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setIsBulkFinancialModalOpen(false)}
+                  className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium text-sm"
+                >
+                  {t('teach.cancel')}
+                </button>
+                <button
+                  type="submit"
+                  className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-6 py-2 rounded-lg font-bold text-sm transition-all"
+                >
+                  {t('teach.apply_updates') || 'Apply Updates'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

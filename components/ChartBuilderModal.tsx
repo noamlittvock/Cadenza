@@ -635,7 +635,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                 {Object.values(DIMENSION_REGISTRY).filter(dim => !dim.isTemporal).map(dim => (
                                     <button key={dim.id} onClick={() => handleDimensionChange(dim.id)}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${dimension === dim.id
-                                            ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
+                                            ? 'btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft'
                                             : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                                     >
                                         {dim.tKey ? t(dim.tKey) : dim.label}
@@ -859,7 +859,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                     return (
                                         <button key={viz.type} onClick={() => setVisualization(viz.type)}
                                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${active
-                                                ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
+                                                ? 'btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft'
                                                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
                                             {viz.icon}{t({ 'bar': 'builder.viz_bar', 'stacked-bar': 'builder.viz_stacked', 'line': 'builder.viz_line', 'pie': 'builder.viz_pie', 'table': 'builder.viz_table' }[viz.type] || viz.label)}
                                         </button>
@@ -972,8 +972,8 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                             {metrics.map(m => { const meta = METRIC_REGISTRY[m.metricId]; return <option key={m.metricId} value={m.metricId}>{meta?.tKey ? t(meta.tKey) : (meta?.label ?? m.metricId)}</option>; })}
                                         </select>
                                         <div className="flex gap-1 mt-1.5">
-                                            <button onClick={() => setSortDir('asc')} className={`text-[10px] px-2 py-0.5 rounded ${sortDir === 'asc' ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>{t('builder.ascending')}</button>
-                                            <button onClick={() => setSortDir('desc')} className={`text-[10px] px-2 py-0.5 rounded ${sortDir === 'desc' ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>{t('builder.descending')}</button>
+                                            <button onClick={() => setSortDir('asc')} className={`text-[10px] px-2 py-0.5 rounded ${sortDir === 'asc' ? 'btn-cadenza bg-cadenza-gradient texture-cadenza text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>{t('builder.ascending')}</button>
+                                            <button onClick={() => setSortDir('desc')} className={`text-[10px] px-2 py-0.5 rounded ${sortDir === 'desc' ? 'btn-cadenza bg-cadenza-gradient texture-cadenza text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>{t('builder.descending')}</button>
                                         </div>
                                     </div>
                                     <div>
@@ -1088,7 +1088,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                     <div className="flex gap-2">
                         <button onClick={onClose} className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">{t('builder.cancel')}</button>
                         <button onClick={handleSave} disabled={!title.trim()}
-                            className="px-5 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm shadow-blue-500/25">
+                            className="px-5 py-2 rounded-xl btn-cadenza bg-cadenza-gradient texture-cadenza text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-cadenza-soft">
                             {editingChart ? `💾 ${t('builder.update_chart')}` : `💾 ${t('builder.save_chart')}`}
                         </button>
                     </div>

@@ -2594,5 +2594,53 @@
   {
     "key": "Auto translate endpoint will connect here.",
     "screen_group": "TranslationManager"
+  },
+  {
+    "key": "teach.bulk_financial_update",
+    "screen_group": "FinancialDashboard"
+  },
+  {
+    "key": "teach.applying_to_teachers_prefix",
+    "screen_group": "FinancialDashboard"
+  },
+  {
+    "key": "teach.cost_per_position",
+    "screen_group": "FinancialDashboard"
+  },
+  {
+    "key": "teach.leave_blank_no_change",
+    "screen_group": "FinancialDashboard"
+  },
+  {
+    "key": "teach.vat_type",
+    "screen_group": "FinancialDashboard"
+  },
+  {
+    "key": "teach.percentage",
+    "screen_group": "FinancialDashboard"
+  },
+  {
+    "key": "teach.flat_amount",
+    "screen_group": "FinancialDashboard"
+  },
+  {
+    "key": "teach.vat_value",
+    "screen_group": "FinancialDashboard"
+  },
+  {
+    "key": "teach.overhead_fee",
+    "screen_group": "FinancialDashboard"
+  },
+  {
+    "key": "teach.social_benefits",
+    "screen_group": "FinancialDashboard"
+  },
+  {
+    "key": "teach.apply_updates",
+    "screen_group": "FinancialDashboard"
+  },
+  {
+    "key": "teach.per_event",
+    "screen_group": "TeacherManager"
   }
 ]

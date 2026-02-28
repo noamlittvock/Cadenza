@@ -161,10 +161,12 @@ function computeMetric(
         }
 
         case 'totalCost': {
-            const hourly = events.filter(e => !e.isCanceled).reduce((sum, e) => {
+            const eventBasedCost = events.filter(e => !e.isCanceled).reduce((sum, e) => {
                 const pa = posAssignments.find(p => p.id === e.positionId);
                 if (pa?.rateType === 'HOURLY') {
                     return sum + eventDurationHours(e) * pa.rateValue;
+                } else if (pa?.rateType === 'PER_EVENT') {
+                    return sum + pa.rateValue;
                 }
                 return sum;
             }, 0);
@@ -176,7 +178,7 @@ function computeMetric(
                     return true;
                 })
                 .reduce((s, pa) => s + pa.rateValue, 0);
-            rawValues = [hourly + global];
+            rawValues = [eventBasedCost + global];
             break;
         }
 

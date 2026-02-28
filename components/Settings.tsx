@@ -277,7 +277,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   isAdmin ? (
                     <button
                       onClick={handleConnectGoogle}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors whitespace-nowrap active:scale-95"
+                      className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-xl text-xs font-bold  transition-colors whitespace-nowrap active:scale-95"
                     >
                       {t('settings.connect_account')}
                     </button>
@@ -383,7 +383,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg shadow-lg transition-all text-sm font-bold"
+                className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg shadow-lg transition-all text-sm font-bold"
               >
                 {t('btn.save')}
               </button>

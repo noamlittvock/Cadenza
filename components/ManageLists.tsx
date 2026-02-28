@@ -58,7 +58,7 @@ const ListEditor = ({
         <button
           onClick={handleAdd}
           disabled={!input.trim()}
-          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-2 rounded-lg"
+          className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 shadow-cadenza-soft px-3 py-2 rounded-lg"
         >
           <Plus size={20} />
         </button>
@@ -195,7 +195,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
             <button onClick={handleDownloadTemplate} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700">
               <FileDown size={16} className="me-2" /> {t('lists.template')}
             </button>
-            <button onClick={() => fileInputRef.current?.click()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm">
+            <button onClick={() => fileInputRef.current?.click()} className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg flex items-center  text-sm">
               <Upload size={16} className="me-2" /> {t('lists.import_csv')}
             </button>
             <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
@@ -207,7 +207,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
           <button onClick={handleDownloadTemplate} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700">
             <FileDown size={16} className="me-2" /> {t('lists.template')}
           </button>
-          <button onClick={() => fileInputRef.current?.click()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm text-sm">
+          <button onClick={() => fileInputRef.current?.click()} className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg flex items-center  text-sm">
             <Upload size={16} className="me-2" /> {t('lists.import_csv')}
           </button>
           <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
@@ -285,7 +285,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
               <button
                 onClick={confirmImport}
                 disabled={(candidates.positions.length + candidates.tags.length + candidates.classifications.length) === 0}
-                className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg disabled:opacity-50"
+                className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg disabled:opacity-50"
               >
                 {t('lists.import_all')}
               </button>

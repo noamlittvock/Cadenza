@@ -6,12 +6,13 @@ import { TRANSLATIONS } from '../constants';
 import {
   Download, Filter, Calendar as CalIcon, ChevronDown, ChevronUp, Menu, Clock, CalendarDays,
   DollarSign, TrendingUp, X, SlidersHorizontal, Tag, User, Briefcase, ToggleLeft,
-  ArrowRight, BarChart3, ArrowUpDown, Mail
+  ArrowRight, BarChart3, ArrowUpDown, Mail, Trash2, CheckCircle2
 } from 'lucide-react';
 
 interface Props {
   events: CalendarEvent[];
   teachers: Teacher[];
+  setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>;
   settings: AppSettings;
   savedCharts: ChartConfiguration[];
   setSavedCharts: React.Dispatch<React.SetStateAction<ChartConfiguration[]>>;
@@ -34,6 +35,10 @@ interface PositionFinancials {
   hourlyCost: number;
   oneOffCost: number;
   globalCost: number;
+  finalPositionCost: number;
+  includeSocialBenefits?: boolean;
+  includeVat?: boolean;
+  includeOverheadFee?: boolean;
 }
 
 interface TeacherReport {
@@ -100,7 +105,7 @@ type SortColumn = 'name' | 'activeHrs' | 'canceledHrs' | 'canceledEvents' | 'tot
 
 // ---- Main Component ----
 
-export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings, savedCharts, setSavedCharts, onMobileMenuOpen }) => {
+export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeachers, settings, savedCharts, setSavedCharts, onMobileMenuOpen }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
   const [dateFilterType, setDateFilterType] = useState<DateFilterType>('MONTH');
   const [customStartDate, setCustomStartDate] = useState('');
@@ -254,6 +259,10 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
           positionId: pa.id, positionName: pa.positionName, rateType: pa.rateType,
           rateValue: pa.rateValue, category: pa.category, activeHours: 0,
           canceledHours: 0, totalHours: 0, hourlyCost: 0, oneOffCost: 0, globalCost: 0,
+          finalPositionCost: 0,
+          includeSocialBenefits: pa.includeSocialBenefits,
+          includeVat: pa.includeVat,
+          includeOverheadFee: pa.includeOverheadFee,
         };
       });
 
@@ -274,6 +283,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
               positionId: syntheticId, positionName: evt.classification, rateType: 'HOURLY',
               rateValue: 0, category: evt.classification, activeHours: 0,
               canceledHours: 0, totalHours: 0, hourlyCost: 0, oneOffCost: 0, globalCost: 0,
+              finalPositionCost: 0,
             };
           }
           targetPosId = syntheticId;
@@ -322,6 +332,41 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
       });
 
       const positionsArr = Object.values(posFinancials);
+
+      // Calculate costs per position including granular inclusions
+      let grandTotal = 0;
+      positionsArr.forEach(p => {
+        let positionSubTotal = p.hourlyCost + p.oneOffCost + p.globalCost;
+
+        let positionInclusions = 0;
+        const pa = teacher.positionAssignments.find(x => x.id === p.positionId);
+
+        if (p.includeSocialBenefits && pa?.socialBenefitsValue) {
+          if (pa.socialBenefitsType === 'FLAT') {
+            positionInclusions += pa.socialBenefitsValue;
+          } else {
+            positionInclusions += positionSubTotal * (pa.socialBenefitsValue / 100);
+          }
+        }
+        if (p.includeOverheadFee && pa?.overheadFeeValue) {
+          if (pa.overheadFeeType === 'FLAT') {
+            positionInclusions += pa.overheadFeeValue;
+          } else {
+            positionInclusions += positionSubTotal * (pa.overheadFeeValue / 100);
+          }
+        }
+        if (p.includeVat && pa?.vat) {
+          if (pa.vat.type === 'PERCENTAGE') {
+            positionInclusions += positionSubTotal * (pa.vat.value / 100);
+          } else {
+            positionInclusions += pa.vat.value;
+          }
+        }
+
+        p.finalPositionCost = positionSubTotal + positionInclusions;
+        grandTotal += p.finalPositionCost;
+      });
+
       const totalActiveHours = positionsArr.reduce((s, p) => s + p.activeHours, 0) + unassignedActive;
       const totalCanceledHours = positionsArr.reduce((s, p) => s + p.canceledHours, 0) + unassignedCanceled;
       const hourlyCostTotal = positionsArr.reduce((s, p) => s + p.hourlyCost, 0);
@@ -332,7 +377,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
         teacherId: teacher.id, teacherName: teacher.fullName, teacherColor: teacher.color,
         positions: positionsArr, totalActiveHours, totalCanceledHours,
         totalHours: totalActiveHours + totalCanceledHours,
-        hourlyCostTotal, oneOffCostTotal, globalCostTotal, grandTotal: hourlyCostTotal + oneOffCostTotal + globalCostTotal,
+        hourlyCostTotal, oneOffCostTotal, globalCostTotal, grandTotal,
         canceledEventCount, activeEventCount,
       };
     });
@@ -394,6 +439,19 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
     const newSet = new Set(expandedTeachers);
     if (newSet.has(id)) newSet.delete(id); else newSet.add(id);
     setExpandedTeachers(newSet);
+  };
+
+  const handleTogglePositionFlag = (teacherId: string, positionId: string, field: 'includeSocialBenefits' | 'includeVat' | 'includeOverheadFee') => {
+    setTeachers(prev => prev.map(t => {
+      if (t.id !== teacherId) return t;
+      return {
+        ...t,
+        positionAssignments: t.positionAssignments.map(pa => {
+          if (pa.id !== positionId) return pa;
+          return { ...pa, [field]: !pa[field] };
+        })
+      };
+    }));
   };
 
   // --- Export ---
@@ -480,7 +538,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
             )}
 
             <button onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-              className={`border rounded-lg flex items-center px-3 py-2 shadow-sm text-sm transition-colors ${isFilterPanelOpen || activeFilterCount > 0 ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-slate-700 dark:text-white'}`}>
+              className={`border rounded-lg flex items-center px-3 py-2 shadow-sm text-sm transition-colors ${isFilterPanelOpen || activeFilterCount > 0 ? 'btn-cadenza bg-cadenza-gradient texture-cadenza text-white border-transparent' : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-slate-700 dark:text-white'}`}>
               <SlidersHorizontal size={16} className="me-2" />{t('tooltip.toggle_filters')}
               {activeFilterCount > 0 && <span className="ms-1.5 bg-white/20 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>}
               <ChevronDown size={14} className={`ms-1 transition-transform ${isFilterPanelOpen ? 'rotate-180' : ''}`} />
@@ -489,7 +547,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
             <button onClick={handleExport} className="hidden md:flex bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg items-center shadow-sm text-sm">
               <Download size={16} className="me-2" /> {t('btn.export')}
             </button>
-            <button onClick={() => { setIsEmailModalOpen(true); setEmailSuccess(false); }} className="hidden md:flex bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg items-center shadow-sm text-sm">
+            <button onClick={() => { setIsEmailModalOpen(true); setEmailSuccess(false); }} className="hidden md:flex btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg items-center  text-sm">
               <Mail size={16} className="me-2" /> {t('fin.email_report')}
             </button>
           </div>
@@ -644,15 +702,32 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                           <tr key={p.positionId} className="bg-slate-50/50 dark:bg-slate-800/30">
                             <td className="px-4 py-3"></td>
                             <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
-                              <div className="flex items-center gap-2 ps-4">
-                                <span className="text-xs font-medium">{p.positionName}</span>
-                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${p.rateType === 'HOURLY'
-                                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                                  : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                                  }`}>
-                                  {p.rateType === 'HOURLY' ? `${settings.currency}${p.rateValue}${t('fin.per_hr')}` : `${formatCurrency(p.rateValue, settings.currency)}${t('fin.per_mo')}`}
-                                </span>
-                                <span className="text-[9px] text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{p.category}</span>
+                              <div className="flex flex-col gap-2 ps-4">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-medium">{p.positionName}</span>
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${p.rateType === 'HOURLY'
+                                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                                    : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                    }`}>
+                                    {p.rateType === 'HOURLY' ? `${settings.currency}${p.rateValue}${t('fin.per_hr')}` : `${formatCurrency(p.rateValue, settings.currency)}${t('fin.per_mo')}`}
+                                  </span>
+                                  <span className="text-[9px] text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{p.category}</span>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                  <label className="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="checkbox" className="form-checkbox h-3 w-3 text-blue-500 rounded border-slate-300 dark:border-slate-600 focus:ring-blue-500" checked={!!p.includeSocialBenefits} onChange={() => handleTogglePositionFlag(r.teacherId, p.positionId, 'includeSocialBenefits')} />
+                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Incl. Social Benefits</span>
+                                  </label>
+                                  <label className="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="checkbox" className="form-checkbox h-3 w-3 text-violet-500 rounded border-slate-300 dark:border-slate-600 focus:ring-violet-500" checked={!!p.includeVat} onChange={() => handleTogglePositionFlag(r.teacherId, p.positionId, 'includeVat')} />
+                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Incl. VAT</span>
+                                  </label>
+                                  <label className="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="checkbox" className="form-checkbox h-3 w-3 text-emerald-500 rounded border-slate-300 dark:border-slate-600 focus:ring-emerald-500" checked={!!p.includeOverheadFee} onChange={() => handleTogglePositionFlag(r.teacherId, p.positionId, 'includeOverheadFee')} />
+                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Incl. Overhead</span>
+                                  </label>
+                                </div>
                               </div>
                             </td>
                             <td className="px-4 py-3 text-end text-xs text-slate-500 tabular-nums">{formatHours(p.activeHours)}</td>
@@ -661,7 +736,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                             <td className="px-4 py-3 text-end text-xs text-blue-500 tabular-nums">{p.hourlyCost > 0 ? formatCurrency(p.hourlyCost, settings.currency) : '—'}</td>
                             <td className="px-4 py-3 text-end text-xs text-violet-500 tabular-nums">{p.oneOffCost > 0 ? formatCurrency(p.oneOffCost, settings.currency) : '—'}</td>
                             <td className="px-4 py-3 text-end text-xs text-emerald-500 tabular-nums">{p.globalCost > 0 ? formatCurrency(p.globalCost, settings.currency) : '—'}</td>
-                            <td className="px-4 py-3 text-end text-xs font-medium text-slate-700 dark:text-slate-300 tabular-nums">{formatCurrency(p.hourlyCost + p.oneOffCost + p.globalCost, settings.currency)}</td>
+                            <td className="px-4 py-3 text-end text-xs font-bold text-slate-700 dark:text-slate-300 tabular-nums bg-slate-100/50 dark:bg-slate-800/50 border-s border-slate-200 dark:border-slate-700">{formatCurrency(p.finalPositionCost, settings.currency)}</td>
                           </tr>
                         ))}
                       </React.Fragment>
@@ -756,7 +831,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, settings
                         }, 1500);
                       }}
                       disabled={isSendingEmails || reportData.length === 0}
-                      className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-bold text-sm shadow-sm transition-all flex items-center"
+                      className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 shadow-cadenza-soft px-6 py-2 rounded-lg font-bold text-sm  transition-all flex items-center"
                     >
                       {isSendingEmails ? (
                         <>

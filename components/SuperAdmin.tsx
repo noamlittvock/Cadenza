@@ -430,7 +430,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                             <button
                                                 type="submit"
                                                 disabled={!newOrgName || !newOrgSlug}
-                                                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg px-4 py-2 text-sm font-medium flex items-center justify-center transition-colors"
+                                                className="w-full btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 shadow-cadenza-soft rounded-lg px-4 py-2 text-sm font-medium flex items-center justify-center transition-colors"
                                             >
                                                 <Plus size={16} className="me-2" />
                                                 {t('sa.create_tenant')}
@@ -612,7 +612,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                 <button
                                                     type="submit"
                                                     disabled={!newUserEmail || !newUserOrgId}
-                                                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg px-4 py-2 text-sm font-medium flex items-center justify-center transition-colors"
+                                                    className="w-full btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 shadow-cadenza-soft rounded-lg px-4 py-2 text-sm font-medium flex items-center justify-center transition-colors"
                                                 >
                                                     <Plus size={16} className="me-2" />
                                                     {t('super.add_btn')}
@@ -634,7 +634,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                 <button
                                                     onClick={handleBulkAdd}
                                                     disabled={!bulkCsvData.trim()}
-                                                    className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg px-6 py-2 text-sm font-medium transition-colors"
+                                                    className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 shadow-cadenza-soft rounded-lg px-6 py-2 text-sm font-medium transition-colors"
                                                 >
                                                     {t('sa.process_bulk')}
                                                 </button>

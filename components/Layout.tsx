@@ -232,11 +232,19 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 collapsed={isCollapsed}
               />
 
+              <NavItem
+                active={currentView === 'SETTINGS'}
+                onClick={() => { setView('SETTINGS'); setIsMobileMenuOpen(false); }}
+                icon={Settings}
+                label={t('nav.settings')}
+                collapsed={isCollapsed}
+              />
+
               {/* Super Admin Area (Only visible to superadmin) */}
               {isSuperAdmin && (
                 <>
                   {/* Separator */}
-                  <div className="my-2 mx-3 border-t border-red-900/50" />
+                  <div className="my-2 mx-3 border-t border-slate-800" />
                   <NavItem
                     active={currentView === 'SUPER_ADMIN'}
                     onClick={() => { setView('SUPER_ADMIN'); setIsMobileMenuOpen(false); }}
@@ -246,17 +254,6 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                   />
                 </>
               )}
-
-              {/* Separator */}
-              <div className="my-2 mx-3 border-t border-slate-800" />
-
-              <NavItem
-                active={currentView === 'SETTINGS'}
-                onClick={() => { setView('SETTINGS'); setIsMobileMenuOpen(false); }}
-                icon={Settings}
-                label={t('nav.settings')}
-                collapsed={isCollapsed}
-              />
             </>
           )}
         </nav>

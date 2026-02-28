@@ -1030,6 +1030,11 @@ export const CalendarView: React.FC<Props> = ({
                   {formatTime(start)}-{formatTime(end)}
                 </span>
               )}
+              {evt.roomId && !isUltraCompact && (
+                <span className="truncate opacity-70 flex-shrink-0 flex items-center gap-0.5" style={{ fontSize: timeFontSize, lineHeight: 1.2 }}>
+                  <MapPin size={8} /> {rooms.find(r => r.id === evt.roomId)?.name}
+                </span>
+              )}
               {evt.isCanceled && <span className="font-bold text-red-500 flex-shrink-0" style={{ fontSize: timeFontSize }}>✕</span>}
             </>
           ) : (
@@ -1039,7 +1044,16 @@ export const CalendarView: React.FC<Props> = ({
               <div className="truncate opacity-75" style={{ fontSize: timeFontSize }}>
                 {formatTime(start)} - {formatTime(end)}
               </div>
-              <div className="truncate opacity-75 font-semibold" style={{ fontSize: timeFontSize }}>{teachers.find(t => t.id === evt.teacherId)?.fullName}</div>
+              <div className="truncate opacity-75 font-semibold flex items-center gap-1" style={{ fontSize: timeFontSize }}>
+                <User size={10} className="flex-shrink-0" />
+                <span className="truncate">{teachers.find(t => t.id === evt.teacherId)?.fullName}</span>
+              </div>
+              {evt.roomId && (
+                <div className="truncate opacity-75 font-medium flex items-center gap-1 mt-0.5 text-slate-700 dark:text-slate-300" style={{ fontSize: timeFontSize }}>
+                  <MapPin size={10} className="flex-shrink-0" />
+                  <span className="truncate">{rooms.find(r => r.id === evt.roomId)?.name}</span>
+                </div>
+              )}
               {evt.isCanceled && <div className="font-bold text-red-500 mt-1">{t('cal.canceled')}</div>}
             </>
           )}
@@ -1358,9 +1372,17 @@ export const CalendarView: React.FC<Props> = ({
                                             </span>
                                           )}
                                         </span>
-                                        <span className="font-medium text-slate-800 dark:text-slate-200 block truncate" title={evt.name || t('cal.unnamed')}>
-                                          {evt.name || t('cal.unnamed')}
-                                        </span>
+                                        <div className="flex flex-col mt-0.5">
+                                          <span className="font-medium text-slate-800 dark:text-slate-200 block truncate" title={evt.name || t('cal.unnamed')}>
+                                            {evt.name || t('cal.unnamed')}
+                                          </span>
+                                          {evt.roomId && (
+                                            <span className="text-[9px] text-slate-600 dark:text-slate-400 mt-px flex items-center gap-1 truncate" title={rooms.find(r => r.id === evt.roomId)?.name}>
+                                              <MapPin size={8} className="flex-shrink-0" />
+                                              {rooms.find(r => r.id === evt.roomId)?.name}
+                                            </span>
+                                          )}
+                                        </div>
                                       </div>
                                     );
                                   })
@@ -1595,7 +1617,7 @@ export const CalendarView: React.FC<Props> = ({
         {/* Main Floating Action Button */}
         <button
           onClick={() => setIsSpeedDialOpen(!isSpeedDialOpen)}
-          className="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg"
+          className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-full w-14 h-14 flex items-center justify-center shadow-lg"
           style={{ transition: 'transform 400ms ease-out, background-color 200ms' }}
         >
           {isSpeedDialOpen ? <ChevronUp size={32} /> : <Plus size={32} />}
@@ -2066,7 +2088,7 @@ export const CalendarView: React.FC<Props> = ({
                 {editingEvent.id && <button type="button" onClick={() => { handleDeleteEvent(editingEvent.id!, editingEvent as CalendarEvent); setIsModalOpen(false); }} className="text-red-500 hover:text-red-700 text-sm font-medium">{t('cal.delete_event')}</button>}
                 <div className="flex space-x-3 rtl:space-x-reverse ms-auto">
                   <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">{t('btn.cancel')}</button>
-                  <button type="submit" className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg">{t('cal.save_changes')}</button>
+                  <button type="submit" className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg">{t('cal.save_changes')}</button>
                 </div>
               </div>
             </form>
@@ -2098,7 +2120,7 @@ export const CalendarView: React.FC<Props> = ({
               </button>
               <button
                 onClick={() => handleSeriesAction('ALL')}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium transition-colors text-sm"
+                className="flex-1 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft py-3 rounded-lg font-medium transition-colors text-sm"
               >
                 {t('recurrence.all_events')}
               </button>

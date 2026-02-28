@@ -6,11 +6,10 @@ describe('Payroll Engine', () => {
     const mockTeacher: Teacher = {
         id: 't1',
         fullName: 'Jane Doe',
-        firstName: 'Jane',
-        lastName: 'Doe',
         phone: '',
         email: '',
         color: '#000',
+        positions: [],
         positionAssignments: [
             {
                 id: 'pos1',
@@ -23,9 +22,11 @@ describe('Payroll Engine', () => {
         tags: []
     };
 
-    const baseEvent: CalendarEvent = {
+    const baseEvent = {
         id: 'evt1',
-        title: 'Test Event',
+        name: 'Test Event',
+        description: '',
+        isHidden: false,
         start: '2026-05-15T10:00:00.000Z',
         end: '2026-05-15T11:00:00.000Z',
         isCanceled: false,
@@ -43,7 +44,7 @@ describe('Payroll Engine', () => {
             pricingSnapshot: {
                 rateValue: 500,
                 rateType: 'ONE_OFF',
-                source: 'OVERRIDE'
+                source: 'MANUAL'
             }
         };
 
@@ -63,7 +64,7 @@ describe('Payroll Engine', () => {
             pricingSnapshot: {
                 rateValue: 500,
                 rateType: 'ONE_OFF',
-                source: 'OVERRIDE'
+                source: 'MANUAL'
             }
         };
 
@@ -84,7 +85,7 @@ describe('Payroll Engine', () => {
             pricingSnapshot: {
                 rateValue: 500,
                 rateType: 'ONE_OFF',
-                source: 'OVERRIDE'
+                source: 'MANUAL'
             }
         };
 

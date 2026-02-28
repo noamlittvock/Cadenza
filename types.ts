@@ -65,14 +65,20 @@ export interface CategorySchema {
 }
 
 // Rate assignment types for position-based billing
-export type RateType = 'HOURLY' | 'GLOBAL_MONTHLY' | 'ONE_OFF';
+export type RateType = 'HOURLY' | 'GLOBAL_MONTHLY' | 'ONE_OFF' | 'PER_EVENT';
 
 export interface PositionAssignment {
   id: string;               // Unique ID for this assignment
   positionName: string;      // e.g. "Piano Instructor"
   category: string;          // e.g. "Individual Lesson", "Group Lesson", "Administrative"
-  rateType: RateType;        // HOURLY or GLOBAL_MONTHLY
-  rateValue: number;         // Rate amount (per-hour or flat monthly fee)
+  rateType: RateType;        // HOURLY or GLOBAL_MONTHLY or PER_EVENT
+  rateValue: number;         // Rate amount (per-hour, per-event, or flat monthly fee)
+  cost?: number;             // Cost per position
+  vat?: { type: 'PERCENTAGE' | 'FLAT', value: number };
+  overheadFeeType?: 'PERCENTAGE' | 'FLAT';
+  overheadFeeValue?: number;
+  socialBenefitsType?: 'PERCENTAGE' | 'FLAT';
+  socialBenefitsValue?: number;
 }
 
 export interface Teacher {

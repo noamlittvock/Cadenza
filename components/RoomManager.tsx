@@ -72,7 +72,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
           </div>
           <button
             onClick={() => handleOpenModal()}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm"
+            className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg flex items-center "
           >
             <Plus size={18} className="me-2" /> {t('room.add')}
           </button>
@@ -82,7 +82,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
         <div className="flex justify-end mb-6">
           <button
             onClick={() => handleOpenModal()}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm"
+            className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg flex items-center "
           >
             <Plus size={18} className="me-2" /> {t('room.add')}
           </button>
@@ -158,7 +158,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg"
+                  className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg"
                 >
                   {t('btn.save')}
                 </button>
