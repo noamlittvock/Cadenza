@@ -23,10 +23,7 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
     color: COLORS[0],
     isBlackout: false
   });
-  const [initialFormData, setInitialFormData] = useState<Partial<GanttBlock>>({
-    color: COLORS[0],
-    isBlackout: false
-  });
+  const [hasManuallySetEndDate, setHasManuallySetEndDate] = useState(false);
 
   // Blackout Logic: Apply to events in range (HIDE events)
   const applyBlackout = (block: GanttBlock) => {
@@ -61,12 +58,11 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
     if (block) {
       setEditingId(block.id);
       setFormData({ ...block });
-      setInitialFormData({ ...block });
+      setHasManuallySetEndDate(true);
     } else {
       setEditingId(null);
-      const newBlockData = { color: COLORS[0], isBlackout: false };
-      setFormData(newBlockData);
-      setInitialFormData(newBlockData);
+      setFormData({ color: COLORS[0], isBlackout: false });
+      setHasManuallySetEndDate(false);
     }
     setIsModalOpen(true);
   };
@@ -188,80 +184,53 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
         )}
       </div>
 
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={editingId ? t('gantt.edit_period') : t('gantt.add_period')}
-        isDirty={JSON.stringify(formData) !== JSON.stringify(initialFormData)}
-        onSave={handleSubmit}
-        t={t}
-        maxWidth="max-w-md"
-        footerContent={
-          <div className="flex justify-end space-x-3 rtl:space-x-reverse w-full">
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
-            >
-              {t('btn.cancel')}
-            </button>
-            <button
-              onClick={handleSubmit}
-              className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg"
-            >
-              {editingId ? t('gantt.save_changes') : (formData.isBlackout ? t('gantt.create_apply') : t('btn.create'))}
-            </button>
-          </div>
-        }
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.label_title')}</label>
-            <input
-              type="text"
-              className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-              value={formData.title || ''}
-              onChange={e => setFormData({ ...formData, title: e.target.value })}
-              placeholder={t('gantt.name_placeholder')}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.start_date')}</label>
-              <DatePicker
-                type="date"
-                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                value={formData.startDate ? new Date(formData.startDate).toISOString().split('T')[0] : ''}
-                onChange={e => {
-                  const newStart = e.target.value;
-                  setFormData(prev => {
-                    const next = { ...prev, startDate: newStart };
-                    if (!prev.endDate || (new Date(newStart) > new Date(prev.endDate))) {
-                      next.endDate = newStart;
-                    }
-                    return next;
-                  });
-                }}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.end_date')}</label>
-              <DatePicker
-                type="date"
-                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                value={formData.endDate ? new Date(formData.endDate).toISOString().split('T')[0] : ''}
-                onChange={e => {
-                  const newEnd = e.target.value;
-                  setFormData(prev => {
-                    const next = { ...prev, endDate: newEnd };
-                    if (prev.startDate && (new Date(newEnd) < new Date(prev.startDate))) {
-                      next.startDate = newEnd;
-                    }
-                    return next;
-                  });
-                }}
-              />
-            </div>
-          </div>
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-md p-6 border border-slate-200 dark:border-slate-800">
+            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{editingId ? t('gantt.edit_period') : t('gantt.add_period')}</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.label_title')}</label>
+                <input
+                  type="text"
+                  className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.title || ''}
+                  onChange={e => setFormData({ ...formData, title: e.target.value })}
+                  placeholder={t('gantt.name_placeholder')}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.start_date')}</label>
+                  <input
+                    type="date"
+                    className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.startDate ? new Date(formData.startDate).toISOString().split('T')[0] : ''}
+                    onChange={e => {
+                      const newStart = e.target.value;
+                      if (!newStart) return;
+
+                      const updates: Partial<GanttBlock> = { startDate: new Date(newStart).toISOString() };
+                      if (!hasManuallySetEndDate) {
+                        updates.endDate = new Date(newStart).toISOString();
+                      }
+                      setFormData({ ...formData, ...updates });
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.end_date')}</label>
+                  <input
+                    type="date"
+                    className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.endDate ? new Date(formData.endDate).toISOString().split('T')[0] : ''}
+                    onChange={e => {
+                      setHasManuallySetEndDate(true);
+                      setFormData({ ...formData, endDate: new Date(e.target.value).toISOString() });
+                    }}
+                  />
+                </div>
+              </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{t('gantt.display_color')}</label>
