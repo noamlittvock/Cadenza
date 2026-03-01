@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, ListsState, RecurrenceRule, DayOfWeek } from '../types';
+import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, ListsState, RecurrenceRule, DayOfWeek, Student } from '../types';
 import { generateId, INITIAL_LISTS, INITIAL_RATE_CARDS } from '../constants';
 import { CATEGORY_SCHEMAS } from '../utils/schemaRegistry';
 import { lookupRate } from '../utils/rateLookup';
-import { ChevronLeft, ChevronRight, AlertCircle, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronUp, ChevronDown, Repeat, Ban, RotateCcw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertCircle, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronUp, ChevronDown, Repeat, Ban, RotateCcw, GraduationCap, Star, FolderOpen } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { syncEventToGoogle, removeEventFromGoogle, updateEventInGoogle } from '../utils/googleCalendarSync';
 import { DatePicker } from './DatePicker';
@@ -13,6 +13,7 @@ import { TRANSLATIONS } from '../constants';
 interface Props {
   events: CalendarEvent[];
   setEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>;
+  students: Student[];
   teachers: Teacher[];
   rooms: Room[];
   ganttBlocks: GanttBlock[];
@@ -62,7 +63,7 @@ const SNAP_MINUTES = 15;
 let savedScrollTop = START_HOUR * PIXELS_PER_HOUR; // Default: scroll to 7 AM
 
 export const CalendarView: React.FC<Props> = ({
-  events, setEvents, teachers, rooms, ganttBlocks, setGanttBlocks, settings, lists,
+  events, setEvents, students, teachers, rooms, ganttBlocks, setGanttBlocks, settings, lists,
   onNavigate, currentView,
   selectionMode, setSelectionMode, selectedEventIds, setSelectedEventIds,
   setIsMobileMenuOpen,
@@ -79,6 +80,7 @@ export const CalendarView: React.FC<Props> = ({
   const activeLists = lists || INITIAL_LISTS;
 
   // Filters
+  const [filterStudent, setFilterStudent] = useState<string>('ALL');
   const [filterTeacher, setFilterTeacher] = useState<string>('ALL');
   const [filterRoom, setFilterRoom] = useState<string>('ALL');
   const [filterClass, setFilterClass] = useState<string>('ALL');
@@ -365,6 +367,12 @@ export const CalendarView: React.FC<Props> = ({
       // Hide blackout-hidden events if toggle is off
       if (evt.isHidden && !showBlackouts) return false;
 
+      if (filterStudent !== 'ALL') {
+        const matchesSingle = evt.studentId === filterStudent;
+        const matchesArray = evt.studentIds?.includes(filterStudent);
+        if (!matchesSingle && !matchesArray) return false;
+      }
+
       const teacher = teachers.find(t => t.id === evt.teacherId);
 
       if (filterTeacher !== 'ALL' && evt.teacherId !== filterTeacher) return false;
@@ -381,7 +389,7 @@ export const CalendarView: React.FC<Props> = ({
 
       return true;
     });
-  }, [expandedEvents, teachers, filterTeacher, filterRoom, filterClass, filterPosition, filterTag, showCanceled, showBlackouts]);
+  }, [expandedEvents, teachers, filterStudent, filterTeacher, filterRoom, filterClass, filterPosition, filterTag, showCanceled, showBlackouts]);
 
   const displayEvents = useMemo(() => {
     if (tempEvent) {
@@ -627,7 +635,7 @@ export const CalendarView: React.FC<Props> = ({
     openModal({
       start: start.toISOString(),
       end: end.toISOString(),
-      classification: activeLists.classifications[0], // Use activeLists
+      classification: activeLists.categories[0]?.name || activeLists.classifications[0] || '', // Use activeLists
       teacherId: teachers[0]?.id,
       roomId: rooms[0]?.id
     });
@@ -1083,6 +1091,14 @@ export const CalendarView: React.FC<Props> = ({
                 <User size={10} className="flex-shrink-0" />
                 <span className="truncate">{teachers.find(t => t.id === evt.teacherId)?.fullName}</span>
               </div>
+              {evt.studentId && (
+                <div className="truncate opacity-75 font-semibold flex items-center gap-1 mt-0.5 text-blue-700 dark:text-blue-300" style={{ fontSize: timeFontSize }}>
+                  <GraduationCap size={10} className="flex-shrink-0" />
+                  <span className="truncate">
+                    {students.find(s => s.id === evt.studentId)?.fullName}
+                  </span>
+                </div>
+              )}
               {evt.roomId && (
                 <div className="truncate opacity-75 font-medium flex items-center gap-1 mt-0.5 text-slate-700 dark:text-slate-300" style={{ fontSize: timeFontSize }}>
                   <MapPin size={10} className="flex-shrink-0" />
@@ -1547,7 +1563,7 @@ export const CalendarView: React.FC<Props> = ({
           {/* Filter Toggle Button */}
           <button
             onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
-            className={`p-2 rounded-lg border transition-colors ${isFiltersExpanded || filterTeacher !== 'ALL' || filterRoom !== 'ALL' || filterClass !== 'ALL' || filterPosition !== 'ALL' || filterTag !== 'ALL'
+            className={`p-2 rounded-lg border transition-colors ${isFiltersExpanded || filterStudent !== 'ALL' || filterTeacher !== 'ALL' || filterRoom !== 'ALL' || filterClass !== 'ALL' || filterPosition !== 'ALL' || filterTag !== 'ALL'
               ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800'
               : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
@@ -1559,6 +1575,10 @@ export const CalendarView: React.FC<Props> = ({
           {/* Inline Filter Panel - always flows inline next to the filter toggle */}
           {isFiltersExpanded && (
             <div className="flex items-center gap-2 flex-nowrap">
+              <select className="filter-select-uniform" value={filterStudent} onChange={e => setFilterStudent(e.target.value)}>
+                <option value="ALL">{t('cal.filter.student_all') || 'All Students'}</option>
+                {students.map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
+              </select>
               <select className="filter-select-uniform" value={filterTeacher} onChange={e => setFilterTeacher(e.target.value)}>
                 <option value="ALL">{t('cal.filter.teacher_all')}</option>
                 {teachers.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}
@@ -1567,9 +1587,9 @@ export const CalendarView: React.FC<Props> = ({
                 <option value="ALL">{t('cal.filter.room_all')}</option>
                 {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
-              <select className="filter-select-uniform" value={filterClass} onChange={e => setFilterClass(e.target.value)}>
-                <option value="ALL">{t('cal.filter.type_all')}</option>
-                {activeLists.classifications.map(c => <option key={c} value={c}>{c}</option>)}
+              <select className="border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-2 py-1 text-sm outline-none" value={filterClass} onChange={e => setFilterClass(e.target.value)}>
+                <option value="ALL">{t('filter.category_all')}</option>
+                {activeLists.categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
               <select className="filter-select-uniform" value={filterPosition} onChange={e => setFilterPosition(e.target.value)}>
                 <option value="ALL">{t('cal.filter.position_all')}</option>
@@ -1684,6 +1704,12 @@ export const CalendarView: React.FC<Props> = ({
                     <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><Clock size={16} className="me-3 flex-shrink-0" /><span>{new Date((detailItem.data as CalendarEvent).start).toLocaleString(settings.language)} - <br />{formatTime(new Date((detailItem.data as CalendarEvent).end))}</span></div>
                     <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><User size={16} className="me-3 flex-shrink-0" /><span>{teachers.find(t => t.id === (detailItem.data as CalendarEvent).teacherId)?.fullName}</span></div>
                     <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><MapPin size={16} className="me-3 flex-shrink-0" /><span>{rooms.find(r => r.id === (detailItem.data as CalendarEvent).roomId)?.name}</span></div>
+                    {detailItem.data.type !== 'GANTT' && (detailItem.data as CalendarEvent).studentId && (
+                      <div className="flex items-center text-sm text-blue-700 dark:text-blue-400 font-semibold mt-1"><GraduationCap size={16} className="me-3 flex-shrink-0" /><span>{students.find(s => s.id === (detailItem.data as CalendarEvent).studentId)?.fullName}</span></div>
+                    )}
+                    {(detailItem.data as CalendarEvent).studentId && students.find(s => s.id === (detailItem.data as CalendarEvent).studentId)?.linkedFolderUrl && (
+                      <div className="flex items-center text-sm text-blue-500 mt-1"><FolderOpen size={16} className="me-3 flex-shrink-0" /><a href={students.find(s => s.id === (detailItem.data as CalendarEvent).studentId)?.linkedFolderUrl} target="_blank" rel="noreferrer" className="hover:underline">{t('student.linked_folder')}</a></div>
+                    )}
                     {(detailItem.data as CalendarEvent).isCanceled && <div className="mt-2 bg-red-100 text-red-700 text-xs px-2 py-1 rounded inline-block font-bold">{t('cal.canceled')}</div>}
                     {(detailItem.data as CalendarEvent).recurrenceRule && <div className="mt-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-bold"><Repeat size={10} /> {t('cal.recurring')}</div>}
                     {(detailItem.data as CalendarEvent).recurrenceId && <div className="mt-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-bold"><Repeat size={10} /> {t('cal.part_of_series')}</div>}
@@ -1769,18 +1795,37 @@ export const CalendarView: React.FC<Props> = ({
             </label>
             <select required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.classification || ''} onChange={e => {
               const val = e.target.value;
-              setEditingEvent({ ...editingEvent, classification: val, teacherId: undefined, positionId: undefined, roomId: undefined, overrideFlags: { ...editingEvent.overrideFlags, isOneOffPayment: false, paymentMethod: 'NONE' }, pricingSnapshot: undefined });
+              setEditingEvent({ ...editingEvent, classification: val, subtypeId: undefined, teacherId: undefined, positionId: undefined, roomId: undefined, overrideFlags: { ...editingEvent.overrideFlags, isOneOffPayment: false, paymentMethod: 'NONE' }, pricingSnapshot: undefined });
             }}>
               <option value="" disabled>{t('event.select_category')}</option>
               <optgroup label={t('event.teacher_lessons')}>
                 {['Individual Lesson', 'Group Lesson'].map(c => <option key={c} value={c}>{c}</option>)}
               </optgroup>
               <optgroup label={t('event.general_events')}>
-                {activeLists.classifications.filter(c => !['Individual Lesson', 'Group Lesson'].includes(c)).map(c => <option key={c} value={c}>{c}</option>)}
-                {Object.values(CATEGORY_SCHEMAS).filter(s => !activeLists.classifications.includes(s.name) && !['Individual Lesson', 'Group Lesson'].includes(s.name)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {activeLists.categories.filter(c => !['Individual Lesson', 'Group Lesson'].includes(c.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                {Object.values(CATEGORY_SCHEMAS).filter(s => !activeLists.categories.some(c => c.name === s.name) && !['Individual Lesson', 'Group Lesson'].includes(s.name)).map(s => <option key={s.id} value={s.id}>{s.name || s.id}</option>)}
               </optgroup>
             </select>
           </div>
+
+          {/* 2.5 Sub-Category (conditional) */}
+          {editingEvent.classification && (activeLists.categories.find(c => c.name === editingEvent.classification)?.subcategories?.length || 0) > 0 && (
+            <div>
+              <label className="block flex items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <span>{t('list.subcategory') || 'Sub-Category'}</span>
+              </label>
+              <select
+                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
+                value={editingEvent.subtypeId || ''}
+                onChange={e => setEditingEvent({ ...editingEvent, subtypeId: e.target.value })}
+              >
+                <option value="">— {t('filter.category_all') || 'Select'} —</option>
+                {activeLists.categories.find(c => c.name === editingEvent.classification)?.subcategories.map(sub => (
+                  <option key={sub.id} value={sub.name}>{sub.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* 2. Teacher */}
           <div>
@@ -1912,6 +1957,24 @@ export const CalendarView: React.FC<Props> = ({
               </div>
             )}
           </div>
+
+          {/* 3.5 Student */}
+          {['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                {t('event.student')} <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span>
+              </label>
+              <select
+                disabled={!editingEvent.teacherId}
+                className={`w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none ${!editingEvent.teacherId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                value={editingEvent.studentId || ''}
+                onChange={e => setEditingEvent({ ...editingEvent, studentId: e.target.value || undefined })}
+              >
+                <option value="">— {editingEvent.teacherId ? t('event.select_student') : t('event.select_teacher_first')} —</option>
+                {students.filter(s => s.teacherId === editingEvent.teacherId).map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
+              </select>
+            </div>
+          )}
 
           {/* 4. Room */}
           <div>

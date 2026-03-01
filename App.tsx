@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
-import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState } from './types';
+import {
+  ViewState, Teacher, Room, CalendarEvent, GanttBlock,
+  AppSettings,
+  ListsState,
+  Student
+} from './types';
 import { ChartConfiguration } from './types/chartBuilder';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, TRANSLATIONS, migrateTeacher } from './constants';
 
@@ -96,6 +101,7 @@ function AppContent() {
   const [rooms, setRooms] = useFirestoreSync<Room>('rooms', []);
   const [events, setEvents] = useFirestoreSync<CalendarEvent>('events', []);
   const [ganttBlocks, setGanttBlocks] = useFirestoreSync<GanttBlock>('ganttBlocks', []);
+  const [students, setStudents] = useFirestoreSync<Student>('students', []);
   const [settings, setSettings] = useFirestoreSettings<AppSettings>('settings', INITIAL_SETTINGS);
   const [lists, setLists] = useFirestoreSettings<ListsState>('lists', INITIAL_LISTS);
   const [savedCharts, setSavedCharts] = useFirestoreSettings<ChartConfiguration[]>('customCharts', []);
@@ -142,6 +148,7 @@ function AppContent() {
         setGanttBlocks={setGanttBlocks}
         settings={settings}
         lists={lists}
+        students={students}
         // Marquee Props
         selectionMode={selectionMode}
         setSelectionMode={setSelectionMode}
@@ -219,6 +226,7 @@ function AppContent() {
                     rooms={rooms}
                     settings={settings}
                     lists={lists}
+                    students={students}
                     selectionMode={selectionMode}
                     setSelectionMode={setSelectionMode}
                     selectedEventIds={selectedEventIds}
@@ -246,6 +254,8 @@ function AppContent() {
             setRooms={setRooms}
             lists={lists}
             setLists={setLists}
+            students={students}
+            setStudents={setStudents}
             settings={settings}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
           />
@@ -272,6 +282,7 @@ function AppContent() {
                 setRooms([]);
                 setEvents([]);
                 setGanttBlocks([]);
+                setStudents([]);
               }
             }}
           />

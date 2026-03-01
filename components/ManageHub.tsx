@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Teacher, Room, ListsState, AppSettings } from '../types';
+import { Teacher, Room, ListsState, AppSettings, Student } from '../types';
 import { TeacherManager } from './TeacherManager';
 import { RoomManager } from './RoomManager';
 import { ManageLists } from './ManageLists';
-import { Users, Home, List, Menu } from 'lucide-react';
+import { StudentManager } from './StudentManager';
+import { Users, Home, List, Menu, GraduationCap } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
 
-type ManageTab = 'teachers' | 'rooms' | 'lists';
+type ManageTab = 'teachers' | 'rooms' | 'lists' | 'students';
 
 interface Props {
     teachers: Teacher[];
@@ -15,6 +16,8 @@ interface Props {
     setRooms: React.Dispatch<React.SetStateAction<Room[]>>;
     lists: ListsState;
     setLists: React.Dispatch<React.SetStateAction<ListsState>>;
+    students: Student[];
+    setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
     settings: AppSettings;
     onMobileMenuOpen: () => void;
     initialTab?: ManageTab;
@@ -28,6 +31,8 @@ export const ManageHub: React.FC<Props> = ({
     setRooms,
     lists,
     setLists,
+    students,
+    setStudents,
     settings,
     onMobileMenuOpen,
     initialTab = 'teachers',
@@ -40,7 +45,7 @@ export const ManageHub: React.FC<Props> = ({
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const tabFromUrl = params.get('tab') as ManageTab;
-        if (tabFromUrl && ['teachers', 'rooms', 'lists'].includes(tabFromUrl)) {
+        if (tabFromUrl && ['teachers', 'rooms', 'lists', 'students'].includes(tabFromUrl)) {
             setActiveTab(tabFromUrl);
         }
     }, []);
@@ -58,6 +63,7 @@ export const ManageHub: React.FC<Props> = ({
         { id: 'teachers', label: t('nav.teachers'), icon: Users },
         { id: 'rooms', label: t('nav.rooms'), icon: Home },
         { id: 'lists', label: t('nav.lists'), icon: List },
+        { id: 'students', label: t('nav.students'), icon: GraduationCap },
     ];
 
     return (
@@ -134,6 +140,16 @@ export const ManageHub: React.FC<Props> = ({
                         settings={settings}
                         onMobileMenuOpen={onMobileMenuOpen}
                         embedded={true}
+                    />
+                )}
+                {activeTab === 'students' && (
+                    <StudentManager
+                        students={students}
+                        setStudents={setStudents}
+                        teachers={teachers}
+                        onMobileMenuOpen={onMobileMenuOpen}
+                        embedded={true}
+                        settings={settings}
                     />
                 )}
             </div>

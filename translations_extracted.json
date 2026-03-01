@@ -2674,5 +2674,125 @@
   {
     "key": "teach.overhead_type",
     "screen_group": "TeacherManager"
+  },
+  {
+    "key": "cal.filter.student_all",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "student.linked_folder",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "event.student",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "event.select_student",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "nav.students",
+    "screen_group": "ManageHub"
+  },
+  {
+    "key": "modal_unsaved_changes",
+    "screen_group": "Modal"
+  },
+  {
+    "key": "modal_discard_prompt",
+    "screen_group": "Modal"
+  },
+  {
+    "key": "common_discard",
+    "screen_group": "Modal"
+  },
+  {
+    "key": "student.confirm_delete",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.confirm_bulk_prefix",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.students_word",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.subtitle",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.add_new_student",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.all_teachers",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.delete_selection",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.col_name",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.col_instrument",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.col_teacher",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.col_parents",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.col_actions",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.duration_min",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.edit_student",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.instrument",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.col_duration",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.recital_track",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.notes",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.parents_label",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.add_parent",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.parent_name",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.parent_relation",
+    "screen_group": "StudentManager"
   }
 ]

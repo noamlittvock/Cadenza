@@ -92,6 +92,30 @@ export interface Teacher {
   color: string; // Hex code
 }
 
+export interface ParentContact {
+  id: string;
+  name: string;
+  relation: string;
+  phone: string;
+  email: string;
+}
+
+export interface StudentInstrument {
+  id: string;
+  name: string;
+  teacherId: string;
+}
+
+export interface Student {
+  id: string;
+  fullName: string;
+  instruments: StudentInstrument[];
+  lessonDuration: number;
+  parents: ParentContact[];
+  linkedFolderUrl?: string;
+  notes?: string;
+}
+
 export interface Room {
   id: string;
   name: string;
@@ -117,6 +141,8 @@ export interface CalendarEvent {
   description: string;
   teacherId?: string;
   roomId?: string;
+  studentId?: string;
+  studentIds?: string[];
   categoryId?: string;
   subtypeId?: string;
   schemaPayload?: Record<string, any>;
@@ -175,10 +201,22 @@ export interface AppSettings {
   googleCalendarConnectedBy?: string; // Email of the admin who connected GCal for this tenant
 }
 
+export interface SubCategoryItem {
+  id: string;
+  name: string;
+}
+
+export interface CategoryItem {
+  id: string;
+  name: string;
+  subcategories: SubCategoryItem[];
+}
+
 export interface ListsState {
   positions: string[];
   tags: string[];
   classifications: string[];
+  categories: CategoryItem[];
 }
 
 export type ViewState = 'CALENDAR' | 'GANTT' | 'MANAGE' | 'SETTINGS' | 'FINANCIAL' | 'FINANCIAL_ANALYSIS' | 'POWER_TOOLS' | 'SUPER_ADMIN';

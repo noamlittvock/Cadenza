@@ -1,4 +1,4 @@
-import { Teacher, Room, CalendarEvent, GanttBlock, Classification, AppSettings, ListsState, PositionAssignment, RateCard } from './types';
+import { Teacher, Room, CalendarEvent, GanttBlock, Classification, AppSettings, ListsState, PositionAssignment, RateCard, Student } from './types';
 
 export const COLORS = [
   '#3b82f6', // blue
@@ -55,7 +55,12 @@ export const INITIAL_SETTINGS: AppSettings = {
 export const INITIAL_LISTS: ListsState = {
   positions: ['Piano Instructor', 'Voice Coach', 'Violin Teacher', 'Choir Director', 'Theory Teacher'],
   tags: ['Piano Dept', 'Strings Dept', 'Vocal Dept', 'Senior Staff', 'Junior Staff'],
-  classifications: Object.values(Classification) as string[]
+  classifications: Object.values(Classification) as string[],
+  categories: (Object.values(Classification) as string[]).map(name => ({
+    id: `cat-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+    name,
+    subcategories: []
+  }))
 };
 
 export const HEBREW_CALENDAR_OPTIONS = {
@@ -362,7 +367,7 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     // Manage Lists
     'lists.title': 'Dropdown Lists',
     'lists.desc': 'Update your app by modifying these lists.',
-    'lists.classifications': 'Classifications',
+    'lists.categories': 'Categories',
     'lists.how_to': 'How to use this tool:',
     'lists.step1': '1. Fill in the data below',
     'lists.step2': '2. Export to CSV',
@@ -500,13 +505,13 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'cal.monthly': 'Monthly',
     'cal.yearly': 'Yearly',
     'lists.manage_title': 'Manage Lists',
-    'lists.configure_desc': 'Configure global dropdown options for Positions, Tags, and Classifications.',
+    'lists.configure_desc': 'Configure global dropdown options for Positions, Tags, and Categories.',
     'lists.positions': 'Positions',
     'lists.tags': 'Tags',
     'lists.import_preview': 'Import Preview',
     'lists.new_positions': 'New Positions',
     'lists.new_tags': 'New Tags',
-    'lists.new_classifications': 'New Classifications',
+    'lists.new_categories': 'New Categories',
     'lists.import_all': 'Import All',
     'lists.no_items': 'No items found',
     'lists.import_csv': 'Import CSV',
@@ -895,7 +900,6 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'dim.week': 'Week',
     'dim.day_of_week': 'Day of Week',
     'dim.room': 'Room',
-    'dim.classification': 'Classification',
     'metric.active_hours': 'Active Hours',
     'metric.canceled_hours': 'Canceled Hours',
     'metric.total_hours': 'Total Hours',
@@ -1058,6 +1062,33 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'layout.dark_mode': 'Dark Mode',
     'layout.mobile_access': 'Mobile Access',
     'layout.copyright': 'Copyright Noam Solutions.',
+    'nav.students': 'Students',
+    'student.col_name': 'Name',
+    'student.col_instrument': 'Instrument',
+    'student.col_teacher': 'Teacher',
+    'student.col_duration': 'Duration',
+    'student.col_parents': 'Parents',
+    'student.col_actions': 'Actions',
+    'student.subtitle': 'Manage student profiles and parent contact info.',
+    'student.add_new_student': 'Add New Student',
+    'student.edit_student': 'Edit Student',
+    'student.instrument': 'Instrument',
+    'student.duration_min': '{min} min',
+    'student.parents_label': 'Parent Contacts',
+    'student.add_parent': 'Add Parent',
+    'student.parent_relation': 'Relation (e.g. Mother)',
+    'student.parent_name': 'Parent Name',
+    'student.linked_folder': 'Linked Folder URL',
+    'student.recital_track': 'Recital Track',
+    'student.notes': 'Notes',
+    'student.delete_selection': 'Delete Selection',
+    'student.confirm_delete': 'Are you sure you want to delete this student?',
+    'student.confirm_bulk_prefix': 'Are you sure you want to delete',
+    'student.students_word': 'students',
+    'student.teachers_only': 'Only assigned teacher',
+    'student.all_teachers': 'All Teachers',
+    'event.student': 'Student',
+    'event.no_student': 'None',
   },
   'he-IL': {
     'app.title': 'מרכז המוזיקה אלפרט',
@@ -1358,7 +1389,7 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     // Manage Lists
     'lists.title': 'רשימות בחירה',
     'lists.desc': 'עדכן את האפליקציה שלך על ידי שינוי רשימות אלו.',
-    'lists.classifications': 'סיווגים',
+    'lists.categories': 'קטגוריות',
     'lists.how_to': 'איך להשתמש בכלי זה:',
     'lists.step1': '1. מלא את הנתונים למטה',
     'lists.step2': '2. ייצא ל-CSV',
@@ -1608,7 +1639,7 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'lists.import_csv': 'ייבוא CSV',
     'lists.import_preview': 'תצוגה מקדימה לייבוא',
     'lists.manage_title': 'ניהול רשימות',
-    'lists.new_classifications': 'סיווגים חדשים',
+    'lists.new_categories': 'קטגוריות חדשות',
     'lists.new_positions': 'תפקידים חדשים',
     'lists.new_tags': 'תגיות חדשות',
     'lists.no_items': 'לא נמצאו פריטים',
@@ -1892,7 +1923,6 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'dim.week': 'שבוע',
     'dim.day_of_week': 'יום בשבוע',
     'dim.room': 'חדר',
-    'dim.classification': 'סיווג',
     'metric.active_hours': 'שעות פעילות',
     'metric.canceled_hours': 'שעות מבוטלות',
     'metric.total_hours': 'סה"כ שעות',
@@ -2055,6 +2085,33 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'layout.dark_mode': 'מצב כהה',
     'layout.mobile_access': 'גישה מנייד',
     'layout.copyright': 'זכויות יוצרים Noam Solutions.',
+    'nav.students': 'תלמידים',
+    'student.col_name': 'שם',
+    'student.col_instrument': 'כלי נגינה',
+    'student.col_teacher': 'מורה',
+    'student.col_duration': 'משך',
+    'student.col_parents': 'הורים',
+    'student.col_actions': 'פעולות',
+    'student.subtitle': 'נהל פרופילי תלמידים ופרטי קשר של הורים.',
+    'student.add_new_student': 'הוספת תלמיד חדש',
+    'student.edit_student': 'עריכת תלמיד',
+    'student.instrument': 'כלי נגינה',
+    'student.duration_min': '{min} דק\'',
+    'student.parents_label': 'אנשי קשר הורים',
+    'student.add_parent': 'הוסף הורה',
+    'student.parent_relation': 'קרבה (לדוגמה: אמא)',
+    'student.parent_name': 'שם ההורה',
+    'student.linked_folder': 'קישור לתיקייה',
+    'student.recital_track': 'מסלול רסיטל',
+    'student.notes': 'הערות',
+    'student.delete_selection': 'מחק בחירה',
+    'student.confirm_delete': 'האם אתה בטוח שברצונך למחוק תלמיד זה?',
+    'student.confirm_bulk_prefix': 'האם אתה בטוח שברצונך למחוק',
+    'student.students_word': 'תלמידים',
+    'student.teachers_only': 'רק מורה משויך',
+    'student.all_teachers': 'כל המורים',
+    'event.student': 'תלמיד',
+    'event.no_student': 'ללא',
   }
 };
 
@@ -2085,6 +2142,8 @@ export const INITIAL_TEACHERS: Teacher[] = [
     tags: ['Strings Dept'], phone: '555-0103', email: 'mike@music.com', color: '#10b981'
   },
 ];
+
+export const INITIAL_STUDENTS: Student[] = [];
 
 export const INITIAL_ROOMS: Room[] = [
   { id: 'R1', name: 'Studio A', itinerary: 'Grand Piano, roughly 20 person capacity.' },
