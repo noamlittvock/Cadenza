@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { ListsState, AppSettings } from '../types';
-import { Plus, X, Tag, Briefcase, Bookmark, Download, Upload, FileDown, CheckCircle2, Menu } from 'lucide-react';
+import { Plus, X, Tag, Briefcase, Bookmark, Download, Upload, FileDown, CheckCircle2, Menu, AlertCircle } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
 import { Modal } from './Modal';
 interface Props {
@@ -164,6 +164,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
 
   const confirmImport = () => {
     setLists(prev => ({
+      ...prev,
       positions: [...prev.positions, ...candidates.positions],
       tags: [...prev.tags, ...candidates.tags],
       classifications: [...prev.classifications, ...candidates.classifications]
@@ -214,7 +215,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <ListEditor
           title={t('lists.positions')}
           icon={Briefcase}
@@ -241,6 +242,15 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
           onRemove={(item) => removeItem('classifications', item)}
           emptyLabel={t('lists.no_items_found')}
           addPlaceholder={t('lists.add_placeholder').replace('{title}', t('lists.classifications'))}
+        />
+        <ListEditor
+          title={t('lists.absence_reasons')}
+          icon={AlertCircle}
+          items={lists.absenceReasons || []}
+          onAdd={(item) => addItem('absenceReasons', item)}
+          onRemove={(item) => removeItem('absenceReasons', item)}
+          emptyLabel={t('lists.no_items_found')}
+          addPlaceholder={t('lists.add_placeholder').replace('{title}', t('lists.absence_reasons'))}
         />
       </div>
 

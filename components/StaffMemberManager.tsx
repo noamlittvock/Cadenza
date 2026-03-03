@@ -1,13 +1,15 @@
 import React, { useState, useRef } from 'react';
 import {
   Teacher, ListsState, PositionAssignment, RateType, AppSettings, Activity,
-  PositionTitleAssignment, TeachingAssignment, Credential, Note, StaffDocument
+  PositionTitleAssignment, TeachingAssignment, Credential, Note, StaffDocument,
+  HoursReport
 } from '../types';
 import { generateId, COLORS, INITIAL_LISTS, TRANSLATIONS } from '../constants';
 import {
   Plus, Edit2, Trash2, Search, Palette, X, Menu,
   DollarSign, Clock, ChevronDown, ChevronUp, Archive, RotateCcw,
-  Upload, FileText, GraduationCap, Music, Briefcase, User, Phone, Mail, Tag
+  Upload, FileText, GraduationCap, Music, Briefcase, User, Phone, Mail, Tag,
+  ClipboardList, Copy, Check, Link2
 } from 'lucide-react';
 import { Modal } from './Modal';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -30,11 +32,13 @@ interface Props {
   setLists: React.Dispatch<React.SetStateAction<ListsState>>;
   activities: Activity[];
   settings: AppSettings;
+  hoursReports: HoursReport[];
+  setHoursReports: React.Dispatch<React.SetStateAction<HoursReport[]>>;
   onMobileMenuOpen: () => void;
 }
 
 export const StaffMemberManager: React.FC<Props> = ({
-  teachers, setTeachers, lists, setLists, activities, settings, onMobileMenuOpen
+  teachers, setTeachers, lists, setLists, activities, settings, hoursReports, setHoursReports, onMobileMenuOpen
 }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
   const { currentUser } = useAuth();
@@ -55,6 +59,7 @@ export const StaffMemberManager: React.FC<Props> = ({
     identity: true, contact: true, position_assignments: true,
     position_titles: false, teaching_assignments: false, tags: true,
     credentials: false, notes: false, documents: false, google_calendar: false, bio: false,
+    hours_reports: false,
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -64,6 +69,49 @@ export const StaffMemberManager: React.FC<Props> = ({
     updates: Partial<TeachingAssignment>;
   } | null>(null);
   const [effectiveDate, setEffectiveDate] = useState('');
+
+  // --- Hours Report State ---
+  const [hrPeriodStart, setHrPeriodStart] = useState('');
+  const [hrPeriodEnd, setHrPeriodEnd] = useState('');
+  const [hrCopiedId, setHrCopiedId] = useState<string | null>(null);
+
+  const generateHoursReportLink = (staffMemberId: string) => {
+    if (!hrPeriodStart || !hrPeriodEnd) return;
+    const token = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${generateId()}${generateId()}${generateId()}`;
+    const report: HoursReport = {
+      id: generateId(),
+      orgId: currentUser?.orgId || '',
+      staffMemberId,
+      token,
+      periodStart: hrPeriodStart,
+      periodEnd: hrPeriodEnd,
+      status: 'PENDING',
+      createdBy: currentUser?.email || '',
+      createdAt: new Date().toISOString(),
+    };
+    setHoursReports(prev => [...prev, report]);
+    setHrPeriodStart('');
+    setHrPeriodEnd('');
+  };
+
+  const copyReportLink = (token: string) => {
+    const url = `${window.location.origin}/report/${token}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setHrCopiedId(token);
+      setTimeout(() => setHrCopiedId(null), 2000);
+    }).catch(() => {
+      const input = document.createElement('input');
+      input.value = url;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      setHrCopiedId(token);
+      setTimeout(() => setHrCopiedId(null), 2000);
+    });
+  };
 
   // --- Helpers ---
 
@@ -1021,6 +1069,84 @@ export const StaffMemberManager: React.FC<Props> = ({
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Hours Reports Section — only when editing an existing staff member */}
+            {editingId && (
+              <>
+                <SectionHeader sectionKey="hours_reports" icon={ClipboardList} label={t('hours.title')} />
+                {expandedSections.hours_reports && (
+                  <div className="space-y-4 pl-2">
+                    {/* Generate New Link */}
+                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                      <h4 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-3">{t('hours.generate_link')}</h4>
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{t('hours.period_start')}</label>
+                          <input
+                            type="date"
+                            value={hrPeriodStart}
+                            onChange={e => setHrPeriodStart(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{t('hours.period_end')}</label>
+                          <input
+                            type="date"
+                            value={hrPeriodEnd}
+                            onChange={e => setHrPeriodEnd(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => generateHoursReportLink(editingId)}
+                        disabled={!hrPeriodStart || !hrPeriodEnd}
+                        className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        <Link2 size={16} />
+                        {t('hours.generate')}
+                      </button>
+                    </div>
+
+                    {/* Existing Reports for this Staff Member */}
+                    {hoursReports
+                      .filter(r => r.staffMemberId === editingId)
+                      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+                      .map(report => (
+                        <div key={report.id} className="bg-white dark:bg-slate-800 rounded-lg p-3 border border-slate-200 dark:border-slate-700 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                              {report.periodStart} → {report.periodEnd}
+                            </span>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                              report.status === 'SUBMITTED' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                              report.status === 'REVIEWED' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                              'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                            }`}>
+                              {t(`hours.${report.status.toLowerCase()}`)}
+                            </span>
+                          </div>
+                          {report.status === 'PENDING' && (
+                            <button
+                              type="button"
+                              onClick={() => copyReportLink(report.token)}
+                              className="w-full px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg flex items-center justify-center gap-1.5 border border-blue-200 dark:border-blue-800"
+                            >
+                              {hrCopiedId === report.token ? <><Check size={14} /> {t('hours.link_copied')}</> : <><Copy size={14} /> {t('hours.copy_link')}</>}
+                            </button>
+                          )}
+                        </div>
+                      ))}
+
+                    {hoursReports.filter(r => r.staffMemberId === editingId).length === 0 && (
+                      <p className="text-sm text-slate-400 dark:text-slate-500 italic text-center py-2">{t('hours.no_reports')}</p>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </form>
         </Modal>

@@ -271,6 +271,7 @@ export interface ListsState {
   tags: string[];
   classifications: string[];
   employmentTypes?: string[];
+  absenceReasons?: string[];
 }
 
 // --- Student Module (Phase 4) ---
@@ -359,6 +360,38 @@ export interface CalendarSubscription {
   createdBy: string;
   createdAt: string;
   isActive: boolean;
+}
+
+// --- Teacher Hours Reporting (Phase 7) ---
+
+export type HoursReportStatus = 'PENDING' | 'SUBMITTED' | 'REVIEWED';
+export type HoursEntryType = 'CALENDAR_CONFIRMED' | 'CALENDAR_ADJUSTED' | 'CALENDAR_NOT_COMPLETED' | 'MANUAL';
+
+export interface HoursEntry {
+  id: string;
+  date: string;
+  description?: string;
+  hours: number;
+  entryType: HoursEntryType;
+  sourceEventId?: string;
+  absenceReason?: string;
+  activityId?: string;
+  subcategoryId?: string;
+}
+
+export interface HoursReport {
+  id: string;
+  orgId: string;
+  staffMemberId: string;
+  token: string;
+  periodStart: string;
+  periodEnd: string;
+  status: HoursReportStatus;
+  submittedAt?: string;
+  reportedEntries?: HoursEntry[];
+  adminNotes?: string;
+  createdBy: string;
+  createdAt: string;
 }
 
 export type ViewState = 'CALENDAR' | 'GANTT' | 'MANAGE' | 'SETTINGS' | 'FINANCIAL' | 'FINANCIAL_ANALYSIS' | 'POWER_TOOLS' | 'SUPER_ADMIN' | 'STAFF_MEMBERS' | 'STUDENTS';

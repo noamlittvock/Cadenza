@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
-import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState, Activity, Student, CalendarSubscription } from './types';
+import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState, Activity, Student, CalendarSubscription, HoursReport } from './types';
 import { ChartConfiguration } from './types/chartBuilder';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, TRANSLATIONS, migrateTeacher } from './constants';
 
@@ -21,6 +21,7 @@ import { ManageHub } from './components/ManageHub';
 import { StaffMemberManager } from './components/StaffMemberManager';
 import { StudentManager } from './components/StudentManager';
 import { SuperAdmin } from './components/SuperAdmin';
+import { TeacherHoursForm } from './components/TeacherHoursForm';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { UserRole } from './context/AuthContext';
@@ -101,6 +102,7 @@ function AppContent() {
   const [activities, setActivities] = useFirestoreSync<Activity>('activities', []);
   const [students, setStudents] = useFirestoreSync<Student>('students', []);
   const [calendarSubscriptions, setCalendarSubscriptions] = useFirestoreSync<CalendarSubscription>('calendarSubscriptions', []);
+  const [hoursReports, setHoursReports] = useFirestoreSync<HoursReport>('hoursReports', []);
   const [settings, setSettings] = useFirestoreSettings<AppSettings>('settings', INITIAL_SETTINGS);
   const [lists, setLists] = useFirestoreSettings<ListsState>('lists', INITIAL_LISTS);
   const [savedCharts, setSavedCharts] = useFirestoreSettings<ChartConfiguration[]>('customCharts', []);
@@ -253,6 +255,8 @@ function AppContent() {
             setLists={setLists}
             activities={activities}
             settings={settings}
+            hoursReports={hoursReports}
+            setHoursReports={setHoursReports}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
           />
         );
@@ -287,7 +291,7 @@ function AppContent() {
           />
         );
       case 'FINANCIAL':
-        return <FinancialDashboard events={events} teachers={teachers} setTeachers={setTeachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} />;
+        return <FinancialDashboard events={events} teachers={teachers} setTeachers={setTeachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} hoursReports={hoursReports} setHoursReports={setHoursReports} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} />;
       case 'FINANCIAL_ANALYSIS':
         return <FinancialAnalysis events={events} teachers={teachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} onNavigateBack={() => setCurrentView('FINANCIAL')} />;
       case 'SUPER_ADMIN':
@@ -341,6 +345,16 @@ function AppContent() {
 }
 
 export default function App() {
+  // Standalone Hours Report form — no auth required
+  const reportMatch = window.location.pathname.match(/^\/report\/(.+)$/);
+  if (reportMatch) {
+    return (
+      <ErrorBoundary>
+        <TeacherHoursForm token={reportMatch[1]} />
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <TranslationProvider>
       <AuthProvider>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { CalendarEvent, Teacher, AppSettings } from '../types';
+import { CalendarEvent, Teacher, AppSettings, HoursReport } from '../types';
 import { ChartConfiguration } from '../types/chartBuilder';
 import { formatHours, formatCurrency } from '../utils/formatters';
 import { TRANSLATIONS } from '../constants';
@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { DatePicker } from './DatePicker';
 import { Modal } from './Modal';
+import { HoursComparisonView } from './HoursComparisonView';
 
 interface Props {
   events: CalendarEvent[];
@@ -18,8 +19,12 @@ interface Props {
   settings: AppSettings;
   savedCharts: ChartConfiguration[];
   setSavedCharts: React.Dispatch<React.SetStateAction<ChartConfiguration[]>>;
+  hoursReports: HoursReport[];
+  setHoursReports: React.Dispatch<React.SetStateAction<HoursReport[]>>;
   onMobileMenuOpen: () => void;
 }
+
+type FinancialTab = 'summary' | 'hours_comparison';
 
 type DateFilterType = 'WEEK' | 'MONTH' | 'CUSTOM' | 'ALL';
 
@@ -107,8 +112,9 @@ type SortColumn = 'name' | 'activeHrs' | 'canceledHrs' | 'canceledEvents' | 'tot
 
 // ---- Main Component ----
 
-export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeachers, settings, savedCharts, setSavedCharts, onMobileMenuOpen }) => {
+export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeachers, settings, savedCharts, setSavedCharts, hoursReports, setHoursReports, onMobileMenuOpen }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
+  const [activeTab, setActiveTab] = useState<FinancialTab>('summary');
   const [dateFilterType, setDateFilterType] = useState<DateFilterType>('MONTH');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
@@ -517,9 +523,24 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeach
               <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{t('fin.title')}</h2>
               <p className="text-slate-500 dark:text-slate-400 text-sm">{t('fin.title')}</p>
             </div>
+            {/* Tab Switcher */}
+            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 ms-4">
+              <button
+                onClick={() => setActiveTab('summary')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'summary' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              >
+                {t('fin.tab_summary')}
+              </button>
+              <button
+                onClick={() => setActiveTab('hours_comparison')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'hours_comparison' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              >
+                {t('nav.hours_comparison')}
+              </button>
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 items-center">
+          {activeTab === 'summary' && <div className="flex flex-wrap gap-2 items-center">
             {/* Date Filter */}
             <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg flex items-center px-2 py-1.5 shadow-sm">
               <CalIcon size={16} className="text-slate-400 me-2" />
@@ -574,9 +595,10 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeach
             <button onClick={() => { setIsEmailModalOpen(true); setEmailSuccess(false); }} className="hidden md:flex btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg items-center  text-sm">
               <Mail size={16} className="me-2" /> {t('fin.email_report')}
             </button>
-          </div>
+          </div>}
         </div>
 
+        {activeTab === 'summary' && <>
         {/* Advanced Filter Panel */}
         {isFilterPanelOpen && (
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg mb-6 p-5 animate-in slide-in-from-top">
@@ -869,6 +891,17 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeach
             </div>
           )}
         </Modal>
+        </>}
+
+        {activeTab === 'hours_comparison' && (
+          <HoursComparisonView
+            hoursReports={hoursReports}
+            setHoursReports={setHoursReports}
+            events={events}
+            teachers={teachers}
+            settings={settings}
+          />
+        )}
       </div>
     </div>
   );
