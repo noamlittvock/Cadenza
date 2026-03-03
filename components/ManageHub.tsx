@@ -1,36 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { Teacher, Room, ListsState, AppSettings } from '../types';
-import { TeacherManager } from './TeacherManager';
+import { Room, ListsState, AppSettings, Activity } from '../types';
 import { RoomManager } from './RoomManager';
 import { ManageLists } from './ManageLists';
-import { Users, Home, List, Menu } from 'lucide-react';
+import { ActivityManager } from './ActivityManager';
+import { Home, List, Menu, Layers } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
 
-type ManageTab = 'teachers' | 'rooms' | 'lists';
+type ManageTab = 'rooms' | 'lists' | 'activities';
 
 interface Props {
-    teachers: Teacher[];
-    setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>;
     rooms: Room[];
     setRooms: React.Dispatch<React.SetStateAction<Room[]>>;
     lists: ListsState;
     setLists: React.Dispatch<React.SetStateAction<ListsState>>;
     settings: AppSettings;
+    activities: Activity[];
+    setActivities: React.Dispatch<React.SetStateAction<Activity[]>>;
     onMobileMenuOpen: () => void;
     initialTab?: ManageTab;
     onTabChange?: (tab: ManageTab) => void;
 }
 
 export const ManageHub: React.FC<Props> = ({
-    teachers,
-    setTeachers,
     rooms,
     setRooms,
     lists,
     setLists,
     settings,
+    activities,
+    setActivities,
     onMobileMenuOpen,
-    initialTab = 'teachers',
+    initialTab = 'activities',
     onTabChange
 }) => {
     const [activeTab, setActiveTab] = useState<ManageTab>(initialTab);
@@ -40,7 +40,7 @@ export const ManageHub: React.FC<Props> = ({
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const tabFromUrl = params.get('tab') as ManageTab;
-        if (tabFromUrl && ['teachers', 'rooms', 'lists'].includes(tabFromUrl)) {
+        if (tabFromUrl && ['rooms', 'lists', 'activities'].includes(tabFromUrl)) {
             setActiveTab(tabFromUrl);
         }
     }, []);
@@ -55,7 +55,7 @@ export const ManageHub: React.FC<Props> = ({
     };
 
     const tabs: { id: ManageTab; label: string; icon: React.ElementType }[] = [
-        { id: 'teachers', label: t('nav.teachers'), icon: Users },
+        { id: 'activities', label: t('nav.activities'), icon: Layers },
         { id: 'rooms', label: t('nav.rooms'), icon: Home },
         { id: 'lists', label: t('nav.lists'), icon: List },
     ];
@@ -107,15 +107,13 @@ export const ManageHub: React.FC<Props> = ({
 
             {/* Content Area */}
             <div className="flex-1 overflow-hidden">
-                {activeTab === 'teachers' && (
-                    <TeacherManager
-                        teachers={teachers}
-                        setTeachers={setTeachers}
-                        lists={lists}
-                        setLists={setLists}
+                {activeTab === 'activities' && (
+                    <ActivityManager
+                        activities={activities}
+                        setActivities={setActivities}
+                        settings={settings}
                         onMobileMenuOpen={onMobileMenuOpen}
                         embedded={true}
-                        settings={settings}
                     />
                 )}
                 {activeTab === 'rooms' && (

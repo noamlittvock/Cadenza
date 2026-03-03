@@ -2674,5 +2674,17 @@
   {
     "key": "teach.overhead_type",
     "screen_group": "TeacherManager"
+  },
+  {
+    "key": "modal_unsaved_changes",
+    "screen_group": "Modal"
+  },
+  {
+    "key": "modal_discard_prompt",
+    "screen_group": "Modal"
+  },
+  {
+    "key": "common_discard",
+    "screen_group": "Modal"
   }
 ]

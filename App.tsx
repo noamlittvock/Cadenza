@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
-import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState } from './types';
+import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState, Activity, Student } from './types';
 import { ChartConfiguration } from './types/chartBuilder';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, TRANSLATIONS, migrateTeacher } from './constants';
 
@@ -18,6 +18,8 @@ import { FinancialAnalysis } from './components/FinancialAnalysis';
 import { PowerTools } from './components/PowerTools';
 import { Settings } from './components/Settings';
 import { ManageHub } from './components/ManageHub';
+import { StaffMemberManager } from './components/StaffMemberManager';
+import { StudentManager } from './components/StudentManager';
 import { SuperAdmin } from './components/SuperAdmin';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -96,6 +98,8 @@ function AppContent() {
   const [rooms, setRooms] = useFirestoreSync<Room>('rooms', []);
   const [events, setEvents] = useFirestoreSync<CalendarEvent>('events', []);
   const [ganttBlocks, setGanttBlocks] = useFirestoreSync<GanttBlock>('ganttBlocks', []);
+  const [activities, setActivities] = useFirestoreSync<Activity>('activities', []);
+  const [students, setStudents] = useFirestoreSync<Student>('students', []);
   const [settings, setSettings] = useFirestoreSettings<AppSettings>('settings', INITIAL_SETTINGS);
   const [lists, setLists] = useFirestoreSettings<ListsState>('lists', INITIAL_LISTS);
   const [savedCharts, setSavedCharts] = useFirestoreSettings<ChartConfiguration[]>('customCharts', []);
@@ -142,6 +146,7 @@ function AppContent() {
         setGanttBlocks={setGanttBlocks}
         settings={settings}
         lists={lists}
+        activities={activities}
         // Marquee Props
         selectionMode={selectionMode}
         setSelectionMode={setSelectionMode}
@@ -219,6 +224,7 @@ function AppContent() {
                     rooms={rooms}
                     settings={settings}
                     lists={lists}
+                    activities={activities}
                     selectionMode={selectionMode}
                     setSelectionMode={setSelectionMode}
                     selectedEventIds={selectedEventIds}
@@ -237,16 +243,42 @@ function AppContent() {
     // Standard Full Page Views
     switch (currentView) {
       // CALENDAR handled above
+      case 'STAFF_MEMBERS':
+        return (
+          <StaffMemberManager
+            teachers={teachers}
+            setTeachers={setTeachers}
+            lists={lists}
+            setLists={setLists}
+            activities={activities}
+            settings={settings}
+            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+          />
+        );
+      case 'STUDENTS':
+        return (
+          <StudentManager
+            students={students}
+            setStudents={setStudents}
+            teachers={teachers}
+            setTeachers={setTeachers}
+            activities={activities}
+            setActivities={setActivities}
+            events={events}
+            settings={settings}
+            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+          />
+        );
       case 'MANAGE':
         return (
           <ManageHub
-            teachers={teachers}
-            setTeachers={setTeachers}
             rooms={rooms}
             setRooms={setRooms}
             lists={lists}
             setLists={setLists}
             settings={settings}
+            activities={activities}
+            setActivities={setActivities}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
           />
         );

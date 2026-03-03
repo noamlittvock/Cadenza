@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CalendarEvent, Teacher, Room, AppSettings, ListsState, GanttBlock } from '../types';
+import { CalendarEvent, Teacher, Room, AppSettings, ListsState, GanttBlock, Activity } from '../types';
 import { TRANSLATIONS, generateId, COLORS } from '../constants';
 import { Trash2, Filter, AlertTriangle, Check, Calendar, User, Tag, BoxSelect, MousePointer2, ListFilter, Hand, XCircle, FileDown, Upload, FileJson } from 'lucide-react';
 import Papa from 'papaparse';
@@ -18,9 +18,10 @@ interface Props {
     setSelectedEventIds?: React.Dispatch<React.SetStateAction<Set<string>>>;
     ganttBlocks?: GanttBlock[];
     setGanttBlocks?: React.Dispatch<React.SetStateAction<GanttBlock[]>>;
+    activities?: Activity[];
 }
 
-export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms, settings, lists, selectionMode, setSelectionMode, selectedEventIds, setSelectedEventIds, ganttBlocks, setGanttBlocks }) => {
+export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms, settings, lists, selectionMode, setSelectionMode, selectedEventIds, setSelectedEventIds, ganttBlocks, setGanttBlocks, activities = [] }) => {
     const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
 
     // Selection Method State
@@ -78,7 +79,12 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                 const evtStart = new Date(evt.start).getTime();
                 if (evtStart < start || evtStart >= end) return false;
                 if (filterTeacher !== 'ALL' && evt.teacherId !== filterTeacher) return false;
-                if (filterType !== 'ALL' && evt.classification !== filterType) return false;
+                if (filterType !== 'ALL') {
+                    const matchesActivity = evt.activityId === filterType;
+                    const actName = activities.find(a => a.id === filterType)?.name;
+                    const matchesClassification = actName && evt.classification === actName;
+                    if (!matchesActivity && !matchesClassification) return false;
+                }
                 if (filterTag !== 'ALL') {
                     const teacher = teachers.find(t => t.id === evt.teacherId);
                     if (!teacher || !teacher.tags.includes(filterTag)) return false;
@@ -86,7 +92,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                 return true;
             });
         }
-    }, [selectionMethod, events, selectedEventIds, deleteStartDate, deleteEndDate, filterTeacher, filterType, filterTag, teachers]);
+    }, [selectionMethod, events, selectedEventIds, deleteStartDate, deleteEndDate, filterTeacher, filterType, filterTag, teachers, activities]);
 
     // Effect: Sync Filtered Events to Selection Selection (Show Indicator)
     useEffect(() => {
@@ -328,8 +334,8 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                                 value={filterType}
                                                 onChange={e => setFilterType(e.target.value)}
                                             >
-                                                <option value="ALL">{t('power.all_types')}</option>
-                                                {(lists?.classifications || []).map(c => <option key={c} value={c}>{c}</option>)}
+                                                <option value="ALL">{t('power.all_activities')}</option>
+                                                {activities.filter(a => !a.isArchived).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                                             </select>
                                             <select
                                                 className="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded px-2 py-1.5 text-xs outline-none"

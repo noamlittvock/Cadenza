@@ -64,6 +64,76 @@ export interface CategorySchema {
   subtypes?: { id: string; name: string }[];
 }
 
+// --- Activity Registry (Phase 1) ---
+
+export type ActivityType = 'INSTRUCTIONAL' | 'OPERATIONAL';
+
+export interface Subcategory {
+  id: string;
+  name: string;
+  isArchived: boolean;
+}
+
+export interface Activity {
+  id: string;
+  orgId: string;
+  name: string;
+  type: ActivityType;
+  subcategories: Subcategory[];
+  isArchived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- Staff Member Nested Types (Phase 2) ---
+
+export interface PositionTitleAssignment {
+  id: string;
+  positionTitle: string;
+  startDate?: string;
+  endDate?: string;
+  isArchived: boolean;
+}
+
+export interface RosterEntry {
+  studentId: string;
+  joinedAt: string;
+  isArchived: boolean;
+}
+
+export interface TeachingAssignment {
+  id: string;
+  activityId: string;
+  subcategoryId: string;
+  startDate?: string;
+  endDate?: string;
+  isEnsemble: boolean;
+  roster?: RosterEntry[];
+  isArchived: boolean;
+}
+
+export interface Credential {
+  id: string;
+  institution?: string;
+  qualificationType?: string;
+  year?: number;
+}
+
+export interface Note {
+  id: string;
+  content: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface StaffDocument {
+  id: string;
+  label: string;
+  url: string;
+  uploadedAt: string;
+  uploadedBy: string;
+}
+
 // Rate assignment types for position-based billing
 export type RateType = 'HOURLY' | 'GLOBAL_MONTHLY' | 'ONE_OFF' | 'PER_EVENT';
 
@@ -90,6 +160,20 @@ export interface Teacher {
   phone: string;
   email: string;
   color: string; // Hex code
+  // Phase 2 — Staff Member expansion
+  dateOfBirth?: string;
+  dateOfJoining?: string;
+  governmentalId?: string;
+  employmentType?: string;
+  positionTitles?: PositionTitleAssignment[];
+  teachingAssignments?: TeachingAssignment[];
+  credentials?: Credential[];
+  bio?: string;
+  googleCalendarSyncEnabled?: boolean;
+  googleCalendarId?: string;
+  notes?: Note[];
+  documents?: StaffDocument[];
+  isArchived?: boolean;
 }
 
 export interface Room {
@@ -129,6 +213,11 @@ export interface CalendarEvent {
   audit?: { createdBy?: string; updatedBy?: string; createdAt?: string; updatedAt?: string; };
   positionId?: string;       // Links to a PositionAssignment.id on the teacher
   classification: string;
+  // Phase 3 — Dual-field transition
+  activityId?: string;          // → Activity.id
+  subcategoryId?: string;       // → Subcategory.id within Activity
+  eventIntent?: 'INSTRUCTIONAL' | 'OPERATIONAL'; // Derived from Activity.type
+  staffMemberIds?: string[];    // Index 0 = primary staff member
   start: string; // ISO Date String
   end: string;   // ISO Date String
   isCanceled: boolean;
@@ -141,6 +230,8 @@ export interface CalendarEvent {
   isExceptionEdit?: boolean;
   originalStart?: string; // Original occurrence date before modification
   googleEventId?: string;
+  // Phase 5 — Per-teacher Google Calendar sync
+  teacherGoogleEventIds?: Record<string, string>; // staffMemberId → Google Event ID
 }
 
 export interface ExternalCalendar {
@@ -179,9 +270,77 @@ export interface ListsState {
   positions: string[];
   tags: string[];
   classifications: string[];
+  employmentTypes?: string[];
 }
 
-export type ViewState = 'CALENDAR' | 'GANTT' | 'MANAGE' | 'SETTINGS' | 'FINANCIAL' | 'FINANCIAL_ANALYSIS' | 'POWER_TOOLS' | 'SUPER_ADMIN';
+// --- Student Module (Phase 4) ---
+
+export interface Guardian {
+  id: string;
+  fullName: string;
+  relationship?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+}
+
+export interface StudentAssignment {
+  id: string;
+  activityId: string;
+  subcategoryId: string;
+  staffMemberId: string;
+  teachingAssignmentId: string;
+  startDate: string;
+  endDate?: string;
+  status: 'ACTIVE' | 'ARCHIVED';
+  endReason?: string;
+}
+
+export interface RecitalEntry {
+  id: string;
+  date: string;
+  title?: string;
+  repertoire?: string;
+  notes?: string;
+  loggedAt: string;
+  loggedBy: string;
+}
+
+export interface ReportCard {
+  id: string;
+  date: string;
+  content: string;
+  loggedAt: string;
+  loggedBy: string;
+}
+
+export interface PedagogicalRecord {
+  lessonHistory: string[];
+  recitalHistory: RecitalEntry[];
+  reportCards: ReportCard[];
+}
+
+export interface Student {
+  id: string;
+  orgId: string;
+  fullName: string;
+  dateOfBirth: string;
+  isMinor: boolean;
+  currentGrade?: number;
+  governmentalId?: string;
+  phone?: string;
+  email?: string;
+  guardians: Guardian[];
+  assignments: StudentAssignment[];
+  pedagogicalRecord: PedagogicalRecord;
+  notes: Note[];
+  documents: StaffDocument[];
+  profileStatus: 'ACTIVE' | 'ARCHIVED';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ViewState = 'CALENDAR' | 'GANTT' | 'MANAGE' | 'SETTINGS' | 'FINANCIAL' | 'FINANCIAL_ANALYSIS' | 'POWER_TOOLS' | 'SUPER_ADMIN' | 'STAFF_MEMBERS' | 'STUDENTS';
 
 // Financial Report Data Types
 export interface TeacherFinancialSummary {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ViewState } from '../types';
-import { Calendar, Users, Home, BarChart3, AlertOctagon, Music, Sun, Moon, ChevronLeft, ChevronRight, Settings, List, Zap, Plus, Menu, Smartphone, Sliders, LineChart } from 'lucide-react';
+import { Calendar, Users, Home, BarChart3, AlertOctagon, Music, Sun, Moon, ChevronLeft, ChevronRight, Settings, List, Zap, Plus, Menu, Smartphone, Sliders, LineChart, GraduationCap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
 import { AppSettings } from '../types';
@@ -82,7 +82,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
   // Redirect Viewers from Admin Pages
   useEffect(() => {
     if (currentUser?.role === 'VIEWER') {
-      const adminViews: ViewState[] = ['GANTT', 'POWER_TOOLS', 'MANAGE', 'SETTINGS', 'FINANCIAL_ANALYSIS', 'SUPER_ADMIN'];
+      const adminViews: ViewState[] = ['GANTT', 'POWER_TOOLS', 'MANAGE', 'SETTINGS', 'FINANCIAL_ANALYSIS', 'SUPER_ADMIN', 'STAFF_MEMBERS', 'STUDENTS'];
       if (adminViews.includes(currentView)) {
         setView('CALENDAR');
       }
@@ -193,6 +193,26 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                   }}>
                   {t('nav.section.admin')}
                 </div>
+              )}
+
+              {!isMobile && (
+                <NavItem
+                  active={currentView === 'STAFF_MEMBERS'}
+                  onClick={() => { setView('STAFF_MEMBERS'); setIsMobileMenuOpen(false); }}
+                  icon={Users}
+                  label={t('nav.staff_members')}
+                  collapsed={isCollapsed}
+                />
+              )}
+
+              {!isMobile && (
+                <NavItem
+                  active={currentView === 'STUDENTS'}
+                  onClick={() => { setView('STUDENTS'); setIsMobileMenuOpen(false); }}
+                  icon={GraduationCap}
+                  label={t('nav.students')}
+                  collapsed={isCollapsed}
+                />
               )}
 
               {!isMobile && (

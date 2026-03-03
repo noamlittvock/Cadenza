@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, ListsState, RecurrenceRule, DayOfWeek } from '../types';
+import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, ListsState, RecurrenceRule, DayOfWeek, Activity } from '../types';
 import { generateId, INITIAL_LISTS, INITIAL_RATE_CARDS } from '../constants';
 import { CATEGORY_SCHEMAS } from '../utils/schemaRegistry';
 import { lookupRate } from '../utils/rateLookup';
@@ -19,6 +19,7 @@ interface Props {
   setGanttBlocks: React.Dispatch<React.SetStateAction<GanttBlock[]>>;
   settings: AppSettings;
   lists: ListsState;
+  activities: Activity[];
 
   // Navigation & View State
   onNavigate: (view: any) => void;
@@ -62,7 +63,7 @@ const SNAP_MINUTES = 15;
 let savedScrollTop = START_HOUR * PIXELS_PER_HOUR; // Default: scroll to 7 AM
 
 export const CalendarView: React.FC<Props> = ({
-  events, setEvents, teachers, rooms, ganttBlocks, setGanttBlocks, settings, lists,
+  events, setEvents, teachers, rooms, ganttBlocks, setGanttBlocks, settings, lists, activities,
   onNavigate, currentView,
   selectionMode, setSelectionMode, selectedEventIds, setSelectedEventIds,
   setIsMobileMenuOpen,
@@ -369,7 +370,12 @@ export const CalendarView: React.FC<Props> = ({
 
       if (filterTeacher !== 'ALL' && evt.teacherId !== filterTeacher) return false;
       if (filterRoom !== 'ALL' && evt.roomId !== filterRoom) return false;
-      if (filterClass !== 'ALL' && evt.classification !== filterClass) return false;
+      if (filterClass !== 'ALL') {
+        const matchesActivity = evt.activityId === filterClass;
+        const activityName = activities.find(a => a.id === filterClass)?.name;
+        const matchesClassification = activityName && evt.classification === activityName;
+        if (!matchesActivity && !matchesClassification) return false;
+      }
 
       if (filterPosition !== 'ALL' && teacher) {
         if (!teacher.positions.includes(filterPosition)) return false;
@@ -381,7 +387,7 @@ export const CalendarView: React.FC<Props> = ({
 
       return true;
     });
-  }, [expandedEvents, teachers, filterTeacher, filterRoom, filterClass, filterPosition, filterTag, showCanceled, showBlackouts]);
+  }, [expandedEvents, teachers, activities, filterTeacher, filterRoom, filterClass, filterPosition, filterTag, showCanceled, showBlackouts]);
 
   const displayEvents = useMemo(() => {
     if (tempEvent) {
@@ -601,15 +607,19 @@ export const CalendarView: React.FC<Props> = ({
     const defaultEnd = new Date(defaultStart);
     defaultEnd.setMinutes(defaultStart.getMinutes() + settings.defaultEventDuration);
 
-    const defaultTeacher = teachers[0];
-    const newEvent = evt || {
-      start: defaultStart.toISOString(),
-      end: defaultEnd.toISOString(),
-      classification: activeLists.classifications[0], // Use activeLists
-      teacherId: defaultTeacher?.id,
-      roomId: rooms[0]?.id,
-      positionId: defaultTeacher?.positionAssignments?.[0]?.id || undefined,
-    };
+    let newEvent: Partial<CalendarEvent>;
+    if (evt) {
+      // Existing event — reverse-resolve activityId if missing
+      const resolvedActivityId = evt.activityId || activities.find(a => a.name === evt.classification)?.id;
+      newEvent = { ...evt, activityId: resolvedActivityId };
+    } else {
+      newEvent = {
+        start: defaultStart.toISOString(),
+        end: defaultEnd.toISOString(),
+        classification: '',
+        roomId: rooms[0]?.id,
+      };
+    }
     setEditingEvent(newEvent);
     setInitialEditingEvent(newEvent);
     setIsModalOpen(true);
@@ -627,8 +637,7 @@ export const CalendarView: React.FC<Props> = ({
     openModal({
       start: start.toISOString(),
       end: end.toISOString(),
-      classification: activeLists.classifications[0], // Use activeLists
-      teacherId: teachers[0]?.id,
+      classification: '',
       roomId: rooms[0]?.id
     });
   };
@@ -691,11 +700,15 @@ export const CalendarView: React.FC<Props> = ({
           isExceptionEdit: true,
           originalStart: dateKey,
           recurrenceRule: undefined, // Not a parent
+          staffMemberIds: editingEvent.teacherId ? [editingEvent.teacherId] : (editingEvent as CalendarEvent).staffMemberIds || [],
         };
         setEvents(prev => [...prev, exceptionEvent]);
       } else {
         // Regular event or parent event edit
-        const updatedEvent = { ...editingEvent } as CalendarEvent;
+        const updatedEvent = {
+          ...editingEvent,
+          staffMemberIds: editingEvent.teacherId ? [editingEvent.teacherId] : (editingEvent as CalendarEvent).staffMemberIds || [],
+        } as CalendarEvent;
         setEvents(prev => prev.map(ev => ev.id === editingEvent.id ? { ...ev, ...updatedEvent } : ev));
         setRecentlySaved(prev => new Set(prev).add(updatedEvent.id!));
         setTimeout(() => setRecentlySaved(prev => { const n = new Set(prev); n.delete(updatedEvent.id!); return n; }), 1500);
@@ -703,21 +716,30 @@ export const CalendarView: React.FC<Props> = ({
         if (updatedEvent.googleEventId) {
           handleGoogleSync(updatedEvent, true);
         }
+        handleTeacherGoogleSync(updatedEvent, true);
       }
     } else {
       // New event — save with recurrence rule if set
       const newId = generateId();
+      const selectedActivity = activities.find(a => a.id === editingEvent.activityId);
       const newEvent: CalendarEvent = {
         ...editingEvent,
         id: newId,
         isCanceled: false,
         isHidden: false,
         description: editingEvent.description || '',
+        // Phase 3 dual-write fields
+        activityId: editingEvent.activityId,
+        subcategoryId: editingEvent.subcategoryId,
+        eventIntent: selectedActivity?.type,
+        staffMemberIds: editingEvent.teacherId ? [editingEvent.teacherId] : [],
+        classification: editingEvent.classification || selectedActivity?.name || '',
       } as CalendarEvent;
       setEvents(prev => [...prev, newEvent]);
       setRecentlySaved(prev => new Set(prev).add(newId));
       setTimeout(() => setRecentlySaved(prev => { const n = new Set(prev); n.delete(newId); return n; }), 1500);
       handleGoogleSync(newEvent);
+      handleTeacherGoogleSync(newEvent);
     }
     setIsModalOpen(false);
   };
@@ -728,6 +750,80 @@ export const CalendarView: React.FC<Props> = ({
         await removeEventFromGoogle(googleAccessToken, settings.googleCalendarId, gId);
       } catch (err) {
         console.error("Failed to delete from Google Calendar", err);
+      }
+    }
+  };
+
+  // --- Phase 5: Per-Teacher Google Calendar Sync ---
+  const handleTeacherGoogleSync = async (eventToSync: CalendarEvent, isUpdate: boolean = false) => {
+    if (!googleAccessToken) return;
+
+    const staffMemberIds = eventToSync.staffMemberIds || (eventToSync.teacherId ? [eventToSync.teacherId] : []);
+    if (staffMemberIds.length === 0) return;
+
+    const existingTeacherEventIds = eventToSync.teacherGoogleEventIds || {};
+    const newTeacherEventIds = { ...existingTeacherEventIds };
+
+    const payload = {
+      title: eventToSync.name,
+      start: eventToSync.start,
+      end: eventToSync.end,
+      description: eventToSync.description,
+      location: rooms.find(r => r.id === eventToSync.roomId)?.name
+    };
+
+    // Sync to each assigned staff member's personal calendar
+    for (const memberId of staffMemberIds) {
+      const teacher = teachers.find(t => t.id === memberId);
+      if (!teacher?.googleCalendarSyncEnabled || !teacher?.googleCalendarId) continue;
+
+      try {
+        const existingGoogleEventId = existingTeacherEventIds[memberId];
+        if (isUpdate && existingGoogleEventId) {
+          await updateEventInGoogle(googleAccessToken, teacher.googleCalendarId, existingGoogleEventId, payload);
+        } else if (!existingGoogleEventId) {
+          const gId = await syncEventToGoogle(googleAccessToken, teacher.googleCalendarId, payload);
+          newTeacherEventIds[memberId] = gId;
+        }
+      } catch (err) {
+        console.error(`Failed to sync to ${teacher.fullName}'s Google Calendar:`, err);
+      }
+    }
+
+    // Remove from calendars of staff members no longer assigned to this event
+    for (const [oldMemberId, oldGoogleEventId] of Object.entries(existingTeacherEventIds)) {
+      if (!staffMemberIds.includes(oldMemberId) && oldGoogleEventId) {
+        const teacher = teachers.find(t => t.id === oldMemberId);
+        if (teacher?.googleCalendarId) {
+          try {
+            await removeEventFromGoogle(googleAccessToken, teacher.googleCalendarId, oldGoogleEventId);
+          } catch (err) {
+            console.error(`Failed to remove from ${teacher.fullName}'s Google Calendar:`, err);
+          }
+        }
+        delete newTeacherEventIds[oldMemberId];
+      }
+    }
+
+    // Persist the updated teacher Google Event IDs
+    if (JSON.stringify(newTeacherEventIds) !== JSON.stringify(existingTeacherEventIds)) {
+      setEvents(prev => prev.map(ev => ev.id === eventToSync.id ? { ...ev, teacherGoogleEventIds: newTeacherEventIds } : ev));
+    }
+  };
+
+  const handleDeleteTeacherGoogleSync = async (event: CalendarEvent) => {
+    if (!googleAccessToken) return;
+    const teacherEventIds = event.teacherGoogleEventIds || {};
+
+    for (const [memberId, googleEventId] of Object.entries(teacherEventIds)) {
+      if (!googleEventId) continue;
+      const teacher = teachers.find(t => t.id === memberId);
+      if (!teacher?.googleCalendarId) continue;
+
+      try {
+        await removeEventFromGoogle(googleAccessToken, teacher.googleCalendarId, googleEventId);
+      } catch (err) {
+        console.error(`Failed to delete from ${teacher.fullName}'s Google Calendar:`, err);
       }
     }
   };
@@ -747,6 +843,9 @@ export const CalendarView: React.FC<Props> = ({
       setEvents(prev => prev.filter(e => e.id !== id));
       if (targetEvent?.googleEventId) {
         handleDeleteGoogleSync(targetEvent.googleEventId);
+      }
+      if (targetEvent) {
+        handleDeleteTeacherGoogleSync(targetEvent);
       }
       setDetailItem(null);
     }
@@ -784,7 +883,14 @@ export const CalendarView: React.FC<Props> = ({
 
     if (type === 'DELETE') {
       if (scope === 'ALL') {
-        // Delete entire series
+        // Delete entire series — also clean up teacher Google Calendar entries
+        const parentEvent = events.find(e => e.id === parentId);
+        if (parentEvent?.googleEventId) {
+          handleDeleteGoogleSync(parentEvent.googleEventId);
+        }
+        if (parentEvent) {
+          handleDeleteTeacherGoogleSync(parentEvent);
+        }
         setEvents(prev => prev.filter(e => e.id !== parentId && e.recurrenceId !== parentId));
       } else {
         // Delete just this one — add to exceptions
@@ -1568,8 +1674,8 @@ export const CalendarView: React.FC<Props> = ({
                 {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
               <select className="filter-select-uniform" value={filterClass} onChange={e => setFilterClass(e.target.value)}>
-                <option value="ALL">{t('cal.filter.type_all')}</option>
-                {activeLists.classifications.map(c => <option key={c} value={c}>{c}</option>)}
+                <option value="ALL">{t('cal.filter.activity_all')}</option>
+                {activities.filter(a => !a.isArchived).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
               <select className="filter-select-uniform" value={filterPosition} onChange={e => setFilterPosition(e.target.value)}>
                 <option value="ALL">{t('cal.filter.position_all')}</option>
@@ -1762,99 +1868,139 @@ export const CalendarView: React.FC<Props> = ({
           {/* 1. Event Name */}
           <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.name')} <span className="text-red-500">*</span></label><input autoFocus required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" value={editingEvent.name || ''} onChange={e => setEditingEvent({ ...editingEvent, name: e.target.value })} placeholder={t('event.name_placeholder')} /></div>
 
-          {/* 2. Category */}
+          {/* 2. Activity */}
           <div>
             <label className="block text-sm font-medium flex justify-between text-slate-700 dark:text-slate-300 mb-1">
-              <span>{t('event.category')} <span className="text-red-500">*</span></span>
+              <span>{t('event.activity')} <span className="text-red-500">*</span></span>
             </label>
-            <select required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.classification || ''} onChange={e => {
-              const val = e.target.value;
-              setEditingEvent({ ...editingEvent, classification: val, teacherId: undefined, positionId: undefined, roomId: undefined, overrideFlags: { ...editingEvent.overrideFlags, isOneOffPayment: false, paymentMethod: 'NONE' }, pricingSnapshot: undefined });
+            <select required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.activityId || ''} onChange={e => {
+              const selectedActivity = activities.find(a => a.id === e.target.value);
+              setEditingEvent({
+                ...editingEvent,
+                activityId: e.target.value || undefined,
+                subcategoryId: undefined,
+                classification: selectedActivity?.name || '',
+                eventIntent: selectedActivity?.type,
+                teacherId: undefined,
+                positionId: undefined,
+                roomId: undefined,
+                overrideFlags: { ...editingEvent.overrideFlags, isOneOffPayment: false, paymentMethod: 'NONE' },
+                pricingSnapshot: undefined,
+              });
             }}>
-              <option value="" disabled>{t('event.select_category')}</option>
-              <optgroup label={t('event.teacher_lessons')}>
-                {['Individual Lesson', 'Group Lesson'].map(c => <option key={c} value={c}>{c}</option>)}
-              </optgroup>
-              <optgroup label={t('event.general_events')}>
-                {activeLists.classifications.filter(c => !['Individual Lesson', 'Group Lesson'].includes(c)).map(c => <option key={c} value={c}>{c}</option>)}
-                {Object.values(CATEGORY_SCHEMAS).filter(s => !activeLists.classifications.includes(s.name) && !['Individual Lesson', 'Group Lesson'].includes(s.name)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </optgroup>
+              <option value="" disabled>{t('event.select_activity')}</option>
+              {activities.filter(a => !a.isArchived).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </div>
 
-          {/* 2. Teacher */}
-          <div>
-            <label className="block flex items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-              <span>{t('event.teacher')} {['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span>}</span>
-            </label>
-            <select
-              required={['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE'}
-              disabled={!editingEvent.classification}
-              className={`w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none ${!editingEvent.classification ? 'opacity-50 cursor-not-allowed' : ''}`}
-              value={editingEvent.teacherId || ''}
-              onChange={e => {
-                const val = e.target.value;
-                if (val === '') {
-                  let newFlags = { ...editingEvent.overrideFlags };
-                  if (newFlags.paymentMethod === 'POSITION_RATE') newFlags.paymentMethod = 'NONE';
-                  setEditingEvent({ ...editingEvent, teacherId: undefined, positionId: undefined, roomId: undefined, overrideFlags: newFlags });
-                } else {
-                  setEditingEvent({ ...editingEvent, teacherId: val, positionId: undefined, roomId: undefined });
-                }
-              }}
-            >
-              <option value="">— {editingEvent.classification ? (['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification) || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? t('event.select_teacher') : t('event.org_no_teacher')) : t('event.select_category_first')} —</option>
-              {teachers.filter(t => {
-                if (!editingEvent.classification) return false;
-                if (!['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification)) return true; // Show all teachers for general categories
-                return t.positionAssignments.some(pa => pa.category === editingEvent.classification || pa.category === Object.values(CATEGORY_SCHEMAS).find(s => s.id === editingEvent.classification)?.name);
-              }).map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}
-            </select>
-          </div>
+          {/* 2b. Subcategory (cascading) */}
+          {editingEvent.activityId && (() => {
+            const selectedActivity = activities.find(a => a.id === editingEvent.activityId);
+            const subs = selectedActivity?.subcategories?.filter(s => !s.isArchived) || [];
+            if (subs.length === 0) return null;
+            return (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.subcategory')}</label>
+                <select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.subcategoryId || ''} onChange={e => setEditingEvent({ ...editingEvent, subcategoryId: e.target.value || undefined })}>
+                  <option value="">{t('event.select_subcategory')}</option>
+                  {subs.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+            );
+          })()}
 
-          {/* 3. Position */}
+          {/* 3. Teacher */}
+          {(() => {
+            const selActivity = activities.find(a => a.id === editingEvent.activityId);
+            const isInstructional = selActivity?.type === 'INSTRUCTIONAL';
+            const teacherRequired = isInstructional || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE';
+            return (
+              <div>
+                <label className="block flex items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <span>{t('event.teacher')} {teacherRequired ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span>}</span>
+                </label>
+                <select
+                  required={teacherRequired}
+                  disabled={!editingEvent.activityId}
+                  className={`w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none ${!editingEvent.activityId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  value={editingEvent.teacherId || ''}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      let newFlags = { ...editingEvent.overrideFlags };
+                      if (newFlags.paymentMethod === 'POSITION_RATE') newFlags.paymentMethod = 'NONE';
+                      setEditingEvent({ ...editingEvent, teacherId: undefined, positionId: undefined, roomId: undefined, overrideFlags: newFlags });
+                    } else {
+                      setEditingEvent({ ...editingEvent, teacherId: val, positionId: undefined, roomId: undefined });
+                    }
+                  }}
+                >
+                  <option value="">— {editingEvent.activityId ? (teacherRequired ? t('event.select_teacher') : t('event.org_no_teacher')) : t('event.select_category_first')} —</option>
+                  {teachers.filter(teacher => {
+                    if (!editingEvent.activityId || !selActivity) return false;
+                    if (teacher.isArchived) return false;
+                    // OPERATIONAL activities → show all teachers
+                    if (!isInstructional) return true;
+                    // INSTRUCTIONAL → filter by teachingAssignment or legacy positionAssignment match
+                    const hasTeachingAssignment = (teacher.teachingAssignments || []).some(ta => !ta.isArchived && ta.activityId === editingEvent.activityId);
+                    const hasLegacyMatch = teacher.positionAssignments.some(pa => pa.category === selActivity.name);
+                    return hasTeachingAssignment || hasLegacyMatch;
+                  }).map(teacher => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}
+                </select>
+              </div>
+            );
+          })()}
+
+          {/* 4. Position */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.position')} {['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE' ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span>}</label>
             {(() => {
+              const selActivity = activities.find(a => a.id === editingEvent.activityId);
+              const isInstructional = selActivity?.type === 'INSTRUCTIONAL';
+              const posRequired = isInstructional || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE';
               const teacherForPos = teachers.find(t => t.id === editingEvent.teacherId);
-              const isLesson = ['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '');
               const positionOptions = teacherForPos ? teacherForPos.positionAssignments.filter(pa => {
-                if (!editingEvent.classification) return false;
-                if (!isLesson) return true;
-                return pa.category === editingEvent.classification || pa.category === Object.values(CATEGORY_SCHEMAS).find(s => s.id === editingEvent.classification)?.name;
+                if (!editingEvent.activityId) return false;
+                if (!isInstructional) return true;
+                return pa.category === (selActivity?.name || editingEvent.classification);
               }) : [];
 
               return (
-                <select
-                  required={['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification || '') || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE'}
-                  disabled={!editingEvent.teacherId || editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF' || (editingEvent.teacherId && positionOptions.length === 0)}
-                  className={`w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none ${(!editingEvent.teacherId || editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF' || (editingEvent.teacherId && positionOptions.length === 0)) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  value={editingEvent.positionId || ''}
-                  onChange={e => {
-                    const val = e.target.value;
-                    let newFlags = { ...editingEvent.overrideFlags };
-                    if (!val && newFlags.paymentMethod === 'POSITION_RATE') newFlags.paymentMethod = 'NONE';
-                    setEditingEvent({ ...editingEvent, positionId: val || undefined, roomId: undefined, overrideFlags: newFlags });
-                  }}
-                >
-                  <option value="">
-                    {!editingEvent.teacherId
-                      ? t('event.select_teacher_first')
-                      : positionOptions.length === 0
-                        ? t('event.no_positions')
-                        : t('event.select_position')}
-                  </option>
-                  {positionOptions.map(pa => (
-                    <option key={pa.id} value={pa.id}>
-                      {pa.positionName} ({pa.rateType === 'HOURLY' ? `${settings.currency}${pa.rateValue}${t('fin.per_hr')}` : `${settings.currency}${pa.rateValue.toLocaleString()}${t('fin.per_mo')}`})
+                <>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.position')} {posRequired ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span>}</label>
+                  <select
+                    required={posRequired}
+                    disabled={!editingEvent.teacherId || editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF' || (!!editingEvent.teacherId && positionOptions.length === 0)}
+                    className={`w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none ${(!editingEvent.teacherId || editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF' || (editingEvent.teacherId && positionOptions.length === 0)) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    value={editingEvent.positionId || ''}
+                    onChange={e => {
+                      const val = e.target.value;
+                      let newFlags = { ...editingEvent.overrideFlags };
+                      if (!val && newFlags.paymentMethod === 'POSITION_RATE') newFlags.paymentMethod = 'NONE';
+                      setEditingEvent({ ...editingEvent, positionId: val || undefined, roomId: undefined, overrideFlags: newFlags });
+                    }}
+                  >
+                    <option value="">
+                      {!editingEvent.teacherId
+                        ? t('event.select_teacher_first')
+                        : positionOptions.length === 0
+                          ? t('event.no_positions')
+                          : t('event.select_position')}
                     </option>
-                  ))}
-                </select>
+                    {positionOptions.map(pa => (
+                      <option key={pa.id} value={pa.id}>
+                        {pa.positionName} ({pa.rateType === 'HOURLY' ? `${settings.currency}${pa.rateValue}${t('fin.per_hr')}` : `${settings.currency}${pa.rateValue.toLocaleString()}${t('fin.per_mo')}`})
+                      </option>
+                    ))}
+                  </select>
+                </>
               );
             })()}
 
-            {/* Payment Method for General Categories */}
-            {editingEvent.classification && !['Individual Lesson', 'Group Lesson'].includes(editingEvent.classification) && (
+            {/* Payment Method for Operational (non-instructional) Activities */}
+            {editingEvent.activityId && (() => {
+              const selActivity = activities.find(a => a.id === editingEvent.activityId);
+              return selActivity?.type !== 'INSTRUCTIONAL';
+            })() && (
               <div className="mt-4 space-y-3 border-t border-slate-200 dark:border-slate-700 pt-3">
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{t('event.payment_method')} <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span></label>
                 <div className="flex flex-col gap-2">
