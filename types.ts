@@ -394,7 +394,26 @@ export interface HoursReport {
   createdAt: string;
 }
 
-export type ViewState = 'CALENDAR' | 'GANTT' | 'MANAGE' | 'SETTINGS' | 'FINANCIAL' | 'FINANCIAL_ANALYSIS' | 'POWER_TOOLS' | 'SUPER_ADMIN' | 'STAFF_MEMBERS' | 'STUDENTS';
+// --- Admin Inbox (Phase 8) ---
+
+export type AdminInboxItemType = 'TASK' | 'NOTIFICATION';
+export type AdminInboxItemStatus = 'OPEN' | 'DONE';
+
+export interface AdminInboxItem {
+  id: string;
+  orgId: string;
+  type: AdminInboxItemType;
+  status: AdminInboxItemStatus;
+  title: string;
+  message: string;
+  relatedEntityType?: string;
+  relatedEntityIds?: string[];
+  createdAt: string;
+  markedDoneAt?: string;
+  markedDoneBy?: string;
+}
+
+export type ViewState = 'CALENDAR' | 'GANTT' | 'MANAGE' | 'SETTINGS' | 'FINANCIAL' | 'FINANCIAL_ANALYSIS' | 'POWER_TOOLS' | 'SUPER_ADMIN' | 'STAFF_MEMBERS' | 'STUDENTS' | 'ADMIN_INBOX';
 
 // Financial Report Data Types
 export interface TeacherFinancialSummary {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ViewState } from '../types';
-import { Calendar, Users, Home, BarChart3, AlertOctagon, Music, Sun, Moon, ChevronLeft, ChevronRight, Settings, List, Zap, Plus, Menu, Smartphone, Sliders, LineChart, GraduationCap } from 'lucide-react';
+import { Calendar, Users, Home, BarChart3, AlertOctagon, Music, Sun, Moon, ChevronLeft, ChevronRight, Settings, List, Zap, Plus, Menu, Smartphone, Sliders, LineChart, GraduationCap, Inbox } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
 import { AppSettings } from '../types';
@@ -14,6 +14,7 @@ interface LayoutProps {
   settings: AppSettings;
   isMobileMenuOpen: boolean;
   setIsMobileMenuOpen: (isOpen: boolean) => void;
+  inboxOpenCount?: number;
 }
 
 const NavItem = ({
@@ -21,18 +22,20 @@ const NavItem = ({
   onClick,
   icon: Icon,
   label,
-  collapsed
+  collapsed,
+  badge
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ElementType;
   label: string;
   collapsed: boolean;
+  badge?: number;
 }) => (
   <button
     onClick={onClick}
     title={collapsed ? label : undefined}
-    className={`flex items-center w-full py-3 rounded-xl text-start ${collapsed ? 'justify-center px-3' : 'px-4 space-x-2 rtl:space-x-reverse'} ${active
+    className={`relative flex items-center w-full py-3 rounded-xl text-start ${collapsed ? 'justify-center px-3' : 'px-4 space-x-2 rtl:space-x-reverse'} ${active
       ? 'bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft font-semibold'
       : 'text-slate-400 hover:text-white hover:bg-white/5 hover:shadow-cadenza-soft'
       } btn-cadenza`}
@@ -47,10 +50,15 @@ const NavItem = ({
         maxWidth: collapsed ? 0 : 200,
         transition: 'opacity 300ms ease, max-width 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
       }}>{label}</span>
+    {badge !== undefined && badge > 0 && (
+      <span className={`bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1 ${collapsed ? 'absolute -top-0.5 -end-0.5' : 'ms-auto'}`}>
+        {badge}
+      </span>
+    )}
   </button>
 );
 
-export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, darkMode, toggleDarkMode, settings, isMobileMenuOpen, setIsMobileMenuOpen }) => {
+export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, darkMode, toggleDarkMode, settings, isMobileMenuOpen, setIsMobileMenuOpen, inboxOpenCount }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 1024 : false);
   const { isAdmin, isSuperAdmin, currentUser, orgId, logout, availableOrgs } = useAuth();
@@ -82,7 +90,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
   // Redirect Viewers from Admin Pages
   useEffect(() => {
     if (currentUser?.role === 'VIEWER') {
-      const adminViews: ViewState[] = ['GANTT', 'POWER_TOOLS', 'MANAGE', 'SETTINGS', 'FINANCIAL_ANALYSIS', 'SUPER_ADMIN', 'STAFF_MEMBERS', 'STUDENTS'];
+      const adminViews: ViewState[] = ['GANTT', 'POWER_TOOLS', 'MANAGE', 'SETTINGS', 'FINANCIAL_ANALYSIS', 'SUPER_ADMIN', 'STAFF_MEMBERS', 'STUDENTS', 'ADMIN_INBOX'];
       if (adminViews.includes(currentView)) {
         setView('CALENDAR');
       }
@@ -225,7 +233,16 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 />
               )}
 
-
+              {!isMobile && (
+                <NavItem
+                  active={currentView === 'ADMIN_INBOX'}
+                  onClick={() => { setView('ADMIN_INBOX'); setIsMobileMenuOpen(false); }}
+                  icon={Inbox}
+                  label={t('nav.admin_inbox')}
+                  collapsed={isCollapsed}
+                  badge={inboxOpenCount}
+                />
+              )}
 
               <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 truncate overflow-hidden"
                 style={{

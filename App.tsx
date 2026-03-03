@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
-import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState, Activity, Student, CalendarSubscription, HoursReport } from './types';
+import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState, Activity, Student, CalendarSubscription, HoursReport, AdminInboxItem } from './types';
 import { ChartConfiguration } from './types/chartBuilder';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, TRANSLATIONS, migrateTeacher } from './constants';
 
@@ -21,6 +21,7 @@ import { ManageHub } from './components/ManageHub';
 import { StaffMemberManager } from './components/StaffMemberManager';
 import { StudentManager } from './components/StudentManager';
 import { SuperAdmin } from './components/SuperAdmin';
+import { AdminInbox } from './components/AdminInbox';
 import { TeacherHoursForm } from './components/TeacherHoursForm';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -103,6 +104,7 @@ function AppContent() {
   const [students, setStudents] = useFirestoreSync<Student>('students', []);
   const [calendarSubscriptions, setCalendarSubscriptions] = useFirestoreSync<CalendarSubscription>('calendarSubscriptions', []);
   const [hoursReports, setHoursReports] = useFirestoreSync<HoursReport>('hoursReports', []);
+  const [adminInboxItems, setAdminInboxItems] = useFirestoreSync<AdminInboxItem>('adminInboxItems', []);
   const [settings, setSettings] = useFirestoreSettings<AppSettings>('settings', INITIAL_SETTINGS);
   const [lists, setLists] = useFirestoreSettings<ListsState>('lists', INITIAL_LISTS);
   const [savedCharts, setSavedCharts] = useFirestoreSettings<ChartConfiguration[]>('customCharts', []);
@@ -257,6 +259,9 @@ function AppContent() {
             settings={settings}
             hoursReports={hoursReports}
             setHoursReports={setHoursReports}
+            students={students}
+            adminInboxItems={adminInboxItems}
+            setAdminInboxItems={setAdminInboxItems}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
           />
         );
@@ -316,6 +321,17 @@ function AppContent() {
             }}
           />
         );
+      case 'ADMIN_INBOX':
+        return (
+          <AdminInbox
+            inboxItems={adminInboxItems}
+            setInboxItems={setAdminInboxItems}
+            teachers={teachers}
+            students={students}
+            settings={settings}
+            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+          />
+        );
       case 'SETTINGS':
         return (
           <Settings
@@ -338,6 +354,7 @@ function AppContent() {
       settings={settings}
       isMobileMenuOpen={isMobileMenuOpen}
       setIsMobileMenuOpen={setIsMobileMenuOpen}
+      inboxOpenCount={adminInboxItems.filter(i => i.type === 'TASK' && i.status === 'OPEN').length}
     >
       {renderContent()}
     </Layout>

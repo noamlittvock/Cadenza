@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import {
   Teacher, ListsState, PositionAssignment, RateType, AppSettings, Activity,
   PositionTitleAssignment, TeachingAssignment, Credential, Note, StaffDocument,
-  HoursReport
+  HoursReport, Student, AdminInboxItem
 } from '../types';
 import { generateId, COLORS, INITIAL_LISTS, TRANSLATIONS } from '../constants';
 import {
@@ -34,11 +34,14 @@ interface Props {
   settings: AppSettings;
   hoursReports: HoursReport[];
   setHoursReports: React.Dispatch<React.SetStateAction<HoursReport[]>>;
+  students: Student[];
+  adminInboxItems: AdminInboxItem[];
+  setAdminInboxItems: React.Dispatch<React.SetStateAction<AdminInboxItem[]>>;
   onMobileMenuOpen: () => void;
 }
 
 export const StaffMemberManager: React.FC<Props> = ({
-  teachers, setTeachers, lists, setLists, activities, settings, hoursReports, setHoursReports, onMobileMenuOpen
+  teachers, setTeachers, lists, setLists, activities, settings, hoursReports, setHoursReports, students, adminInboxItems, setAdminInboxItems, onMobileMenuOpen
 }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
   const { currentUser } = useAuth();
@@ -435,6 +438,30 @@ export const StaffMemberManager: React.FC<Props> = ({
     const msg = newArchived ? t('staff.confirm_archive') : t('staff.confirm_restore');
     if (window.confirm(msg)) {
       setTeachers(prev => prev.map(t => t.id === id ? { ...t, isArchived: newArchived } : t));
+
+      // When archiving, check for active student assignments and create inbox task
+      if (newArchived) {
+        const affectedStudentIds = students
+          .filter(s => s.profileStatus !== 'ARCHIVED' && s.assignments?.some(
+            a => a.staffMemberId === id && a.status === 'ACTIVE'
+          ))
+          .map(s => s.id);
+
+        if (affectedStudentIds.length > 0) {
+          const task: AdminInboxItem = {
+            id: generateId(),
+            orgId: '',
+            type: 'TASK',
+            status: 'OPEN',
+            title: t('inbox.unassigned_students_title'),
+            message: `${staff.fullName} ${t('inbox.unassigned_students_msg').replace('{count}', String(affectedStudentIds.length))}`,
+            relatedEntityType: 'Student',
+            relatedEntityIds: affectedStudentIds,
+            createdAt: new Date().toISOString(),
+          };
+          setAdminInboxItems(prev => [...prev, task]);
+        }
+      }
     }
   };
 
