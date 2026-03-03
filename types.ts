@@ -340,6 +340,27 @@ export interface Student {
   updatedAt: string;
 }
 
+// --- Calendar Subscriptions (Phase 6) ---
+
+export interface SubscriptionFilters {
+  staffMemberIds?: string[];
+  tags?: string[];
+  positionTitles?: string[];
+  roomIds?: string[];
+  activityIds?: string[];
+}
+
+export interface CalendarSubscription {
+  id: string;
+  orgId: string;
+  name: string;
+  token: string;
+  filters: SubscriptionFilters;
+  createdBy: string;
+  createdAt: string;
+  isActive: boolean;
+}
+
 export type ViewState = 'CALENDAR' | 'GANTT' | 'MANAGE' | 'SETTINGS' | 'FINANCIAL' | 'FINANCIAL_ANALYSIS' | 'POWER_TOOLS' | 'SUPER_ADMIN' | 'STAFF_MEMBERS' | 'STUDENTS';
 
 // Financial Report Data Types

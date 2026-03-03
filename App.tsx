@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
-import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState, Activity, Student } from './types';
+import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState, Activity, Student, CalendarSubscription } from './types';
 import { ChartConfiguration } from './types/chartBuilder';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, TRANSLATIONS, migrateTeacher } from './constants';
 
@@ -100,6 +100,7 @@ function AppContent() {
   const [ganttBlocks, setGanttBlocks] = useFirestoreSync<GanttBlock>('ganttBlocks', []);
   const [activities, setActivities] = useFirestoreSync<Activity>('activities', []);
   const [students, setStudents] = useFirestoreSync<Student>('students', []);
+  const [calendarSubscriptions, setCalendarSubscriptions] = useFirestoreSync<CalendarSubscription>('calendarSubscriptions', []);
   const [settings, setSettings] = useFirestoreSettings<AppSettings>('settings', INITIAL_SETTINGS);
   const [lists, setLists] = useFirestoreSettings<ListsState>('lists', INITIAL_LISTS);
   const [savedCharts, setSavedCharts] = useFirestoreSettings<ChartConfiguration[]>('customCharts', []);
@@ -279,6 +280,9 @@ function AppContent() {
             settings={settings}
             activities={activities}
             setActivities={setActivities}
+            subscriptions={calendarSubscriptions}
+            setSubscriptions={setCalendarSubscriptions}
+            teachers={teachers}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
           />
         );

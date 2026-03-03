@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Room, ListsState, AppSettings, Activity } from '../types';
+import { Room, ListsState, AppSettings, Activity, CalendarSubscription, Teacher } from '../types';
 import { RoomManager } from './RoomManager';
 import { ManageLists } from './ManageLists';
 import { ActivityManager } from './ActivityManager';
-import { Home, List, Menu, Layers } from 'lucide-react';
+import { CalendarSubscriptionManager } from './CalendarSubscriptionManager';
+import { Home, List, Menu, Layers, Rss } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
 
-type ManageTab = 'rooms' | 'lists' | 'activities';
+type ManageTab = 'rooms' | 'lists' | 'activities' | 'subscriptions';
 
 interface Props {
     rooms: Room[];
@@ -16,6 +17,9 @@ interface Props {
     settings: AppSettings;
     activities: Activity[];
     setActivities: React.Dispatch<React.SetStateAction<Activity[]>>;
+    subscriptions: CalendarSubscription[];
+    setSubscriptions: React.Dispatch<React.SetStateAction<CalendarSubscription[]>>;
+    teachers: Teacher[];
     onMobileMenuOpen: () => void;
     initialTab?: ManageTab;
     onTabChange?: (tab: ManageTab) => void;
@@ -29,6 +33,9 @@ export const ManageHub: React.FC<Props> = ({
     settings,
     activities,
     setActivities,
+    subscriptions,
+    setSubscriptions,
+    teachers,
     onMobileMenuOpen,
     initialTab = 'activities',
     onTabChange
@@ -40,7 +47,7 @@ export const ManageHub: React.FC<Props> = ({
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const tabFromUrl = params.get('tab') as ManageTab;
-        if (tabFromUrl && ['rooms', 'lists', 'activities'].includes(tabFromUrl)) {
+        if (tabFromUrl && ['rooms', 'lists', 'activities', 'subscriptions'].includes(tabFromUrl)) {
             setActiveTab(tabFromUrl);
         }
     }, []);
@@ -58,6 +65,7 @@ export const ManageHub: React.FC<Props> = ({
         { id: 'activities', label: t('nav.activities'), icon: Layers },
         { id: 'rooms', label: t('nav.rooms'), icon: Home },
         { id: 'lists', label: t('nav.lists'), icon: List },
+        { id: 'subscriptions', label: t('nav.subscriptions'), icon: Rss },
     ];
 
     return (
@@ -131,6 +139,18 @@ export const ManageHub: React.FC<Props> = ({
                         setLists={setLists}
                         settings={settings}
                         onMobileMenuOpen={onMobileMenuOpen}
+                        embedded={true}
+                    />
+                )}
+                {activeTab === 'subscriptions' && (
+                    <CalendarSubscriptionManager
+                        subscriptions={subscriptions}
+                        setSubscriptions={setSubscriptions}
+                        teachers={teachers}
+                        rooms={rooms}
+                        activities={activities}
+                        lists={lists}
+                        settings={settings}
                         embedded={true}
                     />
                 )}
