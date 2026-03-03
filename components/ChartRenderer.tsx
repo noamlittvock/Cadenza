@@ -16,7 +16,7 @@ import {
     BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList,
 } from 'recharts';
-import { CalendarEvent, Teacher } from '../types';
+import { CalendarEvent, Teacher, Activity } from '../types';
 import { ChartConfiguration, MetricSelection } from '../types/chartBuilder';
 import { aggregateByDimension, AggregationConfig } from '../utils/financialAggregator';
 import { DIMENSION_REGISTRY, METRIC_REGISTRY } from '../chartBuilder/smartDefaults';
@@ -554,6 +554,8 @@ interface ChartRendererProps {
     /** Chart container height in px (default: 350) */
     height?: number;
     currencySymbol?: string;
+    /** Activity list for resolving activityId → name */
+    activities?: Activity[];
 }
 
 export const ChartRenderer: React.FC<ChartRendererProps> = ({
@@ -563,6 +565,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({
     roomNameLookup,
     height = 350,
     currencySymbol = '₪',
+    activities,
 }) => {
     // ── Run the aggregation engine (Phase 1) ──
     const aggregationConfig: AggregationConfig = useMemo(() => ({
@@ -574,8 +577,8 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({
     }), [config.dimension, config.metrics, config.chartFilters, config.sort, config.limit]);
 
     const aggregatedData = useMemo(
-        () => aggregateByDimension(events, teachers, aggregationConfig, roomNameLookup),
-        [events, teachers, aggregationConfig, roomNameLookup]
+        () => aggregateByDimension(events, teachers, aggregationConfig, roomNameLookup, activities),
+        [events, teachers, aggregationConfig, roomNameLookup, activities]
     );
 
     // ── Reshape into Recharts-friendly format ──

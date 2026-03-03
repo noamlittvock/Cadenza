@@ -13,7 +13,7 @@ export type DimensionId =
     | 'week'
     | 'dayOfWeek'
     | 'room'
-    | 'classification';
+    | 'activity';
 
 /** Available aggregation functions */
 export type AggregationFn = 'SUM' | 'AVG' | 'COUNT' | 'COUNT_DISTINCT' | 'MIN' | 'MAX';

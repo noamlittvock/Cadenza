@@ -25,7 +25,7 @@ export const DIMENSION_REGISTRY: Record<DimensionId, DimensionMeta> = {
     week: { id: 'week', label: 'Week', tKey: 'dim.week', isTemporal: true, estimatedCardinality: 'high' },
     dayOfWeek: { id: 'dayOfWeek', label: 'Day of Week', tKey: 'dim.day_of_week', isTemporal: true, estimatedCardinality: 'low' },
     room: { id: 'room', label: 'Room', tKey: 'dim.room', isTemporal: false, estimatedCardinality: 'low' },
-    classification: { id: 'classification', label: 'Classification', tKey: 'dim.classification', isTemporal: false, estimatedCardinality: 'low' },
+    activity: { id: 'activity', label: 'Activity', tKey: 'dim.activity', isTemporal: false, estimatedCardinality: 'low' },
 };
 
 /** All metric options with display labels */

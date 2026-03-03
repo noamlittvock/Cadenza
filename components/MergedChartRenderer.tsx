@@ -19,7 +19,7 @@ import {
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     LabelList,
 } from 'recharts';
-import { CalendarEvent, Teacher } from '../types';
+import { CalendarEvent, Teacher, Activity } from '../types';
 import { ChartConfiguration, MetricSelection } from '../types/chartBuilder';
 import { aggregateByDimension, AggregationConfig } from '../utils/financialAggregator';
 import { DIMENSION_REGISTRY, METRIC_REGISTRY } from '../chartBuilder/smartDefaults';
@@ -48,6 +48,7 @@ interface MergedChartRendererProps {
     roomNameLookup?: Map<string, string>;
     height?: number;
     currencySymbol?: string;
+    activities?: Activity[];
 }
 
 // ── Helpers ──
@@ -163,7 +164,7 @@ function getTypography(dataPointCount: number, height: number) {
 // ── Main Component ──
 
 export const MergedChartRenderer: React.FC<MergedChartRendererProps> = ({
-    config, datasets, teachers, roomNameLookup, height = 380, currencySymbol = '₪',
+    config, datasets, teachers, roomNameLookup, height = 380, currencySymbol = '₪', activities,
 }) => {
     // ── State ──
     const [hoveredDataset, setHoveredDataset] = useState<string | null>(null);
@@ -188,10 +189,10 @@ export const MergedChartRenderer: React.FC<MergedChartRendererProps> = ({
 
     const perDatasetData = useMemo(() => {
         return datasets.map(ds => {
-            const rows = aggregateByDimension(ds.events, teachers, aggregationConfig, roomNameLookup);
+            const rows = aggregateByDimension(ds.events, teachers, aggregationConfig, roomNameLookup, activities);
             return { ...ds, rows };
         });
-    }, [datasets, teachers, aggregationConfig, roomNameLookup]);
+    }, [datasets, teachers, aggregationConfig, roomNameLookup, activities]);
 
     // ── Build unified chart data ──
     // Union all dimension labels, then for each label, add values from each dataset

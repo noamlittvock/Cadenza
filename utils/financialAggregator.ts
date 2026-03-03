@@ -9,7 +9,7 @@
 // and could eventually replace the inline aggregation in FinancialDashboard.
 // ──────────────────────────────────────────────
 
-import { CalendarEvent, Teacher, PositionAssignment } from '../types';
+import { CalendarEvent, Teacher, PositionAssignment, Activity } from '../types';
 import { DimensionId, MetricId, AggregationFn, MetricSelection, ChartFilters } from '../types/chartBuilder';
 
 /** A single row of aggregated output — one per dimension group */
@@ -65,7 +65,8 @@ function extractDimensionValue(
     event: CalendarEvent,
     teacher: Teacher | undefined,
     posAssignment: PositionAssignment | undefined,
-    roomNameLookup?: Map<string, string>
+    roomNameLookup?: Map<string, string>,
+    activityMap?: Map<string, Activity>
 ): string {
     switch (dimension) {
         case 'teacher':
@@ -73,7 +74,7 @@ function extractDimensionValue(
         case 'position':
             return posAssignment?.positionName ?? 'Unassigned';
         case 'category':
-            return posAssignment?.category ?? event.classification ?? 'Other';
+            return posAssignment?.category ?? (event.activityId ? activityMap?.get(event.activityId)?.name : undefined) ?? 'Other';
         case 'tag':
             // Events can map to multiple tags via teacher — use first for grouping
             return teacher?.tags?.[0] ?? 'Untagged';
@@ -97,8 +98,8 @@ function extractDimensionValue(
         }
         case 'room':
             return roomNameLookup?.get(event.roomId) ?? event.roomId;
-        case 'classification':
-            return event.classification;
+        case 'activity':
+            return (event.activityId ? activityMap?.get(event.activityId)?.name : undefined) ?? 'Unassigned';
         default:
             return 'Unknown';
     }
@@ -230,14 +231,17 @@ function computeMetric(
  * @param teachers   Full teacher list (for lookups)
  * @param config     Aggregation configuration (dimension, metrics, sort, limit)
  * @param roomNameLookup  Optional map of roomId → room name for display
+ * @param activities  Activity list for resolving activityId → name
  */
 export function aggregateByDimension(
     events: CalendarEvent[],
     teachers: Teacher[],
     config: AggregationConfig,
-    roomNameLookup?: Map<string, string>
+    roomNameLookup?: Map<string, string>,
+    activities?: Activity[]
 ): AggregatedRow[] {
     const teacherMap = new Map(teachers.map(t => [t.id, t]));
+    const activityMap = new Map((activities ?? []).map(a => [a.id, a]));
 
     // ── Phase 0: Apply chart-level filters (multi-dimensional narrowing) ──
     let filteredInput = events;
@@ -267,7 +271,7 @@ export function aggregateByDimension(
 
             // Category filter
             if (cf.categories.length > 0) {
-                const cat = posAssignment?.category ?? event.classification ?? '';
+                const cat = posAssignment?.category ?? (event.activityId ? activityMap.get(event.activityId)?.name : undefined) ?? '';
                 if (!cf.categories.includes(cat)) return false;
             }
 
@@ -289,7 +293,7 @@ export function aggregateByDimension(
 
         const { teacher, posAssignment } = resolveContext(event, teacherMap);
         const dimValue = extractDimensionValue(
-            config.dimension, event, teacher, posAssignment, roomNameLookup
+            config.dimension, event, teacher, posAssignment, roomNameLookup, activityMap
         );
 
         if (!groups.has(dimValue)) {

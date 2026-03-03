@@ -371,10 +371,7 @@ export const CalendarView: React.FC<Props> = ({
       if (filterTeacher !== 'ALL' && evt.teacherId !== filterTeacher) return false;
       if (filterRoom !== 'ALL' && evt.roomId !== filterRoom) return false;
       if (filterClass !== 'ALL') {
-        const matchesActivity = evt.activityId === filterClass;
-        const activityName = activities.find(a => a.id === filterClass)?.name;
-        const matchesClassification = activityName && evt.classification === activityName;
-        if (!matchesActivity && !matchesClassification) return false;
+        if (evt.activityId !== filterClass) return false;
       }
 
       if (filterPosition !== 'ALL' && teacher) {
@@ -609,14 +606,11 @@ export const CalendarView: React.FC<Props> = ({
 
     let newEvent: Partial<CalendarEvent>;
     if (evt) {
-      // Existing event — reverse-resolve activityId if missing
-      const resolvedActivityId = evt.activityId || activities.find(a => a.name === evt.classification)?.id;
-      newEvent = { ...evt, activityId: resolvedActivityId };
+      newEvent = { ...evt };
     } else {
       newEvent = {
         start: defaultStart.toISOString(),
         end: defaultEnd.toISOString(),
-        classification: '',
         roomId: rooms[0]?.id,
       };
     }
@@ -637,7 +631,6 @@ export const CalendarView: React.FC<Props> = ({
     openModal({
       start: start.toISOString(),
       end: end.toISOString(),
-      classification: '',
       roomId: rooms[0]?.id
     });
   };
@@ -733,7 +726,7 @@ export const CalendarView: React.FC<Props> = ({
         subcategoryId: editingEvent.subcategoryId,
         eventIntent: selectedActivity?.type,
         staffMemberIds: editingEvent.teacherId ? [editingEvent.teacherId] : [],
-        classification: editingEvent.classification || selectedActivity?.name || '',
+        classification: selectedActivity?.name || '',
       } as CalendarEvent;
       setEvents(prev => [...prev, newEvent]);
       setRecentlySaved(prev => new Set(prev).add(newId));
@@ -1879,7 +1872,6 @@ export const CalendarView: React.FC<Props> = ({
                 ...editingEvent,
                 activityId: e.target.value || undefined,
                 subcategoryId: undefined,
-                classification: selectedActivity?.name || '',
                 eventIntent: selectedActivity?.type,
                 teacherId: undefined,
                 positionId: undefined,

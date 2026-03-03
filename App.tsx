@@ -296,13 +296,16 @@ function AppContent() {
           />
         );
       case 'FINANCIAL':
-        return <FinancialDashboard events={events} teachers={teachers} setTeachers={setTeachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} hoursReports={hoursReports} setHoursReports={setHoursReports} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} />;
+        return <FinancialDashboard events={events} teachers={teachers} setTeachers={setTeachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} hoursReports={hoursReports} setHoursReports={setHoursReports} activities={activities} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} />;
       case 'FINANCIAL_ANALYSIS':
-        return <FinancialAnalysis events={events} teachers={teachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} onNavigateBack={() => setCurrentView('FINANCIAL')} />;
+        return <FinancialAnalysis events={events} teachers={teachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} activities={activities} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} onNavigateBack={() => setCurrentView('FINANCIAL')} />;
       case 'SUPER_ADMIN':
         return (
           <SuperAdmin
             settings={settings}
+            events={events}
+            setEvents={setEvents}
+            activities={activities}
             onLoadTestData={() => {
               console.log("Generating data...");
               const data = generateTestData(settings.currency);

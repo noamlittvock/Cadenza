@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { CalendarEvent, Teacher, AppSettings, HoursReport } from '../types';
+import { CalendarEvent, Teacher, AppSettings, HoursReport, Activity } from '../types';
 import { ChartConfiguration } from '../types/chartBuilder';
 import { formatHours, formatCurrency } from '../utils/formatters';
 import { TRANSLATIONS } from '../constants';
@@ -22,6 +22,7 @@ interface Props {
   hoursReports: HoursReport[];
   setHoursReports: React.Dispatch<React.SetStateAction<HoursReport[]>>;
   onMobileMenuOpen: () => void;
+  activities?: Activity[];
 }
 
 type FinancialTab = 'summary' | 'hours_comparison';
@@ -112,7 +113,7 @@ type SortColumn = 'name' | 'activeHrs' | 'canceledHrs' | 'canceledEvents' | 'tot
 
 // ---- Main Component ----
 
-export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeachers, settings, savedCharts, setSavedCharts, hoursReports, setHoursReports, onMobileMenuOpen }) => {
+export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeachers, settings, savedCharts, setSavedCharts, hoursReports, setHoursReports, onMobileMenuOpen, activities = [] }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
   const [activeTab, setActiveTab] = useState<FinancialTab>('summary');
   const [dateFilterType, setDateFilterType] = useState<DateFilterType>('MONTH');
@@ -283,13 +284,14 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeach
 
         let targetPosId = evt.positionId;
 
-        // Handle general category events with no position (do not drop them, group under category)
-        if (!targetPosId && evt.classification) {
-          const syntheticId = `cat_${evt.classification}`;
+        // Handle general category events with no position (do not drop them, group under activity)
+        if (!targetPosId && evt.activityId) {
+          const actName = activities.find(a => a.id === evt.activityId)?.name || evt.classification || 'Unclassified';
+          const syntheticId = `cat_${actName}`;
           if (!posFinancials[syntheticId]) {
             posFinancials[syntheticId] = {
-              positionId: syntheticId, positionName: evt.classification, rateType: 'HOURLY',
-              rateValue: 0, category: evt.classification, activeHours: 0,
+              positionId: syntheticId, positionName: actName, rateType: 'HOURLY',
+              rateValue: 0, category: actName, activeHours: 0,
               canceledHours: 0, totalHours: 0, hourlyCost: 0, oneOffCost: 0, globalCost: 0,
               finalPositionCost: 0,
             };

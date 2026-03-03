@@ -80,10 +80,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                 if (evtStart < start || evtStart >= end) return false;
                 if (filterTeacher !== 'ALL' && evt.teacherId !== filterTeacher) return false;
                 if (filterType !== 'ALL') {
-                    const matchesActivity = evt.activityId === filterType;
-                    const actName = activities.find(a => a.id === filterType)?.name;
-                    const matchesClassification = actName && evt.classification === actName;
-                    if (!matchesActivity && !matchesClassification) return false;
+                    if (evt.activityId !== filterType) return false;
                 }
                 if (filterTag !== 'ALL') {
                     const teacher = teachers.find(t => t.id === evt.teacherId);

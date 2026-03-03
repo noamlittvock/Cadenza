@@ -6,7 +6,7 @@
 // ──────────────────────────────────────────────
 
 import React, { useState, useMemo } from 'react';
-import { CalendarEvent, Teacher, AppSettings } from '../types';
+import { CalendarEvent, Teacher, AppSettings, Activity as ActivityType } from '../types';
 import { ChartConfiguration } from '../types/chartBuilder';
 import { formatHours, formatCurrency } from '../utils/formatters';
 import {
@@ -268,9 +268,10 @@ interface Props {
     events: CalendarEvent[]; teachers: Teacher[]; settings: AppSettings;
     savedCharts: ChartConfiguration[]; setSavedCharts: React.Dispatch<React.SetStateAction<ChartConfiguration[]>>;
     onMobileMenuOpen: () => void; onNavigateBack: () => void;
+    activities?: ActivityType[];
 }
 
-export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings, savedCharts, setSavedCharts, onMobileMenuOpen, onNavigateBack }) => {
+export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings, savedCharts, setSavedCharts, onMobileMenuOpen, onNavigateBack, activities = [] }) => {
     const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
     const isRtl = settings?.language === 'he-IL';
     const [dateFilterType, setDateFilterType] = useState<DateFilterType>('MONTH');
@@ -424,12 +425,13 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                 const dur = (new Date(evt.end).getTime() - new Date(evt.start).getTime()) / 3600000;
                 let tid = evt.positionId;
 
-                if (!tid && evt.classification) {
-                    const syntheticId = `cat_${evt.classification}`;
+                if (!tid && evt.activityId) {
+                    const actName = activities.find(a => a.id === evt.activityId)?.name || evt.classification || 'Unclassified';
+                    const syntheticId = `cat_${actName}`;
                     if (!posFinancials[syntheticId]) {
                         posFinancials[syntheticId] = {
-                            positionId: syntheticId, positionName: evt.classification, rateType: 'HOURLY',
-                            rateValue: 0, category: evt.classification, activeHours: 0,
+                            positionId: syntheticId, positionName: actName, rateType: 'HOURLY',
+                            rateValue: 0, category: actName, activeHours: 0,
                             canceledHours: 0, totalHours: 0, hourlyCost: 0, oneOffCost: 0, globalCost: 0,
                         };
                     }
@@ -869,16 +871,16 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                                                 }),
                                             ];
                                             if (chart.compareLayout === 'merged' || !chart.compareLayout) {
-                                                return <MergedChartRenderer config={chart} datasets={compDatasets} teachers={teachers} height={280} currencySymbol={settings.currency} />;
+                                                return <MergedChartRenderer config={chart} datasets={compDatasets} teachers={teachers} height={280} currencySymbol={settings.currency} activities={activities} />;
                                             } else {
                                                 // Side-by-side layout
                                                 return (
                                                     <div className="space-y-3">
-                                                        <ChartRenderer config={chart} events={filteredEvents} teachers={teachers} height={200} currencySymbol={settings.currency} />
+                                                        <ChartRenderer config={chart} events={filteredEvents} teachers={teachers} height={200} currencySymbol={settings.currency} activities={activities} />
                                                         {compDatasets.slice(1).map((ds, idx) => (
                                                             <div key={idx} className="border-t border-slate-100 dark:border-slate-800 pt-3">
                                                                 <p className="text-[10px] font-medium mb-1" style={{ color: ds.color }}>{ds.label}</p>
-                                                                <ChartRenderer config={chart} events={ds.events} teachers={teachers} height={160} currencySymbol={settings.currency} />
+                                                                <ChartRenderer config={chart} events={ds.events} teachers={teachers} height={160} currencySymbol={settings.currency} activities={activities} />
                                                             </div>
                                                         ))}
                                                     </div>
@@ -886,7 +888,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                                             }
                                         })()
                                     ) : (
-                                        <ChartRenderer config={chart} events={filteredEvents} teachers={teachers} height={280} currencySymbol={settings.currency} />
+                                        <ChartRenderer config={chart} events={filteredEvents} teachers={teachers} height={280} currencySymbol={settings.currency} activities={activities} />
                                     )}
                                 </div>
                                 {/* Footer */}

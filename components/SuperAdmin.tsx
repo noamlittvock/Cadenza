@@ -4,7 +4,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../utils/firebase';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
-import { AppSettings } from '../types';
+import { AppSettings, CalendarEvent, Activity } from '../types';
 import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus, Wrench, Edit2, Save, X, Globe } from 'lucide-react';
 import { TranslationManager } from './TranslationManager';
 
@@ -27,9 +27,12 @@ interface SuperAdminProps {
     onLoadTestData?: () => void;
     onWipeData?: () => void;
     settings: AppSettings;
+    events?: CalendarEvent[];
+    setEvents?: React.Dispatch<React.SetStateAction<CalendarEvent[]>>;
+    activities?: Activity[];
 }
 
-export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeData, settings }) => {
+export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeData, settings, events = [], setEvents, activities = [] }) => {
     const { currentUser, isSuperAdmin } = useAuth();
     const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
     const [activeTab, setActiveTab] = useState<'ORGS' | 'USERS' | 'DEV_TOOLS' | 'TRANSLATIONS'>('ORGS');
@@ -38,6 +41,15 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
     // Data State
     const [organizations, setOrganizations] = useState<Organization[]>([]);
     const [accessRecords, setAccessRecords] = useState<AccessRecord[]>([]);
+
+    // Migration State
+    const [migrationReport, setMigrationReport] = useState<{
+        total: number;
+        alreadyMigrated: number;
+        matched: { id: string; classification: string; activityId: string }[];
+        unmatched: { id: string; classification: string }[];
+    } | null>(null);
+    const [migrationRunning, setMigrationRunning] = useState(false);
 
     // Form State
     const [newOrgSlug, setNewOrgSlug] = useState('');
@@ -810,6 +822,93 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                 }} className="px-3 py-1.5 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 text-xs font-bold rounded hover:bg-violet-200 dark:hover:bg-violet-900/50 transition-colors">{t('sa.run_teacher_gen')}</button>
                                             </div>
                                         </div>
+                                    </div>
+
+                                    {/* ActivityId Migration */}
+                                    <div className="bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-lg border border-indigo-200 dark:border-indigo-700/50">
+                                        <h4 className="font-bold text-slate-900 dark:text-white mb-1">Activity ID Migration</h4>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                                            Scan legacy events that have <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded">classification</code> but no <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded">activityId</code>, and backfill from the Activity registry.
+                                        </p>
+
+                                        <div className="flex gap-2 mb-3">
+                                            <button
+                                                disabled={migrationRunning}
+                                                onClick={() => {
+                                                    const nameToId = new Map(activities.map(a => [a.name, a.id]));
+                                                    const matched: { id: string; classification: string; activityId: string }[] = [];
+                                                    const unmatched: { id: string; classification: string }[] = [];
+                                                    let alreadyMigrated = 0;
+                                                    events.forEach(evt => {
+                                                        if (evt.activityId) { alreadyMigrated++; return; }
+                                                        const cls = evt.classification;
+                                                        if (!cls) return;
+                                                        const aid = nameToId.get(cls);
+                                                        if (aid) {
+                                                            matched.push({ id: evt.id, classification: cls, activityId: aid });
+                                                        } else {
+                                                            unmatched.push({ id: evt.id, classification: cls });
+                                                        }
+                                                    });
+                                                    setMigrationReport({ total: events.length, alreadyMigrated, matched, unmatched });
+                                                }}
+                                                className="px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 text-xs font-bold rounded hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors"
+                                            >
+                                                Scan Events
+                                            </button>
+                                            {migrationReport && migrationReport.matched.length > 0 && (
+                                                <button
+                                                    disabled={migrationRunning}
+                                                    onClick={async () => {
+                                                        if (!setEvents || !migrationReport) return;
+                                                        if (!window.confirm(`Backfill activityId on ${migrationReport.matched.length} events? This writes to Firestore.`)) return;
+                                                        setMigrationRunning(true);
+                                                        try {
+                                                            const batch = writeBatch(db);
+                                                            migrationReport.matched.forEach(m => {
+                                                                batch.update(doc(db, 'calendarEvents', m.id), { activityId: m.activityId });
+                                                            });
+                                                            await batch.commit();
+                                                            // Update local state
+                                                            const idMap = new Map(migrationReport.matched.map(m => [m.id, m.activityId]));
+                                                            setEvents(prev => prev.map(evt => {
+                                                                const aid = idMap.get(evt.id);
+                                                                return aid ? { ...evt, activityId: aid } : evt;
+                                                            }));
+                                                            setMigrationReport(prev => prev ? { ...prev, matched: [], alreadyMigrated: prev.alreadyMigrated + prev.matched.length } : prev);
+                                                            alert(`Successfully backfilled ${migrationReport.matched.length} events.`);
+                                                        } catch (err) {
+                                                            console.error('Migration error:', err);
+                                                            alert('Migration failed. Check console for details.');
+                                                        } finally {
+                                                            setMigrationRunning(false);
+                                                        }
+                                                    }}
+                                                    className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors"
+                                                >
+                                                    {migrationRunning ? 'Running...' : `Backfill ${migrationReport.matched.length} Events`}
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {migrationReport && (
+                                            <div className="text-xs space-y-1 bg-white dark:bg-slate-900 p-3 rounded border border-slate-200 dark:border-slate-700">
+                                                <p><span className="font-medium">Total events:</span> {migrationReport.total}</p>
+                                                <p><span className="font-medium text-emerald-600">Already have activityId:</span> {migrationReport.alreadyMigrated}</p>
+                                                <p><span className="font-medium text-blue-600">Matched (ready to backfill):</span> {migrationReport.matched.length}</p>
+                                                <p><span className="font-medium text-amber-600">Unmatched (no Activity found):</span> {migrationReport.unmatched.length}</p>
+                                                {migrationReport.unmatched.length > 0 && (
+                                                    <details className="mt-2">
+                                                        <summary className="cursor-pointer text-amber-600 font-medium">Show unmatched classifications</summary>
+                                                        <ul className="mt-1 ml-4 list-disc text-slate-500">
+                                                            {[...new Set(migrationReport.unmatched.map(u => u.classification))].map(cls => (
+                                                                <li key={cls}>{cls} ({migrationReport.unmatched.filter(u => u.classification === cls).length} events)</li>
+                                                            ))}
+                                                        </ul>
+                                                    </details>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* System Info */}
