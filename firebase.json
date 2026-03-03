@@ -30,7 +30,7 @@
   "auth": {
     "providers": {
       "googleSignIn": {
-        "oAuthBrandDisplayName": "Music Center Smart Calendar",
+        "oAuthBrandDisplayName": "Cadenza",
         "supportEmail": "noam.littvock@gmail.com"
       }
     }

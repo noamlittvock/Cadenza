@@ -142,8 +142,8 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   <option value="Asia/Jerusalem">{t('settings.tz_jerusalem')}</option>
                   <option value="America/New_York">{t('settings.tz_eastern')}</option>
                   <option value="America/Los_Angeles">{t('settings.tz_pacific')}</option>
-                  <option value="Europe/London">London</option>
-                  <option value="Europe/Paris">Paris</option>
+                  <option value="Europe/London">{t('settings.tz_london')}</option>
+                  <option value="Europe/Paris">{t('settings.tz_paris')}</option>
                 </select>
               </div>
             </div>
@@ -152,12 +152,12 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
           {/* Currency */}
           <section>
             <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
-              Currency
+              {t('settings.currency_title')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Currency Symbol
+                  {t('settings.currency_symbol_label')}
                 </label>
                 <select
                   className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
@@ -293,7 +293,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                       onClick={handleDisconnectGoogle}
                       className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-white text-slate-700 rounded-xl text-xs font-bold transition-colors whitespace-nowrap"
                     >
-                      Disconnect
+                      {t('settings.disconnect')}
                     </button>
                   ) : (
                     <div className="flex items-center gap-1.5 text-xs text-slate-400">
@@ -309,7 +309,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                 <div className="mt-3 flex items-center gap-2 text-xs">
                   <UserCheck size={14} className="text-green-500" />
                   <span className="text-slate-600 dark:text-slate-400">
-                    Connected via <span className="font-semibold text-slate-800 dark:text-slate-200">{connectedByEmail}</span>
+                    {t('settings.connected_via')} <span className="font-semibold text-slate-800 dark:text-slate-200">{connectedByEmail}</span>
                   </span>
                   {!isCalendarOwner && (
                     <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
@@ -329,14 +329,14 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                     </div>
                   ) : isFetchingCals ? (
                     <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 gap-2">
-                      <Loader2 size={16} className="animate-spin" /> Fetching your calendars...
+                      <Loader2 size={16} className="animate-spin" /> {t('settings.fetching_calendars')}
                     </div>
                   ) : calError ? (
-                    <div className="text-sm text-red-500">Error: {calError}</div>
+                    <div className="text-sm text-red-500">{t('settings.cal_error').replace('{error}', calError)}</div>
                   ) : (
                     <div>
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                        Select Target Calendar
+                        {t('settings.select_target_cal')}
                       </label>
                       <select
                         className="w-full max-w-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
@@ -345,7 +345,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                       >
                         <option value="" disabled>{t('settings.choose_calendar')}</option>
                         {googleCalendars.map(cal => (
-                          <option key={cal.id} value={cal.id}>{cal.summary} {cal.primary ? '(Primary)' : ''}</option>
+                          <option key={cal.id} value={cal.id}>{cal.summary} {cal.primary ? t('settings.cal_primary') : ''}</option>
                         ))}
                       </select>
                       <p className="text-xs text-slate-500 mt-2">{t('settings.gcal_auto_note')}</p>

@@ -182,11 +182,11 @@ const DeleteConfirmModal: React.FC<{ chartTitle: string; onConfirm: () => void; 
             </div>
         </div>
         <p className="text-sm text-slate-600 dark:text-slate-300 mb-6 font-medium">
-            Are you sure you want to delete <strong>"{chartTitle}"</strong>?
+            {t('fin.confirm_delete_msg').replace('{title}', chartTitle)}
         </p>
         <div className="flex items-center gap-2 justify-end">
-            <button onClick={onCancel} className="px-4 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancel</button>
-            <button onClick={onConfirm} className="px-4 py-2 text-sm rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors">Delete</button>
+            <button onClick={onCancel} className="px-4 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">{t('btn.cancel')}</button>
+            <button onClick={onConfirm} className="px-4 py-2 text-sm rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors">{t('btn.delete')}</button>
         </div>
     </Modal>
 );
@@ -213,7 +213,7 @@ const CustomInsightModal: React.FC<CustomInsightModalProps> = ({ teachers, onClo
         <Modal
             isOpen={true}
             onClose={onClose}
-            title={<><Zap size={18} className="text-amber-500 inline mr-2" /> {t('modal.new_insight')}</>}
+            title={<><Zap size={18} className="text-amber-500 inline me-2" /> {t('modal.new_insight')}</>}
             isDirty={Boolean(title.trim() || teacherId)}
             t={t}
             maxWidth="max-w-sm"
@@ -790,7 +790,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                             {!insightShowAll && visibleInsightIds.size === 0 && (
                                 <div className="col-span-full text-center py-6 text-slate-400 dark:text-slate-500 text-sm">
                                     <EyeOff size={20} className="mx-auto mb-2 opacity-50" />
-                                    No insights selected. Click <strong>Edit</strong> to choose which insights to display.
+                                    {t('fin.no_insights')}
                                 </div>
                             )}
                         </div>

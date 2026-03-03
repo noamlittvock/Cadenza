@@ -691,7 +691,7 @@ const MergedTableRenderer: React.FC<MergedTableRendererProps> = ({
                 </tbody>
                 <tfoot className="bg-slate-100 dark:bg-slate-950 font-bold border-t-2 border-slate-200 dark:border-slate-700">
                     <tr>
-                        <td className="px-3 py-2 text-slate-800 dark:text-white text-[10px] uppercase tracking-wider">Total</td>
+                        <td className="px-3 py-2 text-slate-800 dark:text-white text-[10px] uppercase tracking-wider">{t('col.total')}</td>
                         {seriesKeys.map((k) => {
                             const total = sorted.reduce((sum, row) => sum + (typeof row[k] === 'number' ? (row[k] as number) : 0), 0);
                             return (

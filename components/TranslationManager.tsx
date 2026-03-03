@@ -159,10 +159,10 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
                 await b.commit();
             }
 
-            alert("Deployed successfully to database!");
+            alert(t('tm.deploy_success'));
         } catch (error) {
             console.error(error);
-            alert("Deploy failed.");
+            alert(t('tm.deploy_failed'));
         } finally {
             setDeploying(false);
         }
@@ -175,13 +175,13 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
             const missing = records.filter(r => r.status === 'untranslated' && !r.manual_override);
 
             if (missing.length === 0) {
-                alert("No missing translations to auto-translate.");
+                alert(t('tm.no_missing'));
                 return;
             }
 
             const apiKey = import.meta.env.VITE_GOOGLE_TRANSLATE_API_KEY;
             if (!apiKey) {
-                alert("VITE_GOOGLE_TRANSLATE_API_KEY is not defined in .env. Please add it to automatically translate missing strings.");
+                alert(t('tm.api_key_missing'));
                 return;
             }
 
@@ -227,10 +227,10 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
                 translatedCount += chunk.length;
             }
 
-            alert(`Successfully auto-translated ${translatedCount} items! Don't forget to Deploy to save changes.`);
+            alert(t('tm.auto_translate_success').replace('{count}', String(translatedCount)));
         } catch (e) {
             console.error(e);
-            alert("Auto-translation failed: " + (e as Error).message);
+            alert(t('tm.auto_translate_failed').replace('{error}', (e as Error).message));
         } finally {
             setAutoTranslateLoading(false);
         }
@@ -248,7 +248,7 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
     };
 
     if (loading) {
-        return <div className="p-8 flex items-center justify-center h-full"><Globe className="animate-spin text-cadenza-light me-2" /> Loading Translations Data...</div>;
+        return <div className="p-8 flex items-center justify-center h-full"><Globe className="animate-spin text-cadenza-light me-2" /> {t('tm.loading')}</div>;
     }
 
     return (
@@ -265,7 +265,7 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
                         <Globe size={24} />
                     </div>
                     <div>
-                        <h2 className="text-lg font-bold text-slate-900 dark:text-white">Translation Engine</h2>
+                        <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('tm.title')}</h2>
                         <div className="text-xs font-medium text-slate-500 mt-0.5">
                             {stats.translated} Translated / {stats.total} Total
                         </div>
@@ -278,22 +278,22 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
 
                 <div className="flex items-center gap-3 w-full md:w-auto">
                     <div className="relative flex-1 md:w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <Search className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
                             type="text"
-                            placeholder="Search keys or text..."
+                            placeholder={t('tm.search_placeholder')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full ps-9 pe-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cadenza-light outline-none"
                         />
                     </div>
                     <button
-                        onClick={() => alert("Auto translate endpoint will connect here.")}
+                        onClick={() => alert(t('tm.auto_translate_placeholder'))}
                         className="btn-cadenza-secondary px-4 py-2 border border-slate-200 dark:border-slate-700 shadow-sm text-sm"
                         disabled={autoTranslateLoading}
                     >
                         {autoTranslateLoading ? <RefreshCw className="animate-spin w-4 h-4 me-2" /> : null}
-                        Auto-Translate Missing
+                        {t('tm.auto_translate')}
                     </button>
                     <button
                         onClick={handleDeploy}
@@ -301,7 +301,7 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
                         className="btn-cadenza px-4 py-2 flex items-center gap-2 shadow-cadenza-pressed shrink-0"
                     >
                         {deploying ? <Globe className="animate-spin w-4 h-4" /> : <Save size={16} />}
-                        Deploy
+                        {t('tm.deploy')}
                     </button>
                 </div>
             </div>
@@ -311,7 +311,7 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
                 {!selectedGroup ? (
                     /* Level 1: Screen List */
                     <div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-4 px-1 uppercase tracking-wider">Screen Groups</h3>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-4 px-1 uppercase tracking-wider">{t('tm.screen_groups')}</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {groups.map(g => (
                                 <div
@@ -331,17 +331,17 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
                                         </div>
                                         {g.untranslated > 0 ? (
                                             <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded text-xs font-bold">
-                                                {g.untranslated} Missing
+                                                {g.untranslated} {t('tm.missing')}
                                             </span>
                                         ) : (
                                             <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded text-xs font-bold">
-                                                Complete
+                                                {t('tm.complete')}
                                             </span>
                                         )}
                                     </div>
                                     {/* Accent strip if incomplete */}
                                     {g.untranslated > 0 && (
-                                        <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400 rounded-t-xl" />
+                                        <div className="absolute top-0 inset-x-0 h-1 bg-amber-400 rounded-t-xl" />
                                     )}
                                 </div>
                             ))}
@@ -355,7 +355,7 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
                             className="mb-6 flex items-center text-sm font-medium text-slate-500 hover:text-cadenza-light transition-colors"
                         >
                             {isRtl ? <ChevronRight size={16} className="ms-1" /> : <ChevronLeft size={16} className="me-1" />}
-                            Back to Groups
+                            {t('tm.back_to_groups')}
                         </button>
 
                         <div className="flex items-center justify-between mb-6">
@@ -382,15 +382,15 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
                                             <button
                                                 onClick={() => updateRecord(record.key, 'manual_override', !record.manual_override)}
                                                 className={`p-1 rounded-full transition-colors ${record.manual_override ? 'text-cadenza-light bg-cadenza-light/10 hover:bg-cadenza-light/20' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
-                                                title={record.manual_override ? "Manual Override Enabled - Safe from Auto-Translation" : "Click to lock and prevent Auto-Translation"}
+                                                title={record.manual_override ? t('tm.lock_tooltip') : t('tm.unlock_tooltip')}
                                             >
                                                 {record.manual_override ? <Lock size={12} /> : <Unlock size={12} />}
                                             </button>
                                         </div>
                                         <div className="shrink-0 flex items-center gap-2">
-                                            {record.status === 'untranslated' && <span className="text-[10px] uppercase tracking-wide font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Untranslated</span>}
-                                            {record.status === 'auto_translated' && <span className="text-[10px] uppercase tracking-wide font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Auto</span>}
-                                            {record.status === 'reviewed' && <span className="text-[10px] uppercase tracking-wide font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">Reviewed</span>}
+                                            {record.status === 'untranslated' && <span className="text-[10px] uppercase tracking-wide font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded">{t('tm.status_untranslated')}</span>}
+                                            {record.status === 'auto_translated' && <span className="text-[10px] uppercase tracking-wide font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{t('tm.status_auto')}</span>}
+                                            {record.status === 'reviewed' && <span className="text-[10px] uppercase tracking-wide font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">{t('tm.status_reviewed')}</span>}
                                         </div>
                                     </div>
 
@@ -399,7 +399,7 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
 
                                         {/* Original English (Strict LTR) */}
                                         <div className="flex-1 space-y-1" dir="ltr">
-                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block text-start">Original (en-US)</label>
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block text-start">{t('tm.label_original')}</label>
                                             <div className="text-sm font-medium text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800 text-start">
                                                 {record.original_english}
                                             </div>
@@ -407,7 +407,7 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
 
                                         {/* Target Hebrew (Strict RTL) */}
                                         <div className="flex-1 space-y-1 relative" dir="rtl">
-                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block text-start">Translation (he-IL)</label>
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block text-start">{t('tm.label_translation')}</label>
                                             <textarea
                                                 value={record.he_IL}
                                                 onChange={(e) => {

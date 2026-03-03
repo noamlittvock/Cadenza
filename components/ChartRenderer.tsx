@@ -524,7 +524,7 @@ const TableRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys, co
                 {/* Totals row */}
                 <tfoot className="bg-slate-100 dark:bg-slate-950 font-bold border-t-2 border-slate-200 dark:border-slate-700">
                     <tr>
-                        <td className="px-4 py-3 text-slate-800 dark:text-white text-xs uppercase tracking-wider">Total</td>
+                        <td className="px-4 py-3 text-slate-800 dark:text-white text-xs uppercase tracking-wider">{t('col.total')}</td>
                         {metricKeys.map(k => {
                             const total = sorted.reduce((sum, row) => sum + (typeof row[k] === 'number' ? row[k] as number : 0), 0);
                             return (

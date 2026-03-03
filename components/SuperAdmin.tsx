@@ -716,7 +716,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
 
                         {activeTab === 'DEV_TOOLS' && (
                             <div className="p-6">
-                                <div className="border-l-4 border-amber-400 bg-amber-50 dark:bg-amber-900/20 p-4 rounded-r-lg mb-6">
+                                <div className="border-s-4 border-amber-400 bg-amber-50 dark:bg-amber-900/20 p-4 rounded-e-lg mb-6">
                                     <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
                                         ⚠️ {t('super.tools_notice')}
                                     </p>
@@ -826,9 +826,9 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
 
                                     {/* ActivityId Migration */}
                                     <div className="bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-lg border border-indigo-200 dark:border-indigo-700/50">
-                                        <h4 className="font-bold text-slate-900 dark:text-white mb-1">Activity ID Migration</h4>
+                                        <h4 className="font-bold text-slate-900 dark:text-white mb-1">{t('sa.migration_title')}</h4>
                                         <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-                                            Scan legacy events that have <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded">classification</code> but no <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded">activityId</code>, and backfill from the Activity registry.
+                                            {t('sa.migration_desc')}
                                         </p>
 
                                         <div className="flex gap-2 mb-3">
@@ -854,14 +854,14 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                 }}
                                                 className="px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 text-xs font-bold rounded hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors"
                                             >
-                                                Scan Events
+                                                {t('sa.migration_scan')}
                                             </button>
                                             {migrationReport && migrationReport.matched.length > 0 && (
                                                 <button
                                                     disabled={migrationRunning}
                                                     onClick={async () => {
                                                         if (!setEvents || !migrationReport) return;
-                                                        if (!window.confirm(`Backfill activityId on ${migrationReport.matched.length} events? This writes to Firestore.`)) return;
+                                                        if (!window.confirm(t('sa.migration_backfill_confirm').replace('{count}', String(migrationReport.matched.length)))) return;
                                                         setMigrationRunning(true);
                                                         try {
                                                             const batch = writeBatch(db);
@@ -876,31 +876,31 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                                                 return aid ? { ...evt, activityId: aid } : evt;
                                                             }));
                                                             setMigrationReport(prev => prev ? { ...prev, matched: [], alreadyMigrated: prev.alreadyMigrated + prev.matched.length } : prev);
-                                                            alert(`Successfully backfilled ${migrationReport.matched.length} events.`);
+                                                            alert(t('sa.migration_backfill_success').replace('{count}', String(migrationReport.matched.length)));
                                                         } catch (err) {
                                                             console.error('Migration error:', err);
-                                                            alert('Migration failed. Check console for details.');
+                                                            alert(t('sa.migration_backfill_error'));
                                                         } finally {
                                                             setMigrationRunning(false);
                                                         }
                                                     }}
                                                     className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors"
                                                 >
-                                                    {migrationRunning ? 'Running...' : `Backfill ${migrationReport.matched.length} Events`}
+                                                    {migrationRunning ? t('sa.migration_running') : t('sa.migration_backfill_btn').replace('{count}', String(migrationReport.matched.length))}
                                                 </button>
                                             )}
                                         </div>
 
                                         {migrationReport && (
                                             <div className="text-xs space-y-1 bg-white dark:bg-slate-900 p-3 rounded border border-slate-200 dark:border-slate-700">
-                                                <p><span className="font-medium">Total events:</span> {migrationReport.total}</p>
-                                                <p><span className="font-medium text-emerald-600">Already have activityId:</span> {migrationReport.alreadyMigrated}</p>
-                                                <p><span className="font-medium text-blue-600">Matched (ready to backfill):</span> {migrationReport.matched.length}</p>
-                                                <p><span className="font-medium text-amber-600">Unmatched (no Activity found):</span> {migrationReport.unmatched.length}</p>
+                                                <p><span className="font-medium">{t('sa.migration_total')}</span> {migrationReport.total}</p>
+                                                <p><span className="font-medium text-emerald-600">{t('sa.migration_already')}</span> {migrationReport.alreadyMigrated}</p>
+                                                <p><span className="font-medium text-blue-600">{t('sa.migration_matched')}</span> {migrationReport.matched.length}</p>
+                                                <p><span className="font-medium text-amber-600">{t('sa.migration_unmatched')}</span> {migrationReport.unmatched.length}</p>
                                                 {migrationReport.unmatched.length > 0 && (
                                                     <details className="mt-2">
-                                                        <summary className="cursor-pointer text-amber-600 font-medium">Show unmatched classifications</summary>
-                                                        <ul className="mt-1 ml-4 list-disc text-slate-500">
+                                                        <summary className="cursor-pointer text-amber-600 font-medium">{t('sa.migration_show_unmatched')}</summary>
+                                                        <ul className="mt-1 ms-4 list-disc text-slate-500">
                                                             {[...new Set(migrationReport.unmatched.map(u => u.classification))].map(cls => (
                                                                 <li key={cls}>{cls} ({migrationReport.unmatched.filter(u => u.classification === cls).length} events)</li>
                                                             ))}

@@ -295,14 +295,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                   <button
                     onClick={login}
-                    className="w-full flex items-center justify-center space-x-3 bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white py-4 px-6 rounded-2xl font-bold transition-all shadow-xl hover:shadow-blue-500/20 active:scale-[0.98] group"
+                    className="w-full flex items-center justify-center space-x-3 rtl:space-x-reverse bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white py-4 px-6 rounded-2xl font-bold transition-all shadow-xl hover:shadow-blue-500/20 active:scale-[0.98] group"
                   >
                     <LogIn size={20} className="group-hover:translate-x-1 transition-transform" />
                     <span>Sign In with Google</span>
                   </button>
 
                   {errorMsg && (
-                    <div className="flex items-center space-x-2 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl text-red-600 dark:text-red-400 text-sm animate-shake">
+                    <div className="flex items-center space-x-2 rtl:space-x-reverse p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl text-red-600 dark:text-red-400 text-sm animate-shake">
                       <AlertCircle size={18} />
                       <span>{errorMsg}</span>
                     </div>
@@ -310,7 +310,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center space-x-4 mb-10 p-5 bg-slate-50/80 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center space-x-4 rtl:space-x-reverse mb-10 p-5 bg-slate-50/80 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
                     <div className="w-14 h-14 rounded-full overflow-hidden shrink-0 border-2 border-white dark:border-slate-700 shadow-md">
                       <img src={currentUser.avatar || `https://ui-avatars.com/api/?name=${currentUser.name}`} alt="" />
                     </div>
@@ -318,13 +318,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                       <p className="font-bold text-slate-900 dark:text-white truncate text-lg leading-tight">{currentUser.name}</p>
                       <p className="text-xs font-medium text-slate-500 truncate mt-0.5">{currentUser.email}</p>
                     </div>
-                    <button onClick={logout} className="ml-2 text-slate-400 hover:text-red-500 p-2.5 transition-colors bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <button onClick={logout} className="ms-2 text-slate-400 hover:text-red-500 p-2.5 transition-colors bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                       <LogIn size={20} className="rotate-180" />
                     </button>
                   </div>
 
                   <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 px-1">Authorized Workspaces</h3>
-                  <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+                  <div className="space-y-4 max-h-[40vh] overflow-y-auto pe-2 custom-scrollbar">
                     {availableOrgs && availableOrgs.length > 0 ? (
                       availableOrgs.map(org => (
                         <a
@@ -332,7 +332,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                           href={`/${org.id}`}
                           className="group flex items-center justify-between p-5 bg-white dark:bg-slate-900/40 hover:bg-blue-600 border border-slate-100 dark:border-slate-800 rounded-2xl transition-all shadow-sm hover:shadow-blue-600/20 hover:scale-[1.02] active:scale-[0.99]"
                         >
-                          <div className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-4 rtl:space-x-reverse">
                             <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center group-hover:bg-white transition-colors shadow-inner overflow-hidden">
                               {org.logoUrl ? (
                                 <img src={org.logoUrl} alt={org.name} className="w-full h-full object-contain p-1" />

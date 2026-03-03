@@ -929,7 +929,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                     </div>
 
                     <div className="col-span-1">
-                      <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Overhead</label>
+                      <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">{t('teach.overhead_fee')}</label>
                       <div className="flex bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden focus-within:ring-1 focus-within:ring-blue-500">
                         <select
                           className="bg-transparent text-xs px-1 border-e border-slate-300 dark:border-slate-600 outline-none w-[45px] text-slate-500 cursor-pointer"
@@ -949,7 +949,7 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
                     </div>
 
                     <div className="col-span-1">
-                      <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Social</label>
+                      <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">{t('teach.social_benefits')}</label>
                       <div className="flex bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden focus-within:ring-1 focus-within:ring-blue-500">
                         <select
                           className="bg-transparent text-xs px-1 border-e border-slate-300 dark:border-slate-600 outline-none w-[45px] text-slate-500 cursor-pointer"

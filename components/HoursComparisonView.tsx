@@ -250,7 +250,7 @@ export const HoursComparisonView: React.FC<Props> = ({
                           </tbody>
                           <tfoot>
                             <tr className="border-t-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 font-bold">
-                              <td className="px-5 py-3 text-slate-800 dark:text-white" colSpan={2}>Total</td>
+                              <td className="px-5 py-3 text-slate-800 dark:text-white" colSpan={2}>{t('col.total')}</td>
                               <td className="px-5 py-3 text-end text-slate-600 dark:text-slate-400 font-mono">{formatHours(totalScheduled)}</td>
                               <td className="px-5 py-3 text-end text-slate-800 dark:text-white font-mono">{formatHours(totalReported)}</td>
                               <td className={`px-5 py-3 text-end font-mono ${

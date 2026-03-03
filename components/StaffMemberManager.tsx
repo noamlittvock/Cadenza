@@ -525,13 +525,13 @@ export const StaffMemberManager: React.FC<Props> = ({
       <div className="px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-3">
           <div className="relative flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder={t('staff.search')}
-              className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full ps-9 pe-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer select-none">
@@ -642,7 +642,7 @@ export const StaffMemberManager: React.FC<Props> = ({
             {/* === IDENTITY SECTION === */}
             <SectionHeader sectionKey="identity" icon={User} label={t('staff.section.identity')} />
             {expandedSections.identity && (
-              <div className="space-y-3 pl-2">
+              <div className="space-y-3 ps-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{t('staff.full_name')} *</label>
@@ -725,7 +725,7 @@ export const StaffMemberManager: React.FC<Props> = ({
             {/* === CONTACT SECTION === */}
             <SectionHeader sectionKey="contact" icon={Phone} label={t('staff.section.contact')} />
             {expandedSections.contact && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ps-2">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{t('staff.phone')}</label>
                   <input
@@ -750,7 +750,7 @@ export const StaffMemberManager: React.FC<Props> = ({
             {/* === POSITION ASSIGNMENTS SECTION (Financial) === */}
             <SectionHeader sectionKey="position_assignments" icon={DollarSign} label={t('staff.section.position_assignments')} />
             {expandedSections.position_assignments && (
-              <div className="space-y-3 pl-2">
+              <div className="space-y-3 ps-2">
                 {(formData.positionAssignments || []).map((pa, idx) => (
                   <div key={pa.id} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
                     <div className="flex items-center justify-between mb-2">
@@ -791,10 +791,10 @@ export const StaffMemberManager: React.FC<Props> = ({
                           onChange={e => updatePositionAssignment(pa.id, { rateType: e.target.value as RateType })}
                           className="w-full px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white"
                         >
-                          <option value="HOURLY">Hourly</option>
-                          <option value="GLOBAL_MONTHLY">Global Monthly</option>
-                          <option value="PER_EVENT">Per Event</option>
-                          <option value="ONE_OFF">One-Off</option>
+                          <option value="HOURLY">{t('staff.rate_hourly')}</option>
+                          <option value="GLOBAL_MONTHLY">{t('staff.rate_global_monthly')}</option>
+                          <option value="PER_EVENT">{t('staff.rate_per_event')}</option>
+                          <option value="ONE_OFF">{t('staff.rate_one_off')}</option>
                         </select>
                       </div>
                       <div>
@@ -812,22 +812,22 @@ export const StaffMemberManager: React.FC<Props> = ({
                     {/* Financial extras row */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
                       <div>
-                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">Cost</label>
+                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">{t('staff.cost')}</label>
                         <input type="number" value={pa.cost ?? ''} onChange={e => updatePositionAssignment(pa.id, { cost: parseFloat(e.target.value) || undefined })}
                           className="w-full px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white" min={0} step={0.01} />
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">VAT %</label>
+                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">{t('staff.vat_pct')}</label>
                         <input type="number" value={pa.vat?.value ?? ''} onChange={e => updatePositionAssignment(pa.id, { vat: { type: 'PERCENTAGE', value: parseFloat(e.target.value) || 0 } })}
                           className="w-full px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white" min={0} step={0.01} />
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">Overhead</label>
+                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">{t('staff.overhead')}</label>
                         <input type="number" value={pa.overheadFeeValue ?? ''} onChange={e => updatePositionAssignment(pa.id, { overheadFeeValue: parseFloat(e.target.value) || undefined })}
                           className="w-full px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white" min={0} step={0.01} />
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">Social %</label>
+                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">{t('staff.social_pct')}</label>
                         <input type="number" value={pa.socialBenefitsValue ?? ''} onChange={e => updatePositionAssignment(pa.id, { socialBenefitsValue: parseFloat(e.target.value) || undefined })}
                           className="w-full px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white" min={0} step={0.01} />
                       </div>
@@ -843,7 +843,7 @@ export const StaffMemberManager: React.FC<Props> = ({
             {/* === POSITION TITLES SECTION === */}
             <SectionHeader sectionKey="position_titles" icon={Briefcase} label={t('staff.section.position_titles')} />
             {expandedSections.position_titles && (
-              <div className="space-y-3 pl-2">
+              <div className="space-y-3 ps-2">
                 {(formData.positionTitles || []).map(pt => (
                   <div key={pt.id} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
                     <select
@@ -871,7 +871,7 @@ export const StaffMemberManager: React.FC<Props> = ({
             {/* === TEACHING ASSIGNMENTS SECTION === */}
             <SectionHeader sectionKey="teaching_assignments" icon={Music} label={t('staff.section.teaching_assignments')} />
             {expandedSections.teaching_assignments && (
-              <div className="space-y-3 pl-2">
+              <div className="space-y-3 ps-2">
                 {(formData.teachingAssignments || []).map(ta => {
                   const activity = activities.find(a => a.id === ta.activityId);
                   const activeSubcats = activity?.subcategories.filter(s => !s.isArchived) || [];
@@ -949,7 +949,7 @@ export const StaffMemberManager: React.FC<Props> = ({
             {/* === TAGS SECTION === */}
             <SectionHeader sectionKey="tags" icon={Tag} label={t('staff.section.tags')} />
             {expandedSections.tags && (
-              <div className="space-y-2 pl-2">
+              <div className="space-y-2 ps-2">
                 <div className="flex flex-wrap gap-1.5">
                   {(formData.tags || []).map(tag => (
                     <span key={tag} className="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs font-medium">
@@ -965,7 +965,7 @@ export const StaffMemberManager: React.FC<Props> = ({
                     value={tagInput}
                     onChange={e => setTagInput(e.target.value)}
                     onKeyDown={handleAddTag}
-                    placeholder="Add tag..."
+                    placeholder={t('staff.add_tag_placeholder')}
                     className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white"
                   />
                   <datalist id="tags-datalist">
@@ -981,7 +981,7 @@ export const StaffMemberManager: React.FC<Props> = ({
             {/* === BIO SECTION === */}
             <SectionHeader sectionKey="bio" icon={User} label={t('staff.bio')} />
             {expandedSections.bio && (
-              <div className="pl-2">
+              <div className="ps-2">
                 <textarea
                   value={formData.bio || ''}
                   onChange={e => setFormData({ ...formData, bio: e.target.value })}
@@ -995,7 +995,7 @@ export const StaffMemberManager: React.FC<Props> = ({
             {/* === CREDENTIALS SECTION === */}
             <SectionHeader sectionKey="credentials" icon={GraduationCap} label={t('staff.section.credentials')} />
             {expandedSections.credentials && (
-              <div className="space-y-3 pl-2">
+              <div className="space-y-3 ps-2">
                 {(formData.credentials || []).map(cred => (
                   <div key={cred.id} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
                     <input type="text" value={cred.institution || ''} onChange={e => updateCredential(cred.id, { institution: e.target.value })}
@@ -1016,12 +1016,12 @@ export const StaffMemberManager: React.FC<Props> = ({
             {/* === NOTES SECTION === */}
             <SectionHeader sectionKey="notes" icon={FileText} label={t('staff.section.notes')} />
             {expandedSections.notes && (
-              <div className="space-y-3 pl-2">
+              <div className="space-y-3 ps-2">
                 {(formData.notes || []).map(note => (
                   <div key={note.id} className="p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
                     <div className="flex items-start justify-between">
                       <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{note.content}</p>
-                      <button type="button" onClick={() => removeNote(note.id)} className="text-red-400 hover:text-red-600 ml-2 flex-shrink-0"><Trash2 size={14} /></button>
+                      <button type="button" onClick={() => removeNote(note.id)} className="text-red-400 hover:text-red-600 ms-2 flex-shrink-0"><Trash2 size={14} /></button>
                     </div>
                     <p className="text-xs text-slate-400 mt-1">{note.createdBy} — {new Date(note.createdAt).toLocaleString()}</p>
                   </div>
@@ -1044,7 +1044,7 @@ export const StaffMemberManager: React.FC<Props> = ({
             {/* === DOCUMENTS SECTION === */}
             <SectionHeader sectionKey="documents" icon={Upload} label={t('staff.section.documents')} />
             {expandedSections.documents && (
-              <div className="space-y-3 pl-2">
+              <div className="space-y-3 ps-2">
                 {(formData.documents || []).map(doc => (
                   <div key={doc.id} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
                     <FileText size={16} className="text-slate-400 flex-shrink-0" />
@@ -1073,7 +1073,7 @@ export const StaffMemberManager: React.FC<Props> = ({
             {/* === GOOGLE CALENDAR SECTION === */}
             <SectionHeader sectionKey="google_calendar" icon={Clock} label={t('staff.section.google_calendar')} />
             {expandedSections.google_calendar && (
-              <div className="space-y-3 pl-2">
+              <div className="space-y-3 ps-2">
                 <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer">
                   <input
                     type="checkbox"
@@ -1103,7 +1103,7 @@ export const StaffMemberManager: React.FC<Props> = ({
               <>
                 <SectionHeader sectionKey="hours_reports" icon={ClipboardList} label={t('hours.title')} />
                 {expandedSections.hours_reports && (
-                  <div className="space-y-4 pl-2">
+                  <div className="space-y-4 ps-2">
                     {/* Generate New Link */}
                     <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
                       <h4 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-3">{t('hours.generate_link')}</h4>

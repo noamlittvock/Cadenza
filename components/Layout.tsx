@@ -354,8 +354,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               style={{
                 opacity: isCollapsed ? 0 : 1,
                 maxWidth: isCollapsed ? 0 : 150,
-                marginLeft: isCollapsed ? 0 : 8,
-                transition: 'opacity 300ms ease, max-width 500ms ease, margin-left 500ms ease',
+                marginInlineStart: isCollapsed ? 0 : 8,
+                transition: 'opacity 300ms ease, max-width 500ms ease, margin-inline-start 500ms ease',
               }}>{darkMode ? t('layout.light_mode') : t('layout.dark_mode')}</span>
           </button>
 

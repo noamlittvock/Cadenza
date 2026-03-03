@@ -397,7 +397,7 @@ const FilterSection: React.FC<FilterSectionProps> = ({ label, options, selected,
         <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
           {label}
           {selected.length > 0 && (
-            <span className="ml-2 text-xs font-semibold text-blue-600 dark:text-blue-400">
+            <span className="ms-2 text-xs font-semibold text-blue-600 dark:text-blue-400">
               ({selected.length})
             </span>
           )}
