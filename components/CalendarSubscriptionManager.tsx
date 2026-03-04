@@ -161,7 +161,7 @@ export const CalendarSubscriptionManager: React.FC<Props> = ({
           {!isCreating && (
             <button
               onClick={() => setIsCreating(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold"
+              className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
             >
               <Plus size={16} />
               {t('subscriptions.create')}

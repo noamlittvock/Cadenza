@@ -271,7 +271,8 @@ interface Props {
     activities?: ActivityType[];
 }
 
-export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings, savedCharts, setSavedCharts, onMobileMenuOpen, onNavigateBack, activities = [] }) => {
+export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings, savedCharts: rawSavedCharts, setSavedCharts, onMobileMenuOpen, onNavigateBack, activities = [] }) => {
+    const savedCharts = Array.isArray(rawSavedCharts) ? rawSavedCharts : [];
     const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
     const isRtl = settings?.language === 'he-IL';
     const [dateFilterType, setDateFilterType] = useState<DateFilterType>('MONTH');
@@ -824,7 +825,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
                         {savedCharts.map(chart => (
-                            <div key={chart.id} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden group">
+                            <div key={chart.id} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-visible group">
                                 {/* Header */}
                                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
                                     <div className="flex items-center gap-2 min-w-0">

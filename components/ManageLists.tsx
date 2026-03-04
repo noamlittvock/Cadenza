@@ -58,7 +58,7 @@ const ListEditor = ({
         <button
           onClick={handleAdd}
           disabled={!input.trim()}
-          className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 shadow-cadenza-soft px-3 py-2 rounded-lg"
+          className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 shadow-cadenza-soft p-2.5 min-w-[40px] flex items-center justify-center rounded-lg"
         >
           <Plus size={20} />
         </button>

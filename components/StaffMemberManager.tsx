@@ -9,7 +9,7 @@ import {
   Plus, Edit2, Trash2, Search, Palette, X, Menu,
   DollarSign, Clock, ChevronDown, ChevronUp, Archive, RotateCcw,
   Upload, FileText, GraduationCap, Music, Briefcase, User, Phone, Mail, Tag,
-  ClipboardList, Copy, Check, Link2
+  ClipboardList, Copy, Check, Link2, LayoutGrid, List
 } from 'lucide-react';
 import { Modal } from './Modal';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -54,6 +54,8 @@ export const StaffMemberManager: React.FC<Props> = ({
   const [initialFormData, setInitialFormData] = useState<Partial<Teacher>>({});
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
+  const [staffViewMode, setStaffViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewOnlyStaffId, setViewOnlyStaffId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState('');
   const [noteInput, setNoteInput] = useState('');
@@ -65,6 +67,7 @@ export const StaffMemberManager: React.FC<Props> = ({
     hours_reports: false,
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const formScrollRef = useRef<HTMLDivElement>(null);
 
   // --- Effective Date Prompt State ---
   const [effectiveDatePrompt, setEffectiveDatePrompt] = useState<{
@@ -119,7 +122,14 @@ export const StaffMemberManager: React.FC<Props> = ({
   // --- Helpers ---
 
   const toggleSection = (section: string) => {
+    const isExpanding = !expandedSections[section];
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+    if (isExpanding) {
+      requestAnimationFrame(() => {
+        const el = formScrollRef.current?.querySelector(`[data-section="${section}"]`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
   };
 
   const syncPositionsFromAssignments = (assignments: PositionAssignment[]): string[] => {
@@ -355,8 +365,20 @@ export const StaffMemberManager: React.FC<Props> = ({
       identity: true, contact: true, position_assignments: true,
       position_titles: false, teaching_assignments: false, tags: true,
       credentials: false, notes: false, documents: false, google_calendar: false, bio: false,
+      hours_reports: false,
     });
     setIsModalOpen(true);
+  };
+
+  const handleOpenModalWithHours = (teacher: Teacher) => {
+    handleOpenModal(teacher);
+    setExpandedSections(prev => ({ ...prev, hours_reports: true }));
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = formScrollRef.current?.querySelector('[data-section="hours_reports"]');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -483,6 +505,7 @@ export const StaffMemberManager: React.FC<Props> = ({
   const SectionHeader = ({ sectionKey, icon: Icon, label }: { sectionKey: string; icon: React.ElementType; label: string }) => (
     <button
       type="button"
+      data-section={sectionKey}
       onClick={() => toggleSection(sectionKey)}
       className="flex items-center justify-between w-full py-2 px-3 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
     >
@@ -512,8 +535,7 @@ export const StaffMemberManager: React.FC<Props> = ({
           </div>
           <button
             onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 text-white font-semibold py-2 px-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-sm"
-            style={{ background: 'radial-gradient(ellipse at 65% 25%, #60a5fa 0%, #3b82f6 40%, #6366f1 100%)' }}
+            className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft flex items-center gap-2 font-semibold py-2 px-4 rounded-xl text-sm"
           >
             <Plus size={18} />
             {t('staff.add')}
@@ -543,6 +565,22 @@ export const StaffMemberManager: React.FC<Props> = ({
             />
             {t('staff.show_archived')}
           </label>
+          <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setStaffViewMode('grid')}
+              className={`p-2 transition-colors ${staffViewMode === 'grid' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+              title={t('view.grid')}
+            >
+              <LayoutGrid size={16} />
+            </button>
+            <button
+              onClick={() => setStaffViewMode('list')}
+              className={`p-2 transition-colors ${staffViewMode === 'list' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+              title={t('view.list')}
+            >
+              <List size={16} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -553,12 +591,13 @@ export const StaffMemberManager: React.FC<Props> = ({
             <User size={48} className="mb-3 opacity-50" />
             <p className="text-lg font-medium">{search ? t('staff.no_results') : t('staff.empty_state')}</p>
           </div>
-        ) : (
+        ) : staffViewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredStaff.map(staff => (
               <div
                 key={staff.id}
-                className={`bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden ${staff.isArchived ? 'opacity-60' : ''}`}
+                onClick={() => setViewOnlyStaffId(staff.id)}
+                className={`bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer ${staff.isArchived ? 'opacity-60' : ''}`}
               >
                 <div className="p-4">
                   <div className="flex items-start justify-between mb-3">
@@ -601,14 +640,21 @@ export const StaffMemberManager: React.FC<Props> = ({
                   {/* Actions */}
                   <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button
-                      onClick={() => handleOpenModal(staff)}
+                      onClick={(e) => { e.stopPropagation(); handleOpenModal(staff); }}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                     >
                       <Edit2 size={14} />
                       {t('btn.edit') || t('staff.edit')}
                     </button>
                     <button
-                      onClick={() => handleArchiveToggle(staff.id)}
+                      onClick={(e) => { e.stopPropagation(); handleOpenModalWithHours(staff); }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
+                    >
+                      <ClipboardList size={14} />
+                      {t('hours.title')}
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleArchiveToggle(staff.id); }}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
                     >
                       {staff.isArchived ? <RotateCcw size={14} /> : <Archive size={14} />}
@@ -618,6 +664,59 @@ export const StaffMemberManager: React.FC<Props> = ({
                 </div>
               </div>
             ))}
+          </div>
+        ) : (
+          /* List View */
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                  <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">{t('staff.full_name')}</th>
+                  <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hidden md:table-cell">{t('staff.section.contact')}</th>
+                  <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hidden lg:table-cell">{t('staff.section.position_assignments')}</th>
+                  <th className="text-end px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">{t('btn.edit')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredStaff.map(staff => (
+                  <tr key={staff.id} onClick={() => setViewOnlyStaffId(staff.id)} className={`border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer ${staff.isArchived ? 'opacity-60' : ''}`}>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0" style={{ backgroundColor: staff.color }}>
+                          {staff.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="font-medium text-slate-900 dark:text-white">{staff.fullName}</div>
+                          {staff.isArchived && <span className="text-xs text-amber-600 dark:text-amber-400">{t('staff.archived_badge')}</span>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400 hidden md:table-cell">
+                      <div className="space-y-0.5">
+                        {staff.email && <div className="flex items-center gap-1 text-xs"><Mail size={10} /> {staff.email}</div>}
+                        {staff.phone && <div className="flex items-center gap-1 text-xs"><Phone size={10} /> {staff.phone}</div>}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400 hidden lg:table-cell">
+                      <span className="text-xs">{staff.positions.join(', ') || '—'}</span>
+                    </td>
+                    <td className="px-4 py-3 text-end">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={(e) => { e.stopPropagation(); handleOpenModal(staff); }} className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title={t('btn.edit')}>
+                          <Edit2 size={14} />
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); handleOpenModalWithHours(staff); }} className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors" title={t('hours.title')}>
+                          <ClipboardList size={14} />
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); handleArchiveToggle(staff.id); }} className="p-1.5 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors" title={staff.isArchived ? t('staff.restore') : t('staff.archive')}>
+                          {staff.isArchived ? <RotateCcw size={14} /> : <Archive size={14} />}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -632,7 +731,7 @@ export const StaffMemberManager: React.FC<Props> = ({
           isDirty={JSON.stringify(formData) !== JSON.stringify(initialFormData)}
           onSave={handleSubmit as any}
         >
-          <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto max-h-[70vh] px-1">
+          <form ref={formScrollRef} onSubmit={handleSubmit} className="space-y-4 overflow-y-auto max-h-[70vh] px-1">
             {error && (
               <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
                 {error}
@@ -810,26 +909,39 @@ export const StaffMemberManager: React.FC<Props> = ({
                       </div>
                     </div>
                     {/* Financial extras row */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-                      <div>
-                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">{t('staff.cost')}</label>
-                        <input type="number" value={pa.cost ?? ''} onChange={e => updatePositionAssignment(pa.id, { cost: parseFloat(e.target.value) || undefined })}
-                          className="w-full px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white" min={0} step={0.01} />
-                      </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
                       <div>
                         <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">{t('staff.vat_pct')}</label>
-                        <input type="number" value={pa.vat?.value ?? ''} onChange={e => updatePositionAssignment(pa.id, { vat: { type: 'PERCENTAGE', value: parseFloat(e.target.value) || 0 } })}
-                          className="w-full px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white" min={0} step={0.01} />
+                        <div className="flex items-center gap-1">
+                          <input type="number" value={pa.vat?.value ?? ''} onChange={e => updatePositionAssignment(pa.id, { vat: { type: pa.vat?.type || 'PERCENTAGE', value: parseFloat(e.target.value) || 0 } })}
+                            className="flex-1 px-2 py-1.5 rounded-s border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white" min={0} step={0.01} />
+                          <button type="button" onClick={() => updatePositionAssignment(pa.id, { vat: { type: pa.vat?.type === 'FLAT' ? 'PERCENTAGE' : 'FLAT', value: pa.vat?.value || 0 } })}
+                            className="px-2 py-1.5 rounded-e border border-s-0 border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-600 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-500 transition-colors whitespace-nowrap">
+                            {pa.vat?.type === 'FLAT' ? settings.currency || '₪' : '%'}
+                          </button>
+                        </div>
                       </div>
                       <div>
                         <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">{t('staff.overhead')}</label>
-                        <input type="number" value={pa.overheadFeeValue ?? ''} onChange={e => updatePositionAssignment(pa.id, { overheadFeeValue: parseFloat(e.target.value) || undefined })}
-                          className="w-full px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white" min={0} step={0.01} />
+                        <div className="flex items-center gap-1">
+                          <input type="number" value={pa.overheadFeeValue ?? ''} onChange={e => updatePositionAssignment(pa.id, { overheadFeeValue: parseFloat(e.target.value) || undefined })}
+                            className="flex-1 px-2 py-1.5 rounded-s border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white" min={0} step={0.01} />
+                          <button type="button" onClick={() => updatePositionAssignment(pa.id, { overheadFeeType: pa.overheadFeeType === 'FLAT' ? 'PERCENTAGE' : 'FLAT' })}
+                            className="px-2 py-1.5 rounded-e border border-s-0 border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-600 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-500 transition-colors whitespace-nowrap">
+                            {pa.overheadFeeType === 'FLAT' ? settings.currency || '₪' : '%'}
+                          </button>
+                        </div>
                       </div>
                       <div>
                         <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">{t('staff.social_pct')}</label>
-                        <input type="number" value={pa.socialBenefitsValue ?? ''} onChange={e => updatePositionAssignment(pa.id, { socialBenefitsValue: parseFloat(e.target.value) || undefined })}
-                          className="w-full px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white" min={0} step={0.01} />
+                        <div className="flex items-center gap-1">
+                          <input type="number" value={pa.socialBenefitsValue ?? ''} onChange={e => updatePositionAssignment(pa.id, { socialBenefitsValue: parseFloat(e.target.value) || undefined })}
+                            className="flex-1 px-2 py-1.5 rounded-s border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white" min={0} step={0.01} />
+                          <button type="button" onClick={() => updatePositionAssignment(pa.id, { socialBenefitsType: pa.socialBenefitsType === 'FLAT' ? 'PERCENTAGE' : 'FLAT' })}
+                            className="px-2 py-1.5 rounded-e border border-s-0 border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-600 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-500 transition-colors whitespace-nowrap">
+                            {pa.socialBenefitsType === 'FLAT' ? settings.currency || '₪' : '%'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1178,6 +1290,165 @@ export const StaffMemberManager: React.FC<Props> = ({
           </form>
         </Modal>
       )}
+
+      {/* View-Only Staff Modal */}
+      {viewOnlyStaffId && (() => {
+        const staff = teachers.find(t => t.id === viewOnlyStaffId);
+        if (!staff) return null;
+        const activeCreds = (staff.credentials || []);
+        const activeTA = (staff.teachingAssignments || []).filter(ta => !ta.isArchived);
+        const activeNotes = (staff.notes || []);
+        const activeDocs = (staff.documents || []);
+        return (
+          <Modal
+            isOpen={true}
+            onClose={() => setViewOnlyStaffId(null)}
+            title={staff.fullName}
+            maxWidth="max-w-2xl"
+            isDirty={false}
+            footerContent={
+              <div className="flex justify-end gap-2 w-full">
+                <button
+                  onClick={() => setViewOnlyStaffId(null)}
+                  className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sm"
+                >
+                  {t('btn.close')}
+                </button>
+                <button
+                  onClick={() => { setViewOnlyStaffId(null); handleOpenModal(staff); }}
+                  className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm flex items-center gap-1.5"
+                >
+                  <Edit2 size={14} />
+                  {t('btn.edit')}
+                </button>
+              </div>
+            }
+            t={t}
+          >
+            <div className="space-y-5 overflow-y-auto max-h-[70vh] px-1">
+              {/* Identity */}
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0" style={{ backgroundColor: staff.color }}>
+                  {staff.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{staff.fullName}</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">{staff.positions.join(', ') || '—'}</p>
+                  {staff.employmentType && <p className="text-xs text-slate-400">{staff.employmentType}</p>}
+                </div>
+                {staff.isArchived && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                    {t('staff.archived_badge')}
+                  </span>
+                )}
+              </div>
+
+              {/* Contact */}
+              {(staff.email || staff.phone) && (
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 space-y-1.5">
+                  <h4 className="text-xs font-semibold uppercase text-slate-400 mb-1">{t('staff.section.contact')}</h4>
+                  {staff.email && <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"><Mail size={14} className="text-slate-400" /> {staff.email}</div>}
+                  {staff.phone && <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"><Phone size={14} className="text-slate-400" /> {staff.phone}</div>}
+                </div>
+              )}
+
+              {/* Tags */}
+              {staff.tags.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase text-slate-400 mb-2">{t('staff.section.tags')}</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {staff.tags.map(tag => (
+                      <span key={tag} className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full text-xs font-medium">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Credentials */}
+              {activeCreds.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase text-slate-400 mb-2">{t('staff.section.credentials')}</h4>
+                  <div className="space-y-2">
+                    {activeCreds.map(cred => (
+                      <div key={cred.id} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-2">
+                        <GraduationCap size={14} className="text-slate-400 flex-shrink-0" />
+                        <span>{cred.institution} — {cred.qualificationType}{cred.year ? ` (${cred.year})` : ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Teaching Assignments */}
+              {activeTA.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase text-slate-400 mb-2">{t('staff.section.teaching_assignments')}</h4>
+                  <div className="space-y-1.5">
+                    {activeTA.map(ta => {
+                      const act = activities.find(a => a.id === ta.activityId);
+                      const sub = act?.subcategories.find(s => s.id === ta.subcategoryId);
+                      return (
+                        <div key={ta.id} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-2">
+                          <Music size={14} className="text-slate-400 flex-shrink-0" />
+                          <span>{act?.name || '—'}{sub ? ` / ${sub.name}` : ''}{ta.isEnsemble ? ` (${t('staff.is_ensemble')})` : ''}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              {activeNotes.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase text-slate-400 mb-2">{t('staff.section.notes')}</h4>
+                  <div className="space-y-2">
+                    {activeNotes.map(note => (
+                      <div key={note.id} className="bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-2">
+                        <p className="text-sm text-slate-600 dark:text-slate-300">{note.content}</p>
+                        <p className="text-xs text-slate-400 mt-1">{new Date(note.createdAt).toLocaleDateString()}{note.createdBy ? ` — ${note.createdBy}` : ''}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Documents */}
+              {activeDocs.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase text-slate-400 mb-2">{t('staff.section.documents')}</h4>
+                  <div className="space-y-1.5">
+                    {activeDocs.map(doc => (
+                      <div key={doc.id} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-2">
+                        <FileText size={14} className="text-slate-400 flex-shrink-0" />
+                        <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">{doc.label || doc.fileName}</a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Google Calendar */}
+              {staff.googleCalendarSyncEnabled && (
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3">
+                  <h4 className="text-xs font-semibold uppercase text-slate-400 mb-1">{t('staff.section.google_calendar')}</h4>
+                  <p className="text-sm text-slate-600 dark:text-slate-300">{t('staff.google_sync_enabled')}: {staff.googleCalendarId || '—'}</p>
+                </div>
+              )}
+
+              {/* Bio */}
+              {staff.bio && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase text-slate-400 mb-2">{t('staff.section.bio')}</h4>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{staff.bio}</p>
+                </div>
+              )}
+            </div>
+          </Modal>
+        );
+      })()}
 
       {/* Effective Date Prompt Modal */}
       {effectiveDatePrompt && (

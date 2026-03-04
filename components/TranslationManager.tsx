@@ -4,7 +4,7 @@ import { db } from '../utils/firebase';
 import { TRANSLATIONS } from '../constants';
 import { TranslationRecord } from '../types/translations';
 import extractedDataRaw from '../translations_extracted.json';
-import { ChevronRight, ChevronLeft, Globe, Search, RefreshCw, Lock, Unlock, Save } from 'lucide-react';
+import { ChevronRight, ChevronLeft, ChevronDown, Globe, Search, RefreshCw, Lock, Unlock, Save } from 'lucide-react';
 
 // Cast the imported JSON to avoid type errors
 const extractedData = extractedDataRaw as Array<{ key: string, screen_group: string }>;
@@ -27,6 +27,23 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
     const [searchQuery, setSearchQuery] = useState('');
     const [autoTranslateLoading, setAutoTranslateLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set(['Operations', 'Admin', 'Analytics', 'System', 'Other']));
+
+    // Navigation hierarchy
+    const NAV_HIERARCHY: Record<string, string[]> = {
+        Operations: ['CalendarView', 'GanttManager', 'PowerTools'],
+        Admin: ['TeacherManager', 'ManageHub', 'RoomManager', 'ManageLists', 'SuperAdmin', 'TranslationManager'],
+        Analytics: ['FinancialDashboard', 'FinancialAnalysis', 'ChartBuilderModal', 'ChartRenderer'],
+        System: ['App', 'AuthContext', 'Layout', 'Modal', 'Settings'],
+    };
+
+    const toggleBranch = (branch: string) => {
+        setExpandedBranches(prev => {
+            const next = new Set(prev);
+            if (next.has(branch)) next.delete(branch); else next.add(branch);
+            return next;
+        });
+    };
 
     // Initial Merge of Extracted vs Live
     useEffect(() => {
@@ -309,43 +326,124 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
             {/* Content Area */}
             <div className="flex-1 overflow-y-auto p-6">
                 {!selectedGroup ? (
-                    /* Level 1: Screen List */
-                    <div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-4 px-1 uppercase tracking-wider">{t('tm.screen_groups')}</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {groups.map(g => (
-                                <div
-                                    key={g.name}
-                                    onClick={() => setSelectedGroup(g.name)}
-                                    className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-cadenza-soft hover:shadow-cadenza-deep cursor-pointer transition-all hover:-translate-y-1 flex flex-col group relative"
-                                >
-                                    <div className="flex justify-between items-start mb-3">
-                                        <h4 className="font-bold text-slate-800 dark:text-slate-100 truncate pe-4" title={g.name}>{g.name}</h4>
-                                        <div className="p-1.5 bg-slate-50 dark:bg-slate-900 text-slate-400 rounded-full group-hover:text-cadenza-light group-hover:bg-cadenza-light/10 transition-colors">
-                                            {isRtl ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-                                        </div>
-                                    </div>
-                                    <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between">
-                                        <div className="text-xs font-medium text-slate-500">
-                                            {g.total - g.untranslated} / {g.total}
-                                        </div>
-                                        {g.untranslated > 0 ? (
-                                            <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded text-xs font-bold">
-                                                {g.untranslated} {t('tm.missing')}
-                                            </span>
-                                        ) : (
-                                            <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded text-xs font-bold">
-                                                {t('tm.complete')}
-                                            </span>
+                    /* Level 1: Navigational Tree */
+                    <div className="space-y-4 max-w-4xl mx-auto">
+                        {(() => {
+                            const groupMap = new Map(groups.map(g => [g.name, g]));
+                            const mappedGroups = new Set(Object.values(NAV_HIERARCHY).flat());
+                            const otherGroups = groups.filter(g => !mappedGroups.has(g.name));
+                            const branches = [
+                                ...Object.entries(NAV_HIERARCHY).map(([branch, screenGroups]) => ({
+                                    branch,
+                                    items: screenGroups
+                                        .map(sg => groupMap.get(sg))
+                                        .filter((g): g is typeof groups[0] => !!g),
+                                })),
+                                ...(otherGroups.length > 0 ? [{ branch: 'Other', items: otherGroups }] : []),
+                            ];
+
+                            return branches.map(({ branch, items }) => {
+                                if (items.length === 0) return null;
+                                const branchTotal = items.reduce((s, g) => s + g.total, 0);
+                                const branchTranslated = items.reduce((s, g) => s + (g.total - g.untranslated), 0);
+                                const branchUntranslated = branchTotal - branchTranslated;
+                                const isExpanded = expandedBranches.has(branch);
+
+                                const needsTranslation = items.filter(g => g.untranslated > 0).sort((a, b) => a.name.localeCompare(b.name));
+                                const completed = items.filter(g => g.untranslated === 0).sort((a, b) => a.name.localeCompare(b.name));
+
+                                return (
+                                    <div key={branch} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                                        {/* Branch Header */}
+                                        <button
+                                            onClick={() => toggleBranch(branch)}
+                                            className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors text-start"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <ChevronDown size={16} className={`text-slate-400 transition-transform ${isExpanded ? '' : '-rotate-90 rtl:rotate-90'}`} />
+                                                <h3 className="font-bold text-slate-800 dark:text-white">{t(`tm.section_${branch.toLowerCase()}`) !== `tm.section_${branch.toLowerCase()}` ? t(`tm.section_${branch.toLowerCase()}`) : branch}</h3>
+                                                <span className="text-xs text-slate-400 font-medium">{branchTranslated}/{branchTotal}</span>
+                                            </div>
+                                            {branchUntranslated > 0 ? (
+                                                <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded text-xs font-bold">
+                                                    {branchUntranslated} {t('tm.missing')}
+                                                </span>
+                                            ) : (
+                                                <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded text-xs font-bold">
+                                                    {t('tm.complete')}
+                                                </span>
+                                            )}
+                                        </button>
+
+                                        {/* Branch Content */}
+                                        {isExpanded && (
+                                            <div className="px-4 pb-4 space-y-3">
+                                                {/* Needs Translation */}
+                                                {needsTranslation.length > 0 && (
+                                                    <div>
+                                                        <h4 className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-2 px-1">
+                                                            {t('tm.needs_translation')} ({needsTranslation.length})
+                                                        </h4>
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                            {needsTranslation.map(g => (
+                                                                <div
+                                                                    key={g.name}
+                                                                    onClick={() => setSelectedGroup(g.name)}
+                                                                    className="flex items-center justify-between bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/20 transition-colors group"
+                                                                >
+                                                                    <div className="flex items-center gap-2 min-w-0">
+                                                                        <span className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate">{g.name}</span>
+                                                                        <span className="text-[10px] text-slate-400 flex-shrink-0">{g.total - g.untranslated}/{g.total}</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="bg-amber-200 dark:bg-amber-800/50 text-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0">
+                                                                            {g.untranslated} {t('tm.missing')}
+                                                                        </span>
+                                                                        <div className="text-slate-400 group-hover:text-amber-600 transition-colors">
+                                                                            {isRtl ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {/* Completed */}
+                                                {completed.length > 0 && (
+                                                    <div>
+                                                        <h4 className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-2 px-1">
+                                                            {t('tm.completed_group')} ({completed.length})
+                                                        </h4>
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                            {completed.map(g => (
+                                                                <div
+                                                                    key={g.name}
+                                                                    onClick={() => setSelectedGroup(g.name)}
+                                                                    className="flex items-center justify-between bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors group"
+                                                                >
+                                                                    <div className="flex items-center gap-2 min-w-0">
+                                                                        <span className="font-medium text-sm text-slate-600 dark:text-slate-400 truncate">{g.name}</span>
+                                                                        <span className="text-[10px] text-slate-400 flex-shrink-0">{g.total}/{g.total}</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0">
+                                                                            {t('tm.complete')}
+                                                                        </span>
+                                                                        <div className="text-slate-400 group-hover:text-slate-600 transition-colors">
+                                                                            {isRtl ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
-                                    {/* Accent strip if incomplete */}
-                                    {g.untranslated > 0 && (
-                                        <div className="absolute top-0 inset-x-0 h-1 bg-amber-400 rounded-t-xl" />
-                                    )}
-                                </div>
-                            ))}
-                        </div>
+                                );
+                            });
+                        })()}
                     </div>
                 ) : (
                     /* Level 2: Screen Detail */

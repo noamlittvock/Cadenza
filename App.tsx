@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState, Activity, Student, CalendarSubscription, HoursReport, AdminInboxItem } from './types';
 import { ChartConfiguration } from './types/chartBuilder';
-import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, TRANSLATIONS, migrateTeacher } from './constants';
+import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, TRANSLATIONS, migrateTeacher, generateId } from './constants';
 
 const t = (key: string) => {
   const lang = document.documentElement.lang || 'en-US';
@@ -10,6 +10,7 @@ const t = (key: string) => {
 };
 import { useFirestoreSync, useFirestoreSettings } from './utils/useFirestoreSync';
 import { generateTestData } from './utils/dataGenerator';
+import { detectRoomConflicts } from './utils/roomConflicts';
 import { Layout } from './components/Layout';
 import { CalendarView } from './components/CalendarView';
 import { GanttManager } from './components/GanttManager';
@@ -135,6 +136,55 @@ function AppContent() {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
+
+  // Room conflict detection → admin inbox notifications
+  useEffect(() => {
+    const conflicts = detectRoomConflicts(events);
+    if (conflicts.length === 0) return;
+
+    // Use functional updater to read latest adminInboxItems without stale closure
+    setAdminInboxItems(prev => {
+      const existingFingerprints = new Set(
+        prev
+          .filter(item => item.relatedEntityType === 'ROOM_CONFLICT')
+          .map(item => (item.relatedEntityIds || []).sort().join('|'))
+      );
+
+      const newItems = conflicts
+        .map(c => {
+          const fingerprint = [c.eventA.id, c.eventB.id].sort().join('|');
+          if (existingFingerprints.has(fingerprint)) return null;
+          const roomName = rooms.find(r => r.id === c.roomId)?.name || c.roomId;
+          return {
+            id: generateId(),
+            orgId: '',
+            type: 'NOTIFICATION' as const,
+            status: 'OPEN' as const,
+            title: `Room conflict: ${roomName}`,
+            message: `"${c.eventA.name}" and "${c.eventB.name}" overlap in ${roomName}`,
+            relatedEntityType: 'ROOM_CONFLICT',
+            relatedEntityIds: [c.eventA.id, c.eventB.id].sort(),
+            createdAt: new Date().toISOString(),
+          };
+        })
+        .filter((item): item is NonNullable<typeof item> => item !== null);
+
+      if (newItems.length === 0) return prev;
+      return [...prev, ...newItems];
+    });
+  }, [events, rooms]);
+
+  // Navigate to calendar from conflict notification
+  const handleNavigateToConflict = (eventIds: string[]) => {
+    const conflictEvents = events.filter(e => eventIds.includes(e.id));
+    if (conflictEvents.length === 0) return;
+    const earliest = conflictEvents.reduce((a, b) =>
+      new Date(a.start) < new Date(b.start) ? a : b
+    );
+    setCurrentDate(new Date(earliest.start));
+    setViewMode('DAY');
+    setCurrentView('CALENDAR');
+  };
 
   // Route Rendering
   const renderContent = () => {
@@ -313,15 +363,50 @@ function AppContent() {
               setEvents(data.events);
               setRooms(data.rooms);
               setGanttBlocks(data.ganttBlocks);
+              setActivities(data.activities);
+              setStudents(data.students);
+              if (data.adminInboxItems) {
+                setAdminInboxItems(data.adminInboxItems);
+              }
+              if (data.savedCharts) {
+                setSavedCharts(data.savedCharts);
+              }
+              if (data.hoursReports) {
+                setHoursReports(data.hoursReports);
+              }
+              if (data.subscriptions) {
+                setCalendarSubscriptions(data.subscriptions);
+              }
+              // Seed FinancialAnalysis localStorage keys
+              localStorage.setItem('financial-analysis-custom-insights', JSON.stringify([
+                { id: 'ci_1', title: 'Top Earner Active Hours', metric: 'maxEarner' },
+                { id: 'ci_2', title: 'Avg Monthly Payroll', metric: 'avgGrandTotal' },
+                { id: 'ci_3', title: 'Cancellation Rate Trend', metric: 'cancellationRate' },
+              ]));
+              localStorage.removeItem('financial-analysis-visible-insights');
             }}
             onWipeData={() => {
-              if (window.confirm(local_t('app.confirm_wipe'))) {
                 setTeachers([]);
                 setRooms([]);
                 setEvents([]);
                 setGanttBlocks([]);
-              }
+                setStudents([]);
+                setActivities([]);
+                setAdminInboxItems([]);
+                setSavedCharts([]);
+                setHoursReports([]);
+                setCalendarSubscriptions([]);
+                localStorage.removeItem('financial-analysis-custom-insights');
+                localStorage.removeItem('financial-analysis-visible-insights');
             }}
+            setTeachers={setTeachers}
+            setSavedCharts={setSavedCharts}
+            setHoursReports={setHoursReports}
+            setRooms={setRooms}
+            setGanttBlocks={setGanttBlocks}
+            setActivities={setActivities}
+            setStudents={setStudents}
+            setAdminInboxItems={setAdminInboxItems}
           />
         );
       case 'ADMIN_INBOX':
@@ -331,8 +416,10 @@ function AppContent() {
             setInboxItems={setAdminInboxItems}
             teachers={teachers}
             students={students}
+            events={events}
             settings={settings}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+            onNavigateToEvent={handleNavigateToConflict}
           />
         );
       case 'SETTINGS':

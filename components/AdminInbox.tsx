@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { AdminInboxItem, AppSettings, Teacher, Student } from '../types';
+import { AdminInboxItem, AppSettings, Teacher, Student, CalendarEvent } from '../types';
 import { TRANSLATIONS } from '../constants';
 import {
   Menu, Inbox, CheckCircle2, Bell, ClipboardList, ChevronDown, ChevronUp,
-  Clock, Users, Eye, EyeOff
+  Clock, Users, Eye, EyeOff, Calendar, HelpCircle, AlertTriangle
 } from 'lucide-react';
 
 interface Props {
@@ -11,14 +11,16 @@ interface Props {
   setInboxItems: React.Dispatch<React.SetStateAction<AdminInboxItem[]>>;
   teachers: Teacher[];
   students: Student[];
+  events: CalendarEvent[];
   settings: AppSettings;
   onMobileMenuOpen: () => void;
+  onNavigateToEvent?: (eventIds: string[]) => void;
 }
 
 type InboxTab = 'tasks' | 'notifications';
 
 export const AdminInbox: React.FC<Props> = ({
-  inboxItems, setInboxItems, teachers, students, settings, onMobileMenuOpen
+  inboxItems, setInboxItems, teachers, students, events, settings, onMobileMenuOpen, onNavigateToEvent
 }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
   const [activeTab, setActiveTab] = useState<InboxTab>('tasks');
@@ -79,6 +81,18 @@ export const AdminInbox: React.FC<Props> = ({
     });
   };
 
+  const resolveEventDate = (entityIds?: string[]): string | null => {
+    if (!entityIds?.length) return null;
+    const matchedEvents = events.filter(e => entityIds.includes(e.id));
+    if (matchedEvents.length === 0) return null;
+    const earliest = matchedEvents.reduce((a, b) => new Date(a.start) < new Date(b.start) ? a : b);
+    return new Date(earliest.start).toLocaleDateString(settings.language === 'he-IL' ? 'he-IL' : 'en-US', {
+      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+    });
+  };
+
+  const [showHelp, setShowHelp] = useState(false);
+
   return (
     <div className="h-full overflow-y-auto p-8 pb-20 custom-scrollbar">
       <div className="max-w-4xl mx-auto">
@@ -88,7 +102,7 @@ export const AdminInbox: React.FC<Props> = ({
             <Menu className="w-6 h-6 text-slate-600 dark:text-slate-300" />
           </button>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 rounded-xl btn-cadenza bg-cadenza-gradient texture-cadenza flex items-center justify-center shadow-cadenza-soft">
               <Inbox size={20} className="text-white" />
             </div>
             <div>
@@ -130,6 +144,25 @@ export const AdminInbox: React.FC<Props> = ({
               {showCompleted ? <EyeOff size={13} /> : <Eye size={13} />}
               {showCompleted ? t('inbox.hide_completed') : t('inbox.show_completed')}
             </button>
+          )}
+        </div>
+
+        {/* Help Panel */}
+        <div className="mb-4">
+          <button
+            onClick={() => setShowHelp(!showHelp)}
+            className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+          >
+            <HelpCircle size={13} />
+            {t('inbox.help_title')}
+            {showHelp ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+          {showHelp && (
+            <div className="mt-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-xs text-slate-500 dark:text-slate-400 space-y-1.5 border border-slate-200 dark:border-slate-700">
+              <p><strong className="text-slate-600 dark:text-slate-300">{t('inbox.help_room_conflicts')}</strong></p>
+              <p><strong className="text-slate-600 dark:text-slate-300">{t('inbox.help_manual_tasks')}</strong></p>
+              <p><strong className="text-slate-600 dark:text-slate-300">{t('inbox.help_system_events')}</strong></p>
+            </div>
           )}
         </div>
 
@@ -246,10 +279,30 @@ export const AdminInbox: React.FC<Props> = ({
                     <div className="flex-1 min-w-0">
                       <h4 className="font-semibold text-sm text-slate-800 dark:text-white mb-1">{notif.title}</h4>
                       <p className="text-sm text-slate-600 dark:text-slate-300">{notif.message}</p>
-                      <span className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500 mt-2">
-                        <Clock size={11} />
-                        {formatDate(notif.createdAt)}
-                      </span>
+                      <div className="flex items-center gap-3 mt-2 flex-wrap">
+                        <span className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
+                          <Clock size={11} />
+                          {formatDate(notif.createdAt)}
+                        </span>
+                        {notif.relatedEntityType === 'ROOM_CONFLICT' && notif.relatedEntityIds && (() => {
+                          const eventDate = resolveEventDate(notif.relatedEntityIds);
+                          return eventDate ? (
+                            <span className="flex items-center gap-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                              <AlertTriangle size={11} />
+                              {t('inbox.conflict_on')} {eventDate}
+                            </span>
+                          ) : null;
+                        })()}
+                      </div>
+                      {notif.relatedEntityType === 'ROOM_CONFLICT' && onNavigateToEvent && notif.relatedEntityIds && (
+                        <button
+                          onClick={() => onNavigateToEvent(notif.relatedEntityIds!)}
+                          className="mt-2 flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                        >
+                          <Calendar size={12} />
+                          {t('inbox.view_in_calendar')}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

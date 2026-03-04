@@ -5,8 +5,10 @@ import { db, storage } from '../utils/firebase';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
 import { AppSettings, CalendarEvent, Activity } from '../types';
-import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus, Wrench, Edit2, Save, X, Globe } from 'lucide-react';
+import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus, Wrench, Edit2, Save, X, Globe, ChevronDown, ChevronUp, HelpCircle, AlertTriangle } from 'lucide-react';
 import { TranslationManager } from './TranslationManager';
+import { Modal } from './Modal';
+import { generateTestTeachers, generateTestCalendar, generateTestGantts, generateTestActivities, generateTestStudents, generateTestAdminInbox, generateTestSavedCharts, generateTestHoursReports } from '../utils/dataGenerator';
 
 interface Organization {
     id: string; // The slug
@@ -30,13 +32,28 @@ interface SuperAdminProps {
     events?: CalendarEvent[];
     setEvents?: React.Dispatch<React.SetStateAction<CalendarEvent[]>>;
     activities?: Activity[];
+    setTeachers?: (data: any[]) => void;
+    setSavedCharts?: (data: any[]) => void;
+    setHoursReports?: (data: any[]) => void;
+    setRooms?: (data: any[]) => void;
+    setGanttBlocks?: (data: any[]) => void;
+    setActivities?: (data: any[]) => void;
+    setStudents?: (data: any[]) => void;
+    setAdminInboxItems?: (data: any[]) => void;
 }
 
-export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeData, settings, events = [], setEvents, activities = [] }) => {
+export const SuperAdmin: React.FC<SuperAdminProps> = ({
+    onLoadTestData, onWipeData, settings, events = [], setEvents, activities = [],
+    setTeachers, setSavedCharts, setHoursReports, setRooms, setGanttBlocks, setActivities, setStudents, setAdminInboxItems
+}) => {
     const { currentUser, isSuperAdmin } = useAuth();
     const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
     const [activeTab, setActiveTab] = useState<'ORGS' | 'USERS' | 'DEV_TOOLS' | 'TRANSLATIONS'>('ORGS');
     const [loading, setLoading] = useState(true);
+    const [showExplainers, setShowExplainers] = useState<Record<string, boolean>>({});
+    const [showWipeModal, setShowWipeModal] = useState(false);
+    const [wipeConfirmText, setWipeConfirmText] = useState('');
+    const [wipeCheckbox, setWipeCheckbox] = useState(false);
 
     // Data State
     const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -723,104 +740,138 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                 </div>
 
                                 <div className="space-y-6">
-                                    {/* Test Data Generation */}
+                                    {/* Generate All Test Data */}
                                     <div className="bg-amber-50 dark:bg-amber-900/20 p-5 rounded-lg border border-amber-200 dark:border-amber-700/50">
-                                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                                            <div>
-                                                <h4 className="font-bold text-slate-900 dark:text-white">{t('sa.generate_test')}</h4>
-                                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                                    {t('sa.test_data_desc')}
-                                                </p>
-                                            </div>
-                                            <div className="flex gap-2 shrink-0">
+                                        <div className="flex items-start justify-between gap-4 mb-3">
+                                            <div className="flex-1">
                                                 <button
-                                                    onClick={() => onWipeData?.()}
-                                                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-bold transition-colors shadow-none border border-red-600"
+                                                    onClick={() => setShowExplainers(prev => ({ ...prev, generateAll: !prev.generateAll }))}
+                                                    className="flex items-center gap-2 group"
                                                 >
-                                                    {t('super.wipe_data')}
+                                                    <h4 className="font-bold text-slate-900 dark:text-white">{t('sa.generate_test')}</h4>
+                                                    <HelpCircle size={15} className="text-amber-600 dark:text-amber-400 group-hover:opacity-70" />
                                                 </button>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    if (window.confirm(t('super.confirm_snapshot'))) {
+                                                        localStorage.setItem('appSnapshot', JSON.stringify({
+                                                            teachers: localStorage.getItem('teachers'),
+                                                            events: localStorage.getItem('events'),
+                                                            rooms: localStorage.getItem('rooms'),
+                                                            settings: localStorage.getItem('settings'),
+                                                            lists: localStorage.getItem('lists')
+                                                        }));
+                                                        alert(t('sa.snapshot_created_short'));
+                                                    }
+                                                    if (window.confirm(t('super.confirm_generate'))) {
+                                                        onLoadTestData?.();
+                                                        window.alert(t('sa.test_generated'));
+                                                    }
+                                                }}
+                                                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-bold transition-colors shrink-0"
+                                            >
+                                                {t('sa.generate_btn')}
+                                            </button>
+                                        </div>
+                                        {showExplainers.generateAll && (
+                                            <div className="bg-white dark:bg-slate-800/50 border border-amber-200 dark:border-amber-700 rounded-lg p-3 text-xs text-slate-600 dark:text-slate-300 mb-3">
+                                                Generates a complete realistic dataset: 20 teachers with diverse positions and pay rates, 200+ calendar events spread across ±30 days, 8 rooms, 15 Gantt blocks, 5 activity categories, 8 students, 4 saved charts, 3 hours reports (one per status), and 4 pre-seeded admin inbox tasks. Use this as a starting point before testing individual modules.
+                                            </div>
+                                        )}
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                                            {t('sa.test_data_desc')}
+                                        </p>
+                                    </div>
+
+                                    {/* Granular Regeneration */}
+                                    <div className="p-5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                                        <h4 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                                            <Wrench size={16} />
+                                            Granular Regeneration
+                                        </h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                            {[
+                                                { id: 'teachers', icon: '👥', label: 'Teachers', desc: '20 staff members with randomized positions, pay rates, tags, and edge-case names (hyphenated, Hebrew, Arabic).' },
+                                                { id: 'events', icon: '📅', label: 'Calendar Events', desc: '200 events ±30 days from today, 10% canceled, 15% with payment overrides, and 4 deliberate room conflicts.' },
+                                                { id: 'charts', icon: '📊', label: 'Saved Charts', desc: '4 chart configurations: cost by teacher, hours by month, events by category, rate comparison.' },
+                                                { id: 'reports', icon: '📝', label: 'Hours Reports', desc: '3 reports: one PENDING (link sent), one SUBMITTED (with calendar + manual entries), one REVIEWED.' },
+                                                { id: 'inbox', icon: '📬', label: 'Admin Inbox', desc: '2 open tasks, 1 completed task, and 1 system notification. Room conflict notifications auto-generated.' },
+                                                { id: 'students', icon: '🎓', label: 'Students', desc: '8 students aged 7–40, 60% minors with guardians, each assigned 1–2 activities.' },
+                                            ].map(module => (
                                                 <button
+                                                    key={module.id}
                                                     onClick={() => {
-                                                        if (window.confirm(t('super.confirm_snapshot'))) {
-                                                            localStorage.setItem('appSnapshot', JSON.stringify({
-                                                                teachers: localStorage.getItem('teachers'),
-                                                                events: localStorage.getItem('events'),
-                                                                rooms: localStorage.getItem('rooms'),
-                                                                settings: localStorage.getItem('settings'),
-                                                                lists: localStorage.getItem('lists')
-                                                            }));
-                                                            alert(t('sa.snapshot_created_short'));
-                                                        }
-                                                        if (window.confirm(t('super.confirm_generate'))) {
-                                                            onLoadTestData?.();
-                                                            window.alert(t('sa.test_generated'));
+                                                        const rooms = events?.reduce((acc, e) => {
+                                                            if (!acc.some(r => r.id === e.roomId)) {
+                                                                acc.push({ id: e.roomId, name: `Room ${e.roomId}`, itinerary: '' });
+                                                            }
+                                                            return acc;
+                                                        }, [] as any[]) || [];
+                                                        const currencySymbol = settings.currency;
+
+                                                        if (module.id === 'teachers') {
+                                                            setTeachers?.(generateTestTeachers(currencySymbol));
+                                                        } else if (module.id === 'events' && setTeachers) {
+                                                            const freshTeachers = generateTestTeachers(currencySymbol);
+                                                            setEvents?.(generateTestCalendar(freshTeachers, rooms, currencySymbol));
+                                                        } else if (module.id === 'charts') {
+                                                            setSavedCharts?.(generateTestSavedCharts());
+                                                        } else if (module.id === 'reports' && setTeachers && setEvents) {
+                                                            const freshTeachers = generateTestTeachers(currencySymbol);
+                                                            const freshEvents = generateTestCalendar(freshTeachers, rooms, currencySymbol);
+                                                            setHoursReports?.(generateTestHoursReports(freshTeachers, freshEvents));
+                                                        } else if (module.id === 'inbox' && setTeachers && setStudents) {
+                                                            const freshTeachers = generateTestTeachers(currencySymbol);
+                                                            const freshActivities = generateTestActivities();
+                                                            const freshStudents = generateTestStudents(freshTeachers, freshActivities);
+                                                            setAdminInboxItems?.(generateTestAdminInbox(freshTeachers, freshStudents));
+                                                        } else if (module.id === 'students' && setTeachers) {
+                                                            const freshTeachers = generateTestTeachers(currencySymbol);
+                                                            const freshActivities = generateTestActivities();
+                                                            setStudents?.(generateTestStudents(freshTeachers, freshActivities));
                                                         }
                                                     }}
-                                                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-bold transition-colors shadow-none border border-amber-600"
+                                                    className="text-start p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-blue-400 dark:hover:border-blue-500 transition-colors group"
                                                 >
-                                                    {t('sa.generate_btn')}
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-lg">{module.icon}</span>
+                                                        <span className="font-semibold text-slate-900 dark:text-white text-sm">{module.label}</span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-600 dark:text-slate-400">{module.desc}</p>
                                                 </button>
-                                            </div>
+                                            ))}
                                         </div>
                                     </div>
 
-                                    {/* State Snapshots & Testing Tools */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="bg-slate-50 dark:bg-slate-800 p-5 rounded-lg border border-slate-200 dark:border-slate-700">
-                                            <h4 className="font-bold text-slate-900 dark:text-white mb-1">{t('sa.state_snapshot')}</h4>
-                                            <p className="text-xs text-slate-500 mb-3">{t('sa.snapshot_desc')}</p>
-                                            <div className="flex gap-2">
-                                                <button onClick={() => {
-                                                    localStorage.setItem('appSnapshot', JSON.stringify({
-                                                        teachers: localStorage.getItem('teachers'),
-                                                        events: localStorage.getItem('events'),
-                                                        rooms: localStorage.getItem('rooms'),
-                                                        settings: localStorage.getItem('settings'),
-                                                        lists: localStorage.getItem('lists')
-                                                    }));
-                                                    alert(t('sa.snapshot_created'));
-                                                }} className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">{t('sa.create_snapshot')}</button>
-                                                <button onClick={() => {
-                                                    const snap = localStorage.getItem('appSnapshot');
-                                                    if (snap && window.confirm(t('super.confirm_restore'))) {
-                                                        const parsed = JSON.parse(snap);
-                                                        if (parsed.teachers) localStorage.setItem('teachers', parsed.teachers);
-                                                        if (parsed.events) localStorage.setItem('events', parsed.events);
-                                                        if (parsed.rooms) localStorage.setItem('rooms', parsed.rooms);
-                                                        if (parsed.lists) localStorage.setItem('lists', parsed.lists);
-                                                        window.location.reload();
-                                                    } else if (!snap) {
-                                                        alert(t('sa.no_snapshot'));
-                                                    }
-                                                }} className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">{t('sa.restore')}</button>
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-slate-50 dark:bg-slate-800 p-5 rounded-lg border border-slate-200 dark:border-slate-700">
-                                            <h4 className="font-bold text-slate-900 dark:text-white mb-1">{t('sa.testing_tools')}</h4>
-                                            <p className="text-xs text-slate-500 mb-3">{t('sa.testing_desc')}</p>
-                                            <div className="flex gap-2 flex-wrap">
-                                                <button onClick={() => {
-                                                    if (window.confirm(t('super.confirm_cal_test'))) {
-                                                        localStorage.setItem('appSnapshot', JSON.stringify({
-                                                            teachers: localStorage.getItem('teachers'),
-                                                            events: localStorage.getItem('events'),
-                                                            rooms: localStorage.getItem('rooms')
-                                                        }));
-                                                        onLoadTestData?.();
-                                                    }
-                                                }} className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors">{t('sa.run_calendar_test')}</button>
-                                                <button onClick={() => {
-                                                    if (window.confirm(t('super.confirm_teacher_test'))) {
-                                                        localStorage.setItem('appSnapshot', JSON.stringify({
-                                                            teachers: localStorage.getItem('teachers'),
-                                                            events: localStorage.getItem('events'),
-                                                            rooms: localStorage.getItem('rooms')
-                                                        }));
-                                                        onLoadTestData?.();
-                                                    }
-                                                }} className="px-3 py-1.5 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 text-xs font-bold rounded hover:bg-violet-200 dark:hover:bg-violet-900/50 transition-colors">{t('sa.run_teacher_gen')}</button>
-                                            </div>
+                                    {/* State Snapshots */}
+                                    <div className="bg-slate-50 dark:bg-slate-800 p-5 rounded-lg border border-slate-200 dark:border-slate-700">
+                                        <h4 className="font-bold text-slate-900 dark:text-white mb-1">{t('sa.state_snapshot')}</h4>
+                                        <p className="text-xs text-slate-500 mb-3">{t('sa.snapshot_desc')}</p>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => {
+                                                localStorage.setItem('appSnapshot', JSON.stringify({
+                                                    teachers: localStorage.getItem('teachers'),
+                                                    events: localStorage.getItem('events'),
+                                                    rooms: localStorage.getItem('rooms'),
+                                                    settings: localStorage.getItem('settings'),
+                                                    lists: localStorage.getItem('lists')
+                                                }));
+                                                alert(t('sa.snapshot_created'));
+                                            }} className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">{t('sa.create_snapshot')}</button>
+                                            <button onClick={() => {
+                                                const snap = localStorage.getItem('appSnapshot');
+                                                if (snap && window.confirm(t('super.confirm_restore'))) {
+                                                    const parsed = JSON.parse(snap);
+                                                    if (parsed.teachers) localStorage.setItem('teachers', parsed.teachers);
+                                                    if (parsed.events) localStorage.setItem('events', parsed.events);
+                                                    if (parsed.rooms) localStorage.setItem('rooms', parsed.rooms);
+                                                    if (parsed.lists) localStorage.setItem('lists', parsed.lists);
+                                                    window.location.reload();
+                                                } else if (!snap) {
+                                                    alert(t('sa.no_snapshot'));
+                                                }
+                                            }} className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">{t('sa.restore')}</button>
                                         </div>
                                     </div>
 
@@ -933,6 +984,80 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({ onLoadTestData, onWipeDa
                                             </div>
                                         </div>
                                     </div>
+
+                                    {/* Full Data Reset — placed last for safety */}
+                                    <div className="bg-red-50 dark:bg-red-900/20 p-5 rounded-lg border border-red-200 dark:border-red-700/50">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                                    <AlertTriangle size={16} className="text-red-500" />
+                                                    {t('super.wipe_modal_title')}
+                                                </h4>
+                                                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">{t('super.wipe_modal_warning')}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => { setShowWipeModal(true); setWipeConfirmText(''); setWipeCheckbox(false); }}
+                                                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-bold transition-colors shrink-0"
+                                            >
+                                                {t('super.wipe_data')}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Wipe Confirmation Modal */}
+                                    <Modal
+                                        isOpen={showWipeModal}
+                                        onClose={() => setShowWipeModal(false)}
+                                        title={<span className="flex items-center gap-2 text-red-600 dark:text-red-400"><AlertTriangle size={20} /> {t('super.wipe_modal_title')}</span>}
+                                        maxWidth="max-w-md"
+                                    >
+                                        <div className="space-y-4">
+                                            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4">
+                                                <p className="text-sm text-red-700 dark:text-red-400 font-medium">{t('super.wipe_modal_warning')}</p>
+                                            </div>
+
+                                            <label className="flex items-start gap-3 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={wipeCheckbox}
+                                                    onChange={(e) => setWipeCheckbox(e.target.checked)}
+                                                    className="mt-0.5 w-4 h-4 rounded border-red-300 text-red-500 focus:ring-red-500"
+                                                />
+                                                <span className="text-sm text-slate-700 dark:text-slate-300">{t('super.wipe_checkbox_label')}</span>
+                                            </label>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('super.wipe_type_confirm')}</label>
+                                                <input
+                                                    type="text"
+                                                    value={wipeConfirmText}
+                                                    onChange={(e) => setWipeConfirmText(e.target.value)}
+                                                    placeholder="WIPE"
+                                                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none font-mono"
+                                                />
+                                            </div>
+
+                                            <div className="flex justify-end gap-3 pt-2">
+                                                <button
+                                                    onClick={() => setShowWipeModal(false)}
+                                                    className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-lg text-sm transition-colors"
+                                                >
+                                                    {t('common.cancel') || 'Cancel'}
+                                                </button>
+                                                <button
+                                                    disabled={!wipeCheckbox || wipeConfirmText !== 'WIPE'}
+                                                    onClick={() => {
+                                                        console.warn(`[DATA WIPE] Initiated by ${currentUser?.email} at ${new Date().toISOString()}`);
+                                                        onWipeData?.();
+                                                        setShowWipeModal(false);
+                                                    }}
+                                                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                                >
+                                                    {t('super.wipe_confirm_btn')}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </Modal>
                                 </div>
                             </div>
                         )}

@@ -10,6 +10,7 @@ import { DatePicker } from './DatePicker';
 import { Modal } from './Modal';
 
 import { TRANSLATIONS } from '../constants';
+import { detectRoomConflicts, getConflictingEventIds } from '../utils/roomConflicts';
 interface Props {
   events: CalendarEvent[];
   setEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>;
@@ -45,6 +46,7 @@ interface DragState {
   id: string;
   type: 'MOVE' | 'RESIZE';
   startY: number;
+  startX: number;
   originalStart: Date;
   originalEnd: Date;
 }
@@ -89,6 +91,8 @@ export const CalendarView: React.FC<Props> = ({
   // Interaction State
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [tempEvent, setTempEvent] = useState<CalendarEvent | null>(null);
+  const wasDraggingRef = useRef(false);
+  const gridDaysRef = useRef<Date[]>([]);
 
   // Speed Dial State
   const [isSpeedDialOpen, setIsSpeedDialOpen] = useState(false);
@@ -386,6 +390,11 @@ export const CalendarView: React.FC<Props> = ({
     });
   }, [expandedEvents, teachers, activities, filterTeacher, filterRoom, filterClass, filterPosition, filterTag, showCanceled, showBlackouts]);
 
+  const conflictingIds = useMemo(() => {
+    const conflicts = detectRoomConflicts(filteredEvents);
+    return getConflictingEventIds(conflicts);
+  }, [filteredEvents]);
+
   const displayEvents = useMemo(() => {
     if (tempEvent) {
       return filteredEvents.map(e => e.id === tempEvent.id ? tempEvent : e);
@@ -474,6 +483,7 @@ export const CalendarView: React.FC<Props> = ({
       id: evt.id,
       type,
       startY: e.clientY,
+      startX: e.clientX,
       originalStart: new Date(evt.start),
       originalEnd: new Date(evt.end)
     });
@@ -487,7 +497,17 @@ export const CalendarView: React.FC<Props> = ({
       const deltaY = e.clientY - dragState.startY;
       const deltaMinutes = Math.round((deltaY / PIXELS_PER_HOUR) * 60 / SNAP_MINUTES) * SNAP_MINUTES;
 
-      if (deltaMinutes === 0) return;
+      // Horizontal: calculate day offset from column width
+      let dayOffset = 0;
+      if (dragState.type === 'MOVE' && containerRef.current && gridDaysRef.current.length > 1) {
+        const containerWidth = containerRef.current.clientWidth;
+        const dayColumnWidth = (containerWidth - 50) / gridDaysRef.current.length;
+        if (dayColumnWidth > 0) {
+          dayOffset = Math.round((e.clientX - dragState.startX) / dayColumnWidth);
+        }
+      }
+
+      if (deltaMinutes === 0 && dayOffset === 0) return;
 
       const newStart = new Date(dragState.originalStart);
       const newEnd = new Date(dragState.originalEnd);
@@ -495,6 +515,10 @@ export const CalendarView: React.FC<Props> = ({
       if (dragState.type === 'MOVE') {
         newStart.setMinutes(newStart.getMinutes() + deltaMinutes);
         newEnd.setMinutes(newEnd.getMinutes() + deltaMinutes);
+        if (dayOffset !== 0) {
+          newStart.setDate(newStart.getDate() + dayOffset);
+          newEnd.setDate(newEnd.getDate() + dayOffset);
+        }
       } else {
         newEnd.setMinutes(newEnd.getMinutes() + deltaMinutes);
         if (newEnd.getTime() - newStart.getTime() < 15 * 60 * 1000) return;
@@ -509,6 +533,12 @@ export const CalendarView: React.FC<Props> = ({
 
     const handleMouseUp = () => {
       if (dragState && tempEvent) {
+        const didMove = tempEvent.start !== dragState.originalStart.toISOString() ||
+                        tempEvent.end !== dragState.originalEnd.toISOString();
+        if (didMove) {
+          wasDraggingRef.current = true;
+          setTimeout(() => { wasDraggingRef.current = false; }, 100);
+        }
         setEvents(prev => prev.map(e => e.id === dragState.id ? tempEvent : e));
       }
       setDragState(null);
@@ -1100,6 +1130,7 @@ export const CalendarView: React.FC<Props> = ({
     const height = durationMinutes;
 
     const isDragging = dragState?.id === evt.id;
+    const isConflicting = conflictingIds.has(evt.id);
     const baseColor = getTeacherColor(evt.teacherId);
 
     // Dynamic text scaling thresholds
@@ -1119,6 +1150,7 @@ export const CalendarView: React.FC<Props> = ({
         onMouseDown={(e) => handleMouseDown(e, evt, 'MOVE')}
         onClick={(e) => {
           e.stopPropagation();
+          if (wasDraggingRef.current) return;
           if (selectionMode === 'MARQUEE') {
             setSelectedEventIds(prev => {
               const next = new Set(prev);
@@ -1129,11 +1161,11 @@ export const CalendarView: React.FC<Props> = ({
             setDetailItem({ type: 'EVENT', data: evt });
           }
         }}
-        className={`absolute rounded-xl border shadow-sm transition-shadow select-none overflow-hidden group animate-cadenza-arrive ${selectedEventIds.has(evt.id) ? 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
+        className={`absolute rounded-xl border shadow-sm transition-shadow select-none overflow-hidden group animate-cadenza-arrive ${selectedEventIds.has(evt.id) ? 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${isConflicting && !evt.isCanceled ? 'ring-2 ring-amber-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
           ? 'canceled-stripe border-slate-300 text-slate-400 dark:border-slate-600 dark:text-slate-500 bg-slate-50 dark:bg-slate-800'
           : isDragging
-            ? 'z-50 opacity-90 shadow-cadenza-deep'
-            : 'hover:shadow-cadenza-soft cursor-pointer'
+            ? 'z-50 opacity-90 shadow-cadenza-deep cursor-grabbing'
+            : 'hover:shadow-cadenza-soft cursor-grab'
           }`}
         style={{
           top: `${top}px`,
@@ -1152,6 +1184,11 @@ export const CalendarView: React.FC<Props> = ({
           {layout.width < 90 && !evt.isCanceled && !isDragging && (
             <div className="absolute top-0.5 end-0.5 bg-white/80 rounded-full p-0.5 dark:bg-slate-800">
               <AlertCircle size={isCompact ? 8 : 10} color="red" />
+            </div>
+          )}
+          {isConflicting && !evt.isCanceled && (
+            <div className="absolute top-0.5 start-0.5 bg-amber-100 dark:bg-amber-900/60 rounded-full p-0.5" title={t('cal.room_conflict')}>
+              <AlertOctagon size={isCompact ? 8 : 10} className="text-amber-600 dark:text-amber-400" />
             </div>
           )}
 
@@ -1206,6 +1243,7 @@ export const CalendarView: React.FC<Props> = ({
   };
 
   const renderTimeGrid = (days: Date[]) => {
+    gridDaysRef.current = days;
     return (
       <div className={`flex-1 overflow-auto bg-white dark:bg-slate-900 relative ${selectionMode === 'MARQUEE' ? 'cursor-crosshair' : ''}`} ref={containerRef} onMouseDown={handleMarqueeMouseDown}>
         <div className="min-w-[800px] relative" ref={marqueeContainerRef}>
@@ -1215,7 +1253,10 @@ export const CalendarView: React.FC<Props> = ({
               {days.map(day => (
                 <div key={day.toISOString()} className={`p-3 text-center border-e border-slate-100 dark:border-slate-800 ${day.toDateString() === new Date().toDateString() ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
                   <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{day.toLocaleDateString(settings.language, { weekday: 'short' })}</div>
-                  <div className={`text-xl font-bold mt-1 ${day.toDateString() === new Date().toDateString() ? 'text-blue-600 dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                  <div
+                    className={`text-xl font-bold mt-1 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${day.toDateString() === new Date().toDateString() ? 'text-blue-600 dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}
+                    onClick={() => { setCurrentDate(day); setViewMode('DAY'); }}
+                  >
                     {day.getDate()}
                   </div>
                 </div>
@@ -1456,9 +1497,17 @@ export const CalendarView: React.FC<Props> = ({
                     return (
                       <div key={day.toISOString()} className="p-1 flex justify-between items-start pointer-events-auto group/cell">
                         <div className="group relative z-30">
-                          <span className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full cursor-default ${isToday ? 'bg-blue-600 text-white' : 'text-slate-700 dark:text-slate-300'}`}>
+                          <span
+                            className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors ${isToday ? 'bg-blue-600 text-white hover:bg-blue-700' : 'text-slate-700 dark:text-slate-300'}`}
+                            onClick={(e: React.MouseEvent) => { e.stopPropagation(); setCurrentDate(day); setViewMode('DAY'); }}
+                          >
                             {day.getDate()}
                           </span>
+                          {dayEvents.length > 0 && (
+                            <div className="flex justify-center mt-0.5">
+                              <span className="block w-1.5 h-1.5 rounded-full bg-blue-500" />
+                            </div>
+                          )}
 
                           {/* Hover Popup Wrapper with Bridge */}
                           <div

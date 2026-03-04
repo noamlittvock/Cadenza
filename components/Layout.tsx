@@ -35,7 +35,7 @@ const NavItem = ({
   <button
     onClick={onClick}
     title={collapsed ? label : undefined}
-    className={`relative flex items-center w-full py-3 rounded-xl text-start ${collapsed ? 'justify-center px-3' : 'px-4 space-x-2 rtl:space-x-reverse'} ${active
+    className={`relative flex items-center w-full py-2.5 rounded-xl text-start ${collapsed ? 'justify-center px-3' : 'px-4 space-x-2 rtl:space-x-reverse'} ${active
       ? 'bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft font-semibold'
       : 'text-slate-400 hover:text-white hover:bg-white/5 hover:shadow-cadenza-soft'
       } btn-cadenza`}
@@ -164,14 +164,14 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
           )}
         </div>
 
-        <nav className="flex-1 p-3 space-y-2 overflow-y-auto overflow-x-hidden pt-4">
+        <nav className="flex-1 p-2 space-y-1 overflow-y-auto overflow-x-hidden pt-3">
 
 
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 truncate overflow-hidden"
             style={{
               opacity: isCollapsed ? 0 : 1,
               maxHeight: isCollapsed ? 0 : 24,
-              marginBottom: isCollapsed ? 0 : 8,
+              marginBottom: isCollapsed ? 0 : 4,
               transition: 'opacity 200ms ease, max-height 400ms ease, margin-bottom 400ms ease',
             }}>
             {t('nav.section.operations')}
@@ -195,8 +195,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                   style={{
                     opacity: isCollapsed ? 0 : 1,
                     maxHeight: isCollapsed ? 0 : 24,
-                    marginBottom: isCollapsed ? 0 : 8,
-                    marginTop: isCollapsed ? 0 : 24,
+                    marginBottom: isCollapsed ? 0 : 4,
+                    marginTop: isCollapsed ? 0 : 16,
                     transition: 'opacity 200ms ease, max-height 400ms ease, margin-bottom 400ms ease, margin-top 400ms ease',
                   }}>
                   {t('nav.section.admin')}
@@ -248,8 +248,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 style={{
                   opacity: isCollapsed ? 0 : 1,
                   maxHeight: isCollapsed ? 0 : 24,
-                  marginBottom: isCollapsed ? 0 : 8,
-                  marginTop: isCollapsed ? 0 : 24,
+                  marginBottom: isCollapsed ? 0 : 4,
+                  marginTop: isCollapsed ? 0 : 16,
                   transition: 'opacity 200ms ease, max-height 400ms ease, margin-bottom 400ms ease, margin-top 400ms ease',
                 }}>
                 {t('nav.section.analytics')}

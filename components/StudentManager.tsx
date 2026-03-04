@@ -8,13 +8,56 @@ import {
   Plus, Edit2, Search, X, Menu,
   ChevronDown, ChevronUp, Archive, RotateCcw,
   Upload, FileText, GraduationCap, User, Phone, Mail,
-  Music, Users, BookOpen, ClipboardList, Calendar, Trash2
+  Music, Users, BookOpen, ClipboardList, Calendar, Trash2, LayoutGrid, List
 } from 'lucide-react';
 import { Modal } from './Modal';
 import { InlineSubcategoryCreator } from './InlineSubcategoryCreator';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../utils/firebase';
 import { useAuth } from '../context/AuthContext';
+
+// --- Stable Input Component (must be outside component body to avoid remounting) ---
+const InputField = React.memo(({ label, value, onChange, type = 'text', placeholder, required = false }: {
+  label: string; value: string; onChange: (val: string) => void; type?: string; placeholder?: string; required?: boolean;
+}) => (
+  <div>
+    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <input
+      type={type}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      required={required}
+      className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+    />
+  </div>
+));
+
+// --- Stable Section Component (must be outside component body to avoid remounting) ---
+const Section = React.memo(({ id, icon: Icon, title, children, badge, isExpanded, onToggle }: {
+  id: string; icon: React.ElementType; title: string; children: React.ReactNode; badge?: number;
+  isExpanded: boolean; onToggle: (id: string) => void;
+}) => (
+  <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+    <button
+      type="button"
+      onClick={() => onToggle(id)}
+      className="w-full flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+    >
+      <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+        <Icon size={16} />
+        <span>{title}</span>
+        {badge !== undefined && badge > 0 && (
+          <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs px-1.5 py-0.5 rounded-full">{badge}</span>
+        )}
+      </div>
+      {isExpanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+    </button>
+    {isExpanded && <div className="p-3 space-y-3">{children}</div>}
+  </div>
+));
 
 // --- Helpers ---
 
@@ -93,6 +136,7 @@ export const StudentManager: React.FC<Props> = ({
   const [initialFormData, setInitialFormData] = useState<Partial<Student>>({});
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
+  const [studentViewMode, setStudentViewMode] = useState<'grid' | 'list'>('grid');
   const [error, setError] = useState<string | null>(null);
   const [noteInput, setNoteInput] = useState('');
   const [docLabel, setDocLabel] = useState('');
@@ -116,34 +160,34 @@ export const StudentManager: React.FC<Props> = ({
 
   // --- Guardian Helpers ---
   const addGuardian = () => {
-    setFormData({ ...formData, guardians: [...(formData.guardians || []), createEmptyGuardian()] });
+    setFormData(prev => ({ ...prev, guardians: [...(prev.guardians || []), createEmptyGuardian()] }));
   };
 
   const removeGuardian = (id: string) => {
-    setFormData({ ...formData, guardians: (formData.guardians || []).filter(g => g.id !== id) });
+    setFormData(prev => ({ ...prev, guardians: (prev.guardians || []).filter(g => g.id !== id) }));
   };
 
   const updateGuardian = (id: string, updates: Partial<Guardian>) => {
-    setFormData({
-      ...formData,
-      guardians: (formData.guardians || []).map(g => g.id === id ? { ...g, ...updates } : g),
-    });
+    setFormData(prev => ({
+      ...prev,
+      guardians: (prev.guardians || []).map(g => g.id === id ? { ...g, ...updates } : g),
+    }));
   };
 
   // --- Assignment Helpers ---
   const addAssignment = () => {
-    setFormData({ ...formData, assignments: [...(formData.assignments || []), createEmptyAssignment()] });
+    setFormData(prev => ({ ...prev, assignments: [...(prev.assignments || []), createEmptyAssignment()] }));
   };
 
   const removeAssignment = (id: string) => {
-    setFormData({ ...formData, assignments: (formData.assignments || []).filter(a => a.id !== id) });
+    setFormData(prev => ({ ...prev, assignments: (prev.assignments || []).filter(a => a.id !== id) }));
   };
 
   const updateAssignment = (id: string, updates: Partial<StudentAssignment>) => {
-    setFormData({
-      ...formData,
-      assignments: (formData.assignments || []).map(a => a.id === id ? { ...a, ...updates } : a),
-    });
+    setFormData(prev => ({
+      ...prev,
+      assignments: (prev.assignments || []).map(a => a.id === id ? { ...a, ...updates } : a),
+    }));
   };
 
   // --- Get filtered Staff Members for an Activity + Subcategory ---
@@ -186,12 +230,12 @@ export const StudentManager: React.FC<Props> = ({
       createdAt: new Date().toISOString(),
       createdBy: currentUser?.email || 'admin',
     };
-    setFormData({ ...formData, notes: [...(formData.notes || []), newNote] });
+    setFormData(prev => ({ ...prev, notes: [...(prev.notes || []), newNote] }));
     setNoteInput('');
   };
 
   const removeNote = (id: string) => {
-    setFormData({ ...formData, notes: (formData.notes || []).filter(n => n.id !== id) });
+    setFormData(prev => ({ ...prev, notes: (prev.notes || []).filter(n => n.id !== id) }));
   };
 
   // --- Document Helpers ---
@@ -208,7 +252,7 @@ export const StudentManager: React.FC<Props> = ({
         uploadedAt: new Date().toISOString(),
         uploadedBy: currentUser?.email || 'admin',
       };
-      setFormData({ ...formData, documents: [...(formData.documents || []), newDoc] });
+      setFormData(prev => ({ ...prev, documents: [...(prev.documents || []), newDoc] }));
       setDocLabel('');
     } catch (err) {
       console.error('Document upload failed:', err);
@@ -216,7 +260,7 @@ export const StudentManager: React.FC<Props> = ({
   };
 
   const removeDocument = (id: string) => {
-    setFormData({ ...formData, documents: (formData.documents || []).filter(d => d.id !== id) });
+    setFormData(prev => ({ ...prev, documents: (prev.documents || []).filter(d => d.id !== id) }));
   };
 
   // --- Recital Entry Helpers ---
@@ -231,19 +275,17 @@ export const StudentManager: React.FC<Props> = ({
       loggedAt: new Date().toISOString(),
       loggedBy: currentUser?.email || 'admin',
     };
-    const record = formData.pedagogicalRecord || { lessonHistory: [], recitalHistory: [], reportCards: [] };
-    setFormData({
-      ...formData,
-      pedagogicalRecord: { ...record, recitalHistory: [...record.recitalHistory, entry] },
+    setFormData(prev => {
+      const record = prev.pedagogicalRecord || { lessonHistory: [], recitalHistory: [], reportCards: [] };
+      return { ...prev, pedagogicalRecord: { ...record, recitalHistory: [...record.recitalHistory, entry] } };
     });
     setRecitalForm({});
   };
 
   const removeRecitalEntry = (id: string) => {
-    const record = formData.pedagogicalRecord || { lessonHistory: [], recitalHistory: [], reportCards: [] };
-    setFormData({
-      ...formData,
-      pedagogicalRecord: { ...record, recitalHistory: record.recitalHistory.filter(r => r.id !== id) },
+    setFormData(prev => {
+      const record = prev.pedagogicalRecord || { lessonHistory: [], recitalHistory: [], reportCards: [] };
+      return { ...prev, pedagogicalRecord: { ...record, recitalHistory: record.recitalHistory.filter(r => r.id !== id) } };
     });
   };
 
@@ -257,19 +299,17 @@ export const StudentManager: React.FC<Props> = ({
       loggedAt: new Date().toISOString(),
       loggedBy: currentUser?.email || 'admin',
     };
-    const record = formData.pedagogicalRecord || { lessonHistory: [], recitalHistory: [], reportCards: [] };
-    setFormData({
-      ...formData,
-      pedagogicalRecord: { ...record, reportCards: [...record.reportCards, entry] },
+    setFormData(prev => {
+      const record = prev.pedagogicalRecord || { lessonHistory: [], recitalHistory: [], reportCards: [] };
+      return { ...prev, pedagogicalRecord: { ...record, reportCards: [...record.reportCards, entry] } };
     });
     setReportCardForm({});
   };
 
   const removeReportCard = (id: string) => {
-    const record = formData.pedagogicalRecord || { lessonHistory: [], recitalHistory: [], reportCards: [] };
-    setFormData({
-      ...formData,
-      pedagogicalRecord: { ...record, reportCards: record.reportCards.filter(r => r.id !== id) },
+    setFormData(prev => {
+      const record = prev.pedagogicalRecord || { lessonHistory: [], recitalHistory: [], reportCards: [] };
+      return { ...prev, pedagogicalRecord: { ...record, reportCards: record.reportCards.filter(r => r.id !== id) } };
     });
   };
 
@@ -469,48 +509,6 @@ export const StudentManager: React.FC<Props> = ({
   };
   const getStaffMemberName = (id: string) => teachers.find(t => t.id === id)?.fullName || id;
 
-  // --- Collapsible Section Component ---
-  const Section = ({ id, icon: Icon, title, children: sectionChildren, badge }: {
-    id: string; icon: React.ElementType; title: string; children: React.ReactNode; badge?: number;
-  }) => (
-    <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
-      <button
-        type="button"
-        onClick={() => toggleSection(id)}
-        className="w-full flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-      >
-        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-          <Icon size={16} />
-          <span>{title}</span>
-          {badge !== undefined && badge > 0 && (
-            <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs px-1.5 py-0.5 rounded-full">{badge}</span>
-          )}
-        </div>
-        {expandedSections[id] ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
-      </button>
-      {expandedSections[id] && <div className="p-3 space-y-3">{sectionChildren}</div>}
-    </div>
-  );
-
-  // --- Input component ---
-  const InputField = ({ label, value, onChange, type = 'text', placeholder, required = false }: {
-    label: string; value: string; onChange: (val: string) => void; type?: string; placeholder?: string; required?: boolean;
-  }) => (
-    <div>
-      <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <input
-        type={type}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        required={required}
-        className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-      />
-    </div>
-  );
-
   // ====================================
   // RENDER
   // ====================================
@@ -563,6 +561,22 @@ export const StudentManager: React.FC<Props> = ({
             <Archive size={16} />
             {t('student.show_archived')}
           </button>
+          <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setStudentViewMode('grid')}
+              className={`p-2 transition-colors ${studentViewMode === 'grid' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+              title={t('view.grid')}
+            >
+              <LayoutGrid size={16} />
+            </button>
+            <button
+              onClick={() => setStudentViewMode('list')}
+              className={`p-2 transition-colors ${studentViewMode === 'list' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+              title={t('view.list')}
+            >
+              <List size={16} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -573,7 +587,7 @@ export const StudentManager: React.FC<Props> = ({
             <GraduationCap size={48} className="mx-auto mb-3 opacity-50" />
             <p className="font-medium">{search ? t('student.no_results') : t('student.empty_state')}</p>
           </div>
-        ) : (
+        ) : studentViewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredStudents.map(student => {
               const age = student.dateOfBirth ? computeAge(student.dateOfBirth) : null;
@@ -654,6 +668,71 @@ export const StudentManager: React.FC<Props> = ({
               );
             })}
           </div>
+        ) : (
+          /* List View */
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                  <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">{t('student.full_name')}</th>
+                  <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hidden md:table-cell">{t('student.age')}</th>
+                  <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hidden lg:table-cell">{t('student.section_assignments')}</th>
+                  <th className="text-end px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">{t('btn.edit')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredStudents.map(student => {
+                  const age = student.dateOfBirth ? computeAge(student.dateOfBirth) : null;
+                  const activeAssignments = student.assignments.filter(a => a.status === 'ACTIVE');
+                  return (
+                    <tr key={student.id} className={`border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer ${student.profileStatus === 'ARCHIVED' ? 'opacity-60' : ''}`} onClick={() => handleOpenModal(student)}>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-xs flex-shrink-0">
+                            {student.fullName.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="font-medium text-slate-900 dark:text-white">{student.fullName}</div>
+                            {student.isMinor && <span className="text-[10px] text-purple-600 dark:text-purple-400">{t('student.minor')}</span>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400 hidden md:table-cell">
+                        {age !== null ? `${age}` : '—'}
+                        {student.currentGrade ? ` / ${t('student.grade')} ${student.currentGrade}` : ''}
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        <div className="flex flex-wrap gap-1">
+                          {activeAssignments.slice(0, 3).map(a => (
+                            <span key={a.id} className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] px-2 py-0.5 rounded-full">
+                              {getSubcategoryName(a.activityId, a.subcategoryId)}
+                            </span>
+                          ))}
+                          {activeAssignments.length > 3 && <span className="text-slate-400 text-[11px]">+{activeAssignments.length - 3}</span>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-end">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={(e) => { e.stopPropagation(); handleOpenModal(student); }} className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title={t('btn.edit')}>
+                            <Edit2 size={14} />
+                          </button>
+                          {student.profileStatus === 'ACTIVE' ? (
+                            <button onClick={(e) => { e.stopPropagation(); handleArchive(student.id); }} className="p-1.5 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors" title={t('student.archive')}>
+                              <Archive size={14} />
+                            </button>
+                          ) : (
+                            <button onClick={(e) => { e.stopPropagation(); handleRestore(student.id); }} className="p-1.5 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors" title={t('student.restore')}>
+                              <RotateCcw size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -693,13 +772,13 @@ export const StudentManager: React.FC<Props> = ({
           )}
 
           {/* Identity Section */}
-          <Section id="identity" icon={User} title={t('student.section_identity')}>
+          <Section id="identity" icon={User} title={t('student.section_identity')} isExpanded={!!expandedSections['identity']} onToggle={toggleSection}>
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
                 <InputField
                   label={t('student.full_name')}
                   value={formData.fullName || ''}
-                  onChange={val => setFormData({ ...formData, fullName: val })}
+                  onChange={val => setFormData(prev => ({ ...prev, fullName: val }))}
                   required
                   placeholder={t('student.full_name_placeholder')}
                 />
@@ -710,7 +789,7 @@ export const StudentManager: React.FC<Props> = ({
                   value={formData.dateOfBirth || ''}
                   onChange={val => {
                     const isMinor = val ? computeIsMinor(val) : false;
-                    setFormData({ ...formData, dateOfBirth: val, isMinor });
+                    setFormData(prev => ({ ...prev, dateOfBirth: val, isMinor }));
                   }}
                   type="date"
                   required
@@ -740,7 +819,7 @@ export const StudentManager: React.FC<Props> = ({
                     min={1}
                     max={12}
                     value={formData.currentGrade ?? ''}
-                    onChange={e => setFormData({ ...formData, currentGrade: e.target.value ? parseInt(e.target.value) : undefined })}
+                    onChange={e => setFormData(prev => ({ ...prev, currentGrade: e.target.value ? parseInt(e.target.value) : undefined }))}
                     className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                     placeholder={t('student.grade_placeholder')}
                   />
@@ -750,7 +829,7 @@ export const StudentManager: React.FC<Props> = ({
                 <InputField
                   label={t('student.governmental_id')}
                   value={formData.governmentalId || ''}
-                  onChange={val => setFormData({ ...formData, governmentalId: val })}
+                  onChange={val => setFormData(prev => ({ ...prev, governmentalId: val }))}
                   placeholder={t('student.governmental_id_placeholder')}
                 />
               </div>
@@ -759,18 +838,18 @@ export const StudentManager: React.FC<Props> = ({
 
           {/* Contact Section (Adults Only) */}
           {formData.dateOfBirth && !computeIsMinor(formData.dateOfBirth) && (
-            <Section id="contact" icon={Phone} title={t('student.section_contact')}>
+            <Section id="contact" icon={Phone} title={t('student.section_contact')} isExpanded={!!expandedSections['contact']} onToggle={toggleSection}>
               <div className="grid grid-cols-2 gap-3">
                 <InputField
                   label={t('student.phone')}
                   value={formData.phone || ''}
-                  onChange={val => setFormData({ ...formData, phone: val })}
+                  onChange={val => setFormData(prev => ({ ...prev, phone: val }))}
                   type="tel"
                 />
                 <InputField
                   label={t('student.email')}
                   value={formData.email || ''}
-                  onChange={val => setFormData({ ...formData, email: val })}
+                  onChange={val => setFormData(prev => ({ ...prev, email: val }))}
                   type="email"
                 />
               </div>
@@ -779,7 +858,7 @@ export const StudentManager: React.FC<Props> = ({
 
           {/* Guardians Section (Minors Only) */}
           {formData.dateOfBirth && computeIsMinor(formData.dateOfBirth) && (
-            <Section id="guardians" icon={Users} title={t('student.section_guardians')} badge={(formData.guardians || []).length}>
+            <Section id="guardians" icon={Users} title={t('student.section_guardians')} badge={(formData.guardians || []).length} isExpanded={!!expandedSections['guardians']} onToggle={toggleSection}>
               {(formData.guardians || []).map((guardian, idx) => (
                 <div key={guardian.id} className="border border-slate-200 dark:border-slate-700 rounded-lg p-3 space-y-2 relative">
                   <div className="flex items-center justify-between mb-1">
@@ -841,7 +920,7 @@ export const StudentManager: React.FC<Props> = ({
           )}
 
           {/* Student Assignments Section */}
-          <Section id="assignments" icon={Music} title={t('student.section_assignments')} badge={(formData.assignments || []).filter(a => a.status === 'ACTIVE').length}>
+          <Section id="assignments" icon={Music} title={t('student.section_assignments')} badge={(formData.assignments || []).filter(a => a.status === 'ACTIVE').length} isExpanded={!!expandedSections['assignments']} onToggle={toggleSection}>
             {(formData.assignments || []).map((assignment, idx) => {
               const selectedActivity = activities.find(a => a.id === assignment.activityId);
               const matchingStaff = getMatchingStaffMembers(assignment.activityId, assignment.subcategoryId);
@@ -960,7 +1039,7 @@ export const StudentManager: React.FC<Props> = ({
           </Section>
 
           {/* Pedagogical Record Section */}
-          <Section id="pedagogical" icon={BookOpen} title={t('student.section_pedagogical')}>
+          <Section id="pedagogical" icon={BookOpen} title={t('student.section_pedagogical')} isExpanded={!!expandedSections['pedagogical']} onToggle={toggleSection}>
             {/* Lesson History (Live Query — read-only) */}
             {editingId && (
               <div>
@@ -1083,7 +1162,7 @@ export const StudentManager: React.FC<Props> = ({
           </Section>
 
           {/* Notes Section */}
-          <Section id="notes" icon={FileText} title={t('student.section_notes')} badge={(formData.notes || []).length}>
+          <Section id="notes" icon={FileText} title={t('student.section_notes')} badge={(formData.notes || []).length} isExpanded={!!expandedSections['notes']} onToggle={toggleSection}>
             {(formData.notes || []).map(note => (
               <div key={note.id} className="flex items-start justify-between bg-slate-50 dark:bg-slate-800 rounded-lg p-2">
                 <div className="flex-1 min-w-0">
@@ -1116,7 +1195,7 @@ export const StudentManager: React.FC<Props> = ({
           </Section>
 
           {/* Documents Section */}
-          <Section id="documents" icon={Upload} title={t('student.section_documents')} badge={(formData.documents || []).length}>
+          <Section id="documents" icon={Upload} title={t('student.section_documents')} badge={(formData.documents || []).length} isExpanded={!!expandedSections['documents']} onToggle={toggleSection}>
             {(formData.documents || []).map(doc => (
               <div key={doc.id} className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 rounded-lg p-2">
                 <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline min-w-0">

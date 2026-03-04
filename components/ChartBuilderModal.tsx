@@ -375,6 +375,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
             case 'currentWeek': case 'specificWeek': return 'specificWeek';
             case 'currentMonth': case 'specificMonth': return 'specificMonth';
             case 'customRange': return 'customRange';
+            default: return 'currentMonth';
         }
     }, [timeframe]);
 
@@ -559,6 +560,15 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
     const handleSave = () => {
         if (!title.trim()) return;
         const now = new Date().toISOString();
+        // Validate comparisons before saving
+        const validComparisons = compareEnabled && comparisons.length > 0
+            ? comparisons.filter(c => {
+                if (derivedCompareTimeframe === 'customRange') return c.customStart && c.customEnd;
+                if (['specificDay', 'specificWeek', 'specificMonth'].includes(derivedCompareTimeframe)) return !!c.specificDate;
+                return true;
+              })
+            : [];
+        const hasComparisons = validComparisons.length > 0;
         const config: ChartConfiguration = {
             id: editingChart?.id ?? `chart_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
             title: title.trim(), dataSource: 'financial-dashboard', dimension, metrics, visualization,
@@ -574,9 +584,9 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
             sort: sortBy !== 'dimension' || sortDir !== 'desc' ? { by: sortBy, direction: sortDir } : undefined,
             limit: topN > 0 ? { topN, otherLabel: 'Other' } : undefined,
             // Comparison mode data
-            compareEnabled: compareEnabled && comparisons.length > 0 ? true : undefined,
-            compareLayout: compareEnabled && comparisons.length > 0 ? compareLayout : undefined,
-            comparisons: compareEnabled && comparisons.length > 0 ? comparisons.map(c => ({
+            compareEnabled: hasComparisons ? true : undefined,
+            compareLayout: hasComparisons ? compareLayout : undefined,
+            comparisons: hasComparisons ? validComparisons.map(c => ({
                 id: c.id, timeframe: derivedCompareTimeframe,
                 specificDate: c.specificDate || undefined,
                 customStart: c.customStart || undefined,
@@ -693,7 +703,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                             {TIMEFRAME_OPTIONS.map(opt => (
                                 <button key={opt.value} onClick={() => setTimeframe(opt.value)}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${timeframe === opt.value
-                                        ? 'bg-teal-600 text-white shadow-sm shadow-teal-500/25'
+                                        ? 'btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft'
                                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                                 >
                                     <span className="me-1">{opt.icon}</span>{t({ 'today': 'builder.tf_today', 'currentWeek': 'builder.tf_current_week', 'currentMonth': 'builder.tf_current_month', 'customRange': 'builder.tf_custom_range', 'specificDay': 'builder.tf_specific_day', 'specificWeek': 'builder.tf_specific_week', 'specificMonth': 'builder.tf_specific_month' }[opt.value] || opt.label)}
@@ -1036,7 +1046,7 @@ export const ChartBuilderModal: React.FC<ChartBuilderModalProps> = ({
                                     datasets={[
                                         {
                                             label: t({ 'today': 'builder.tf_today', 'currentWeek': 'builder.tf_current_week', 'currentMonth': 'builder.tf_current_month', 'customRange': 'builder.tf_custom_range', 'specificDay': 'builder.tf_specific_day', 'specificWeek': 'builder.tf_specific_week', 'specificMonth': 'builder.tf_specific_month' }[timeframe] || '') || t('builder.primary_label'),
-                                            color: '#4f46e5',
+                                            color: '#3b82f6',
                                             events: timeFilteredEvents,
                                             isPrimary: true,
                                         },

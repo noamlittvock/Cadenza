@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Room, AppSettings } from '../types';
 import { generateId } from '../constants';
-import { Plus, Edit2, Trash2, Home, Menu } from 'lucide-react';
+import { Plus, Edit2, Trash2, Home, Menu, LayoutGrid, List } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
 import { Modal } from './Modal';
 interface Props {
@@ -18,6 +18,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Room>>({});
   const [initialFormData, setInitialFormData] = useState<Partial<Room>>({});
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const handleOpenModal = (room?: Room) => {
     if (room) {
@@ -73,16 +74,34 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
               <p className="text-slate-500 dark:text-slate-400">{t('room.subtitle')}</p>
             </div>
           </div>
-          <button
-            onClick={() => handleOpenModal()}
-            className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg flex items-center "
-          >
-            <Plus size={18} className="me-2" /> {t('room.add')}
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+              <button onClick={() => setViewMode('grid')} className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`} title={t('view.grid')}>
+                <LayoutGrid size={16} />
+              </button>
+              <button onClick={() => setViewMode('list')} className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`} title={t('view.list')}>
+                <List size={16} />
+              </button>
+            </div>
+            <button
+              onClick={() => handleOpenModal()}
+              className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg flex items-center "
+            >
+              <Plus size={18} className="me-2" /> {t('room.add')}
+            </button>
+          </div>
         </div>
       )}
       {embedded && (
-        <div className="flex justify-end mb-6">
+        <div className="flex justify-end gap-3 mb-6">
+          <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+            <button onClick={() => setViewMode('grid')} className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`} title={t('view.grid')}>
+              <LayoutGrid size={16} />
+            </button>
+            <button onClick={() => setViewMode('list')} className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`} title={t('view.list')}>
+              <List size={16} />
+            </button>
+          </div>
           <button
             onClick={() => handleOpenModal()}
             className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg flex items-center "
@@ -92,39 +111,79 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {rooms.map(room => (
-          <div key={room.id} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 flex flex-col hover:shadow-md transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center space-x-3 rtl:space-x-reverse">
-                <div className="bg-indigo-100 dark:bg-indigo-900/50 p-2 rounded-lg text-indigo-600 dark:text-indigo-300">
-                  <Home size={20} />
+      {rooms.length === 0 ? (
+        <div className="py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
+          {t('room.empty_state')}
+        </div>
+      ) : viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {rooms.map(room => (
+            <div key={room.id} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 flex flex-col hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center space-x-3 rtl:space-x-reverse">
+                  <div className="bg-indigo-100 dark:bg-indigo-900/50 p-2 rounded-lg text-indigo-600 dark:text-indigo-300">
+                    <Home size={20} />
+                  </div>
+                  <h3 className="font-bold text-lg text-slate-800 dark:text-white">{room.name}</h3>
                 </div>
-                <h3 className="font-bold text-lg text-slate-800 dark:text-white">{room.name}</h3>
+                <div className="flex space-x-2 rtl:space-x-reverse">
+                  <button onClick={() => handleOpenModal(room)} className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400">
+                    <Edit2 size={16} />
+                  </button>
+                  <button onClick={() => handleDelete(room.id)} className="text-slate-400 hover:text-red-600">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
-              <div className="flex space-x-2 rtl:space-x-reverse">
-                <button onClick={() => handleOpenModal(room)} className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400">
-                  <Edit2 size={16} />
-                </button>
-                <button onClick={() => handleDelete(room.id)} className="text-slate-400 hover:text-red-600">
-                  <Trash2 size={16} />
-                </button>
+              <div className="flex-1">
+                <h4 className="text-xs font-semibold uppercase text-slate-400 mb-2">{t('room.itinerary_equipment')}</h4>
+                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                  {room.itinerary || t('room.no_details')}
+                </p>
               </div>
             </div>
-            <div className="flex-1">
-              <h4 className="text-xs font-semibold uppercase text-slate-400 mb-2">{t('room.itinerary_equipment')}</h4>
-              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                {room.itinerary || t('room.no_details')}
-              </p>
-            </div>
-          </div>
-        ))}
-        {rooms.length === 0 && (
-          <div className="col-span-full py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
-            {t('room.empty_state')}
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">{t('label.room_name')}</th>
+                <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hidden md:table-cell">{t('room.itinerary_equipment')}</th>
+                <th className="text-end px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">{t('btn.edit')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rooms.map(room => (
+                <tr key={room.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-indigo-100 dark:bg-indigo-900/50 p-1.5 rounded-lg text-indigo-600 dark:text-indigo-300">
+                        <Home size={16} />
+                      </div>
+                      <span className="font-medium text-slate-900 dark:text-white">{room.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400 hidden md:table-cell">
+                    <span className="text-xs line-clamp-1">{room.itinerary || '—'}</span>
+                  </td>
+                  <td className="px-4 py-3 text-end">
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => handleOpenModal(room)} className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title={t('btn.edit')}>
+                        <Edit2 size={14} />
+                      </button>
+                      <button onClick={() => handleDelete(room.id)} className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title={t('btn.delete')}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <Modal
         isOpen={isModalOpen}

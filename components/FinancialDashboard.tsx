@@ -643,13 +643,13 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeach
 
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-          <div className="col-span-2 md:col-span-1 bg-gradient-to-br from-blue-600 to-indigo-700 p-5 rounded-xl shadow-lg text-white">
+          <div className="col-span-2 md:col-span-1 bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 border-s-4 border-s-blue-500">
             <div className="flex items-center gap-2 mb-1">
-              <DollarSign size={16} className="opacity-80" />
-              <h3 className="text-xs font-semibold uppercase tracking-wider opacity-80">{t('fin.grand_total')}</h3>
+              <DollarSign size={16} className="text-blue-500" />
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('fin.grand_total')}</h3>
             </div>
-            <p className="text-2xl font-bold">{formatCurrency(totals.grandTotal, settings.currency)}</p>
-            <p className="text-xs opacity-70 mt-1">{monthsInRange} {monthsInRange > 1 ? t('fin.months_plural') : t('fin.month_singular')}</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(totals.grandTotal, settings.currency)}</p>
+            <p className="text-xs text-slate-400 mt-1">{monthsInRange} {monthsInRange > 1 ? t('fin.months_plural') : t('fin.month_singular')}</p>
           </div>
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-2 mb-1">
@@ -768,11 +768,11 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeach
                                     <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Incl. Social Benefits</span>
                                   </label>
                                   <label className="flex items-center gap-1.5 cursor-pointer">
-                                    <input type="checkbox" className="form-checkbox h-3 w-3 text-violet-500 rounded border-slate-300 dark:border-slate-600 focus:ring-violet-500" checked={!!p.includeVat} onChange={() => handleTogglePositionFlag(r.teacherId, p.positionId, 'includeVat')} />
+                                    <input type="checkbox" className="form-checkbox h-3 w-3 text-blue-500 rounded border-slate-300 dark:border-slate-600 focus:ring-blue-500" checked={!!p.includeVat} onChange={() => handleTogglePositionFlag(r.teacherId, p.positionId, 'includeVat')} />
                                     <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Incl. VAT</span>
                                   </label>
                                   <label className="flex items-center gap-1.5 cursor-pointer">
-                                    <input type="checkbox" className="form-checkbox h-3 w-3 text-emerald-500 rounded border-slate-300 dark:border-slate-600 focus:ring-emerald-500" checked={!!p.includeOverheadFee} onChange={() => handleTogglePositionFlag(r.teacherId, p.positionId, 'includeOverheadFee')} />
+                                    <input type="checkbox" className="form-checkbox h-3 w-3 text-blue-500 rounded border-slate-300 dark:border-slate-600 focus:ring-blue-500" checked={!!p.includeOverheadFee} onChange={() => handleTogglePositionFlag(r.teacherId, p.positionId, 'includeOverheadFee')} />
                                     <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Incl. Overhead</span>
                                   </label>
                                 </div>

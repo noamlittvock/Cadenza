@@ -282,7 +282,7 @@ const BarChartRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys,
 
     return (
         <ResponsiveContainer width="100%" height={height}>
-            <BarChart data={chartData} margin={{ top: 8, right: 20, bottom: typo.marginBottom, left: 10 }}>
+            <BarChart data={chartData} margin={{ top: 20, right: 20, bottom: typo.marginBottom, left: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,0.15)" />
                 <XAxis
                     dataKey="name"
@@ -302,6 +302,7 @@ const BarChartRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys,
                     tickLine={false}
                     axisLine={false}
                     width={50}
+                    domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]}
                 />
                 <Tooltip
                     cursor={{ fill: 'rgba(148,163,184,0.08)' }}
@@ -522,7 +523,7 @@ const TableRenderer: React.FC<InternalChartProps> = ({ chartData, metricKeys, co
                     ))}
                 </tbody>
                 {/* Totals row */}
-                <tfoot className="bg-slate-100 dark:bg-slate-950 font-bold border-t-2 border-slate-200 dark:border-slate-700">
+                <tfoot className="bg-blue-50/50 dark:bg-blue-950/20 font-bold border-t-2 border-slate-200 dark:border-slate-700">
                     <tr>
                         <td className="px-4 py-3 text-slate-800 dark:text-white text-xs uppercase tracking-wider">{t('col.total')}</td>
                         {metricKeys.map(k => {
