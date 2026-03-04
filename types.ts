@@ -264,6 +264,10 @@ export interface AppSettings {
   googleCalendarSyncEnabled?: boolean;
   googleCalendarId?: string;
   googleCalendarConnectedBy?: string; // Email of the admin who connected GCal for this tenant
+  schoolYearStartDate?: string; // ISO date: "2024-09-01"
+  schoolYearEndDate?: string; // ISO date: "2025-05-31"
+  schoolYearLabel?: string; // e.g., "2024-2025"
+  enableSchoolYearBoundaries?: boolean; // Show year markers on calendar
 }
 
 export interface ListsState {

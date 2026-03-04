@@ -54,6 +54,8 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
     const [showWipeModal, setShowWipeModal] = useState(false);
     const [wipeConfirmText, setWipeConfirmText] = useState('');
     const [wipeCheckbox, setWipeCheckbox] = useState(false);
+    const [regenLoading, setRegenLoading] = useState<string | null>(null);
+    const [regenMessage, setRegenMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
     // Data State
     const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -801,47 +803,93 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
                                             ].map(module => (
                                                 <button
                                                     key={module.id}
-                                                    onClick={() => {
-                                                        const rooms = events?.reduce((acc, e) => {
-                                                            if (!acc.some(r => r.id === e.roomId)) {
-                                                                acc.push({ id: e.roomId, name: `Room ${e.roomId}`, itinerary: '' });
-                                                            }
-                                                            return acc;
-                                                        }, [] as any[]) || [];
-                                                        const currencySymbol = settings.currency;
+                                                    disabled={regenLoading !== null}
+                                                    onClick={async () => {
+                                                        try {
+                                                            setRegenLoading(module.id);
+                                                            setRegenMessage(null);
 
-                                                        if (module.id === 'teachers') {
-                                                            setTeachers?.(generateTestTeachers(currencySymbol));
-                                                        } else if (module.id === 'events' && setTeachers) {
-                                                            const freshTeachers = generateTestTeachers(currencySymbol);
-                                                            setEvents?.(generateTestCalendar(freshTeachers, rooms, currencySymbol));
-                                                        } else if (module.id === 'charts') {
-                                                            setSavedCharts?.(generateTestSavedCharts());
-                                                        } else if (module.id === 'reports' && setTeachers && setEvents) {
-                                                            const freshTeachers = generateTestTeachers(currencySymbol);
-                                                            const freshEvents = generateTestCalendar(freshTeachers, rooms, currencySymbol);
-                                                            setHoursReports?.(generateTestHoursReports(freshTeachers, freshEvents));
-                                                        } else if (module.id === 'inbox' && setTeachers && setStudents) {
-                                                            const freshTeachers = generateTestTeachers(currencySymbol);
-                                                            const freshActivities = generateTestActivities();
-                                                            const freshStudents = generateTestStudents(freshTeachers, freshActivities);
-                                                            setAdminInboxItems?.(generateTestAdminInbox(freshTeachers, freshStudents));
-                                                        } else if (module.id === 'students' && setTeachers) {
-                                                            const freshTeachers = generateTestTeachers(currencySymbol);
-                                                            const freshActivities = generateTestActivities();
-                                                            setStudents?.(generateTestStudents(freshTeachers, freshActivities));
+                                                            const rooms = events?.reduce((acc, e) => {
+                                                                if (!acc.some(r => r.id === e.roomId)) {
+                                                                    acc.push({ id: e.roomId, name: `Room ${e.roomId}`, itinerary: '' });
+                                                                }
+                                                                return acc;
+                                                            }, [] as any[]) || [];
+                                                            const currencySymbol = settings.currency;
+
+                                                            if (module.id === 'teachers') {
+                                                                const data = generateTestTeachers(currencySymbol);
+                                                                setTeachers?.(data);
+                                                                setRegenMessage({ type: 'success', text: `Teachers data regenerated (${data.length} records)` });
+                                                            } else if (module.id === 'events') {
+                                                                const freshTeachers = generateTestTeachers(currencySymbol);
+                                                                const data = generateTestCalendar(freshTeachers, rooms, currencySymbol);
+                                                                setEvents?.(data);
+                                                                setRegenMessage({ type: 'success', text: `Calendar Events data regenerated (${data.length} records)` });
+                                                            } else if (module.id === 'charts') {
+                                                                const data = generateTestSavedCharts();
+                                                                setSavedCharts?.(data);
+                                                                setRegenMessage({ type: 'success', text: `Saved Charts regenerated (${data.length} records)` });
+                                                            } else if (module.id === 'reports') {
+                                                                const freshTeachers = generateTestTeachers(currencySymbol);
+                                                                const freshEvents = generateTestCalendar(freshTeachers, rooms, currencySymbol);
+                                                                const data = generateTestHoursReports(freshTeachers, freshEvents);
+                                                                setHoursReports?.(data);
+                                                                setRegenMessage({ type: 'success', text: `Hours Reports regenerated (${data.length} records)` });
+                                                            } else if (module.id === 'inbox') {
+                                                                const freshTeachers = generateTestTeachers(currencySymbol);
+                                                                const freshActivities = generateTestActivities();
+                                                                const freshStudents = generateTestStudents(freshTeachers, freshActivities);
+                                                                const data = generateTestAdminInbox(freshTeachers, freshStudents);
+                                                                setAdminInboxItems?.(data);
+                                                                setRegenMessage({ type: 'success', text: `Admin Inbox regenerated (${data.length} records)` });
+                                                            } else if (module.id === 'students') {
+                                                                const freshTeachers = generateTestTeachers(currencySymbol);
+                                                                const freshActivities = generateTestActivities();
+                                                                const data = generateTestStudents(freshTeachers, freshActivities);
+                                                                setStudents?.(data);
+                                                                setRegenMessage({ type: 'success', text: `Students data regenerated (${data.length} records)` });
+                                                            }
+
+                                                            // Auto-dismiss success message after 3 seconds
+                                                            setTimeout(() => setRegenMessage(null), 3000);
+                                                        } catch (error) {
+                                                            console.error('Regeneration error:', error);
+                                                            setRegenMessage({ type: 'error', text: `Failed to regenerate ${module.label}` });
+                                                        } finally {
+                                                            setRegenLoading(null);
                                                         }
                                                     }}
-                                                    className="text-start p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-blue-400 dark:hover:border-blue-500 transition-colors group"
+                                                    className={`text-start p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors group ${regenLoading === module.id ? 'opacity-60 cursor-not-allowed' : 'hover:border-blue-400 dark:hover:border-blue-500'}`}
                                                 >
                                                     <div className="flex items-center gap-2 mb-1">
-                                                        <span className="text-lg">{module.icon}</span>
+                                                        {regenLoading === module.id ? (
+                                                            <Loader2 size={18} className="animate-spin text-blue-500" />
+                                                        ) : (
+                                                            <span className="text-lg">{module.icon}</span>
+                                                        )}
                                                         <span className="font-semibold text-slate-900 dark:text-white text-sm">{module.label}</span>
                                                     </div>
                                                     <p className="text-xs text-slate-600 dark:text-slate-400">{module.desc}</p>
                                                 </button>
                                             ))}
                                         </div>
+
+                                        {/* Regeneration Feedback */}
+                                        {regenMessage && (
+                                            <div className={`mt-4 p-3 rounded-lg text-sm font-medium flex items-center gap-2 ${
+                                                regenMessage.type === 'success'
+                                                    ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                                                    : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
+                                            }`}>
+                                                {regenMessage.type === 'success' ? (
+                                                    <span>✓</span>
+                                                ) : (
+                                                    <AlertCircle size={16} />
+                                                )}
+                                                {regenMessage.text}
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* State Snapshots */}

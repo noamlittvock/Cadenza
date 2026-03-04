@@ -56,13 +56,41 @@ type DetailItem =
   | { type: 'GANTT'; data: GanttBlock }
   | null;
 
-const START_HOUR = 7;
-const END_HOUR = 22;
+const START_HOUR = 0;
+const END_HOUR = 23;
 const PIXELS_PER_HOUR = 60;
 const SNAP_MINUTES = 15;
 
 // Module-level scroll position — survives component re-mounts (sidebar toggle, etc.)
-let savedScrollTop = START_HOUR * PIXELS_PER_HOUR; // Default: scroll to 7 AM
+let savedScrollTop = 7 * PIXELS_PER_HOUR; // Default: scroll to 7 AM
+
+// Helper: Find the hour with the most events for smart centering
+const findPeakEventHour = (eventsToCheck: CalendarEvent[], displayDate: Date): number => {
+  const dayStart = new Date(displayDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(displayDate);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  const hourCounts = new Array(24).fill(0);
+  eventsToCheck.forEach(event => {
+    const eventStart = new Date(event.start);
+    if (eventStart >= dayStart && eventStart <= dayEnd) {
+      const hour = eventStart.getHours();
+      hourCounts[hour]++;
+    }
+  });
+
+  let peakHour = 7; // Default fallback
+  let maxCount = 0;
+  hourCounts.forEach((count, hour) => {
+    if (count > maxCount) {
+      maxCount = count;
+      peakHour = hour;
+    }
+  });
+
+  return peakHour;
+};
 
 export const CalendarView: React.FC<Props> = ({
   events, setEvents, teachers, rooms, ganttBlocks, setGanttBlocks, settings, lists, activities,
@@ -101,6 +129,7 @@ export const CalendarView: React.FC<Props> = ({
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
   const [showCanceled, setShowCanceled] = useState(true);
   const [showBlackouts, setShowBlackouts] = useState(true);
+  const [showOnlyOverlapping, setShowOnlyOverlapping] = useState(false);
 
   // Modal State (Edit/Create)
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -134,14 +163,28 @@ export const CalendarView: React.FC<Props> = ({
     const el = containerRef.current;
     if (!el) return;
 
-    // Restore saved scroll position on mount
-    el.scrollTop = savedScrollTop;
+    // Smart centering: Find peak event hour and scroll to it (±2 hours)
+    const peakHour = findPeakEventHour(events, currentDate);
+    const centerHour = Math.max(START_HOUR, Math.min(peakHour - 1, END_HOUR - 2)); // ±1-2 hour buffer
+    const smartScrollTop = centerHour * PIXELS_PER_HOUR;
+
+    // Use smart scroll on mount if events exist, otherwise restore saved position
+    const hasEventsOnDate = events.some((e: CalendarEvent) => {
+      const eStart = new Date(e.start);
+      const dayStart = new Date(currentDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(currentDate);
+      dayEnd.setHours(23, 59, 59, 999);
+      return eStart >= dayStart && eStart <= dayEnd;
+    });
+
+    el.scrollTop = hasEventsOnDate ? smartScrollTop : savedScrollTop;
 
     // Save scroll position as user scrolls
     const handleScroll = () => { savedScrollTop = el.scrollTop; };
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
-  }, [viewMode]); // re-run when view mode changes (DAY/WEEK/MONTH switches the scroll container)
+  }, [viewMode, currentDate, events]); // re-run when view mode, date, or events change
 
   const DAY_MAP: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
   const DAY_ABBR: DayOfWeek[] = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
@@ -360,7 +403,7 @@ export const CalendarView: React.FC<Props> = ({
   // --- Filtering & Derived Data ---
 
   const filteredEvents = useMemo(() => {
-    return expandedEvents.filter(evt => {
+    const events = expandedEvents.filter(evt => {
       // Hide blacked out events
       if (evt.isHidden && !showBlackouts) return false;
 
@@ -388,7 +431,16 @@ export const CalendarView: React.FC<Props> = ({
 
       return true;
     });
-  }, [expandedEvents, teachers, activities, filterTeacher, filterRoom, filterClass, filterPosition, filterTag, showCanceled, showBlackouts]);
+
+    // If overlapping filter is ON, show only events that have time/room conflicts
+    if (showOnlyOverlapping) {
+      const conflicts = detectRoomConflicts(events);
+      const conflictingEventIds = getConflictingEventIds(conflicts);
+      return events.filter(e => conflictingEventIds.has(e.id));
+    }
+
+    return events;
+  }, [expandedEvents, teachers, activities, filterTeacher, filterRoom, filterClass, filterPosition, filterTag, showCanceled, showBlackouts, showOnlyOverlapping]);
 
   const conflictingIds = useMemo(() => {
     const conflicts = detectRoomConflicts(filteredEvents);
@@ -1097,7 +1149,7 @@ export const CalendarView: React.FC<Props> = ({
                   <div
                     key={block.id}
                     onClick={(e) => { e.stopPropagation(); setDetailItem({ type: 'GANTT', data: block }); }}
-                    className={`absolute rounded px-2 flex items-center text-[10px] text-white font-medium truncate opacity-90 hover:opacity-100 transition-opacity cursor-pointer z-10 hover:shadow-cadenza-deep hover:z-20 border border-white/20 animate-cadenza-arrive ${recentlySaved.has(block.id) ? 'animate-cadenza-pulse' : ''}`}
+                    className={`absolute rounded px-2 flex items-center text-[10px] text-white font-medium truncate opacity-90 hover:opacity-100 transition-opacity cursor-pointer z-5 hover:shadow-cadenza-deep hover:z-10 border border-white/20 animate-cadenza-arrive ${recentlySaved.has(block.id) ? 'animate-cadenza-pulse' : ''}`}
                     style={{
                       insetInlineStart: `${leftPercent}%`,
                       width: `${widthPercent}%`,
@@ -1421,8 +1473,8 @@ export const CalendarView: React.FC<Props> = ({
                   })}
                 </div>
 
-                {/* Layer 2: Gantt Overlay (z-10) */}
-                <div className="absolute top-[32px] bottom-0 start-0 end-0 overflow-y-auto custom-scrollbar pointer-events-none z-10">
+                {/* Layer 2: Gantt Overlay (z-5) */}
+                <div className="absolute top-[32px] bottom-0 start-0 end-0 overflow-y-auto custom-scrollbar pointer-events-none z-5">
                   <div className="grid grid-cols-7 gap-y-1 relative pointer-events-auto pb-1" style={{ gridAutoRows: 'min-content' }}>
                     {weekGantts.map(block => {
                       const bStart = new Date(block.startDate); bStart.setHours(0, 0, 0, 0);
@@ -1687,6 +1739,28 @@ export const CalendarView: React.FC<Props> = ({
                 className="status-toggle-thumb"
                 style={{
                   transform: !showBlackouts ? (isRtl ? 'translateX(-16px)' : 'translateX(16px)') : (isRtl ? 'translateX(-2px)' : 'translateX(2px)'),
+                }}
+              />
+            </button>
+          </div>
+
+          {/* Overlapping Lessons Toggle */}
+          <div className="flex items-center gap-2">
+            <span className={`text-[10px] leading-tight font-medium transition-colors text-end ${showOnlyOverlapping ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>{t('cal.overlapping').split(' ')[0]}<br />{t('cal.overlapping').split(' ')[1] || 'Lessons'}</span>
+            <button
+              onClick={() => setShowOnlyOverlapping(!showOnlyOverlapping)}
+              className="status-toggle-track"
+              role="switch"
+              aria-checked={showOnlyOverlapping}
+              aria-label={t('cal.aria_toggle_overlapping')}
+              style={{
+                backgroundColor: showOnlyOverlapping ? '#dc2626' : '#cbd5e1',
+              }}
+            >
+              <span
+                className="status-toggle-thumb"
+                style={{
+                  transform: showOnlyOverlapping ? (isRtl ? 'translateX(-16px)' : 'translateX(16px)') : (isRtl ? 'translateX(-2px)' : 'translateX(2px)'),
                 }}
               />
             </button>
