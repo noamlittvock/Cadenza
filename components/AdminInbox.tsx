@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { AdminInboxItem, AppSettings, Teacher, Student, CalendarEvent } from '../types';
 import { TRANSLATIONS } from '../constants';
+import { Modal } from './Modal';
 import {
   Menu, Inbox, CheckCircle2, Bell, ClipboardList, ChevronDown, ChevronUp,
-  Clock, Users, Eye, EyeOff, Calendar, HelpCircle, AlertTriangle
+  Clock, Users, Eye, EyeOff, Calendar, HelpCircle, AlertTriangle, GraduationCap,
+  ExternalLink, Mail, Phone
 } from 'lucide-react';
 
 interface Props {
@@ -15,17 +17,20 @@ interface Props {
   settings: AppSettings;
   onMobileMenuOpen: () => void;
   onNavigateToEvent?: (eventIds: string[]) => void;
+  onNavigateToStaff?: (staffId: string) => void;
+  onNavigateToStudent?: (studentId: string) => void;
 }
 
 type InboxTab = 'tasks' | 'notifications';
 
 export const AdminInbox: React.FC<Props> = ({
-  inboxItems, setInboxItems, teachers, students, events, settings, onMobileMenuOpen, onNavigateToEvent
+  inboxItems, setInboxItems, teachers, students, events, settings, onMobileMenuOpen, onNavigateToEvent, onNavigateToStaff, onNavigateToStudent
 }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
   const [activeTab, setActiveTab] = useState<InboxTab>('tasks');
   const [showCompleted, setShowCompleted] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [viewStudentId, setViewStudentId] = useState<string | null>(null);
 
   const tasks = useMemo(() => {
     const items = inboxItems.filter(i => i.type === 'TASK');
@@ -78,6 +83,14 @@ export const AdminInbox: React.FC<Props> = ({
     return ids.map(id => {
       const student = students.find(s => s.id === id);
       return student?.fullName || id;
+    });
+  };
+
+  const resolveTeacherNames = (ids?: string[]) => {
+    if (!ids?.length) return [];
+    return ids.map(id => {
+      const teacher = teachers.find(t => t.id === id);
+      return teacher?.fullName || id;
     });
   };
 
@@ -205,29 +218,72 @@ export const AdminInbox: React.FC<Props> = ({
                             {task.message}
                           </p>
 
-                          {/* Expandable student list */}
-                          {studentNames.length > 0 && (
+                          {/* Expandable entity list — type-aware */}
+                          {task.relatedEntityType === 'STUDENT' && studentNames.length > 0 && (
                             <button
                               onClick={() => toggleExpand(task.id)}
                               className="mt-2 flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
                             >
-                              <Users size={12} />
-                              {studentNames.length} student(s)
+                              <GraduationCap size={12} />
+                              {studentNames.length} {t('inbox.students_count')}
                               {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                             </button>
                           )}
-                          {isExpanded && studentNames.length > 0 && (
+                          {isExpanded && task.relatedEntityType === 'STUDENT' && studentNames.length > 0 && (
                             <ul className="mt-2 ps-4 space-y-1">
                               {studentNames.map((name, i) => (
-                                <li key={i} className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                                  {name}
+                                <li key={i} className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0" />
+                                  <span className="flex-1">{name}</span>
+                                  {task.relatedEntityIds?.[i] && (
+                                    <button
+                                      onClick={() => setViewStudentId(task.relatedEntityIds![i])}
+                                      className="flex items-center gap-0.5 text-[10px] font-medium text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex-shrink-0"
+                                    >
+                                      <Eye size={10} />
+                                      {t('inbox.view')}
+                                    </button>
+                                  )}
                                 </li>
                               ))}
                             </ul>
                           )}
+                          {task.relatedEntityType === 'TEACHER' && task.relatedEntityIds && task.relatedEntityIds.length > 0 && (() => {
+                            const teacherNames = resolveTeacherNames(task.relatedEntityIds);
+                            return teacherNames.length > 0 ? (
+                              <>
+                                <button
+                                  onClick={() => toggleExpand(task.id)}
+                                  className="mt-2 flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                                >
+                                  <Users size={12} />
+                                  {teacherNames.length} {t('inbox.staff_count')}
+                                  {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                </button>
+                                {isExpanded && (
+                                  <ul className="mt-2 ps-4 space-y-1">
+                                    {teacherNames.map((name, i) => (
+                                      <li key={i} className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+                                        <span className="flex-1">{name}</span>
+                                        {onNavigateToStaff && task.relatedEntityIds?.[i] && (
+                                          <button
+                                            onClick={() => onNavigateToStaff(task.relatedEntityIds![i])}
+                                            className="flex items-center gap-0.5 text-[10px] font-medium text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex-shrink-0"
+                                          >
+                                            <Eye size={10} />
+                                            {t('inbox.view')}
+                                          </button>
+                                        )}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </>
+                            ) : null;
+                          })()}
 
-                          <div className="flex items-center gap-3 mt-3">
+                          <div className="flex items-center gap-3 mt-3 flex-wrap">
                             <span className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
                               <Clock size={11} />
                               {formatDate(task.createdAt)}
@@ -303,6 +359,24 @@ export const AdminInbox: React.FC<Props> = ({
                           {t('inbox.view_in_calendar')}
                         </button>
                       )}
+                      {notif.relatedEntityType === 'TEACHER' && onNavigateToStaff && notif.relatedEntityIds?.[0] && (
+                        <button
+                          onClick={() => onNavigateToStaff(notif.relatedEntityIds![0])}
+                          className="mt-2 flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                        >
+                          <Users size={12} />
+                          {t('inbox.view_staff')}
+                        </button>
+                      )}
+                      {notif.relatedEntityType === 'STUDENT' && notif.relatedEntityIds?.[0] && (
+                        <button
+                          onClick={() => setViewStudentId(notif.relatedEntityIds![0])}
+                          className="mt-2 flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                        >
+                          <GraduationCap size={12} />
+                          {t('inbox.view_student')}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -311,6 +385,78 @@ export const AdminInbox: React.FC<Props> = ({
           </div>
         )}
       </div>
+
+      {/* Student Detail Modal */}
+      {viewStudentId && (() => {
+        const student = students.find(s => s.id === viewStudentId);
+        if (!student) return null;
+        return (
+          <Modal
+            isOpen={true}
+            onClose={() => setViewStudentId(null)}
+            title={student.fullName}
+            maxWidth="max-w-lg"
+            isDirty={false}
+            footerContent={
+              <div className="flex justify-end gap-2 w-full">
+                <button onClick={() => setViewStudentId(null)}
+                  className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sm">
+                  {t('btn.close') || 'Close'}
+                </button>
+                {onNavigateToStudent && (
+                  <button onClick={() => { const id = viewStudentId; setViewStudentId(null); onNavigateToStudent(id); }}
+                    className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium flex items-center gap-1.5">
+                    <ExternalLink size={14} />
+                    {t('inbox.go_to_full_profile')}
+                  </button>
+                )}
+              </div>
+            }
+          >
+            <div className="space-y-4">
+              {/* Identity */}
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-700 dark:text-blue-300 font-bold text-lg">
+                  {student.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{student.fullName}</h3>
+                  {student.dateOfBirth && <p className="text-xs text-slate-500 dark:text-slate-400">{student.dateOfBirth}</p>}
+                </div>
+              </div>
+              {/* Contact */}
+              {(student.email || student.phone) && (
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 space-y-1.5">
+                  <h4 className="text-xs font-semibold uppercase text-slate-400 mb-1">{t('staff.section.contact')}</h4>
+                  {student.email && <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"><Mail size={14} className="text-slate-400" /> {student.email}</div>}
+                  {student.phone && <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"><Phone size={14} className="text-slate-400" /> {student.phone}</div>}
+                </div>
+              )}
+              {/* Guardians */}
+              {student.guardians && student.guardians.length > 0 && (
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 space-y-1.5">
+                  <h4 className="text-xs font-semibold uppercase text-slate-400 mb-1">{t('student.guardians')}</h4>
+                  {student.guardians.map((g, i) => (
+                    <div key={i} className="text-sm text-slate-600 dark:text-slate-300">
+                      {g.fullName} {g.relationship && <span className="text-xs text-slate-400">({g.relationship})</span>}
+                      {g.phone && <span className="ms-2 text-xs text-slate-400">{g.phone}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Notes */}
+              {student.notes && student.notes.length > 0 && (
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 space-y-1.5">
+                  <h4 className="text-xs font-semibold uppercase text-slate-400 mb-1">{t('staff.section.notes')}</h4>
+                  {student.notes.slice(0, 3).map((note, i) => (
+                    <p key={i} className="text-xs text-slate-600 dark:text-slate-300">{note.content}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Modal>
+        );
+      })()}
     </div>
   );
 };

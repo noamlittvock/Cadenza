@@ -4,9 +4,10 @@ import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../utils/firebase';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
-import { AppSettings, CalendarEvent, Activity } from '../types';
-import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus, Wrench, Edit2, Save, X, Globe, ChevronDown, ChevronUp, HelpCircle, AlertTriangle } from 'lucide-react';
+import { AppSettings, CalendarEvent, Activity, Teacher, Room, Student } from '../types';
+import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus, Wrench, Edit2, Save, X, Globe, ChevronDown, ChevronUp, HelpCircle, AlertTriangle, FileText } from 'lucide-react';
 import { TranslationManager } from './TranslationManager';
+import { DocumentTemplates } from './DocumentRepository';
 import { Modal } from './Modal';
 import { generateTestTeachers, generateTestCalendar, generateTestGantts, generateTestActivities, generateTestStudents, generateTestAdminInbox, generateTestSavedCharts, generateTestHoursReports } from '../utils/dataGenerator';
 
@@ -32,6 +33,9 @@ interface SuperAdminProps {
     events?: CalendarEvent[];
     setEvents?: React.Dispatch<React.SetStateAction<CalendarEvent[]>>;
     activities?: Activity[];
+    teachers?: Teacher[];
+    students?: Student[];
+    rooms?: Room[];
     setTeachers?: (data: any[]) => void;
     setSavedCharts?: (data: any[]) => void;
     setHoursReports?: (data: any[]) => void;
@@ -44,11 +48,12 @@ interface SuperAdminProps {
 
 export const SuperAdmin: React.FC<SuperAdminProps> = ({
     onLoadTestData, onWipeData, settings, events = [], setEvents, activities = [],
+    teachers = [], students = [], rooms = [],
     setTeachers, setSavedCharts, setHoursReports, setRooms, setGanttBlocks, setActivities, setStudents, setAdminInboxItems
 }) => {
     const { currentUser, isSuperAdmin } = useAuth();
     const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
-    const [activeTab, setActiveTab] = useState<'ORGS' | 'USERS' | 'DEV_TOOLS' | 'TRANSLATIONS'>('ORGS');
+    const [activeTab, setActiveTab] = useState<'ORGS' | 'USERS' | 'DEV_TOOLS' | 'TEMPLATES' | 'TRANSLATIONS'>('ORGS');
     const [loading, setLoading] = useState(true);
     const [showExplainers, setShowExplainers] = useState<Record<string, boolean>>({});
     const [showWipeModal, setShowWipeModal] = useState(false);
@@ -411,6 +416,16 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
                         <div className="flex items-center space-x-2 rtl:space-x-reverse">
                             <Wrench size={18} />
                             <span>{t('sa.tab_dev')}</span>
+                        </div>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('TEMPLATES')}
+                        className={`pb-4 px-2 font-medium transition-colors border-b-2 ${activeTab === 'TEMPLATES' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+                            }`}
+                    >
+                        <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                            <FileText size={18} />
+                            <span>{t('sa.tab_templates') || 'Templates'}</span>
                         </div>
                     </button>
                     <button
@@ -809,21 +824,22 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
                                                             setRegenLoading(module.id);
                                                             setRegenMessage(null);
 
-                                                            const rooms = events?.reduce((acc, e) => {
-                                                                if (!acc.some(r => r.id === e.roomId)) {
-                                                                    acc.push({ id: e.roomId, name: `Room ${e.roomId}`, itinerary: '' });
-                                                                }
-                                                                return acc;
-                                                            }, [] as any[]) || [];
                                                             const currencySymbol = settings.currency;
+                                                            // Use existing Firestore data as dependencies; fall back to fresh generation only if empty
+                                                            const existingTeachers = teachers.length > 0 ? teachers : generateTestTeachers(currencySymbol);
+                                                            const existingActivities = activities.length > 0 ? activities : generateTestActivities();
+                                                            const existingRooms = rooms.length > 0 ? rooms : [
+                                                                { id: 'R1', name: 'Studio A', itinerary: '' },
+                                                                { id: 'R2', name: 'Studio B', itinerary: '' },
+                                                                { id: 'R3', name: 'Practice Room 1', itinerary: '' },
+                                                            ];
 
                                                             if (module.id === 'teachers') {
                                                                 const data = generateTestTeachers(currencySymbol);
                                                                 setTeachers?.(data);
                                                                 setRegenMessage({ type: 'success', text: `Teachers data regenerated (${data.length} records)` });
                                                             } else if (module.id === 'events') {
-                                                                const freshTeachers = generateTestTeachers(currencySymbol);
-                                                                const data = generateTestCalendar(freshTeachers, rooms, currencySymbol);
+                                                                const data = generateTestCalendar(existingTeachers as any, existingRooms as any, currencySymbol);
                                                                 setEvents?.(data);
                                                                 setRegenMessage({ type: 'success', text: `Calendar Events data regenerated (${data.length} records)` });
                                                             } else if (module.id === 'charts') {
@@ -831,22 +847,17 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
                                                                 setSavedCharts?.(data);
                                                                 setRegenMessage({ type: 'success', text: `Saved Charts regenerated (${data.length} records)` });
                                                             } else if (module.id === 'reports') {
-                                                                const freshTeachers = generateTestTeachers(currencySymbol);
-                                                                const freshEvents = generateTestCalendar(freshTeachers, rooms, currencySymbol);
-                                                                const data = generateTestHoursReports(freshTeachers, freshEvents);
+                                                                const existingEvents = events.length > 0 ? events : generateTestCalendar(existingTeachers as any, existingRooms as any, currencySymbol);
+                                                                const data = generateTestHoursReports(existingTeachers as any, existingEvents);
                                                                 setHoursReports?.(data);
                                                                 setRegenMessage({ type: 'success', text: `Hours Reports regenerated (${data.length} records)` });
                                                             } else if (module.id === 'inbox') {
-                                                                const freshTeachers = generateTestTeachers(currencySymbol);
-                                                                const freshActivities = generateTestActivities();
-                                                                const freshStudents = generateTestStudents(freshTeachers, freshActivities);
-                                                                const data = generateTestAdminInbox(freshTeachers, freshStudents);
+                                                                const existingStudents = students.length > 0 ? students : generateTestStudents(existingTeachers as any, existingActivities);
+                                                                const data = generateTestAdminInbox(existingTeachers as any, existingStudents as any);
                                                                 setAdminInboxItems?.(data);
                                                                 setRegenMessage({ type: 'success', text: `Admin Inbox regenerated (${data.length} records)` });
                                                             } else if (module.id === 'students') {
-                                                                const freshTeachers = generateTestTeachers(currencySymbol);
-                                                                const freshActivities = generateTestActivities();
-                                                                const data = generateTestStudents(freshTeachers, freshActivities);
+                                                                const data = generateTestStudents(existingTeachers as any, existingActivities);
                                                                 setStudents?.(data);
                                                                 setRegenMessage({ type: 'success', text: `Students data regenerated (${data.length} records)` });
                                                             }
@@ -1110,6 +1121,10 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
                             </div>
                         )}
                     </div>
+                )}
+
+                {activeTab === 'TEMPLATES' && (
+                    <DocumentTemplates settings={settings} teachers={teachers} students={students} />
                 )}
 
                 {activeTab === 'TRANSLATIONS' && (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { ChevronRight, ChevronLeft, BarChart3, LineChart } from 'lucide-react';
 import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState, Activity, Student, CalendarSubscription, HoursReport, AdminInboxItem } from './types';
 import { ChartConfiguration } from './types/chartBuilder';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, TRANSLATIONS, migrateTeacher, generateId } from './constants';
@@ -11,6 +11,7 @@ const t = (key: string) => {
 import { useFirestoreSync, useFirestoreSettings } from './utils/useFirestoreSync';
 import { generateTestData } from './utils/dataGenerator';
 import { detectRoomConflicts } from './utils/roomConflicts';
+import { ImportedGoogleEvent } from './utils/googleCalendarSync';
 import { Layout } from './components/Layout';
 import { CalendarView } from './components/CalendarView';
 import { GanttManager } from './components/GanttManager';
@@ -23,12 +24,58 @@ import { StaffMemberManager } from './components/StaffMemberManager';
 import { StudentManager } from './components/StudentManager';
 import { SuperAdmin } from './components/SuperAdmin';
 import { AdminInbox } from './components/AdminInbox';
+
 import { TeacherHoursForm } from './components/TeacherHoursForm';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { UserRole } from './context/AuthContext';
 import { TranslationProvider, useTranslation } from './context/TranslationContext';
 
+
+// --- Financial Hub: Tabbed container for Dashboard + Analysis ---
+const FinancialHub: React.FC<{
+  financialTab: 'dashboard' | 'analysis';
+  setFinancialTab: (tab: 'dashboard' | 'analysis') => void;
+  events: CalendarEvent[];
+  teachers: Teacher[];
+  setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>;
+  settings: AppSettings;
+  savedCharts: ChartConfiguration[];
+  setSavedCharts: React.Dispatch<React.SetStateAction<ChartConfiguration[]>>;
+  hoursReports: HoursReport[];
+  setHoursReports: React.Dispatch<React.SetStateAction<HoursReport[]>>;
+  activities: Activity[];
+  onMobileMenuOpen: () => void;
+}> = ({ financialTab, setFinancialTab, events, teachers, setTeachers, settings, savedCharts, setSavedCharts, hoursReports, setHoursReports, activities, onMobileMenuOpen }) => (
+  <div className="flex flex-col h-full">
+    <div className="flex items-center gap-1 px-4 pt-3 pb-1">
+      {[
+        { key: 'dashboard' as const, icon: BarChart3, label: t('nav.financial_dashboard') || 'Dashboard' },
+        { key: 'analysis' as const, icon: LineChart, label: t('nav.financial_analysis') || 'Analysis' },
+      ].map(tab => (
+        <button
+          key={tab.key}
+          onClick={() => setFinancialTab(tab.key)}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            financialTab === tab.key
+              ? 'bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft'
+              : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <tab.icon size={16} />
+          {tab.label}
+        </button>
+      ))}
+    </div>
+    <div className="flex-1 overflow-auto">
+      {financialTab === 'dashboard' ? (
+        <FinancialDashboard events={events} teachers={teachers} setTeachers={setTeachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} hoursReports={hoursReports} setHoursReports={setHoursReports} activities={activities} onMobileMenuOpen={onMobileMenuOpen} />
+      ) : (
+        <FinancialAnalysis events={events} teachers={teachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} activities={activities} onMobileMenuOpen={onMobileMenuOpen} onNavigateBack={() => setFinancialTab('dashboard')} />
+      )}
+    </div>
+  </div>
+);
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -83,6 +130,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 function AppContent() {
   const { currentUser, login, isAdmin } = useAuth();
   const [currentView, setCurrentView] = useState<ViewState>('CALENDAR');
+  const [financialTab, setFinancialTab] = useState<'dashboard' | 'analysis'>('dashboard');
   const { liveTranslations } = useTranslation();
 
   // Initialize darkMode synchronously from localStorage to prevent flash
@@ -186,6 +234,40 @@ function AppContent() {
     setCurrentView('CALENDAR');
   };
 
+  // Navigate to staff member from inbox
+  const handleNavigateToStaff = (_staffId: string) => {
+    setCurrentView('STAFF_MEMBERS');
+  };
+
+  // Navigate to student from inbox
+  const handleNavigateToStudent = (_studentId: string) => {
+    setCurrentView('STUDENTS');
+  };
+
+  // Import events from Google Calendar
+  const handleImportGoogleEvents = (imported: ImportedGoogleEvent[]) => {
+    setEvents(prev => {
+      const existingGoogleIds = new Set(prev.filter(e => e.googleEventId).map(e => e.googleEventId));
+      const newEvents: CalendarEvent[] = imported
+        .filter(g => !existingGoogleIds.has(g.googleEventId))
+        .map(g => ({
+          id: generateId(),
+          orgId: '',
+          name: g.title,
+          description: g.description || '',
+          start: g.start,
+          end: g.end,
+          staffMemberId: '',
+          roomId: '',
+          classification: 'OTHER',
+          isCanceled: false,
+          isHidden: false,
+          googleEventId: g.googleEventId,
+        } as CalendarEvent));
+      return [...prev, ...newEvents];
+    });
+  };
+
   // Route Rendering
   const renderContent = () => {
     const isSidebarMode = ['GANTT', 'POWER_TOOLS'].includes(currentView);
@@ -225,9 +307,13 @@ function AppContent() {
 
       return (
         <div className="relative w-full h-full overflow-hidden">
-          {/* Main Calendar Area — stays full width, sidebar overlaps from right */}
+          {/* Main Calendar Area — compresses when sidebar is open */}
           <div
             className="h-full overflow-hidden"
+            style={{
+              paddingInlineEnd: showSidebar ? '384px' : '0px',
+              transition: 'padding 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+            }}
           >
             {CalendarComponent}
           </div>
@@ -236,7 +322,7 @@ function AppContent() {
           {showSidebar && (
             <button
               onClick={() => setCurrentView('CALENDAR')}
-              className="fixed z-50 bg-slate-800 hover:bg-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg hover:scale-110 border-4 border-slate-50 dark:border-slate-900 transition-all duration-200"
+              className="fixed z-50 bg-slate-700 hover:bg-blue-600 text-slate-300 hover:text-white rounded-full w-10 h-10 flex items-center justify-center shadow-cadenza-deep hover:scale-110 border-4 border-slate-50 dark:border-slate-900 transition-all duration-200 btn-cadenza"
               style={{
                 ...(isRtl ? { left: '364px' } : { right: '364px' }), /* 384px sidebar width minus half the button */
                 bottom: '26%',
@@ -346,9 +432,22 @@ function AppContent() {
           />
         );
       case 'FINANCIAL':
-        return <FinancialDashboard events={events} teachers={teachers} setTeachers={setTeachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} hoursReports={hoursReports} setHoursReports={setHoursReports} activities={activities} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} />;
-      case 'FINANCIAL_ANALYSIS':
-        return <FinancialAnalysis events={events} teachers={teachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} activities={activities} onMobileMenuOpen={() => setIsMobileMenuOpen(true)} onNavigateBack={() => setCurrentView('FINANCIAL')} />;
+        return (
+          <FinancialHub
+            financialTab={financialTab}
+            setFinancialTab={setFinancialTab}
+            events={events}
+            teachers={teachers}
+            setTeachers={setTeachers}
+            settings={settings}
+            savedCharts={savedCharts}
+            setSavedCharts={setSavedCharts}
+            hoursReports={hoursReports}
+            setHoursReports={setHoursReports}
+            activities={activities}
+            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+          />
+        );
       case 'SUPER_ADMIN':
         return (
           <SuperAdmin
@@ -356,6 +455,9 @@ function AppContent() {
             events={events}
             setEvents={setEvents}
             activities={activities}
+            teachers={teachers}
+            students={students}
+            rooms={rooms}
             onLoadTestData={() => {
               console.log("Generating data...");
               const data = generateTestData(settings.currency);
@@ -420,6 +522,8 @@ function AppContent() {
             settings={settings}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
             onNavigateToEvent={handleNavigateToConflict}
+            onNavigateToStaff={handleNavigateToStaff}
+            onNavigateToStudent={handleNavigateToStudent}
           />
         );
       case 'SETTINGS':
@@ -428,6 +532,7 @@ function AppContent() {
             settings={settings}
             setSettings={setSettings}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+            onImportGoogleEvents={handleImportGoogleEvents}
           />
         );
       default:

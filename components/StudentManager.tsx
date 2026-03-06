@@ -6,7 +6,7 @@ import {
 import { generateId, TRANSLATIONS } from '../constants';
 import {
   Plus, Edit2, Search, X, Menu,
-  ChevronDown, ChevronUp, Archive, RotateCcw,
+  ChevronDown, ChevronUp, Archive, RotateCcw, HelpCircle,
   Upload, FileText, GraduationCap, User, Phone, Mail,
   Music, Users, BookOpen, ClipboardList, Calendar, Trash2, LayoutGrid, List
 } from 'lucide-react';
@@ -55,7 +55,11 @@ const Section = React.memo(({ id, icon: Icon, title, children, badge, isExpanded
       </div>
       {isExpanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
     </button>
-    {isExpanded && <div className="p-3 space-y-3">{children}</div>}
+    <div className={`grid transition-[grid-template-rows,opacity] duration-200 ${isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+      <div className="overflow-hidden">
+        <div className="p-3 space-y-3">{children}</div>
+      </div>
+    </div>
   </div>
 ));
 
@@ -136,7 +140,8 @@ export const StudentManager: React.FC<Props> = ({
   const [initialFormData, setInitialFormData] = useState<Partial<Student>>({});
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
-  const [studentViewMode, setStudentViewMode] = useState<'grid' | 'list'>('grid');
+  const [showHelp, setShowHelp] = useState(false);
+  const [studentViewMode, setStudentViewMode] = useState<'grid' | 'list'>('list');
   const [error, setError] = useState<string | null>(null);
   const [noteInput, setNoteInput] = useState('');
   const [docLabel, setDocLabel] = useState('');
@@ -383,24 +388,38 @@ export const StudentManager: React.FC<Props> = ({
       setFormData(data);
       setInitialFormData(data);
     }
-    setExpandedSections({
-      identity: true, contact: true, guardians: true,
-      assignments: true, pedagogical: false, notes: false, documents: false,
-    });
+    if (student) {
+      // Edit mode: expand sections with data
+      setExpandedSections({
+        identity: true,
+        contact: true,
+        guardians: (student.guardians || []).length > 0,
+        assignments: (student.assignments || []).length > 0,
+        pedagogical: !!(student.pedagogicalRecord?.recitalHistory?.length || student.pedagogicalRecord?.reportCards?.length),
+        notes: (student.notes || []).length > 0,
+        documents: (student.documents || []).length > 0,
+      });
+    } else {
+      // Add mode: only required sections
+      setExpandedSections({
+        identity: true, contact: true, guardians: false,
+        assignments: false, pedagogical: false, notes: false, documents: false,
+      });
+    }
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent): false | void => {
+    e?.preventDefault();
     setError(null);
 
     if (!formData.fullName?.trim()) {
       setError(t('student.err_name_required'));
-      return;
+      return false;
     }
     if (!formData.dateOfBirth) {
       setError(t('student.err_dob_required'));
-      return;
+      return false;
     }
 
     const isMinor = computeIsMinor(formData.dateOfBirth);
@@ -479,6 +498,12 @@ export const StudentManager: React.FC<Props> = ({
     ));
   };
 
+  const handlePermanentDelete = (studentId: string) => {
+    if (window.confirm(t('student.confirm_permanent_delete'))) {
+      setStudents(prev => prev.filter(s => s.id !== studentId));
+    }
+  };
+
   // Handle inline subcategory creation
   const handleSubcategoryCreated = (activityId: string, newSubcategory: { id: string; name: string; isArchived: boolean }) => {
     setActivities(prev => prev.map(a =>
@@ -537,6 +562,23 @@ export const StudentManager: React.FC<Props> = ({
             <Plus size={18} />
             {t('student.add')}
           </button>
+        </div>
+
+        {/* Help Panel */}
+        <div className="mt-2">
+          <button
+            onClick={() => setShowHelp(!showHelp)}
+            className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+          >
+            <HelpCircle size={13} />
+            {t('student.help_title')}
+            {showHelp ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+          {showHelp && (
+            <div className="mt-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-xs text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+              <p>{t('student.help_text')}</p>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3 mt-4">
@@ -655,13 +697,22 @@ export const StudentManager: React.FC<Props> = ({
                         <Archive size={14} />
                       </button>
                     ) : (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleRestore(student.id); }}
-                        className="text-slate-400 hover:text-green-600 p-1 rounded transition-colors"
-                        title={t('student.restore')}
-                      >
-                        <RotateCcw size={14} />
-                      </button>
+                      <>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleRestore(student.id); }}
+                          className="text-slate-400 hover:text-green-600 p-1 rounded transition-colors"
+                          title={t('student.restore')}
+                        >
+                          <RotateCcw size={14} />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handlePermanentDelete(student.id); }}
+                          className="text-slate-400 hover:text-red-600 p-1 rounded transition-colors"
+                          title={t('student.permanent_delete')}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -721,9 +772,14 @@ export const StudentManager: React.FC<Props> = ({
                               <Archive size={14} />
                             </button>
                           ) : (
-                            <button onClick={(e) => { e.stopPropagation(); handleRestore(student.id); }} className="p-1.5 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors" title={t('student.restore')}>
-                              <RotateCcw size={14} />
-                            </button>
+                            <>
+                              <button onClick={(e) => { e.stopPropagation(); handleRestore(student.id); }} className="p-1.5 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors" title={t('student.restore')}>
+                                <RotateCcw size={14} />
+                              </button>
+                              <button onClick={(e) => { e.stopPropagation(); handlePermanentDelete(student.id); }} className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title={t('student.permanent_delete')}>
+                                <Trash2 size={14} />
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -1161,41 +1217,8 @@ export const StudentManager: React.FC<Props> = ({
             </div>
           </Section>
 
-          {/* Notes Section */}
-          <Section id="notes" icon={FileText} title={t('student.section_notes')} badge={(formData.notes || []).length} isExpanded={!!expandedSections['notes']} onToggle={toggleSection}>
-            {(formData.notes || []).map(note => (
-              <div key={note.id} className="flex items-start justify-between bg-slate-50 dark:bg-slate-800 rounded-lg p-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{note.content}</p>
-                  <p className="text-[10px] text-slate-400 mt-1">{new Date(note.createdAt).toLocaleString()} — {note.createdBy}</p>
-                </div>
-                <button type="button" onClick={() => removeNote(note.id)} className="text-red-400 hover:text-red-600 p-0.5 ms-2 shrink-0">
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            ))}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={noteInput}
-                onChange={e => setNoteInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addNote(); } }}
-                placeholder={t('student.add_note_placeholder')}
-                className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                type="button"
-                onClick={addNote}
-                disabled={!noteInput.trim()}
-                className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 shadow-cadenza-soft px-3 py-2 rounded-lg"
-              >
-                <Plus size={16} />
-              </button>
-            </div>
-          </Section>
-
-          {/* Documents Section */}
-          <Section id="documents" icon={Upload} title={t('student.section_documents')} badge={(formData.documents || []).length} isExpanded={!!expandedSections['documents']} onToggle={toggleSection}>
+          {/* Additional Documents Section */}
+          <Section id="documents" icon={Upload} title={t('student.section_additional_documents') || t('student.section_documents')} badge={(formData.documents || []).length} isExpanded={!!expandedSections['documents']} onToggle={toggleSection}>
             {(formData.documents || []).map(doc => (
               <div key={doc.id} className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 rounded-lg p-2">
                 <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline min-w-0">
@@ -1235,6 +1258,39 @@ export const StudentManager: React.FC<Props> = ({
                   e.target.value = '';
                 }}
               />
+            </div>
+          </Section>
+
+          {/* Notes Section */}
+          <Section id="notes" icon={FileText} title={t('student.section_notes')} badge={(formData.notes || []).length} isExpanded={!!expandedSections['notes']} onToggle={toggleSection}>
+            {(formData.notes || []).map(note => (
+              <div key={note.id} className="flex items-start justify-between bg-slate-50 dark:bg-slate-800 rounded-lg p-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{note.content}</p>
+                  <p className="text-[10px] text-slate-400 mt-1">{new Date(note.createdAt).toLocaleString()} — {note.createdBy}</p>
+                </div>
+                <button type="button" onClick={() => removeNote(note.id)} className="text-red-400 hover:text-red-600 p-0.5 ms-2 shrink-0">
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={noteInput}
+                onChange={e => setNoteInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addNote(); } }}
+                placeholder={t('student.add_note_placeholder')}
+                className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                onClick={addNote}
+                disabled={!noteInput.trim()}
+                className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 shadow-cadenza-soft px-3 py-2 rounded-lg"
+              >
+                <Plus size={16} />
+              </button>
             </div>
           </Section>
         </form>

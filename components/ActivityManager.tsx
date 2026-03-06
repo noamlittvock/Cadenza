@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Activity, Subcategory, ActivityType, AppSettings } from '../types';
 import { generateId, TRANSLATIONS } from '../constants';
-import { Plus, Edit2, Archive, RotateCcw, Layers, Eye, EyeOff, Menu, LayoutGrid, List } from 'lucide-react';
+import { Plus, Edit2, Archive, RotateCcw, Layers, Trash2, Menu, LayoutGrid, List, GraduationCap, Briefcase, X } from 'lucide-react';
 import { Modal } from './Modal';
 
 interface Props {
@@ -21,8 +21,9 @@ export const ActivityManager: React.FC<Props> = ({ activities, setActivities, se
   const [showArchived, setShowArchived] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [subcategoryInput, setSubcategoryInput] = useState('');
+  const [typePromptOpen, setTypePromptOpen] = useState(false);
 
-  const handleOpenModal = (activity?: Activity) => {
+  const handleOpenModal = (activity?: Activity, preselectedType?: ActivityType) => {
     if (activity) {
       setEditingId(activity.id);
       const data = { ...activity, subcategories: [...activity.subcategories] };
@@ -32,7 +33,7 @@ export const ActivityManager: React.FC<Props> = ({ activities, setActivities, se
       setEditingId(null);
       const data: Partial<Activity> = {
         name: '',
-        type: 'INSTRUCTIONAL' as ActivityType,
+        type: preselectedType || ('INSTRUCTIONAL' as ActivityType),
         subcategories: [],
       };
       setFormData(data);
@@ -40,6 +41,11 @@ export const ActivityManager: React.FC<Props> = ({ activities, setActivities, se
     }
     setSubcategoryInput('');
     setIsModalOpen(true);
+  };
+
+  const handleTypeSelected = (type: ActivityType) => {
+    setTypePromptOpen(false);
+    handleOpenModal(undefined, type);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -82,6 +88,12 @@ export const ActivityManager: React.FC<Props> = ({ activities, setActivities, se
   const handleRestore = (id: string) => {
     const now = new Date().toISOString();
     setActivities(prev => prev.map(a => a.id === id ? { ...a, isArchived: false, updatedAt: now } : a));
+  };
+
+  const handlePermanentDelete = (id: string) => {
+    if (window.confirm(t('activities.confirm_permanent_delete'))) {
+      setActivities(prev => prev.filter(a => a.id !== id));
+    }
   };
 
   const addSubcategory = () => {
@@ -160,7 +172,7 @@ export const ActivityManager: React.FC<Props> = ({ activities, setActivities, se
                 : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                 }`}
             >
-              {showArchived ? <EyeOff size={16} /> : <Eye size={16} />}
+              <Archive size={16} />
               {t('activities.show_archived')}
             </button>
             <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
@@ -172,7 +184,7 @@ export const ActivityManager: React.FC<Props> = ({ activities, setActivities, se
               </button>
             </div>
             <button
-              onClick={() => handleOpenModal()}
+              onClick={() => setTypePromptOpen(true)}
               className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg flex items-center"
             >
               <Plus size={18} className="me-2" /> {t('activities.add')}
@@ -189,7 +201,7 @@ export const ActivityManager: React.FC<Props> = ({ activities, setActivities, se
               : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
               }`}
           >
-            {showArchived ? <EyeOff size={16} /> : <Eye size={16} />}
+            <Archive size={16} />
             {t('activities.show_archived')}
           </button>
           <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
@@ -201,7 +213,7 @@ export const ActivityManager: React.FC<Props> = ({ activities, setActivities, se
             </button>
           </div>
           <button
-            onClick={() => handleOpenModal()}
+            onClick={() => setTypePromptOpen(true)}
             className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg flex items-center"
           >
             <Plus size={18} className="me-2" /> {t('activities.add')}
@@ -249,9 +261,14 @@ export const ActivityManager: React.FC<Props> = ({ activities, setActivities, se
                       </button>
                     )}
                     {activity.isArchived ? (
-                      <button onClick={() => handleRestore(activity.id)} className="text-slate-400 hover:text-green-600 dark:hover:text-green-400" title={t('activities.restore')}>
-                        <RotateCcw size={16} />
-                      </button>
+                      <>
+                        <button onClick={() => handleRestore(activity.id)} className="text-slate-400 hover:text-green-600 dark:hover:text-green-400" title={t('activities.restore')}>
+                          <RotateCcw size={16} />
+                        </button>
+                        <button onClick={() => handlePermanentDelete(activity.id)} className="text-slate-400 hover:text-red-600 dark:hover:text-red-400" title={t('activities.permanent_delete')}>
+                          <Trash2 size={16} />
+                        </button>
+                      </>
                     ) : (
                       <button onClick={() => handleArchive(activity.id)} className="text-slate-400 hover:text-amber-600 dark:hover:text-amber-400" title={t('activities.archive')}>
                         <Archive size={16} />
@@ -346,9 +363,14 @@ export const ActivityManager: React.FC<Props> = ({ activities, setActivities, se
                           </button>
                         )}
                         {activity.isArchived ? (
-                          <button onClick={() => handleRestore(activity.id)} className="p-1.5 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors" title={t('activities.restore')}>
-                            <RotateCcw size={14} />
-                          </button>
+                          <>
+                            <button onClick={() => handleRestore(activity.id)} className="p-1.5 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors" title={t('activities.restore')}>
+                              <RotateCcw size={14} />
+                            </button>
+                            <button onClick={() => handlePermanentDelete(activity.id)} className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title={t('activities.permanent_delete')}>
+                              <Trash2 size={14} />
+                            </button>
+                          </>
                         ) : (
                           <button onClick={() => handleArchive(activity.id)} className="p-1.5 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors" title={t('activities.archive')}>
                             <Archive size={14} />
@@ -361,6 +383,50 @@ export const ActivityManager: React.FC<Props> = ({ activities, setActivities, se
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Type Selection Prompt */}
+      {typePromptOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setTypePromptOpen(false)} />
+          <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white">{t('activities.choose_type') || 'Choose Activity Type'}</h3>
+              <button
+                onClick={() => setTypePromptOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => handleTypeSelected('INSTRUCTIONAL')}
+                className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
+              >
+                <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 group-hover:scale-110 transition-transform">
+                  <GraduationCap size={28} />
+                </div>
+                <div className="text-center">
+                  <div className="font-semibold text-slate-800 dark:text-white">{t('activities.type_instructional')}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('activities.type_instructional_desc') || 'Classes, lessons, rehearsals'}</div>
+                </div>
+              </button>
+              <button
+                onClick={() => handleTypeSelected('OPERATIONAL')}
+                className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-amber-400 dark:hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all group"
+              >
+                <div className="p-3 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-300 group-hover:scale-110 transition-transform">
+                  <Briefcase size={28} />
+                </div>
+                <div className="text-center">
+                  <div className="font-semibold text-slate-800 dark:text-white">{t('activities.type_operational')}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('activities.type_operational_desc') || 'Admin tasks, meetings, events'}</div>
+                </div>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -389,29 +455,43 @@ export const ActivityManager: React.FC<Props> = ({ activities, setActivities, se
             />
           </div>
 
-          {/* Activity Type */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              {t('activities.type')}
-            </label>
-            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
-              {(['INSTRUCTIONAL', 'OPERATIONAL'] as ActivityType[]).map(type => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, type })}
-                  className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${formData.type === type
-                    ? type === 'INSTRUCTIONAL'
-                      ? 'bg-blue-500 text-white shadow-sm'
-                      : 'bg-amber-500 text-white shadow-sm'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-                    }`}
-                >
-                  {t(`activities.type_${type.toLowerCase()}`)}
-                </button>
-              ))}
+          {/* Activity Type — shown as read-only badge for new activities (pre-selected from prompt), editable toggle for existing */}
+          {editingId ? (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                {t('activities.type')}
+              </label>
+              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+                {(['INSTRUCTIONAL', 'OPERATIONAL'] as ActivityType[]).map(type => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, type })}
+                    className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${formData.type === type
+                      ? type === 'INSTRUCTIONAL'
+                        ? 'bg-blue-500 text-white shadow-sm'
+                        : 'bg-amber-500 text-white shadow-sm'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                      }`}
+                  >
+                    {t(`activities.type_${type.toLowerCase()}`)}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('activities.type')}:</span>
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-semibold ${
+                formData.type === 'INSTRUCTIONAL'
+                  ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
+                  : 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300'
+              }`}>
+                {formData.type === 'INSTRUCTIONAL' ? <GraduationCap size={14} /> : <Briefcase size={14} />}
+                {t(`activities.type_${(formData.type || 'INSTRUCTIONAL').toLowerCase()}`)}
+              </span>
+            </div>
+          )}
 
           {/* Subcategories */}
           <div>

@@ -117,6 +117,7 @@ export interface Credential {
   institution?: string;
   qualificationType?: string;
   year?: number;
+  documents?: StaffDocument[];
 }
 
 export interface Note {
@@ -180,6 +181,7 @@ export interface Room {
   id: string;
   name: string;
   itinerary: string;
+  isArchived?: boolean;
 }
 
 export type DayOfWeek = 'SU' | 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA';
@@ -417,7 +419,7 @@ export interface AdminInboxItem {
   markedDoneBy?: string;
 }
 
-export type ViewState = 'CALENDAR' | 'GANTT' | 'MANAGE' | 'SETTINGS' | 'FINANCIAL' | 'FINANCIAL_ANALYSIS' | 'POWER_TOOLS' | 'SUPER_ADMIN' | 'STAFF_MEMBERS' | 'STUDENTS' | 'ADMIN_INBOX';
+export type ViewState = 'CALENDAR' | 'GANTT' | 'MANAGE' | 'SETTINGS' | 'FINANCIAL' | 'POWER_TOOLS' | 'SUPER_ADMIN' | 'STAFF_MEMBERS' | 'STUDENTS' | 'ADMIN_INBOX';
 
 // Financial Report Data Types
 export interface TeacherFinancialSummary {

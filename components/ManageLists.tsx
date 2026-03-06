@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { ListsState, AppSettings } from '../types';
-import { Plus, X, Tag, Briefcase, Bookmark, Download, Upload, FileDown, CheckCircle2, Menu, AlertCircle } from 'lucide-react';
+import { Plus, X, Tag, Briefcase, Bookmark, Download, Upload, FileDown, CheckCircle2, Menu, AlertCircle, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
 import { Modal } from './Modal';
 interface Props {
@@ -58,9 +58,9 @@ const ListEditor = ({
         <button
           onClick={handleAdd}
           disabled={!input.trim()}
-          className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 shadow-cadenza-soft p-2.5 min-w-[40px] flex items-center justify-center rounded-lg"
+          className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 shadow-cadenza-soft p-2 min-w-[36px] flex items-center justify-center rounded-lg"
         >
-          <Plus size={20} />
+          <Plus size={18} />
         </button>
       </div>
 
@@ -87,6 +87,7 @@ const ListEditor = ({
 export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobileMenuOpen, embedded = false }) => {
   const t = (key: string) => (settings && TRANSLATIONS[settings.language]?.[key]) || TRANSLATIONS['en-US'][key] || key;
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [candidates, setCandidates] = useState<{ positions: string[], tags: string[], classifications: string[] }>({ positions: [], tags: [], classifications: [] });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -214,6 +215,23 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
           <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
         </div>
       )}
+
+      {/* Help Panel */}
+      <div className="mb-4">
+        <button
+          onClick={() => setShowHelp(!showHelp)}
+          className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+        >
+          <HelpCircle size={13} />
+          {t('lists.help_title')}
+          {showHelp ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+        </button>
+        {showHelp && (
+          <div className="mt-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-xs text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+            <p>{t('lists.help_text')}</p>
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <ListEditor

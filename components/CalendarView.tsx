@@ -3,7 +3,7 @@ import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, ListsState, Recu
 import { generateId, INITIAL_LISTS, INITIAL_RATE_CARDS } from '../constants';
 import { CATEGORY_SCHEMAS } from '../utils/schemaRegistry';
 import { lookupRate } from '../utils/rateLookup';
-import { ChevronLeft, ChevronRight, AlertCircle, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronUp, ChevronDown, Repeat, Ban, RotateCcw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertCircle, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronUp, ChevronDown, Repeat, Ban, RotateCcw, HelpCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { syncEventToGoogle, removeEventFromGoogle, updateEventInGoogle } from '../utils/googleCalendarSync';
 import { DatePicker } from './DatePicker';
@@ -130,6 +130,7 @@ export const CalendarView: React.FC<Props> = ({
   const [showCanceled, setShowCanceled] = useState(true);
   const [showBlackouts, setShowBlackouts] = useState(true);
   const [showOnlyOverlapping, setShowOnlyOverlapping] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   // Modal State (Edit/Create)
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -513,8 +514,8 @@ export const CalendarView: React.FC<Props> = ({
       }
 
       const widthPercent = 100 / activeCols;
-      const width = Math.min(100, widthPercent + 10);
       const left = (colIndex * (100 / activeCols));
+      const width = Math.min(widthPercent + 10, 100 - left);
 
       layout[evt.id] = { left, width, zIndex: colIndex + 10 };
     });
@@ -1103,11 +1104,11 @@ export const CalendarView: React.FC<Props> = ({
     const totalHeight = Math.max(30, lanes.length * laneHeight + 10);
 
     return (
-      <div className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 flex flex-col transition-all duration-300 relative">
+      <div className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 flex flex-col transition-all duration-300 relative overflow-hidden">
         {/* Collapsed Header */}
         {!isGanttExpanded && (
           <div
-            className="flex items-center px-3 py-1.5 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-bold text-slate-500 transition-colors"
+            className="flex items-center px-3 py-1.5 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-bold text-slate-500 dark:text-slate-400 transition-colors"
             onClick={() => setIsGanttExpanded(true)}
           >
             <ChevronRight size={14} className={`opacity-70 ${isRtl ? 'ms-1 rotate-180' : 'me-1'}`} />
@@ -1350,7 +1351,7 @@ export const CalendarView: React.FC<Props> = ({
                 });
                 const layout = getDailyLayout(dayEvents);
                 return (
-                  <div key={day.toISOString()} className="relative h-full pointer-events-auto">
+                  <div key={day.toISOString()} className="relative h-full pointer-events-auto overflow-hidden">
                     {dayEvents.map(evt => renderEvent(evt, layout[evt.id] || { left: 0, width: 100, zIndex: 1 }))}
                   </div>
                 );
@@ -1550,16 +1551,11 @@ export const CalendarView: React.FC<Props> = ({
                       <div key={day.toISOString()} className="p-1 flex justify-between items-start pointer-events-auto group/cell">
                         <div className="group relative z-30">
                           <span
-                            className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors ${isToday ? 'bg-blue-600 text-white hover:bg-blue-700' : 'text-slate-700 dark:text-slate-300'}`}
+                            className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors ${isToday ? 'bg-blue-600 text-white hover:bg-blue-700' : dayEvents.filter(e => !e.isGanttBlock).length > 0 ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'}`}
                             onClick={(e: React.MouseEvent) => { e.stopPropagation(); setCurrentDate(day); setViewMode('DAY'); }}
                           >
                             {day.getDate()}
                           </span>
-                          {dayEvents.length > 0 && (
-                            <div className="flex justify-center mt-0.5">
-                              <span className="block w-1.5 h-1.5 rounded-full bg-blue-500" />
-                            </div>
-                          )}
 
                           {/* Hover Popup Wrapper with Bridge */}
                           <div
@@ -1803,8 +1799,22 @@ export const CalendarView: React.FC<Props> = ({
               </select>
             </div>
           )}
+          {/* Help Toggle */}
+          <button
+            onClick={() => setShowHelp(!showHelp)}
+            className="p-2 rounded-lg border bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+            title={t('cal.help_title')}
+          >
+            <HelpCircle size={16} />
+          </button>
         </div>
       </div>
+
+      {showHelp && (
+        <div className="mx-4 mt-2 mb-1 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-xs text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+          <p>{t('cal.help_text')}</p>
+        </div>
+      )}
 
       {viewMode === 'MONTH' ? renderMonthView() : renderTimeGrid(viewMode === 'DAY' ? [currentDate] : getWeekDays(currentDate))}
 

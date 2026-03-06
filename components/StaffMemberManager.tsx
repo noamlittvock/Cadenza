@@ -7,11 +7,12 @@ import {
 import { generateId, COLORS, INITIAL_LISTS, TRANSLATIONS } from '../constants';
 import {
   Plus, Edit2, Trash2, Search, Palette, X, Menu,
-  DollarSign, Clock, ChevronDown, ChevronUp, Archive, RotateCcw,
+  DollarSign, Clock, ChevronDown, ChevronUp, Archive, RotateCcw, HelpCircle,
   Upload, FileText, GraduationCap, Music, Briefcase, User, Phone, Mail, Tag,
   ClipboardList, Copy, Check, Link2, LayoutGrid, List
 } from 'lucide-react';
 import { Modal } from './Modal';
+import { TagInput } from './TagInput';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../utils/firebase';
 import { useAuth } from '../context/AuthContext';
@@ -54,10 +55,10 @@ export const StaffMemberManager: React.FC<Props> = ({
   const [initialFormData, setInitialFormData] = useState<Partial<Teacher>>({});
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
-  const [staffViewMode, setStaffViewMode] = useState<'grid' | 'list'>('grid');
+  const [showHelp, setShowHelp] = useState(false);
+  const [staffViewMode, setStaffViewMode] = useState<'grid' | 'list'>('list');
   const [viewOnlyStaffId, setViewOnlyStaffId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tagInput, setTagInput] = useState('');
   const [noteInput, setNoteInput] = useState('');
   const [docLabel, setDocLabel] = useState('');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -122,14 +123,7 @@ export const StaffMemberManager: React.FC<Props> = ({
   // --- Helpers ---
 
   const toggleSection = (section: string) => {
-    const isExpanding = !expandedSections[section];
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
-    if (isExpanding) {
-      requestAnimationFrame(() => {
-        const el = formScrollRef.current?.querySelector(`[data-section="${section}"]`);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    }
   };
 
   const syncPositionsFromAssignments = (assignments: PositionAssignment[]): string[] => {
@@ -305,27 +299,12 @@ export const StaffMemberManager: React.FC<Props> = ({
     setFormData({ ...formData, documents: (formData.documents || []).filter(d => d.id !== id) });
   };
 
-  // --- Tag Helpers ---
-  const handleAddTag = (e: React.KeyboardEvent | React.MouseEvent) => {
-    if ((e.type === 'keydown' && (e as React.KeyboardEvent).key !== 'Enter') || !tagInput.trim()) return;
-    e.preventDefault();
-    if (formData.tags && !formData.tags.includes(tagInput.trim())) {
-      setFormData({ ...formData, tags: [...(formData.tags || []), tagInput.trim()] });
-    }
-    setTagInput('');
-  };
-
-  const removeTag = (tagToRemove: string) => {
-    setFormData({ ...formData, tags: formData.tags?.filter(t => t !== tagToRemove) });
-  };
-
   // --- CRUD ---
 
   const handleOpenModal = (teacher?: Teacher) => {
     setError(null);
     setNoteInput('');
     setDocLabel('');
-    setTagInput('');
     if (teacher) {
       setEditingId(teacher.id);
       const data = {
@@ -361,12 +340,31 @@ export const StaffMemberManager: React.FC<Props> = ({
       setFormData(data);
       setInitialFormData(data);
     }
-    setExpandedSections({
-      identity: true, contact: true, position_assignments: true,
-      position_titles: false, teaching_assignments: false, tags: true,
-      credentials: false, notes: false, documents: false, google_calendar: false, bio: false,
-      hours_reports: false,
-    });
+    if (teacher) {
+      // Edit mode: expand sections that have data
+      setExpandedSections({
+        identity: true,
+        contact: true,
+        position_assignments: (teacher.positionAssignments || []).length > 0,
+        position_titles: (teacher.positionTitles || []).length > 0,
+        teaching_assignments: (teacher.teachingAssignments || []).length > 0,
+        tags: (teacher.tags || []).length > 0,
+        credentials: (teacher.credentials || []).length > 0,
+        notes: (teacher.notes || []).length > 0,
+        documents: (teacher.documents || []).length > 0,
+        google_calendar: !!teacher.googleCalendarSyncEnabled,
+        bio: !!teacher.bio,
+        hours_reports: false,
+      });
+    } else {
+      // Add mode: only required sections open
+      setExpandedSections({
+        identity: true, contact: true, position_assignments: true,
+        position_titles: false, teaching_assignments: false, tags: false,
+        credentials: false, notes: false, documents: false, google_calendar: false, bio: false,
+        hours_reports: false,
+      });
+    }
     setIsModalOpen(true);
   };
 
@@ -381,16 +379,19 @@ export const StaffMemberManager: React.FC<Props> = ({
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent): false | void => {
+    e?.preventDefault();
     setError(null);
 
-    if (!formData.fullName || !formData.color) return;
+    if (!formData.fullName || !formData.color) {
+      setError(t('staff.err_name_color_required') || 'Name and color are required');
+      return false;
+    }
 
     const validAssignments = (formData.positionAssignments || []).filter(pa => pa.positionName.trim() !== '');
     if (validAssignments.length === 0) {
       setError(t('teach.err_no_position'));
-      return;
+      return false;
     }
 
     const colorTaken = teachers.some(t =>
@@ -398,7 +399,7 @@ export const StaffMemberManager: React.FC<Props> = ({
     );
     if (colorTaken) {
       setError(t('teach.err_color_taken'));
-      return;
+      return false;
     }
 
     const finalPositions = syncPositionsFromAssignments(validAssignments);
@@ -487,6 +488,12 @@ export const StaffMemberManager: React.FC<Props> = ({
     }
   };
 
+  const handlePermanentDelete = (id: string) => {
+    if (window.confirm(t('staff.confirm_permanent_delete'))) {
+      setTeachers(prev => prev.filter(t => t.id !== id));
+    }
+  };
+
   // --- Filtering ---
   const filteredStaff = teachers.filter(staff => {
     if (!showArchived && staff.isArchived) return false;
@@ -502,7 +509,7 @@ export const StaffMemberManager: React.FC<Props> = ({
   });
 
   // --- Section Header Component ---
-  const SectionHeader = ({ sectionKey, icon: Icon, label }: { sectionKey: string; icon: React.ElementType; label: string }) => (
+  const SectionHeader = ({ sectionKey, icon: Icon, label, subtitle }: { sectionKey: string; icon: React.ElementType; label: string; subtitle?: string }) => (
     <button
       type="button"
       data-section={sectionKey}
@@ -511,10 +518,19 @@ export const StaffMemberManager: React.FC<Props> = ({
     >
       <span className="flex items-center gap-2">
         <Icon size={16} />
-        {label}
+        <span>{label}{subtitle && <span className="font-normal text-xs text-slate-400 dark:text-slate-500 ms-2">{subtitle}</span>}</span>
       </span>
       {expandedSections[sectionKey] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
     </button>
+  );
+
+  // --- Collapsible wrapper for smooth expand/collapse ---
+  const Collapsible = ({ expanded, children }: { expanded: boolean; children: React.ReactNode }) => (
+    <div className={`grid transition-[grid-template-rows,opacity] duration-200 ${expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+      <div className="overflow-hidden">
+        {children}
+      </div>
+    </div>
   );
 
   // --- Render ---
@@ -543,6 +559,23 @@ export const StaffMemberManager: React.FC<Props> = ({
         </div>
       </div>
 
+      {/* Help Panel */}
+      <div className="px-4 pt-2">
+        <button
+          onClick={() => setShowHelp(!showHelp)}
+          className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+        >
+          <HelpCircle size={13} />
+          {t('staff.help_title')}
+          {showHelp ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+        </button>
+        {showHelp && (
+          <div className="mt-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-xs text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+            <p>{t('staff.help_text')}</p>
+          </div>
+        )}
+      </div>
+
       {/* Search & Filter Bar */}
       <div className="px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-3">
@@ -556,15 +589,17 @@ export const StaffMemberManager: React.FC<Props> = ({
               className="w-full ps-9 pe-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
-          <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={showArchived}
-              onChange={e => setShowArchived(e.target.checked)}
-              className="rounded border-slate-300 dark:border-slate-600"
-            />
+          <button
+            onClick={() => setShowArchived(!showArchived)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+              showArchived
+                ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700'
+                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+            }`}
+          >
+            <Archive size={16} />
             {t('staff.show_archived')}
-          </label>
+          </button>
           <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
             <button
               onClick={() => setStaffViewMode('grid')}
@@ -660,6 +695,15 @@ export const StaffMemberManager: React.FC<Props> = ({
                       {staff.isArchived ? <RotateCcw size={14} /> : <Archive size={14} />}
                       {staff.isArchived ? t('staff.restore') : t('staff.archive')}
                     </button>
+                    {staff.isArchived && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handlePermanentDelete(staff.id); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      >
+                        <Trash2 size={14} />
+                        {t('staff.permanent_delete')}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -711,6 +755,11 @@ export const StaffMemberManager: React.FC<Props> = ({
                         <button onClick={(e) => { e.stopPropagation(); handleArchiveToggle(staff.id); }} className="p-1.5 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors" title={staff.isArchived ? t('staff.restore') : t('staff.archive')}>
                           {staff.isArchived ? <RotateCcw size={14} /> : <Archive size={14} />}
                         </button>
+                        {staff.isArchived && (
+                          <button onClick={(e) => { e.stopPropagation(); handlePermanentDelete(staff.id); }} className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title={t('staff.permanent_delete')}>
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -730,6 +779,24 @@ export const StaffMemberManager: React.FC<Props> = ({
           maxWidth="max-w-3xl"
           isDirty={JSON.stringify(formData) !== JSON.stringify(initialFormData)}
           onSave={handleSubmit as any}
+          footerContent={
+            <div className="flex items-center justify-between w-full">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                {t('btn.cancel') || 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit as any}
+                className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-6 py-2.5 rounded-xl font-semibold text-sm"
+              >
+                {t('btn.save') || 'Save'}
+              </button>
+            </div>
+          }
         >
           <form ref={formScrollRef} onSubmit={handleSubmit} className="space-y-4 overflow-y-auto max-h-[70vh] px-1">
             {error && (
@@ -740,8 +807,8 @@ export const StaffMemberManager: React.FC<Props> = ({
 
             {/* === IDENTITY SECTION === */}
             <SectionHeader sectionKey="identity" icon={User} label={t('staff.section.identity')} />
-            {expandedSections.identity && (
-              <div className="space-y-3 ps-2">
+            <Collapsible expanded={!!expandedSections.identity}>
+              <div className="space-y-3 ps-2 pt-1">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{t('staff.full_name')} *</label>
@@ -819,12 +886,12 @@ export const StaffMemberManager: React.FC<Props> = ({
                   </select>
                 </div>
               </div>
-            )}
+            </Collapsible>
 
             {/* === CONTACT SECTION === */}
             <SectionHeader sectionKey="contact" icon={Phone} label={t('staff.section.contact')} />
-            {expandedSections.contact && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ps-2">
+            <Collapsible expanded={!!expandedSections.contact}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ps-2 pt-1">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{t('staff.phone')}</label>
                   <input
@@ -844,12 +911,12 @@ export const StaffMemberManager: React.FC<Props> = ({
                   />
                 </div>
               </div>
-            )}
+            </Collapsible>
 
             {/* === POSITION ASSIGNMENTS SECTION (Financial) === */}
-            <SectionHeader sectionKey="position_assignments" icon={DollarSign} label={t('staff.section.position_assignments')} />
-            {expandedSections.position_assignments && (
-              <div className="space-y-3 ps-2">
+            <SectionHeader sectionKey="position_assignments" icon={DollarSign} label={t('staff.section.position_assignments')} subtitle={t('staff.position_assignments_subtitle')} />
+            <Collapsible expanded={!!expandedSections.position_assignments}>
+              <div className="space-y-3 ps-2 pt-1">
                 {(formData.positionAssignments || []).map((pa, idx) => (
                   <div key={pa.id} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
                     <div className="flex items-center justify-between mb-2">
@@ -865,13 +932,25 @@ export const StaffMemberManager: React.FC<Props> = ({
                           type="text"
                           list={`positions-list-${pa.id}`}
                           value={pa.positionName}
-                          onChange={e => updatePositionAssignment(pa.id, { positionName: e.target.value })}
+                          onChange={e => {
+                            const val = e.target.value;
+                            updatePositionAssignment(pa.id, { positionName: val });
+                          }}
                           className="w-full px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white"
                           placeholder="e.g. Piano Instructor"
                         />
                         <datalist id={`positions-list-${pa.id}`}>
                           {activeLists.positions.map(p => <option key={p} value={p} />)}
                         </datalist>
+                        {pa.positionName.trim() && !activeLists.positions.some(p => p.toLowerCase() === pa.positionName.trim().toLowerCase()) && (
+                          <button
+                            type="button"
+                            onClick={() => setLists(prev => ({ ...prev, positions: [...prev.positions, pa.positionName.trim()] }))}
+                            className="mt-1 text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                          >
+                            <Plus size={12} /> {t('staff.create_position') || `Create "${pa.positionName.trim()}"`}
+                          </button>
+                        )}
                       </div>
                       <div>
                         <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">{t('label.category')}</label>
@@ -900,8 +979,8 @@ export const StaffMemberManager: React.FC<Props> = ({
                         <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">{settings.currency || '₪'} Rate</label>
                         <input
                           type="number"
-                          value={pa.rateValue}
-                          onChange={e => updatePositionAssignment(pa.id, { rateValue: parseFloat(e.target.value) || 0 })}
+                          value={pa.rateValue || ''}
+                          onChange={e => updatePositionAssignment(pa.id, { rateValue: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                           className="w-full px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white"
                           min={0}
                           step={0.01}
@@ -913,7 +992,7 @@ export const StaffMemberManager: React.FC<Props> = ({
                       <div>
                         <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">{t('staff.vat_pct')}</label>
                         <div className="flex items-center gap-1">
-                          <input type="number" value={pa.vat?.value ?? ''} onChange={e => updatePositionAssignment(pa.id, { vat: { type: pa.vat?.type || 'PERCENTAGE', value: parseFloat(e.target.value) || 0 } })}
+                          <input type="number" value={pa.vat?.value || ''} onChange={e => updatePositionAssignment(pa.id, { vat: { type: pa.vat?.type || 'PERCENTAGE', value: e.target.value === '' ? 0 : parseFloat(e.target.value) } })}
                             className="flex-1 px-2 py-1.5 rounded-s border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white" min={0} step={0.01} />
                           <button type="button" onClick={() => updatePositionAssignment(pa.id, { vat: { type: pa.vat?.type === 'FLAT' ? 'PERCENTAGE' : 'FLAT', value: pa.vat?.value || 0 } })}
                             className="px-2 py-1.5 rounded-e border border-s-0 border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-600 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-500 transition-colors whitespace-nowrap">
@@ -950,40 +1029,12 @@ export const StaffMemberManager: React.FC<Props> = ({
                   <Plus size={14} /> {t('staff.add_position_assignment')}
                 </button>
               </div>
-            )}
-
-            {/* === POSITION TITLES SECTION === */}
-            <SectionHeader sectionKey="position_titles" icon={Briefcase} label={t('staff.section.position_titles')} />
-            {expandedSections.position_titles && (
-              <div className="space-y-3 ps-2">
-                {(formData.positionTitles || []).map(pt => (
-                  <div key={pt.id} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <select
-                      value={pt.positionTitle}
-                      onChange={e => updatePositionTitle(pt.id, { positionTitle: e.target.value })}
-                      className="flex-1 px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white"
-                    >
-                      <option value="">— {t('staff.position_title')} —</option>
-                      {activeLists.positions.map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                    <input type="date" value={pt.startDate || ''} onChange={e => updatePositionTitle(pt.id, { startDate: e.target.value })}
-                      className="px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-xs text-slate-900 dark:text-white" title={t('staff.start_date')} />
-                    <input type="date" value={pt.endDate || ''} onChange={e => updatePositionTitle(pt.id, { endDate: e.target.value })}
-                      className="px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-xs text-slate-900 dark:text-white" title={t('staff.end_date')} />
-                    {!pt.endDate && <span className="text-xs text-green-600 dark:text-green-400 font-medium whitespace-nowrap">{t('staff.current')}</span>}
-                    <button type="button" onClick={() => removePositionTitle(pt.id)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
-                  </div>
-                ))}
-                <button type="button" onClick={addPositionTitle} className="flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 font-medium">
-                  <Plus size={14} /> {t('staff.add_position_title')}
-                </button>
-              </div>
-            )}
+            </Collapsible>
 
             {/* === TEACHING ASSIGNMENTS SECTION === */}
-            <SectionHeader sectionKey="teaching_assignments" icon={Music} label={t('staff.section.teaching_assignments')} />
-            {expandedSections.teaching_assignments && (
-              <div className="space-y-3 ps-2">
+            <SectionHeader sectionKey="teaching_assignments" icon={Music} label={t('staff.section.teaching_assignments')} subtitle={t('staff.teaching_assignments_subtitle')} />
+            <Collapsible expanded={!!expandedSections.teaching_assignments}>
+              <div className="space-y-3 ps-2 pt-1">
                 {(formData.teachingAssignments || []).map(ta => {
                   const activity = activities.find(a => a.id === ta.activityId);
                   const activeSubcats = activity?.subcategories.filter(s => !s.isArchived) || [];
@@ -1056,107 +1107,106 @@ export const StaffMemberManager: React.FC<Props> = ({
                   <Plus size={14} /> {t('staff.add_teaching_assignment')}
                 </button>
               </div>
-            )}
+            </Collapsible>
+
+            {/* === POSITION TITLES SECTION === */}
+            <SectionHeader sectionKey="position_titles" icon={Briefcase} label={t('staff.section.position_titles')} subtitle={t('staff.position_titles_subtitle')} />
+            <Collapsible expanded={!!expandedSections.position_titles}>
+              <div className="space-y-3 ps-2 pt-1">
+                {(formData.positionTitles || []).map(pt => (
+                  <div key={pt.id} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <select
+                      value={pt.positionTitle}
+                      onChange={e => updatePositionTitle(pt.id, { positionTitle: e.target.value })}
+                      className="flex-1 px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white"
+                    >
+                      <option value="">— {t('staff.position_title')} —</option>
+                      {activeLists.positions.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                    <input type="date" value={pt.startDate || ''} onChange={e => updatePositionTitle(pt.id, { startDate: e.target.value })}
+                      className="px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-xs text-slate-900 dark:text-white" title={t('staff.start_date')} />
+                    <input type="date" value={pt.endDate || ''} onChange={e => updatePositionTitle(pt.id, { endDate: e.target.value })}
+                      className="px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-xs text-slate-900 dark:text-white" title={t('staff.end_date')} />
+                    {!pt.endDate && <span className="text-xs text-green-600 dark:text-green-400 font-medium whitespace-nowrap">{t('staff.current')}</span>}
+                    <button type="button" onClick={() => removePositionTitle(pt.id)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+                  </div>
+                ))}
+                <button type="button" onClick={addPositionTitle} className="flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 font-medium">
+                  <Plus size={14} /> {t('staff.add_position_title')}
+                </button>
+              </div>
+            </Collapsible>
 
             {/* === TAGS SECTION === */}
             <SectionHeader sectionKey="tags" icon={Tag} label={t('staff.section.tags')} />
-            {expandedSections.tags && (
-              <div className="space-y-2 ps-2">
-                <div className="flex flex-wrap gap-1.5">
-                  {(formData.tags || []).map(tag => (
-                    <span key={tag} className="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs font-medium">
-                      {tag}
-                      <button type="button" onClick={() => removeTag(tag)} className="hover:text-red-500"><X size={12} /></button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    list="tags-datalist"
-                    value={tagInput}
-                    onChange={e => setTagInput(e.target.value)}
-                    onKeyDown={handleAddTag}
-                    placeholder={t('staff.add_tag_placeholder')}
-                    className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white"
-                  />
-                  <datalist id="tags-datalist">
-                    {activeLists.tags.map(t => <option key={t} value={t} />)}
-                  </datalist>
-                  <button type="button" onClick={handleAddTag as any} className="px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg">
-                    {t('btn.add')}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* === BIO SECTION === */}
-            <SectionHeader sectionKey="bio" icon={User} label={t('staff.bio')} />
-            {expandedSections.bio && (
-              <div className="ps-2">
-                <textarea
-                  value={formData.bio || ''}
-                  onChange={e => setFormData({ ...formData, bio: e.target.value })}
-                  placeholder={t('staff.bio_placeholder')}
-                  rows={3}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 resize-none"
+            <Collapsible expanded={!!expandedSections.tags}>
+              <div className="ps-2 pt-1">
+                <TagInput
+                  tags={formData.tags || []}
+                  availableTags={activeLists.tags}
+                  onAdd={(tag) => setFormData({ ...formData, tags: [...(formData.tags || []), tag] })}
+                  onRemove={(tag) => setFormData({ ...formData, tags: (formData.tags || []).filter(t => t !== tag) })}
+                  placeholder={t('tag_input.type_new')}
+                  selectPlaceholder={t('tag_input.select_existing')}
+                  addLabel={t('btn.add')}
                 />
               </div>
-            )}
+            </Collapsible>
 
             {/* === CREDENTIALS SECTION === */}
             <SectionHeader sectionKey="credentials" icon={GraduationCap} label={t('staff.section.credentials')} />
-            {expandedSections.credentials && (
-              <div className="space-y-3 ps-2">
+            <Collapsible expanded={!!expandedSections.credentials}>
+              <div className="space-y-3 ps-2 pt-1">
                 {(formData.credentials || []).map(cred => (
-                  <div key={cred.id} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <input type="text" value={cred.institution || ''} onChange={e => updateCredential(cred.id, { institution: e.target.value })}
-                      placeholder={t('staff.institution')} className="flex-1 px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white" />
-                    <input type="text" value={cred.qualificationType || ''} onChange={e => updateCredential(cred.id, { qualificationType: e.target.value })}
-                      placeholder={t('staff.qualification_type')} className="flex-1 px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white" />
-                    <input type="number" value={cred.year ?? ''} onChange={e => updateCredential(cred.id, { year: parseInt(e.target.value) || undefined })}
-                      placeholder={t('staff.year')} className="w-20 px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white" />
-                    <button type="button" onClick={() => removeCredential(cred.id)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+                  <div key={cred.id} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input type="text" value={cred.institution || ''} onChange={e => updateCredential(cred.id, { institution: e.target.value })}
+                        placeholder={t('staff.institution')} className="flex-1 px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white" />
+                      <input type="text" value={cred.qualificationType || ''} onChange={e => updateCredential(cred.id, { qualificationType: e.target.value })}
+                        placeholder={t('staff.qualification_type')} className="flex-1 px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white" />
+                      <input type="number" value={cred.year ?? ''} onChange={e => updateCredential(cred.id, { year: parseInt(e.target.value) || undefined })}
+                        placeholder={t('staff.year')} className="w-20 px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white" />
+                      <button type="button" onClick={() => removeCredential(cred.id)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+                    </div>
+                    {/* Credential Documents */}
+                    {(cred.documents || []).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 ps-1">
+                        {cred.documents!.map(doc => (
+                          <a key={doc.id} href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded">
+                            <FileText size={11} /> {doc.label}
+                            <button type="button" onClick={(e) => { e.preventDefault(); updateCredential(cred.id, { documents: cred.documents!.filter(d => d.id !== doc.id) }); }} className="text-red-400 hover:text-red-600 ms-1"><X size={10} /></button>
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                    <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer">
+                      <Upload size={12} /> {t('staff.attach_document') || 'Attach document'}
+                      <input type="file" className="hidden" onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file || !currentUser) return;
+                        try {
+                          const storageRef = ref(storage, `orgs/${currentUser.orgId}/credentials/${cred.id}/${file.name}`);
+                          await uploadBytes(storageRef, file);
+                          const url = await getDownloadURL(storageRef);
+                          const newDoc: StaffDocument = { id: generateId(), label: file.name, url, uploadedAt: new Date().toISOString(), uploadedBy: currentUser.email };
+                          updateCredential(cred.id, { documents: [...(cred.documents || []), newDoc] });
+                        } catch (err) {
+                          console.error('Credential doc upload failed:', err);
+                        }
+                      }} />
+                    </label>
                   </div>
                 ))}
                 <button type="button" onClick={addCredential} className="flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 font-medium">
                   <Plus size={14} /> {t('staff.add_credential')}
                 </button>
               </div>
-            )}
-
-            {/* === NOTES SECTION === */}
-            <SectionHeader sectionKey="notes" icon={FileText} label={t('staff.section.notes')} />
-            {expandedSections.notes && (
-              <div className="space-y-3 ps-2">
-                {(formData.notes || []).map(note => (
-                  <div key={note.id} className="p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-start justify-between">
-                      <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{note.content}</p>
-                      <button type="button" onClick={() => removeNote(note.id)} className="text-red-400 hover:text-red-600 ms-2 flex-shrink-0"><Trash2 size={14} /></button>
-                    </div>
-                    <p className="text-xs text-slate-400 mt-1">{note.createdBy} — {new Date(note.createdAt).toLocaleString()}</p>
-                  </div>
-                ))}
-                <div className="flex gap-2">
-                  <textarea
-                    value={noteInput}
-                    onChange={e => setNoteInput(e.target.value)}
-                    placeholder={t('staff.note_placeholder')}
-                    rows={2}
-                    className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white resize-none"
-                  />
-                  <button type="button" onClick={addNote} className="self-end px-3 py-2 text-sm text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg">
-                    {t('staff.add_note')}
-                  </button>
-                </div>
-              </div>
-            )}
+            </Collapsible>
 
             {/* === DOCUMENTS SECTION === */}
-            <SectionHeader sectionKey="documents" icon={Upload} label={t('staff.section.documents')} />
-            {expandedSections.documents && (
-              <div className="space-y-3 ps-2">
+            <SectionHeader sectionKey="documents" icon={Upload} label={t('staff.section.additional_documents')} />
+            <Collapsible expanded={!!expandedSections.documents}>
+              <div className="space-y-3 ps-2 pt-1">
                 {(formData.documents || []).map(doc => (
                   <div key={doc.id} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
                     <FileText size={16} className="text-slate-400 flex-shrink-0" />
@@ -1180,12 +1230,54 @@ export const StaffMemberManager: React.FC<Props> = ({
                   </button>
                 </div>
               </div>
-            )}
+            </Collapsible>
+
+            {/* === NOTES SECTION === */}
+            <SectionHeader sectionKey="notes" icon={FileText} label={t('staff.section.notes')} />
+            <Collapsible expanded={!!expandedSections.notes}>
+              <div className="space-y-3 ps-2 pt-1">
+                {(formData.notes || []).map(note => (
+                  <div key={note.id} className="p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-start justify-between">
+                      <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{note.content}</p>
+                      <button type="button" onClick={() => removeNote(note.id)} className="text-red-400 hover:text-red-600 ms-2 flex-shrink-0"><Trash2 size={14} /></button>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">{note.createdBy} — {new Date(note.createdAt).toLocaleString()}</p>
+                  </div>
+                ))}
+                <div className="flex gap-2">
+                  <textarea
+                    value={noteInput}
+                    onChange={e => setNoteInput(e.target.value)}
+                    placeholder={t('staff.note_placeholder')}
+                    rows={2}
+                    className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white resize-none"
+                  />
+                  <button type="button" onClick={addNote} className="self-end px-3 py-2 text-sm text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg">
+                    {t('staff.add_note')}
+                  </button>
+                </div>
+              </div>
+            </Collapsible>
+
+            {/* === BIO SECTION === */}
+            <SectionHeader sectionKey="bio" icon={User} label={t('staff.bio')} />
+            <Collapsible expanded={!!expandedSections.bio}>
+              <div className="ps-2 pt-1">
+                <textarea
+                  value={formData.bio || ''}
+                  onChange={e => setFormData({ ...formData, bio: e.target.value })}
+                  placeholder={t('staff.bio_placeholder')}
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+            </Collapsible>
 
             {/* === GOOGLE CALENDAR SECTION === */}
             <SectionHeader sectionKey="google_calendar" icon={Clock} label={t('staff.section.google_calendar')} />
-            {expandedSections.google_calendar && (
-              <div className="space-y-3 ps-2">
+            <Collapsible expanded={!!expandedSections.google_calendar}>
+              <div className="space-y-3 ps-2 pt-1">
                 <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer">
                   <input
                     type="checkbox"
@@ -1208,14 +1300,14 @@ export const StaffMemberManager: React.FC<Props> = ({
                   </div>
                 )}
               </div>
-            )}
+            </Collapsible>
 
             {/* Hours Reports Section — only when editing an existing staff member */}
             {editingId && (
               <>
                 <SectionHeader sectionKey="hours_reports" icon={ClipboardList} label={t('hours.title')} />
-                {expandedSections.hours_reports && (
-                  <div className="space-y-4 ps-2">
+                <Collapsible expanded={!!expandedSections.hours_reports}>
+                  <div className="space-y-4 ps-2 pt-1">
                     {/* Generate New Link */}
                     <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
                       <h4 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-3">{t('hours.generate_link')}</h4>
@@ -1284,7 +1376,7 @@ export const StaffMemberManager: React.FC<Props> = ({
                       <p className="text-sm text-slate-400 dark:text-slate-500 italic text-center py-2">{t('hours.no_reports')}</p>
                     )}
                   </div>
-                )}
+                </Collapsible>
               </>
             )}
           </form>

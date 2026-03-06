@@ -124,6 +124,57 @@ export async function updateEventInGoogle(
     }
 }
 
+export interface ImportedGoogleEvent {
+    googleEventId: string;
+    title: string;
+    start: string;
+    end: string;
+    description: string;
+    location: string;
+}
+
+/**
+ * Fetches events from a Google Calendar within a date range.
+ * Used for Google → Cadenza import.
+ */
+export async function fetchEventsFromGoogle(
+    accessToken: string,
+    calendarId: string,
+    timeMin: string,
+    timeMax: string
+): Promise<ImportedGoogleEvent[]> {
+    if (!accessToken) throw new Error("No Google Access Token provided");
+
+    const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`);
+    url.searchParams.set('timeMin', new Date(timeMin).toISOString());
+    url.searchParams.set('timeMax', new Date(timeMax).toISOString());
+    url.searchParams.set('singleEvents', 'true');
+    url.searchParams.set('orderBy', 'startTime');
+    url.searchParams.set('maxResults', '500');
+
+    const response = await fetch(url.toString(), {
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Accept: 'application/json',
+        },
+    });
+
+    if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(`Failed to fetch Google Calendar events: ${errData.error?.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+    return (data.items || []).map((item: any) => ({
+        googleEventId: item.id,
+        title: item.summary || 'Imported Event',
+        start: item.start?.dateTime || item.start?.date || '',
+        end: item.end?.dateTime || item.end?.date || '',
+        description: item.description || '',
+        location: item.location || '',
+    }));
+}
+
 /**
  * Removes a synced event from Google Calendar using its Google Event ID.
  */

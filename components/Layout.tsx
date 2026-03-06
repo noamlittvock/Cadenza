@@ -90,7 +90,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
   // Redirect Viewers from Admin Pages
   useEffect(() => {
     if (currentUser?.role === 'VIEWER') {
-      const adminViews: ViewState[] = ['GANTT', 'POWER_TOOLS', 'MANAGE', 'SETTINGS', 'FINANCIAL_ANALYSIS', 'SUPER_ADMIN', 'STAFF_MEMBERS', 'STUDENTS', 'ADMIN_INBOX'];
+      const adminViews: ViewState[] = ['GANTT', 'POWER_TOOLS', 'MANAGE', 'SETTINGS', 'SUPER_ADMIN', 'STAFF_MEMBERS', 'STUDENTS', 'ADMIN_INBOX'];
       if (adminViews.includes(currentView)) {
         setView('CALENDAR');
       }
@@ -261,13 +261,6 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 label={t('nav.financial')}
                 collapsed={isCollapsed}
               />
-              <NavItem
-                active={currentView === 'FINANCIAL_ANALYSIS'}
-                onClick={() => { setView('FINANCIAL_ANALYSIS'); setIsMobileMenuOpen(false); }}
-                icon={LineChart}
-                label={t('nav.analysis')}
-                collapsed={isCollapsed}
-              />
 
               <NavItem
                 active={currentView === 'SETTINGS'}
@@ -302,7 +295,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
           <div className="relative w-full py-4 shrink-0 flex items-center">
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className={`absolute end-0 ${isRtl ? '-translate-x-1/2' : 'translate-x-1/2'} bg-slate-800 hover:bg-cadenza-light dark:bg-slate-700 dark:hover:bg-slate-600 text-white dark:text-slate-200 rounded-full w-10 h-10 flex items-center justify-center shadow-cadenza-deep hover:scale-110 z-50 border-4 border-slate-50 dark:border-slate-900 btn-cadenza`}
+              className={`absolute end-0 ${isRtl ? '-translate-x-1/2' : 'translate-x-1/2'} bg-slate-700 hover:bg-blue-600 text-slate-300 hover:text-white rounded-full w-10 h-10 flex items-center justify-center shadow-cadenza-deep hover:scale-110 z-50 border-4 border-slate-50 dark:border-slate-900 transition-all duration-200 btn-cadenza`}
               title={isCollapsed ? t('layout.expand_sidebar') : t('layout.collapse_sidebar')}
             >
               {isCollapsed ? (isRtl ? <ChevronLeft size={20} /> : <ChevronRight size={20} />) : (isRtl ? <ChevronRight size={20} /> : <ChevronLeft size={20} />)}

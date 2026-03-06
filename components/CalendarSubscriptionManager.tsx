@@ -158,15 +158,14 @@ export const CalendarSubscriptionManager: React.FC<Props> = ({
               {t('subscriptions.title')}
             </h2>
           </div>
-          {!isCreating && (
-            <button
-              onClick={() => setIsCreating(true)}
-              className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-            >
-              <Plus size={16} />
-              {t('subscriptions.create')}
-            </button>
-          )}
+          <button
+            onClick={() => setIsCreating(true)}
+            disabled={isCreating}
+            className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+          >
+            <Plus size={16} />
+            {t('subscriptions.create')}
+          </button>
         </div>
 
         {/* Create Form */}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Room, AppSettings } from '../types';
 import { generateId } from '../constants';
-import { Plus, Edit2, Trash2, Home, Menu, LayoutGrid, List } from 'lucide-react';
+import { Plus, Edit2, Trash2, Home, Menu, LayoutGrid, List, Archive, RotateCcw } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
 import { Modal } from './Modal';
 interface Props {
@@ -18,7 +18,8 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Room>>({});
   const [initialFormData, setInitialFormData] = useState<Partial<Room>>({});
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [showArchived, setShowArchived] = useState(false);
 
   const handleOpenModal = (room?: Room) => {
     if (room) {
@@ -33,8 +34,18 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm(t('rooms.confirm_delete'))) {
+  const handleArchive = (id: string) => {
+    if (window.confirm(t('room.confirm_archive'))) {
+      setRooms(prev => prev.map(r => r.id === id ? { ...r, isArchived: true } : r));
+    }
+  };
+
+  const handleRestore = (id: string) => {
+    setRooms(prev => prev.map(r => r.id === id ? { ...r, isArchived: false } : r));
+  };
+
+  const handlePermanentDelete = (id: string) => {
+    if (window.confirm(t('room.confirm_permanent_delete'))) {
       setRooms(prev => prev.filter(r => r.id !== id));
     }
   };
@@ -54,6 +65,12 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
     }
     setIsModalOpen(false);
   };
+
+  const filteredRooms = rooms.filter(r => {
+    if (!showArchived && r.isArchived) return false;
+    if (showArchived && !r.isArchived) return false;
+    return true;
+  });
 
   return (
     <div className={`${embedded ? 'h-full overflow-auto' : ''} p-8 max-w-6xl mx-auto`}>
@@ -75,6 +92,16 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowArchived(!showArchived)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border transition-colors ${showArchived
+                ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
+                : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+              }`}
+            >
+              <Archive size={16} />
+              {t('room.show_archived')}
+            </button>
             <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
               <button onClick={() => setViewMode('grid')} className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`} title={t('view.grid')}>
                 <LayoutGrid size={16} />
@@ -94,6 +121,16 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
       )}
       {embedded && (
         <div className="flex justify-end gap-3 mb-6">
+          <button
+            onClick={() => setShowArchived(!showArchived)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border transition-colors ${showArchived
+              ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
+              : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+            }`}
+          >
+            <Archive size={16} />
+            {t('room.show_archived')}
+          </button>
           <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
             <button onClick={() => setViewMode('grid')} className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`} title={t('view.grid')}>
               <LayoutGrid size={16} />
@@ -111,28 +148,44 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
         </div>
       )}
 
-      {rooms.length === 0 ? (
+      {filteredRooms.length === 0 ? (
         <div className="py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
           {t('room.empty_state')}
         </div>
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {rooms.map(room => (
-            <div key={room.id} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 flex flex-col hover:shadow-md transition-shadow">
+          {filteredRooms.map(room => (
+            <div key={room.id} className={`bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 flex flex-col hover:shadow-md transition-shadow ${room.isArchived ? 'opacity-60' : ''}`}>
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center space-x-3 rtl:space-x-reverse">
                   <div className="bg-indigo-100 dark:bg-indigo-900/50 p-2 rounded-lg text-indigo-600 dark:text-indigo-300">
                     <Home size={20} />
                   </div>
-                  <h3 className="font-bold text-lg text-slate-800 dark:text-white">{room.name}</h3>
+                  <div>
+                    <h3 className="font-bold text-lg text-slate-800 dark:text-white">{room.name}</h3>
+                    {room.isArchived && <span className="text-xs text-amber-600 dark:text-amber-400">{t('room.archived_badge')}</span>}
+                  </div>
                 </div>
                 <div className="flex space-x-2 rtl:space-x-reverse">
-                  <button onClick={() => handleOpenModal(room)} className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400">
-                    <Edit2 size={16} />
-                  </button>
-                  <button onClick={() => handleDelete(room.id)} className="text-slate-400 hover:text-red-600">
-                    <Trash2 size={16} />
-                  </button>
+                  {!room.isArchived && (
+                    <button onClick={() => handleOpenModal(room)} className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400" title={t('btn.edit')}>
+                      <Edit2 size={16} />
+                    </button>
+                  )}
+                  {room.isArchived ? (
+                    <>
+                      <button onClick={() => handleRestore(room.id)} className="text-slate-400 hover:text-green-600 dark:hover:text-green-400" title={t('room.restore')}>
+                        <RotateCcw size={16} />
+                      </button>
+                      <button onClick={() => handlePermanentDelete(room.id)} className="text-slate-400 hover:text-red-600 dark:hover:text-red-400" title={t('room.permanent_delete')}>
+                        <Trash2 size={16} />
+                      </button>
+                    </>
+                  ) : (
+                    <button onClick={() => handleArchive(room.id)} className="text-slate-400 hover:text-amber-600 dark:hover:text-amber-400" title={t('room.archive')}>
+                      <Archive size={16} />
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="flex-1">
@@ -155,14 +208,17 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
               </tr>
             </thead>
             <tbody>
-              {rooms.map(room => (
-                <tr key={room.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+              {filteredRooms.map(room => (
+                <tr key={room.id} className={`border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors ${room.isArchived ? 'opacity-60' : ''}`}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="bg-indigo-100 dark:bg-indigo-900/50 p-1.5 rounded-lg text-indigo-600 dark:text-indigo-300">
                         <Home size={16} />
                       </div>
-                      <span className="font-medium text-slate-900 dark:text-white">{room.name}</span>
+                      <div>
+                        <span className="font-medium text-slate-900 dark:text-white">{room.name}</span>
+                        {room.isArchived && <span className="ms-2 text-xs text-amber-600 dark:text-amber-400">{t('room.archived_badge')}</span>}
+                      </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-slate-500 dark:text-slate-400 hidden md:table-cell">
@@ -170,12 +226,25 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
                   </td>
                   <td className="px-4 py-3 text-end">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => handleOpenModal(room)} className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title={t('btn.edit')}>
-                        <Edit2 size={14} />
-                      </button>
-                      <button onClick={() => handleDelete(room.id)} className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title={t('btn.delete')}>
-                        <Trash2 size={14} />
-                      </button>
+                      {!room.isArchived && (
+                        <button onClick={() => handleOpenModal(room)} className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title={t('btn.edit')}>
+                          <Edit2 size={14} />
+                        </button>
+                      )}
+                      {room.isArchived ? (
+                        <>
+                          <button onClick={() => handleRestore(room.id)} className="p-1.5 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors" title={t('room.restore')}>
+                            <RotateCcw size={14} />
+                          </button>
+                          <button onClick={() => handlePermanentDelete(room.id)} className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title={t('room.permanent_delete')}>
+                            <Trash2 size={14} />
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={() => handleArchive(room.id)} className="p-1.5 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors" title={t('room.archive')}>
+                          <Archive size={14} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

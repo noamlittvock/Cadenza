@@ -1,17 +1,18 @@
 import React from 'react';
-import { AppSettings } from '../types';
+import { AppSettings, CalendarEvent } from '../types';
 import { TRANSLATIONS } from '../constants';
-import { Menu, Loader2, Lock, UserCheck } from 'lucide-react';
+import { Menu, Loader2, Lock, UserCheck, Download } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { fetchUserCalendars, GoogleCalendarItem } from '../utils/googleCalendarSync';
+import { fetchUserCalendars, GoogleCalendarItem, fetchEventsFromGoogle, ImportedGoogleEvent } from '../utils/googleCalendarSync';
 
 interface Props {
   settings: AppSettings;
   setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
   onMobileMenuOpen?: () => void;
+  onImportGoogleEvents?: (imported: ImportedGoogleEvent[]) => void;
 }
 
-export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuOpen }) => {
+export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuOpen, onImportGoogleEvents }) => {
   const [tempSettings, setTempSettings] = React.useState<AppSettings>(settings);
   const [hasChanges, setHasChanges] = React.useState(false);
 
@@ -59,6 +60,34 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
     handleChange('googleCalendarSyncEnabled', false);
     handleChange('googleCalendarId', undefined);
     handleChange('googleCalendarConnectedBy', undefined);
+  };
+
+  // Google Calendar Import state
+  const [isImporting, setIsImporting] = React.useState(false);
+  const [importResult, setImportResult] = React.useState<{ count: number; message: string } | null>(null);
+
+  const handleImportFromGoogle = async () => {
+    if (!googleAccessToken || !tempSettings.googleCalendarId || !onImportGoogleEvents) return;
+    setIsImporting(true);
+    setImportResult(null);
+    try {
+      // Import events for ±60 days from today
+      const now = new Date();
+      const timeMin = new Date(now.getFullYear(), now.getMonth() - 2, 1).toISOString();
+      const timeMax = new Date(now.getFullYear(), now.getMonth() + 3, 0).toISOString();
+      const imported = await fetchEventsFromGoogle(googleAccessToken, tempSettings.googleCalendarId, timeMin, timeMax);
+      if (imported.length === 0) {
+        setImportResult({ count: 0, message: t('settings.import_no_events') });
+      } else {
+        onImportGoogleEvents(imported);
+        setImportResult({ count: imported.length, message: t('settings.import_success').replace('{count}', String(imported.length)) });
+      }
+    } catch (err: any) {
+      setImportResult({ count: 0, message: err.message || 'Import failed' });
+    } finally {
+      setIsImporting(false);
+      setTimeout(() => setImportResult(null), 5000);
+    }
   };
 
   // Sync tempSettings if prop changes
@@ -251,6 +280,50 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
             </div>
           </section>
 
+          {/* School Year */}
+          <section>
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+              {t('settings.academic_calendar')}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  {t('settings.school_year_start')}
+                </label>
+                <input
+                  type="date"
+                  className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  value={tempSettings.schoolYearStartDate || ''}
+                  onChange={(e) => handleChange('schoolYearStartDate', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  {t('settings.school_year_end')}
+                </label>
+                <input
+                  type="date"
+                  className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  value={tempSettings.schoolYearEndDate || ''}
+                  onChange={(e) => handleChange('schoolYearEndDate', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  {t('settings.school_year_label')}
+                </label>
+                <input
+                  type="text"
+                  className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  value={tempSettings.schoolYearLabel || ''}
+                  onChange={(e) => handleChange('schoolYearLabel', e.target.value)}
+                  placeholder="2024-2025"
+                />
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t('settings.school_year_label_desc')}</p>
+              </div>
+            </div>
+          </section>
+
           {/* Integrations (Google Calendar) */}
           <section>
             <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -270,6 +343,12 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   <div>
                     <h4 className="font-bold text-slate-900 dark:text-white hover:text-blue-600 transition-colors">{t('settings.gcal_title')}</h4>
                     <p className="text-xs text-slate-500 mt-0.5">{t('settings.gcal_desc')}</p>
+                    {!tempSettings.googleCalendarSyncEnabled && (
+                      <p className="text-xs text-blue-500 dark:text-blue-400 mt-1 font-medium flex items-center gap-1">
+                        <Download size={12} />
+                        {t('settings.google_import_hint') || 'Connect to import your existing Google Calendar events'}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -349,6 +428,28 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                         ))}
                       </select>
                       <p className="text-xs text-slate-500 mt-2">{t('settings.gcal_auto_note')}</p>
+
+                      {/* Import from Google */}
+                      {tempSettings.googleCalendarId && onImportGoogleEvents && (
+                        <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={handleImportFromGoogle}
+                              disabled={isImporting}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-bold hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors disabled:opacity-50"
+                            >
+                              {isImporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                              {t('settings.import_from_google')}
+                            </button>
+                            {importResult && (
+                              <span className={`text-xs font-medium ${importResult.count > 0 ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                                {importResult.message}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-400 mt-1.5">{t('settings.import_desc')}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

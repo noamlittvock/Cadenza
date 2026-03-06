@@ -100,6 +100,8 @@ export function useFirestoreSettings<T>(docId: string, initialData: T) {
     const [data, setData] = useState<T>(initialData);
     const [loading, setLoading] = useState(true);
 
+    const isArrayType = Array.isArray(initialData);
+
     useEffect(() => {
         if (!orgId) {
             setData(initialData);
@@ -112,11 +114,25 @@ export function useFirestoreSettings<T>(docId: string, initialData: T) {
         const unsubscribe = onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
                 const docData = docSnap.data();
-                // Remove orgId overhead before passing to app state
                 const { orgId: _, ...pureData } = docData;
 
-                // Merge with defaults to prevent missing fields
-                setData({ ...initialData, ...pureData } as T);
+                if (isArrayType) {
+                    // Array-type data: unwrap from { _items: [...] } container
+                    if (Array.isArray(pureData._items)) {
+                        setData(pureData._items as T);
+                    } else {
+                        // Legacy fallback: reconstruct array from numeric-key object
+                        const numericKeys = Object.keys(pureData).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b));
+                        if (numericKeys.length > 0) {
+                            setData(numericKeys.map(k => (pureData as any)[k]) as T);
+                        } else {
+                            setData(initialData);
+                        }
+                    }
+                } else {
+                    // Object-type data: merge with defaults to prevent missing fields
+                    setData({ ...initialData, ...pureData } as T);
+                }
             } else {
                 setData(initialData);
             }
@@ -137,7 +153,12 @@ export function useFirestoreSettings<T>(docId: string, initialData: T) {
 
         try {
             const docRef = doc(db, 'system_configs', `${orgId}_${docId}`);
-            await setDoc(docRef, { ...resolvedData, orgId }, { merge: true });
+            if (Array.isArray(resolvedData)) {
+                // Array data: wrap in container to preserve array type in Firestore
+                await setDoc(docRef, { _items: resolvedData, orgId }, { merge: false });
+            } else {
+                await setDoc(docRef, { ...resolvedData, orgId }, { merge: true });
+            }
         } catch (err) {
             console.error(`Error saving config ${docId} to Firestore:`, err);
         }

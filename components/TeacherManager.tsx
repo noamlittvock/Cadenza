@@ -5,6 +5,7 @@ import { Plus, Edit2, Trash2, Search, CheckCircle2, Palette, X, Download, Upload
 
 import { TRANSLATIONS } from '../constants';
 import { Modal } from './Modal';
+import { TagInput } from './TagInput';
 interface Props {
   teachers: Teacher[];
   setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>;
@@ -41,8 +42,6 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Teacher>>({ positions: [], positionAssignments: [], tags: [] });
   const [initialFormData, setInitialFormData] = useState<Partial<Teacher>>({ positions: [], positionAssignments: [], tags: [] });
-  const [tagInput, setTagInput] = useState('');
-
   // Safe Fallback
   const activeLists = lists || INITIAL_LISTS;
 
@@ -138,19 +137,6 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
       setInitialFormData(data);
     }
     setIsModalOpen(true);
-  };
-
-  const handleAddTag = (e: React.KeyboardEvent | React.MouseEvent) => {
-    if ((e.type === 'keydown' && (e as React.KeyboardEvent).key !== 'Enter') || !tagInput.trim()) return;
-    e.preventDefault();
-    if (formData.tags && !formData.tags.includes(tagInput.trim())) {
-      setFormData({ ...formData, tags: [...(formData.tags || []), tagInput.trim()] });
-    }
-    setTagInput('');
-  };
-
-  const removeTag = (tagToRemove: string) => {
-    setFormData({ ...formData, tags: formData.tags?.filter(t => t !== tagToRemove) });
   };
 
   const handleDelete = (id: string) => {
@@ -991,36 +977,15 @@ export const TeacherManager: React.FC<Props> = ({ teachers, setTeachers, lists, 
           {/* Tags Input */}
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('teach.tags_label')}</label>
-            <div className="flex gap-2 mb-2">
-              <select
-                className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
-                onChange={(e) => {
-                  if (e.target.value && !formData.tags?.includes(e.target.value)) {
-                    setFormData({ ...formData, tags: [...(formData.tags || []), e.target.value] });
-                  }
-                  e.target.value = '';
-                }}
-              >
-                <option value="">{t('teacher.select_from_list')}</option>
-                {activeLists.tags.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <input
-                type="text"
-                className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
-                value={tagInput}
-                onChange={e => setTagInput(e.target.value)}
-                onKeyDown={handleAddTag}
-                placeholder={t('teacher.or_type_new')}
-              />
-              <button type="button" onClick={handleAddTag} className="bg-slate-200 dark:bg-slate-700 px-3 py-2 rounded-lg">{t('teach.add_tag')}</button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {formData.tags?.map((tag, idx) => (
-                <span key={idx} className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded text-xs flex items-center border border-blue-200 dark:border-blue-800">
-                  {tag} <button type="button" onClick={() => removeTag(tag)} className="ms-1 hover:text-red-500"><X size={12} /></button>
-                </span>
-              ))}
-            </div>
+            <TagInput
+              tags={formData.tags || []}
+              availableTags={activeLists.tags}
+              onAdd={(tag) => setFormData({ ...formData, tags: [...(formData.tags || []), tag] })}
+              onRemove={(tag) => setFormData({ ...formData, tags: (formData.tags || []).filter(t => t !== tag) })}
+              placeholder={t('tag_input.type_new')}
+              selectPlaceholder={t('tag_input.select_existing')}
+              addLabel={t('teach.add_tag')}
+            />
           </div>
 
           {/* Email/Phone Inputs */}

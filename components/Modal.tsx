@@ -8,7 +8,7 @@ export interface ModalProps {
     title?: string | React.ReactNode;
     children: React.ReactNode;
     isDirty?: boolean;
-    onSave?: () => void; // If provided, "Save" triggers this and then closes.
+    onSave?: () => void | boolean | Promise<void | boolean>; // If provided, "Save" triggers this. Return false to prevent closing.
     footerContent?: React.ReactNode; // Optional footer content to render inside the modal
     maxWidth?: string; // e.g. "max-w-2xl", "max-w-4xl"
     className?: string; // additional container classes
@@ -66,13 +66,15 @@ export const Modal: React.FC<ModalProps> = ({
         onClose();
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (onSave) {
-            onSave();
+            const result = await onSave();
+            if (result === false) {
+                setShowConfirm(false);
+                return; // Validation failed — don't close
+            }
         }
         setShowConfirm(false);
-        // Note: If onSave handles closing internally, we might not need onClose() here.
-        // However, for consistency, we call onClose(). Ensure onSave is synchronous or doesn't break if dialog unmounts.
         onClose();
     };
 

@@ -10,11 +10,11 @@ import { CalendarEvent, Teacher, AppSettings, Activity as ActivityType } from '.
 import { ChartConfiguration } from '../types/chartBuilder';
 import { formatHours, formatCurrency } from '../utils/formatters';
 import {
-    Download, Filter, Calendar as CalIcon, ChevronDown, Menu, Clock, CalendarDays, DollarSign,
+    Download, Filter, Calendar as CalIcon, ChevronDown, ChevronUp, Menu, Clock, CalendarDays, DollarSign,
     TrendingUp, X, SlidersHorizontal, Tag, User, Briefcase, ToggleLeft, Plus, Pencil, Trash2,
     Copy, BarChart3, Zap, Camera, ArrowLeft, ArrowRight, LineChart as LineChartIcon,
     Award, AlertTriangle, TrendingDown, Percent, Target, CreditCard, Users as UsersIcon, Activity,
-    Settings as SettingsIcon, Check, Eye, EyeOff, RotateCcw
+    Settings as SettingsIcon, Check, Eye, EyeOff, RotateCcw, HelpCircle
 } from 'lucide-react';
 import { ChartBuilderModal } from './ChartBuilderModal';
 import { ChartRenderer } from './ChartRenderer';
@@ -149,7 +149,7 @@ const InsightCard: React.FC<{ tile: InsightTile }> = ({ tile }) => {
                 : 'text-slate-900 dark:text-white';
 
     return (
-        <div className={`relative bg-white dark:bg-slate-900 rounded-xl border-2 ${borderColor} p-4 shadow-sm overflow-hidden`}>
+        <div className={`relative bg-white dark:bg-slate-900 rounded-xl border-2 ${borderColor} p-4 shadow-sm overflow-hidden w-[calc(50%-0.375rem)] sm:w-[calc(33.333%-0.5rem)] lg:w-[calc(20%-0.6rem)]`}>
             <div className={`absolute top-0 start-0 end-0 h-1 ${tile.gradient}`} />
             <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 inline-block mb-2">{tile.icon}</div>
             <h4 className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 leading-tight">{tile.title}</h4>
@@ -276,6 +276,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
     const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
     const isRtl = settings?.language === 'he-IL';
     const [dateFilterType, setDateFilterType] = useState<DateFilterType>('MONTH');
+    const [showHelp, setShowHelp] = useState(false);
     const [customStartDate, setCustomStartDate] = useState('');
     const [customEndDate, setCustomEndDate] = useState('');
     const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -651,6 +652,23 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                     </div>
                 </div>
 
+                {/* Help Panel */}
+                <div className="mb-4">
+                    <button
+                        onClick={() => setShowHelp(!showHelp)}
+                        className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                    >
+                        <HelpCircle size={13} />
+                        {t('analysis.help_title')}
+                        {showHelp ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    </button>
+                    {showHelp && (
+                        <div className="mt-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-xs text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                            <p>{t('analysis.help_text')}</p>
+                        </div>
+                    )}
+                </div>
+
                 {/* Filter Panel */}
                 {isFilterPanelOpen && (
                     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg mb-6 p-5">
@@ -783,7 +801,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                             </div>
                         )}
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                        <div className="flex flex-wrap justify-center gap-3">
                             {allInsightTiles
                                 .filter(tile => insightShowAll || visibleInsightIds.has(tile.id))
                                 .map(tile => <InsightCard key={tile.id} tile={tile} />)
