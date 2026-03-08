@@ -4,12 +4,12 @@ import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../utils/firebase';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
-import { AppSettings, CalendarEvent, Activity, Teacher, Room, Student } from '../types';
-import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus, Wrench, Edit2, Save, X, Globe, ChevronDown, ChevronUp, HelpCircle, AlertTriangle, FileText } from 'lucide-react';
+import { AppSettings, CalendarEvent, Activity, Teacher, Room, Student, ListsState } from '../types';
+import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus, Wrench, Edit2, Save, X, Globe, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import { TranslationManager } from './TranslationManager';
 import { DocumentTemplates } from './DocumentRepository';
 import { Modal } from './Modal';
-import { generateTestTeachers, generateTestCalendar, generateTestGantts, generateTestActivities, generateTestStudents, generateTestAdminInbox, generateTestSavedCharts, generateTestHoursReports } from '../utils/dataGenerator';
+import { DevTools } from './DevTools';
 
 interface Organization {
     id: string; // The slug
@@ -27,8 +27,9 @@ interface AccessRecord {
 }
 
 interface SuperAdminProps {
-    onLoadTestData?: () => void;
     onWipeData?: () => void;
+    onNavigateToView?: (view: string) => void;
+    onActivateScenario?: (scenario: import('../utils/testTemplates').QAScenario) => void;
     settings: AppSettings;
     events?: CalendarEvent[];
     setEvents?: React.Dispatch<React.SetStateAction<CalendarEvent[]>>;
@@ -44,36 +45,23 @@ interface SuperAdminProps {
     setActivities?: (data: any[]) => void;
     setStudents?: (data: any[]) => void;
     setAdminInboxItems?: (data: any[]) => void;
+    lists?: ListsState;
+    setLists?: (data: ListsState) => void;
 }
 
 export const SuperAdmin: React.FC<SuperAdminProps> = ({
-    onLoadTestData, onWipeData, settings, events = [], setEvents, activities = [],
+    onWipeData, onNavigateToView, onActivateScenario, settings, events = [], setEvents, activities = [],
     teachers = [], students = [], rooms = [],
-    setTeachers, setSavedCharts, setHoursReports, setRooms, setGanttBlocks, setActivities, setStudents, setAdminInboxItems
+    setTeachers, setSavedCharts, setHoursReports, setRooms, setGanttBlocks, setActivities, setStudents, setAdminInboxItems,
+    lists, setLists
 }) => {
     const { currentUser, isSuperAdmin } = useAuth();
     const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
     const [activeTab, setActiveTab] = useState<'ORGS' | 'USERS' | 'DEV_TOOLS' | 'TEMPLATES' | 'TRANSLATIONS'>('ORGS');
     const [loading, setLoading] = useState(true);
-    const [showExplainers, setShowExplainers] = useState<Record<string, boolean>>({});
-    const [showWipeModal, setShowWipeModal] = useState(false);
-    const [wipeConfirmText, setWipeConfirmText] = useState('');
-    const [wipeCheckbox, setWipeCheckbox] = useState(false);
-    const [regenLoading, setRegenLoading] = useState<string | null>(null);
-    const [regenMessage, setRegenMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
     // Data State
     const [organizations, setOrganizations] = useState<Organization[]>([]);
     const [accessRecords, setAccessRecords] = useState<AccessRecord[]>([]);
-
-    // Migration State
-    const [migrationReport, setMigrationReport] = useState<{
-        total: number;
-        alreadyMigrated: number;
-        matched: { id: string; classification: string; activityId: string }[];
-        unmatched: { id: string; classification: string }[];
-    } | null>(null);
-    const [migrationRunning, setMigrationRunning] = useState(false);
 
     // Form State
     const [newOrgSlug, setNewOrgSlug] = useState('');
@@ -749,376 +737,28 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
                         )}
 
                         {activeTab === 'DEV_TOOLS' && (
-                            <div className="p-6">
-                                <div className="border-s-4 border-amber-400 bg-amber-50 dark:bg-amber-900/20 p-4 rounded-e-lg mb-6">
-                                    <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
-                                        ⚠️ {t('super.tools_notice')}
-                                    </p>
-                                </div>
-
-                                <div className="space-y-6">
-                                    {/* Generate All Test Data */}
-                                    <div className="bg-amber-50 dark:bg-amber-900/20 p-5 rounded-lg border border-amber-200 dark:border-amber-700/50">
-                                        <div className="flex items-start justify-between gap-4 mb-3">
-                                            <div className="flex-1">
-                                                <button
-                                                    onClick={() => setShowExplainers(prev => ({ ...prev, generateAll: !prev.generateAll }))}
-                                                    className="flex items-center gap-2 group"
-                                                >
-                                                    <h4 className="font-bold text-slate-900 dark:text-white">{t('sa.generate_test')}</h4>
-                                                    <HelpCircle size={15} className="text-amber-600 dark:text-amber-400 group-hover:opacity-70" />
-                                                </button>
-                                            </div>
-                                            <button
-                                                onClick={() => {
-                                                    if (window.confirm(t('super.confirm_snapshot'))) {
-                                                        localStorage.setItem('appSnapshot', JSON.stringify({
-                                                            teachers: localStorage.getItem('teachers'),
-                                                            events: localStorage.getItem('events'),
-                                                            rooms: localStorage.getItem('rooms'),
-                                                            settings: localStorage.getItem('settings'),
-                                                            lists: localStorage.getItem('lists')
-                                                        }));
-                                                        alert(t('sa.snapshot_created_short'));
-                                                    }
-                                                    if (window.confirm(t('super.confirm_generate'))) {
-                                                        onLoadTestData?.();
-                                                        window.alert(t('sa.test_generated'));
-                                                    }
-                                                }}
-                                                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-bold transition-colors shrink-0"
-                                            >
-                                                {t('sa.generate_btn')}
-                                            </button>
-                                        </div>
-                                        {showExplainers.generateAll && (
-                                            <div className="bg-white dark:bg-slate-800/50 border border-amber-200 dark:border-amber-700 rounded-lg p-3 text-xs text-slate-600 dark:text-slate-300 mb-3">
-                                                Generates a complete realistic dataset: 20 teachers with diverse positions and pay rates, 200+ calendar events spread across ±30 days, 8 rooms, 15 Gantt blocks, 5 activity categories, 8 students, 4 saved charts, 3 hours reports (one per status), and 4 pre-seeded admin inbox tasks. Use this as a starting point before testing individual modules.
-                                            </div>
-                                        )}
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                                            {t('sa.test_data_desc')}
-                                        </p>
-                                    </div>
-
-                                    {/* Granular Regeneration */}
-                                    <div className="p-5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                                        <h4 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                                            <Wrench size={16} />
-                                            Granular Regeneration
-                                        </h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                            {[
-                                                { id: 'teachers', icon: '👥', label: 'Teachers', desc: '20 staff members with randomized positions, pay rates, tags, and edge-case names (hyphenated, Hebrew, Arabic).' },
-                                                { id: 'events', icon: '📅', label: 'Calendar Events', desc: '200 events ±30 days from today, 10% canceled, 15% with payment overrides, and 4 deliberate room conflicts.' },
-                                                { id: 'charts', icon: '📊', label: 'Saved Charts', desc: '4 chart configurations: cost by teacher, hours by month, events by category, rate comparison.' },
-                                                { id: 'reports', icon: '📝', label: 'Hours Reports', desc: '3 reports: one PENDING (link sent), one SUBMITTED (with calendar + manual entries), one REVIEWED.' },
-                                                { id: 'inbox', icon: '📬', label: 'Admin Inbox', desc: '2 open tasks, 1 completed task, and 1 system notification. Room conflict notifications auto-generated.' },
-                                                { id: 'students', icon: '🎓', label: 'Students', desc: '8 students aged 7–40, 60% minors with guardians, each assigned 1–2 activities.' },
-                                            ].map(module => (
-                                                <button
-                                                    key={module.id}
-                                                    disabled={regenLoading !== null}
-                                                    onClick={async () => {
-                                                        try {
-                                                            setRegenLoading(module.id);
-                                                            setRegenMessage(null);
-
-                                                            const currencySymbol = settings.currency;
-                                                            // Use existing Firestore data as dependencies; fall back to fresh generation only if empty
-                                                            const existingTeachers = teachers.length > 0 ? teachers : generateTestTeachers(currencySymbol);
-                                                            const existingActivities = activities.length > 0 ? activities : generateTestActivities();
-                                                            const existingRooms = rooms.length > 0 ? rooms : [
-                                                                { id: 'R1', name: 'Studio A', itinerary: '' },
-                                                                { id: 'R2', name: 'Studio B', itinerary: '' },
-                                                                { id: 'R3', name: 'Practice Room 1', itinerary: '' },
-                                                            ];
-
-                                                            if (module.id === 'teachers') {
-                                                                const data = generateTestTeachers(currencySymbol);
-                                                                setTeachers?.(data);
-                                                                setRegenMessage({ type: 'success', text: `Teachers data regenerated (${data.length} records)` });
-                                                            } else if (module.id === 'events') {
-                                                                const data = generateTestCalendar(existingTeachers as any, existingRooms as any, currencySymbol);
-                                                                setEvents?.(data);
-                                                                setRegenMessage({ type: 'success', text: `Calendar Events data regenerated (${data.length} records)` });
-                                                            } else if (module.id === 'charts') {
-                                                                const data = generateTestSavedCharts();
-                                                                setSavedCharts?.(data);
-                                                                setRegenMessage({ type: 'success', text: `Saved Charts regenerated (${data.length} records)` });
-                                                            } else if (module.id === 'reports') {
-                                                                const existingEvents = events.length > 0 ? events : generateTestCalendar(existingTeachers as any, existingRooms as any, currencySymbol);
-                                                                const data = generateTestHoursReports(existingTeachers as any, existingEvents);
-                                                                setHoursReports?.(data);
-                                                                setRegenMessage({ type: 'success', text: `Hours Reports regenerated (${data.length} records)` });
-                                                            } else if (module.id === 'inbox') {
-                                                                const existingStudents = students.length > 0 ? students : generateTestStudents(existingTeachers as any, existingActivities);
-                                                                const data = generateTestAdminInbox(existingTeachers as any, existingStudents as any);
-                                                                setAdminInboxItems?.(data);
-                                                                setRegenMessage({ type: 'success', text: `Admin Inbox regenerated (${data.length} records)` });
-                                                            } else if (module.id === 'students') {
-                                                                const data = generateTestStudents(existingTeachers as any, existingActivities);
-                                                                setStudents?.(data);
-                                                                setRegenMessage({ type: 'success', text: `Students data regenerated (${data.length} records)` });
-                                                            }
-
-                                                            // Auto-dismiss success message after 3 seconds
-                                                            setTimeout(() => setRegenMessage(null), 3000);
-                                                        } catch (error) {
-                                                            console.error('Regeneration error:', error);
-                                                            setRegenMessage({ type: 'error', text: `Failed to regenerate ${module.label}` });
-                                                        } finally {
-                                                            setRegenLoading(null);
-                                                        }
-                                                    }}
-                                                    className={`text-start p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors group ${regenLoading === module.id ? 'opacity-60 cursor-not-allowed' : 'hover:border-blue-400 dark:hover:border-blue-500'}`}
-                                                >
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        {regenLoading === module.id ? (
-                                                            <Loader2 size={18} className="animate-spin text-blue-500" />
-                                                        ) : (
-                                                            <span className="text-lg">{module.icon}</span>
-                                                        )}
-                                                        <span className="font-semibold text-slate-900 dark:text-white text-sm">{module.label}</span>
-                                                    </div>
-                                                    <p className="text-xs text-slate-600 dark:text-slate-400">{module.desc}</p>
-                                                </button>
-                                            ))}
-                                        </div>
-
-                                        {/* Regeneration Feedback */}
-                                        {regenMessage && (
-                                            <div className={`mt-4 p-3 rounded-lg text-sm font-medium flex items-center gap-2 ${
-                                                regenMessage.type === 'success'
-                                                    ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                                                    : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
-                                            }`}>
-                                                {regenMessage.type === 'success' ? (
-                                                    <span>✓</span>
-                                                ) : (
-                                                    <AlertCircle size={16} />
-                                                )}
-                                                {regenMessage.text}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* State Snapshots */}
-                                    <div className="bg-slate-50 dark:bg-slate-800 p-5 rounded-lg border border-slate-200 dark:border-slate-700">
-                                        <h4 className="font-bold text-slate-900 dark:text-white mb-1">{t('sa.state_snapshot')}</h4>
-                                        <p className="text-xs text-slate-500 mb-3">{t('sa.snapshot_desc')}</p>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => {
-                                                localStorage.setItem('appSnapshot', JSON.stringify({
-                                                    teachers: localStorage.getItem('teachers'),
-                                                    events: localStorage.getItem('events'),
-                                                    rooms: localStorage.getItem('rooms'),
-                                                    settings: localStorage.getItem('settings'),
-                                                    lists: localStorage.getItem('lists')
-                                                }));
-                                                alert(t('sa.snapshot_created'));
-                                            }} className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">{t('sa.create_snapshot')}</button>
-                                            <button onClick={() => {
-                                                const snap = localStorage.getItem('appSnapshot');
-                                                if (snap && window.confirm(t('super.confirm_restore'))) {
-                                                    const parsed = JSON.parse(snap);
-                                                    if (parsed.teachers) localStorage.setItem('teachers', parsed.teachers);
-                                                    if (parsed.events) localStorage.setItem('events', parsed.events);
-                                                    if (parsed.rooms) localStorage.setItem('rooms', parsed.rooms);
-                                                    if (parsed.lists) localStorage.setItem('lists', parsed.lists);
-                                                    window.location.reload();
-                                                } else if (!snap) {
-                                                    alert(t('sa.no_snapshot'));
-                                                }
-                                            }} className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">{t('sa.restore')}</button>
-                                        </div>
-                                    </div>
-
-                                    {/* ActivityId Migration */}
-                                    <div className="bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-lg border border-indigo-200 dark:border-indigo-700/50">
-                                        <h4 className="font-bold text-slate-900 dark:text-white mb-1">{t('sa.migration_title')}</h4>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-                                            {t('sa.migration_desc')}
-                                        </p>
-
-                                        <div className="flex gap-2 mb-3">
-                                            <button
-                                                disabled={migrationRunning}
-                                                onClick={() => {
-                                                    const nameToId = new Map(activities.map(a => [a.name, a.id]));
-                                                    const matched: { id: string; classification: string; activityId: string }[] = [];
-                                                    const unmatched: { id: string; classification: string }[] = [];
-                                                    let alreadyMigrated = 0;
-                                                    events.forEach(evt => {
-                                                        if (evt.activityId) { alreadyMigrated++; return; }
-                                                        const cls = evt.classification;
-                                                        if (!cls) return;
-                                                        const aid = nameToId.get(cls);
-                                                        if (aid) {
-                                                            matched.push({ id: evt.id, classification: cls, activityId: aid });
-                                                        } else {
-                                                            unmatched.push({ id: evt.id, classification: cls });
-                                                        }
-                                                    });
-                                                    setMigrationReport({ total: events.length, alreadyMigrated, matched, unmatched });
-                                                }}
-                                                className="px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 text-xs font-bold rounded hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors"
-                                            >
-                                                {t('sa.migration_scan')}
-                                            </button>
-                                            {migrationReport && migrationReport.matched.length > 0 && (
-                                                <button
-                                                    disabled={migrationRunning}
-                                                    onClick={async () => {
-                                                        if (!setEvents || !migrationReport) return;
-                                                        if (!window.confirm(t('sa.migration_backfill_confirm').replace('{count}', String(migrationReport.matched.length)))) return;
-                                                        setMigrationRunning(true);
-                                                        try {
-                                                            const batch = writeBatch(db);
-                                                            migrationReport.matched.forEach(m => {
-                                                                batch.update(doc(db, 'calendarEvents', m.id), { activityId: m.activityId });
-                                                            });
-                                                            await batch.commit();
-                                                            // Update local state
-                                                            const idMap = new Map(migrationReport.matched.map(m => [m.id, m.activityId]));
-                                                            setEvents(prev => prev.map(evt => {
-                                                                const aid = idMap.get(evt.id);
-                                                                return aid ? { ...evt, activityId: aid } : evt;
-                                                            }));
-                                                            setMigrationReport(prev => prev ? { ...prev, matched: [], alreadyMigrated: prev.alreadyMigrated + prev.matched.length } : prev);
-                                                            alert(t('sa.migration_backfill_success').replace('{count}', String(migrationReport.matched.length)));
-                                                        } catch (err) {
-                                                            console.error('Migration error:', err);
-                                                            alert(t('sa.migration_backfill_error'));
-                                                        } finally {
-                                                            setMigrationRunning(false);
-                                                        }
-                                                    }}
-                                                    className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors"
-                                                >
-                                                    {migrationRunning ? t('sa.migration_running') : t('sa.migration_backfill_btn').replace('{count}', String(migrationReport.matched.length))}
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        {migrationReport && (
-                                            <div className="text-xs space-y-1 bg-white dark:bg-slate-900 p-3 rounded border border-slate-200 dark:border-slate-700">
-                                                <p><span className="font-medium">{t('sa.migration_total')}</span> {migrationReport.total}</p>
-                                                <p><span className="font-medium text-emerald-600">{t('sa.migration_already')}</span> {migrationReport.alreadyMigrated}</p>
-                                                <p><span className="font-medium text-blue-600">{t('sa.migration_matched')}</span> {migrationReport.matched.length}</p>
-                                                <p><span className="font-medium text-amber-600">{t('sa.migration_unmatched')}</span> {migrationReport.unmatched.length}</p>
-                                                {migrationReport.unmatched.length > 0 && (
-                                                    <details className="mt-2">
-                                                        <summary className="cursor-pointer text-amber-600 font-medium">{t('sa.migration_show_unmatched')}</summary>
-                                                        <ul className="mt-1 ms-4 list-disc text-slate-500">
-                                                            {[...new Set(migrationReport.unmatched.map(u => u.classification))].map(cls => (
-                                                                <li key={cls}>{cls} ({migrationReport.unmatched.filter(u => u.classification === cls).length} events)</li>
-                                                            ))}
-                                                        </ul>
-                                                    </details>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* System Info */}
-                                    <div className="bg-slate-50 dark:bg-slate-800 p-5 rounded-lg border border-slate-200 dark:border-slate-700">
-                                        <h4 className="font-bold text-slate-900 dark:text-white mb-3">{t('sa.system_info')}</h4>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                                            <div>
-                                                <span className="text-slate-500 block">{t('sa.super_admin_label')}</span>
-                                                <span className="text-slate-900 dark:text-white font-mono">{currentUser?.email}</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-slate-500 block">{t('sa.total_tenants')}</span>
-                                                <span className="text-slate-900 dark:text-white font-bold text-lg">{organizations.length}</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-slate-500 block">{t('sa.total_access')}</span>
-                                                <span className="text-slate-900 dark:text-white font-bold text-lg">{accessRecords.length}</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-slate-500 block">{t('sa.role_label')}</span>
-                                                <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded font-bold">{t('sa.superadmin_badge')}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Full Data Reset — placed last for safety */}
-                                    <div className="bg-red-50 dark:bg-red-900/20 p-5 rounded-lg border border-red-200 dark:border-red-700/50">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                                    <AlertTriangle size={16} className="text-red-500" />
-                                                    {t('super.wipe_modal_title')}
-                                                </h4>
-                                                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">{t('super.wipe_modal_warning')}</p>
-                                            </div>
-                                            <button
-                                                onClick={() => { setShowWipeModal(true); setWipeConfirmText(''); setWipeCheckbox(false); }}
-                                                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-bold transition-colors shrink-0"
-                                            >
-                                                {t('super.wipe_data')}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Wipe Confirmation Modal */}
-                                    <Modal
-                                        isOpen={showWipeModal}
-                                        onClose={() => setShowWipeModal(false)}
-                                        title={<span className="flex items-center gap-2 text-red-600 dark:text-red-400"><AlertTriangle size={20} /> {t('super.wipe_modal_title')}</span>}
-                                        maxWidth="max-w-md"
-                                    >
-                                        <div className="space-y-4">
-                                            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4">
-                                                <p className="text-sm text-red-700 dark:text-red-400 font-medium">{t('super.wipe_modal_warning')}</p>
-                                            </div>
-
-                                            <label className="flex items-start gap-3 cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={wipeCheckbox}
-                                                    onChange={(e) => setWipeCheckbox(e.target.checked)}
-                                                    className="mt-0.5 w-4 h-4 rounded border-red-300 text-red-500 focus:ring-red-500"
-                                                />
-                                                <span className="text-sm text-slate-700 dark:text-slate-300">{t('super.wipe_checkbox_label')}</span>
-                                            </label>
-
-                                            <div>
-                                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('super.wipe_type_confirm')}</label>
-                                                <input
-                                                    type="text"
-                                                    value={wipeConfirmText}
-                                                    onChange={(e) => setWipeConfirmText(e.target.value)}
-                                                    placeholder="WIPE"
-                                                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none font-mono"
-                                                />
-                                            </div>
-
-                                            <div className="flex justify-end gap-3 pt-2">
-                                                <button
-                                                    onClick={() => setShowWipeModal(false)}
-                                                    className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-lg text-sm transition-colors"
-                                                >
-                                                    {t('common.cancel') || 'Cancel'}
-                                                </button>
-                                                <button
-                                                    disabled={!wipeCheckbox || wipeConfirmText !== 'WIPE'}
-                                                    onClick={() => {
-                                                        console.warn(`[DATA WIPE] Initiated by ${currentUser?.email} at ${new Date().toISOString()}`);
-                                                        onWipeData?.();
-                                                        setShowWipeModal(false);
-                                                    }}
-                                                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                                >
-                                                    {t('super.wipe_confirm_btn')}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </Modal>
-                                </div>
-                            </div>
+                            <DevTools
+                                settings={settings}
+                                events={events || []}
+                                setEvents={setEvents}
+                                activities={activities}
+                                teachers={teachers}
+                                students={students}
+                                rooms={rooms}
+                                setTeachers={setTeachers}
+                                setSavedCharts={setSavedCharts}
+                                setHoursReports={setHoursReports}
+                                setRooms={setRooms}
+                                setGanttBlocks={setGanttBlocks}
+                                setActivities={setActivities}
+                                setStudents={setStudents}
+                                setAdminInboxItems={setAdminInboxItems}
+                                onWipeData={onWipeData}
+                                onNavigateToView={onNavigateToView}
+                                onActivateScenario={onActivateScenario}
+                                lists={lists}
+                                setLists={setLists}
+                            />
                         )}
                     </div>
                 )}

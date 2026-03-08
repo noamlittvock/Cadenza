@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, ChevronLeft, BarChart3, LineChart } from 'lucide-react';
+import { ChevronRight, ChevronLeft, BarChart3, LineChart, X } from 'lucide-react';
 import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState, Activity, Student, CalendarSubscription, HoursReport, AdminInboxItem } from './types';
 import { ChartConfiguration } from './types/chartBuilder';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, TRANSLATIONS, migrateTeacher, generateId } from './constants';
@@ -8,8 +8,11 @@ const t = (key: string) => {
   const lang = document.documentElement.lang || 'en-US';
   return (TRANSLATIONS as any)[lang]?.[key] || (TRANSLATIONS as any)['en-US']?.[key] || key;
 };
+import { writeBatch, getDocs, collection, query, where, doc, deleteDoc } from 'firebase/firestore';
+import { db } from './utils/firebase';
+import { V2_COLLECTIONS } from './types/v2';
 import { useFirestoreSync, useFirestoreSettings } from './utils/useFirestoreSync';
-import { generateTestData } from './utils/dataGenerator';
+import { useOnboarding } from './utils/useOnboarding';
 import { detectRoomConflicts } from './utils/roomConflicts';
 import { ImportedGoogleEvent } from './utils/googleCalendarSync';
 import { Layout } from './components/Layout';
@@ -24,12 +27,18 @@ import { StaffMemberManager } from './components/StaffMemberManager';
 import { StudentManager } from './components/StudentManager';
 import { SuperAdmin } from './components/SuperAdmin';
 import { AdminInbox } from './components/AdminInbox';
+import { PayslipGenerator } from './components/PayslipGenerator';
+import { DocumentTemplates } from './components/DocumentRepository';
+import { OnboardingChecklist } from './components/OnboardingChecklist';
 
 import { TeacherHoursForm } from './components/TeacherHoursForm';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { UserRole } from './context/AuthContext';
 import { TranslationProvider, useTranslation } from './context/TranslationContext';
+import { DevSimulationProvider, useEffectiveAuth, useEffectiveOnboarding, useDevSimulation } from './context/DevSimulationContext';
+import { DevSimulationBanner } from './components/DevSimulationBanner';
+import { ScenarioBanner } from './components/ScenarioBanner';
 
 
 // --- Financial Hub: Tabbed container for Dashboard + Analysis ---
@@ -128,8 +137,11 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 }
 
 function AppContent() {
-  const { currentUser, login, isAdmin } = useAuth();
+  const { currentUser, login, isAdmin, isSuperAdmin } = useEffectiveAuth();
+  const { orgId } = useAuth();
   const [currentView, setCurrentView] = useState<ViewState>('CALENDAR');
+  const onboarding = useEffectiveOnboarding();
+  const { simulatedDate } = useDevSimulation();
   const [financialTab, setFinancialTab] = useState<'dashboard' | 'analysis'>('dashboard');
   const { liveTranslations } = useTranslation();
 
@@ -158,6 +170,10 @@ function AppContent() {
   const [lists, setLists] = useFirestoreSettings<ListsState>('lists', INITIAL_LISTS);
   const [savedCharts, setSavedCharts] = useFirestoreSettings<ChartConfiguration[]>('customCharts', []);
 
+  // QA Scenario State
+  const [activeScenario, setActiveScenario] = useState<import('./utils/testTemplates').QAScenario | null>(null);
+  const [scenarioCheckedSteps, setScenarioCheckedSteps] = useState<string[]>([]);
+
   // Marquee Selection State (Lifted)
   const [selectionMode, setSelectionMode] = useState<'NORMAL' | 'MARQUEE'>('NORMAL');
   const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
@@ -165,6 +181,11 @@ function AppContent() {
   // Persistent Calendar State
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'DAY' | 'WEEK' | 'MONTH'>('WEEK');
+
+  // Sync simulated date → calendar date
+  useEffect(() => {
+    if (simulatedDate) setCurrentDate(simulatedDate);
+  }, [simulatedDate]);
 
   const isRtl = settings.language === 'he-IL';
   const local_t = (key: string) => (settings.language === 'he-IL' && liveTranslations[key]) || TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
@@ -222,6 +243,30 @@ function AppContent() {
     });
   }, [events, rooms]);
 
+  // ── Onboarding: sync org milestones whenever data counts change ──────────────
+  useEffect(() => {
+    onboarding.syncOrgMilestones({
+      activities: activities.length,
+      teachers: teachers.length,
+      students: students.length,
+      events: events.length,
+    });
+  }, [activities.length, teachers.length, students.length, events.length]);
+
+  // ── Onboarding: update firstUseFlags on first successful data addition ────────
+  useEffect(() => {
+    if (activities.length > 0) onboarding.updateFirstUseFlag('activityHub');
+  }, [activities.length]);
+  useEffect(() => {
+    if (teachers.length > 0) onboarding.updateFirstUseFlag('staffModule');
+  }, [teachers.length]);
+  useEffect(() => {
+    if (students.length > 0) onboarding.updateFirstUseFlag('studentModule');
+  }, [students.length]);
+  useEffect(() => {
+    if (events.length > 0) onboarding.updateFirstUseFlag('eventCreation');
+  }, [events.length]);
+
   // Navigate to calendar from conflict notification
   const handleNavigateToConflict = (eventIds: string[]) => {
     const conflictEvents = events.filter(e => eventIds.includes(e.id));
@@ -268,8 +313,49 @@ function AppContent() {
     });
   };
 
+  // Onboarding gate: first admin is blocked from these views until setupGateCleared
+  const GATED_VIEWS: ViewState[] = ['CALENDAR', 'GANTT', 'POWER_TOOLS', 'STUDENTS', 'PAYSLIPS'];
+  const isHardGated =
+    !isSuperAdmin &&
+    onboarding.isFirstAdmin &&
+    !onboarding.setupGateCleared;
+
   // Route Rendering
   const renderContent = () => {
+    // Hard gate — redirect gated views to checklist
+    if (isHardGated && GATED_VIEWS.includes(currentView)) {
+      const isLockedPrompt = currentView !== 'CALENDAR';
+      return (
+        <OnboardingChecklist
+          orgOnboardingState={onboarding.orgOnboardingState}
+          setupGateCleared={onboarding.setupGateCleared}
+          settings={settings}
+          onNavigate={setCurrentView}
+          onDismiss={onboarding.dismissOnboarding}
+          lockedView={isLockedPrompt}
+        />
+      );
+    }
+
+    // Gate just cleared — show celebration checklist on first visit to Calendar
+    if (
+      !isSuperAdmin &&
+      onboarding.isFirstAdmin &&
+      onboarding.setupGateCleared &&
+      !onboarding.onboardingDismissed &&
+      currentView === 'CALENDAR'
+    ) {
+      return (
+        <OnboardingChecklist
+          orgOnboardingState={onboarding.orgOnboardingState}
+          setupGateCleared={onboarding.setupGateCleared}
+          settings={settings}
+          onNavigate={setCurrentView}
+          onDismiss={onboarding.dismissOnboarding}
+        />
+      );
+    }
+
     const isSidebarMode = ['GANTT', 'POWER_TOOLS'].includes(currentView);
     const mainViewClass = isSidebarMode ? 'flex-1 overflow-hidden transition-all duration-300' : 'w-full h-full';
 
@@ -428,6 +514,8 @@ function AppContent() {
             subscriptions={calendarSubscriptions}
             setSubscriptions={setCalendarSubscriptions}
             teachers={teachers}
+            events={events}
+            students={students}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
           />
         );
@@ -458,36 +546,8 @@ function AppContent() {
             teachers={teachers}
             students={students}
             rooms={rooms}
-            onLoadTestData={() => {
-              console.log("Generating data...");
-              const data = generateTestData(settings.currency);
-              setTeachers(data.teachers);
-              setEvents(data.events);
-              setRooms(data.rooms);
-              setGanttBlocks(data.ganttBlocks);
-              setActivities(data.activities);
-              setStudents(data.students);
-              if (data.adminInboxItems) {
-                setAdminInboxItems(data.adminInboxItems);
-              }
-              if (data.savedCharts) {
-                setSavedCharts(data.savedCharts);
-              }
-              if (data.hoursReports) {
-                setHoursReports(data.hoursReports);
-              }
-              if (data.subscriptions) {
-                setCalendarSubscriptions(data.subscriptions);
-              }
-              // Seed FinancialAnalysis localStorage keys
-              localStorage.setItem('financial-analysis-custom-insights', JSON.stringify([
-                { id: 'ci_1', title: 'Top Earner Active Hours', metric: 'maxEarner' },
-                { id: 'ci_2', title: 'Avg Monthly Payroll', metric: 'avgGrandTotal' },
-                { id: 'ci_3', title: 'Cancellation Rate Trend', metric: 'cancellationRate' },
-              ]));
-              localStorage.removeItem('financial-analysis-visible-insights');
-            }}
-            onWipeData={() => {
+            onWipeData={async () => {
+                // 1. Clear React state immediately so UI goes blank right away
                 setTeachers([]);
                 setRooms([]);
                 setEvents([]);
@@ -498,8 +558,46 @@ function AppContent() {
                 setSavedCharts([]);
                 setHoursReports([]);
                 setCalendarSubscriptions([]);
+                setLists(INITIAL_LISTS);
                 localStorage.removeItem('financial-analysis-custom-insights');
                 localStorage.removeItem('financial-analysis-visible-insights');
+
+                // 2. Delete Firestore documents so listeners don't re-populate state
+                if (orgId) {
+                  const wipeCol = async (colName: string) => {
+                    const snap = await getDocs(query(collection(db, colName), where('orgId', '==', orgId)));
+                    if (snap.empty) return;
+                    const b = writeBatch(db);
+                    snap.docs.forEach(d => b.delete(d.ref));
+                    await b.commit();
+                  };
+                  try {
+                    await Promise.all([
+                      // v1.3 collections
+                      wipeCol('teachers'),
+                      wipeCol('rooms'),
+                      wipeCol('events'),
+                      wipeCol('ganttBlocks'),
+                      wipeCol('adminInboxItems'),
+                      wipeCol('hoursReports'),
+                      wipeCol('calendarSubscriptions'),
+                      // v2 collections
+                      wipeCol(V2_COLLECTIONS.staffMembers),
+                      wipeCol(V2_COLLECTIONS.teachingAssignments),
+                      wipeCol(V2_COLLECTIONS.orgRoles),
+                      wipeCol(V2_COLLECTIONS.students),
+                      wipeCol(V2_COLLECTIONS.enrollments),
+                      wipeCol(V2_COLLECTIONS.activities),
+                      wipeCol(V2_COLLECTIONS.l1Subcategories),
+                      wipeCol(V2_COLLECTIONS.l2Subcategories),
+                      // system_configs single-doc settings (lists, customCharts)
+                      deleteDoc(doc(db, 'system_configs', `${orgId}_lists`)),
+                      deleteDoc(doc(db, 'system_configs', `${orgId}_customCharts`)),
+                    ]);
+                  } catch (err) {
+                    console.warn('[onWipeData] Firestore wipe error (non-fatal):', err);
+                  }
+                }
             }}
             setTeachers={setTeachers}
             setSavedCharts={setSavedCharts}
@@ -509,6 +607,13 @@ function AppContent() {
             setActivities={setActivities}
             setStudents={setStudents}
             setAdminInboxItems={setAdminInboxItems}
+            lists={lists}
+            setLists={setLists}
+            onNavigateToView={(view) => setCurrentView(view as ViewState)}
+            onActivateScenario={(scenario) => {
+              setActiveScenario(scenario);
+              setScenarioCheckedSteps([]);
+            }}
           />
         );
       case 'ADMIN_INBOX':
@@ -535,10 +640,31 @@ function AppContent() {
             onImportGoogleEvents={handleImportGoogleEvents}
           />
         );
+      case 'PAYSLIPS':
+        return (
+          <PayslipGenerator
+            settings={settings}
+            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+          />
+        );
+      case 'DOCUMENTS':
+        return (
+          <DocumentTemplates
+            settings={settings}
+            teachers={teachers}
+            students={students}
+          />
+        );
       default:
         return <div>{local_t('app.not_found')}</div>;
     }
   };
+
+  // Soft tour banner: shown to non-first admins on first login until dismissed
+  const showSoftTour =
+    !isSuperAdmin &&
+    !onboarding.isFirstAdmin &&
+    !onboarding.onboardingDismissed;
 
   return (
     <Layout
@@ -550,8 +676,39 @@ function AppContent() {
       isMobileMenuOpen={isMobileMenuOpen}
       setIsMobileMenuOpen={setIsMobileMenuOpen}
       inboxOpenCount={adminInboxItems.filter(i => i.type === 'TASK' && i.status === 'OPEN').length}
+      isGated={isHardGated}
     >
-      {renderContent()}
+      <div className="relative w-full h-full flex flex-col overflow-hidden">
+        <DevSimulationBanner />
+        {activeScenario && (
+          <ScenarioBanner
+            scenario={activeScenario}
+            checkedSteps={scenarioCheckedSteps}
+            onToggleStep={stepId => setScenarioCheckedSteps(prev =>
+              prev.includes(stepId) ? prev.filter(id => id !== stepId) : [...prev, stepId]
+            )}
+            onNavigate={view => setCurrentView(view as ViewState)}
+            onExit={() => { setActiveScenario(null); setScenarioCheckedSteps([]); }}
+          />
+        )}
+        {/* Soft tour banner (subsequent admins, first login) */}
+        {showSoftTour && (
+          <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 bg-cadenza-gradient texture-cadenza text-white text-sm shadow-cadenza-soft z-10">
+            <span className="font-semibold">{local_t('onboarding.tour_title')}</span>
+            <span className="opacity-80 hidden sm:inline">{local_t('onboarding.tour_msg')}</span>
+            <button
+              onClick={onboarding.dismissOnboarding}
+              className="ms-auto flex items-center gap-1 text-white/80 hover:text-white text-xs font-semibold transition-colors"
+            >
+              {local_t('onboarding.tour_dismiss')}
+              <X size={14} />
+            </button>
+          </div>
+        )}
+        <div className="flex-1 overflow-hidden">
+          {renderContent()}
+        </div>
+      </div>
     </Layout>
   );
 }
@@ -570,9 +727,11 @@ export default function App() {
   return (
     <TranslationProvider>
       <AuthProvider>
-        <ErrorBoundary>
-          <AppContent />
-        </ErrorBoundary>
+        <DevSimulationProvider>
+          <ErrorBoundary>
+            <AppContent />
+          </ErrorBoundary>
+        </DevSimulationProvider>
       </AuthProvider>
     </TranslationProvider>
   );

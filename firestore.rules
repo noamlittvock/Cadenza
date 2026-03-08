@@ -80,11 +80,12 @@ service cloud.firestore {
       allow create: if isAuthorizedForOrg(getDocOrgId(request.resource.data));
       allow update: if isAuthorizedForOrg(getDocOrgId(resource.data)) && isAuthorizedForOrg(getDocOrgId(request.resource.data));
     }
-    match /events/{id} { 
+    match /events/{id} {
       allow read, write: if isSuperAdmin();
-      allow read, delete: if isAuthorizedForOrg(getDocOrgId(resource.data)); 
-      allow create: if isAuthorizedForOrg(getDocOrgId(request.resource.data));
-      allow update: if isAuthorizedForOrg(getDocOrgId(resource.data)) && isAuthorizedForOrg(getDocOrgId(request.resource.data));
+      allow read: if isAuthorizedForOrg(getDocOrgId(resource.data));
+      allow create: if (isOrgAdmin(getDocOrgId(request.resource.data)) || isAdminOrAboveV2()) && isAuthorizedForOrg(getDocOrgId(request.resource.data));
+      allow update: if (isOrgAdmin(getDocOrgId(resource.data)) || isAdminOrAboveV2()) && isAuthorizedForOrg(getDocOrgId(resource.data));
+      allow delete: if (isOrgAdmin(getDocOrgId(resource.data)) || isAdminOrAboveV2()) && isAuthorizedForOrg(getDocOrgId(resource.data));
     }
     match /rooms/{id} { 
       allow read, write: if isSuperAdmin();
@@ -110,18 +111,191 @@ service cloud.firestore {
       allow create: if isAuthorizedForOrg(getDocOrgId(request.resource.data));
       allow update: if isAuthorizedForOrg(getDocOrgId(resource.data)) && isAuthorizedForOrg(getDocOrgId(request.resource.data));
     }
-    match /customCharts/{id} { 
+    match /customCharts/{id} {
       allow read, write: if isSuperAdmin();
-      allow read, delete: if isAuthorizedForOrg(getDocOrgId(resource.data)); 
+      allow read, delete: if isAuthorizedForOrg(getDocOrgId(resource.data));
       allow create: if isAuthorizedForOrg(getDocOrgId(request.resource.data));
       allow update: if isAuthorizedForOrg(getDocOrgId(resource.data)) && isAuthorizedForOrg(getDocOrgId(request.resource.data));
     }
-    
+    match /adminInboxItems/{id} {
+      allow read, write: if isSuperAdmin();
+      allow read, delete: if isAuthorizedForOrg(getDocOrgId(resource.data));
+      allow create: if isAuthorizedForOrg(getDocOrgId(request.resource.data));
+      allow update: if isAuthorizedForOrg(getDocOrgId(resource.data)) && isAuthorizedForOrg(getDocOrgId(request.resource.data));
+    }
+    match /hoursReports/{id} {
+      allow read, write: if isSuperAdmin();
+      allow read, delete: if isAuthorizedForOrg(getDocOrgId(resource.data));
+      allow create: if isAuthorizedForOrg(getDocOrgId(request.resource.data));
+      allow update: if isAuthorizedForOrg(getDocOrgId(resource.data)) && isAuthorizedForOrg(getDocOrgId(request.resource.data));
+    }
+
     // System Configs (Settings, Lists, etc. stored as composite IDs: orgId_docId)
     match /system_configs/{configId} {
       allow read, write: if isSuperAdmin() || (
         isAuthenticated() && isAuthorizedForOrg(configId.split('_')[0])
       );
+    }
+
+    // ─── v2.0 Role Resolution ────────────────────────────────────────────────
+    // userProfiles/{uid} maps Firebase Auth uid → { orgId, staffMemberId, role }
+    // Kept in sync by Cloud Function trigger on staffMembers writes.
+    // Used by security rules for O(1) role lookup without querying staffMembers.
+
+    function getUserProfile() {
+      return get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data;
+    }
+
+    function getUserRoleV2() {
+      return getUserProfile().role;
+    }
+
+    function isSuperAdminV2() {
+      return isSuperAdmin() || (
+        isAuthenticated() &&
+        exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) &&
+        getUserRoleV2() == 'SUPER_ADMIN'
+      );
+    }
+
+    function isAdminOrAboveV2() {
+      return isSuperAdminV2() || (
+        isAuthenticated() &&
+        exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) &&
+        (getUserRoleV2() == 'ADMIN' || getUserRoleV2() == 'SUPER_ADMIN')
+      );
+    }
+
+    function isAuthenticatedForOrgV2(orgId) {
+      return isSuperAdmin() || (
+        isAuthenticated() &&
+        exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) &&
+        getUserProfile().orgId == orgId
+      );
+    }
+
+    // ─── v2.0 Lookup Collection ──────────────────────────────────────────────
+
+    match /userProfiles/{profileId} {
+      allow read: if isAuthenticated();
+      // Allow super admins and users writing their own profile (for first-use flags, onboarding)
+      allow write: if isSuperAdmin() || (
+        isAuthenticated() && profileId.matches(request.auth.uid + '_.*')
+      );
+    }
+
+    // ─── v2.0 Business Data Collections ──────────────────────────────────────
+
+    // Staff Members (replaces teachers in v2.0)
+    match /staffMembers/{id} {
+      allow read, write: if isSuperAdmin();
+      allow read, write: if isSuperAdminV2();
+      allow read: if isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+      allow create: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(request.resource.data));
+      allow update: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+      allow delete: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+    }
+
+    // L1 Subcategories (Activity Hub — Super Admin only for writes)
+    match /l1Subcategories/{id} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isSuperAdminV2() || isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+      allow create: if isSuperAdminV2() && isAuthenticatedForOrgV2(getDocOrgId(request.resource.data));
+      allow update, delete: if isSuperAdminV2() && isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+    }
+
+    // L2 Subcategories (Activity Hub — Super Admin only for writes)
+    match /l2Subcategories/{id} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isSuperAdminV2() || isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+      allow create: if isSuperAdminV2() && isAuthenticatedForOrgV2(getDocOrgId(request.resource.data));
+      allow update, delete: if isSuperAdminV2() && isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+    }
+
+    // Teaching Assignments (Admin+ for writes)
+    match /teachingAssignments/{id} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isSuperAdminV2() || isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+      allow create: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(request.resource.data));
+      allow update, delete: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+    }
+
+    // Org Roles — billing roles like CEO, IT Manager (Admin+ for writes)
+    match /orgRoles/{id} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isSuperAdminV2() || isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+      allow create: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(request.resource.data));
+      allow update, delete: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+    }
+
+    // Enrollments (Admin+ for writes)
+    match /enrollments/{id} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isSuperAdminV2() || isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+      allow create: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(request.resource.data));
+      allow update, delete: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+    }
+
+    // Event Participants (Admin+ for writes)
+    match /eventParticipants/{id} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isSuperAdminV2() || isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+      allow create: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(request.resource.data));
+      allow update, delete: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+    }
+
+    // Ensemble Roster Members (Admin+ for writes)
+    match /ensembleRosterMembers/{id} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isSuperAdminV2() || isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+      allow create: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(request.resource.data));
+      allow update, delete: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+    }
+
+    // Import Sessions (Admin+ only)
+    match /importSessions/{id} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isSuperAdminV2() || (isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(resource.data)));
+      allow create: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(request.resource.data));
+      allow update, delete: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+    }
+
+    // Onboarding State (one doc per org)
+    match /onboardingState/{orgId} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isSuperAdminV2() || isAuthenticatedForOrgV2(orgId);
+      allow write: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(orgId);
+    }
+
+    // Org Settings (one doc per org)
+    match /orgSettings/{orgId} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isSuperAdminV2() || isAuthenticatedForOrgV2(orgId);
+      allow write: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(orgId);
+    }
+
+    // Activities (Activity Hub — Super Admin only for writes)
+    match /activities/{id} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isSuperAdminV2() || isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+      allow create: if isSuperAdminV2() && isAuthenticatedForOrgV2(getDocOrgId(request.resource.data));
+      allow update, delete: if isSuperAdminV2() && isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+    }
+
+    // Students (Admin+ for writes)
+    match /students/{id} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isSuperAdminV2() || isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+      allow create: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(request.resource.data));
+      allow update, delete: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+    }
+
+    // Calendar Subscriptions (Admin+ for writes)
+    match /calendarSubscriptions/{id} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isSuperAdminV2() || isAuthenticatedForOrgV2(getDocOrgId(resource.data));
+      allow create: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(request.resource.data));
+      allow update, delete: if isAdminOrAboveV2() && isAuthenticatedForOrgV2(getDocOrgId(resource.data));
     }
   }
 }

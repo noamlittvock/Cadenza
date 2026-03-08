@@ -4,7 +4,7 @@ import { ChartConfiguration } from '../types/chartBuilder';
 import { formatHours, formatCurrency } from '../utils/formatters';
 import { TRANSLATIONS } from '../constants';
 import {
-  Download, Filter, Calendar as CalIcon, ChevronDown, ChevronUp, Menu, Clock, CalendarDays,
+  Filter, Calendar as CalIcon, ChevronDown, ChevronUp, Menu, Clock, CalendarDays,
   DollarSign, TrendingUp, X, SlidersHorizontal, Tag, User, Briefcase, ToggleLeft,
   ArrowRight, BarChart3, ArrowUpDown, Mail, Trash2, CheckCircle2
 } from 'lucide-react';
@@ -242,10 +242,10 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeach
         const teacher = teachers.find(t => t.id === e.teacherId);
         if (!teacher) return false;
         if (e.positionId) {
-          const pa = teacher.positionAssignments.find(p => p.id === e.positionId);
+          const pa = (teacher.positionAssignments || []).find(p => p.id === e.positionId);
           return pa ? selectedPositionNames.has(pa.positionName) : false;
         }
-        return teacher.positionAssignments.some(pa => selectedPositionNames.has(pa.positionName));
+        return (teacher.positionAssignments || []).some(pa => selectedPositionNames.has(pa.positionName));
       });
     }
     const { startLimit, endLimit } = dateRange;
@@ -260,7 +260,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeach
 
     const reports: TeacherReport[] = visibleTeachers.map(teacher => {
       const posFinancials: Record<string, PositionFinancials> = {};
-      teacher.positionAssignments.forEach(pa => {
+      (teacher.positionAssignments || []).forEach(pa => {
         if (selectedPositionNames.size > 0 && !selectedPositionNames.has(pa.positionName)) return;
         if (selectedCategories.size > 0 && !selectedCategories.has(pa.category)) return;
         if (selectedRateTypes.size > 0 && !selectedRateTypes.has(pa.rateType)) return;
@@ -349,7 +349,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeach
         let positionSubTotal = p.hourlyCost + p.oneOffCost + p.globalCost;
 
         let positionInclusions = 0;
-        const pa = teacher.positionAssignments.find(x => x.id === p.positionId);
+        const pa = (teacher.positionAssignments || []).find(x => x.id === p.positionId);
 
         if (p.includeSocialBenefits && pa?.socialBenefitsValue) {
           if (pa.socialBenefitsType === 'FLAT') {
@@ -456,41 +456,12 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeach
       if (t.id !== teacherId) return t;
       return {
         ...t,
-        positionAssignments: t.positionAssignments.map(pa => {
+        positionAssignments: (t.positionAssignments || []).map(pa => {
           if (pa.id !== positionId) return pa;
           return { ...pa, [field]: !pa[field] };
         })
       };
     }));
-  };
-
-  // --- Export ---
-  const handleExport = () => {
-    const headers = [t('fin.header_teacher'), t('fin.header_position'), t('fin.header_rate_type'), `${t('fin.header_rate')} (${settings.currency})`, t('fin.header_active_hrs'), t('fin.header_canceled_hrs'), `${t('fin.header_hourly_cost')} (${settings.currency})`, `${t('fin.header_oneoff')} (${settings.currency})`, `${t('fin.header_global_cost')} (${settings.currency})`, `${t('fin.header_total_cost')} (${settings.currency})`];
-    const rows: string[][] = [];
-    reportData.forEach(r => {
-      if (r.positions.length === 0) {
-        rows.push([`"${r.teacherName}"`, '—', '—', '0', formatHours(r.totalActiveHours), formatHours(r.totalCanceledHours), '0', '0', '0', '0']);
-      } else {
-        r.positions.forEach(p => {
-          rows.push([
-            `"${r.teacherName}"`, `"${p.positionName}"`, p.rateType, p.rateValue.toString(),
-            formatHours(p.activeHours), formatHours(p.canceledHours),
-            p.hourlyCost.toFixed(2), p.oneOffCost.toFixed(2), p.globalCost.toFixed(2), (p.hourlyCost + p.oneOffCost + p.globalCost).toFixed(2),
-          ]);
-        });
-      }
-    });
-    rows.push(['', '', '', '', '', '', totals.hourlyCost.toFixed(2), totals.oneOffCost.toFixed(2), totals.globalCost.toFixed(2), totals.grandTotal.toFixed(2)]);
-    const csvContent = "data:text/csv;charset=utf-8,"
-      + headers.join(",") + "\n"
-      + rows.map(e => e.join(",")).join("\n");
-    const link = document.createElement("a");
-    link.setAttribute("href", encodeURI(csvContent));
-    link.setAttribute("download", `payroll_export_${dateFilterType.toLowerCase()}_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   // --- Active filter pills ---
@@ -591,9 +562,6 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeach
               <ChevronDown size={14} className={`ms-1 transition-transform ${isFilterPanelOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            <button onClick={handleExport} className="hidden md:flex bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg items-center shadow-sm text-sm">
-              <Download size={16} className="me-2" /> {t('btn.export')}
-            </button>
             <button onClick={() => { setIsEmailModalOpen(true); setEmailSuccess(false); }} className="hidden md:flex btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg items-center  text-sm">
               <Mail size={16} className="me-2" /> {t('fin.email_report')}
             </button>

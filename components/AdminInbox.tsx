@@ -104,6 +104,7 @@ export const AdminInbox: React.FC<Props> = ({
     });
   };
 
+  const [viewTeacherId, setViewTeacherId] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
 
   return (
@@ -266,9 +267,9 @@ export const AdminInbox: React.FC<Props> = ({
                                       <li key={i} className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-2">
                                         <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
                                         <span className="flex-1">{name}</span>
-                                        {onNavigateToStaff && task.relatedEntityIds?.[i] && (
+                                        {task.relatedEntityIds?.[i] && (
                                           <button
-                                            onClick={() => onNavigateToStaff(task.relatedEntityIds![i])}
+                                            onClick={() => setViewTeacherId(task.relatedEntityIds![i])}
                                             className="flex items-center gap-0.5 text-[10px] font-medium text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex-shrink-0"
                                           >
                                             <Eye size={10} />
@@ -385,6 +386,81 @@ export const AdminInbox: React.FC<Props> = ({
           </div>
         )}
       </div>
+
+      {/* Teacher Detail Modal */}
+      {viewTeacherId && (() => {
+        const teacher = teachers.find(t => t.id === viewTeacherId);
+        if (!teacher) return null;
+        return (
+          <Modal
+            isOpen={true}
+            onClose={() => setViewTeacherId(null)}
+            title={teacher.fullName}
+            maxWidth="max-w-lg"
+            isDirty={false}
+            footerContent={
+              <div className="flex justify-end gap-2 w-full">
+                <button onClick={() => setViewTeacherId(null)}
+                  className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sm">
+                  {t('btn.close') || 'Close'}
+                </button>
+                {onNavigateToStaff && (
+                  <button onClick={() => { const id = viewTeacherId; setViewTeacherId(null); onNavigateToStaff(id); }}
+                    className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium flex items-center gap-1.5">
+                    <ExternalLink size={14} />
+                    {t('inbox.go_to_full_profile')}
+                  </button>
+                )}
+              </div>
+            }
+          >
+            <div className="space-y-4">
+              {/* Identity */}
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold text-lg">
+                  {teacher.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{teacher.fullName}</h3>
+                  {teacher.isArchived && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                      {t('teacher.archived') || 'Archived'}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {/* Contact */}
+              {(teacher.email || teacher.phone) && (
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 space-y-1.5">
+                  <h4 className="text-xs font-semibold uppercase text-slate-400 mb-1">{t('staff.section.contact')}</h4>
+                  {teacher.email && <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"><Mail size={14} className="text-slate-400" /> {teacher.email}</div>}
+                  {teacher.phone && <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"><Phone size={14} className="text-slate-400" /> {teacher.phone}</div>}
+                </div>
+              )}
+              {/* Positions */}
+              {teacher.positionAssignments && teacher.positionAssignments.length > 0 && (
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 space-y-1.5">
+                  <h4 className="text-xs font-semibold uppercase text-slate-400 mb-1">{t('teacher.positions') || 'Positions'}</h4>
+                  {teacher.positionAssignments.map((pa, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-300">
+                      <span>{pa.positionName}</span>
+                      <span className="text-xs text-slate-400">{pa.rateType}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Tags */}
+              {teacher.tags && teacher.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {teacher.tags.map((tag, i) => (
+                    <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">{tag}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Modal>
+        );
+      })()}
 
       {/* Student Detail Modal */}
       {viewStudentId && (() => {

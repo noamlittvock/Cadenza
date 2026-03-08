@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { ListsState, AppSettings } from '../types';
-import { Plus, X, Tag, Briefcase, Bookmark, Download, Upload, FileDown, CheckCircle2, Menu, AlertCircle, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, X, Tag, Briefcase, Bookmark, Menu, AlertCircle, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
 import { Modal } from './Modal';
 interface Props {
@@ -86,10 +86,7 @@ const ListEditor = ({
 
 export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobileMenuOpen, embedded = false }) => {
   const t = (key: string) => (settings && TRANSLATIONS[settings.language]?.[key]) || TRANSLATIONS['en-US'][key] || key;
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [candidates, setCandidates] = useState<{ positions: string[], tags: string[], classifications: string[] }>({ positions: [], tags: [], classifications: [] });
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addItem = (key: keyof ListsState, item: string) => {
     setLists(prev => ({
@@ -105,73 +102,6 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
         [key]: prev[key].filter(i => i !== item)
       }));
     }
-  };
-
-  const handleDownloadTemplate = () => {
-    const headers = "Type (Position/Tag/Classification),Value";
-    const example = "Position,Senior Instructor\nTag,Piano\nClassification,Private Lesson";
-    const blob = new Blob([`${headers}\n${example}`], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'lists_import_template.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const text = evt.target?.result as string;
-      const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-
-      const newPositions = new Set<string>();
-      const newTags = new Set<string>();
-      const newClassifications = new Set<string>();
-
-      // Skip header if present
-      const startIdx = lines[0].toLowerCase().includes('value') ? 1 : 0;
-
-      for (let i = startIdx; i < lines.length; i++) {
-        const parts = lines[i].split(',');
-        if (parts.length < 2) continue;
-        const type = parts[0].trim().toLowerCase();
-        const value = parts[1].trim();
-
-        if (!value) continue;
-
-        if (type.includes('position')) {
-          if (!lists.positions.includes(value)) newPositions.add(value);
-        } else if (type.includes('tag')) {
-          if (!lists.tags.includes(value)) newTags.add(value);
-        } else if (type.includes('class')) {
-          if (!lists.classifications.includes(value)) newClassifications.add(value);
-        }
-      }
-
-      setCandidates({
-        positions: Array.from(newPositions),
-        tags: Array.from(newTags),
-        classifications: Array.from(newClassifications)
-      });
-      setIsImportModalOpen(true);
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  };
-
-  const confirmImport = () => {
-    setLists(prev => ({
-      ...prev,
-      positions: [...prev.positions, ...candidates.positions],
-      tags: [...prev.tags, ...candidates.tags],
-      classifications: [...prev.classifications, ...candidates.classifications]
-    }));
-    setIsImportModalOpen(false);
-    setCandidates({ positions: [], tags: [], classifications: [] });
   };
 
   return (
@@ -194,25 +124,7 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleDownloadTemplate} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700">
-              <FileDown size={16} className="me-2" /> {t('lists.template')}
-            </button>
-            <button onClick={() => fileInputRef.current?.click()} className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg flex items-center  text-sm">
-              <Upload size={16} className="me-2" /> {t('lists.import_csv')}
-            </button>
-            <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
           </div>
-        </div>
-      )}
-      {embedded && (
-        <div className="flex justify-end gap-2 mb-6">
-          <button onClick={handleDownloadTemplate} className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700">
-            <FileDown size={16} className="me-2" /> {t('lists.template')}
-          </button>
-          <button onClick={() => fileInputRef.current?.click()} className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg flex items-center  text-sm">
-            <Upload size={16} className="me-2" /> {t('lists.import_csv')}
-          </button>
-          <input type="file" ref={fileInputRef} hidden accept=".csv" onChange={handleFileUpload} />
         </div>
       )}
 
@@ -272,66 +184,6 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
         />
       </div>
 
-      <Modal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        title={t('lists.import_preview')}
-        isDirty={(candidates.positions.length + candidates.tags.length + candidates.classifications.length) > 0}
-        onSave={confirmImport}
-        t={t}
-        maxWidth="max-w-md"
-        footerContent={
-          <div className="flex justify-end space-x-3 rtl:space-x-reverse w-full">
-            <button
-              type="button"
-              onClick={() => setIsImportModalOpen(false)}
-              className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
-            >
-              {t('btn.cancel')}
-            </button>
-            <button
-              type="button"
-              onClick={confirmImport}
-              disabled={(candidates.positions.length + candidates.tags.length + candidates.classifications.length) === 0}
-              className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg disabled:opacity-50"
-            >
-              {t('lists.import_all')}
-            </button>
-          </div>
-        }
-      >
-        <p className="text-sm text-slate-500 mb-4">{t('lists.found_items').replace('{count}', String(candidates.positions.length + candidates.tags.length + candidates.classifications.length))}</p>
-
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto mb-6">
-          {candidates.positions.length > 0 && (
-            <div>
-              <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">{t('lists.new_positions')}</h4>
-              <div className="flex flex-wrap gap-2">
-                {candidates.positions.map(i => <span key={i} className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-xs border border-slate-200 dark:border-slate-700">{i}</span>)}
-              </div>
-            </div>
-          )}
-          {candidates.tags.length > 0 && (
-            <div>
-              <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">{t('lists.new_tags')}</h4>
-              <div className="flex flex-wrap gap-2">
-                {candidates.tags.map(i => <span key={i} className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded text-xs border border-blue-100 dark:border-blue-800">{i}</span>)}
-              </div>
-            </div>
-          )}
-          {candidates.classifications.length > 0 && (
-            <div>
-              <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">{t('lists.new_classifications')}</h4>
-              <div className="flex flex-wrap gap-2">
-                {candidates.classifications.map(i => <span key={i} className="bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-2 py-1 rounded text-xs border border-purple-100 dark:border-purple-800">{i}</span>)}
-              </div>
-            </div>
-          )}
-          {(candidates.positions.length + candidates.tags.length + candidates.classifications.length) === 0 && (
-            <p className="text-sm text-amber-500">{t('lists.csv_no_unique')}</p>
-          )}
-        </div>
-      </Modal>
     </div>
   );
 };

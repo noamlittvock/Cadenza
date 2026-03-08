@@ -7,7 +7,9 @@
     "dev": "vite --host",
     "prebuild": "node scripts/extract-strings.js",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@hebcal/core": "^6.0.8",

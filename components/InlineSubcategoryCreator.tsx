@@ -21,7 +21,7 @@ export const InlineSubcategoryCreator: React.FC<InlineSubcategoryCreatorProps> =
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
 
-  const activeSubcategories = activity.subcategories.filter(s => !s.isArchived);
+  const activeSubcategories = (activity.subcategories || []).filter(s => !s.isArchived);
 
   const handleSelect = (value: string) => {
     if (value === '__ADD_NEW__') {
@@ -36,7 +36,7 @@ export const InlineSubcategoryCreator: React.FC<InlineSubcategoryCreatorProps> =
     const name = newName.trim();
     if (!name) return;
 
-    const exists = activity.subcategories.some(
+    const exists = (activity.subcategories || []).some(
       s => s.name.toLowerCase() === name.toLowerCase()
     );
     if (exists) {

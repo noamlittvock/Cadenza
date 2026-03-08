@@ -4,6 +4,16 @@ import * as admin from "firebase-admin";
 admin.initializeApp();
 const db = admin.firestore();
 
+// ─── v2.0 Cloud Functions ────────────────────────────────────────────────────
+
+// Trigger: sync userProfiles/{uid} when staffMembers are written
+export { onStaffMemberWrite } from "./triggers/syncUserProfile";
+
+// Callable stubs (implementation in later phases)
+export { resolveRate } from "./callable/resolveRate";
+export { computeDuration } from "./callable/computeDuration";
+export { generatePayslip } from "./callable/generatePayslip";
+
 // --- Types (mirror of client-side types relevant to iCal generation) ---
 
 interface SubscriptionFilters {

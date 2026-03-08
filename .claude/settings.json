@@ -23,17 +23,18 @@
       "Bash(gh:*)",
       "Bash(npx:*)",
       "Edit",
-      "Write"
-    ],
-    "ask": [
-      "Bash(rm:*)",
-      "Bash(chmod:*)"
+      "Write",
+      "Bash(claude-monitor --help)"
     ],
     "deny": [
       "Bash(rm -rf:*)",
       "Bash(sudo:*)",
       "Bash(dd:*)",
       "Bash(mkfs:*)"
+    ],
+    "ask": [
+      "Bash(rm:*)",
+      "Bash(chmod:*)"
     ]
   }
 }

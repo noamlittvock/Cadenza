@@ -6,6 +6,77 @@ import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, ListsState } fro
 import { ChartConfiguration } from '../types/chartBuilder';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS } from '../constants';
 
+// ─── Shared listener registry ────────────────────────────────────────────────
+// One Firestore onSnapshot per (orgId, collectionName) pair, shared across all
+// hook instances. This prevents duplicate listeners that can trigger Firestore
+// internal assertion failures (INTERNAL ASSERTION FAILED: Unexpected state).
+
+type NotifyFn = (items: unknown[], loaded: boolean) => void;
+
+interface SharedEntry {
+    unsubscribe: () => void;
+    observers: Set<NotifyFn>;
+    latestItems: unknown[];
+    loaded: boolean;
+}
+
+const sharedListeners = new Map<string, SharedEntry>();
+
+function subscribeShared(orgId: string, collectionName: string, notify: NotifyFn): () => void {
+    const key = `${orgId}:${collectionName}`;
+
+    if (!sharedListeners.has(key)) {
+        const observers = new Set<NotifyFn>();
+        const entry: SharedEntry = { unsubscribe: () => {}, observers, latestItems: [], loaded: false };
+        sharedListeners.set(key, entry);
+
+        const q = query(collection(db, collectionName), where('orgId', '==', orgId));
+        const unsub = onSnapshot(q, (snapshot) => {
+            const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            const e = sharedListeners.get(key);
+            if (!e) return;
+            e.latestItems = items;
+            e.loaded = true;
+            e.observers.forEach(cb => cb(items, true));
+        }, (error) => {
+            console.error(`Error syncing ${collectionName}:`, error);
+            const e = sharedListeners.get(key);
+            if (!e) return;
+            e.loaded = true;
+            e.observers.forEach(cb => cb(e.latestItems, true));
+        });
+        entry.unsubscribe = unsub;
+    }
+
+    const entry = sharedListeners.get(key)!;
+    entry.observers.add(notify);
+
+    // Deliver the latest snapshot immediately if already loaded
+    if (entry.loaded) {
+        notify(entry.latestItems, true);
+    }
+
+    return () => {
+        const e = sharedListeners.get(key);
+        if (!e) return;
+        e.observers.delete(notify);
+        // Defer the actual Firestore unsubscribe by one macrotask tick.
+        // React 18 StrictMode unmounts and immediately remounts every component in
+        // development. Without the delay, we'd call unsubscribe() while Firestore is
+        // still delivering the initial snapshot for that target, causing
+        // "INTERNAL ASSERTION FAILED: Unexpected state (ve: -1)".
+        // The setTimeout lets the remount re-register its observer before we check
+        // whether the listener is still needed.
+        setTimeout(() => {
+            const e2 = sharedListeners.get(key);
+            if (e2 && e2.observers.size === 0) {
+                e2.unsubscribe();
+                sharedListeners.delete(key);
+            }
+        }, 0);
+    };
+}
+
 // A generic hook for syncing a collection to React state
 export function useFirestoreSync<T extends { id: string }>(
     collectionName: string,
@@ -26,30 +97,12 @@ export function useFirestoreSync<T extends { id: string }>(
             return;
         }
 
-        const q = query(
-            collection(db, collectionName),
-            where("orgId", "==", orgId)
-        );
+        const notify: NotifyFn = (items, loaded) => {
+            setData(items as T[]);
+            if (loaded) setLoading(false);
+        };
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const items: T[] = [];
-            snapshot.forEach((doc) => {
-                // Strip out orgId when passing to UI if needed, but keeping it is fine
-                items.push({ id: doc.id, ...doc.data() } as T);
-            });
-
-            // If the collection is completely empty, it might be the first time this org
-            // is using the app. We could optionally seed it here, but for now we just 
-            // return the (empty) items or initialData if items is empty and we want defaults.
-            // For a true SaaS, empty is usually correct until they add data.
-            setData(items.length > 0 ? items : []);
-            setLoading(false);
-        }, (error) => {
-            console.error(`Error syncing ${collectionName}:`, error);
-            setLoading(false);
-        });
-
-        return () => unsubscribe();
+        return subscribeShared(orgId, collectionName, notify);
     }, [orgId, collectionName]);
 
     // Wrapper for state updates to also write to Firestore

@@ -253,6 +253,15 @@
       border-color: rgba(148, 163, 184, 0.2) !important;
     }
 
+    /* Calendar grid cells — GPU-accelerate border/bg transitions to prevent choppy dark mode toggle */
+    .cursor-cell,
+    [class*="border-slate-100"],
+    [class*="border-slate-200"],
+    [class*="border-slate-700"],
+    [class*="border-slate-800"] {
+      will-change: background-color, border-color;
+    }
+
     /* Status Toggle Switch */
     .status-toggle-track {
       position: relative;

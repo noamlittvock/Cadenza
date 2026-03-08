@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CalendarEvent, Teacher, Room, AppSettings, ListsState, GanttBlock, Activity } from '../types';
 import { TRANSLATIONS, generateId, COLORS } from '../constants';
-import { Trash2, Filter, AlertTriangle, Check, Calendar, User, Tag, BoxSelect, MousePointer2, ListFilter, Hand, XCircle, FileDown, Upload, FileJson } from 'lucide-react';
-import Papa from 'papaparse';
+import { Trash2, Filter, AlertTriangle, Check, Calendar, User, Tag, BoxSelect, MousePointer2, ListFilter, Hand, XCircle } from 'lucide-react';
 import { DatePicker } from './DatePicker';
 
 interface Props {
@@ -25,11 +24,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
     const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
 
     // Selection Method State
-    const [selectionMethod, setSelectionMethod] = useState<'FILTER' | 'MANUAL' | 'IMPORT_GANTT'>('FILTER');
-
-    // Gantt Import State
-    const [ganttPreview, setGanttPreview] = useState<Omit<GanttBlock, 'id'>[]>([]);
-    const [isGanttImporting, setIsGanttImporting] = useState(false);
+    const [selectionMethod, setSelectionMethod] = useState<'FILTER' | 'MANUAL'>('FILTER');
 
     // Filter Logic State
     const [deleteStartDate, setDeleteStartDate] = useState('');
@@ -129,103 +124,6 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
         }
     };
 
-    const downloadGanttTemplate = () => {
-        const headers = ['Title', 'StartDate (YYYY-MM-DD)', 'EndDate (YYYY-MM-DD)', 'Is Blackout (Yes/No)'];
-        const csvContent = "data:text/csv;charset=utf-8," + headers.join(',') + "\n" + "Semester A,2024-09-01,2025-01-31,No\nWinter Break,2024-12-25,2025-01-01,Yes";
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "gantt_schedule_template.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-
-    const handleGanttFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        setIsGanttImporting(true);
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: (results: any) => {
-                const newBlocks: Omit<GanttBlock, 'id'>[] = [];
-                results.data.forEach((row: any) => {
-                    const title = row['Title'] || row['title'];
-                    const startRaw = row['StartDate (YYYY-MM-DD)'] || row['StartDate'] || row['start'] || row['Start Date'];
-                    const endRaw = row['EndDate (YYYY-MM-DD)'] || row['EndDate'] || row['end'] || row['End Date'];
-                    const isBlackoutRaw = row['Is Blackout (Yes/No)'] || row['IsBlackout'] || row['blackout'];
-
-                    const parseDate = (d: any) => {
-                        if (!d) return null;
-                        const s = String(d).trim();
-                        // Try YYYY-MM-DD
-                        if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.split('T')[0];
-                        // Try DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
-                        const parts = s.split(/[\/\-\.]/);
-                        if (parts.length === 3) {
-                            // Assume DD/MM/YYYY for non-ISO
-                            const day = parseInt(parts[0], 10);
-                            const month = parseInt(parts[1], 10);
-                            const year = parseInt(parts[2], 10);
-                            if (year < 100) { // Handle 2-digit year logic if needed, but let's assume 4
-                                // 20xx ?
-                            }
-                            if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                                return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                            }
-                        }
-                        // Fallback to JS Date
-                        const date = new Date(s);
-                        if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
-                        return null;
-                    };
-
-                    const startData = parseDate(startRaw);
-                    const endData = parseDate(endRaw);
-
-                    if (title && startData && endData) {
-                        const isBlackout = isBlackoutRaw?.toString().toLowerCase().startsWith('y') || isBlackoutRaw === 'true' || isBlackoutRaw === true;
-
-                        // Auto-assign color
-                        const colorKeys = Object.keys(COLORS) as (keyof typeof COLORS)[];
-                        const randomColorKey = colorKeys[Math.floor(Math.random() * colorKeys.length)];
-                        const color = isBlackout ? '#fee2e2' : COLORS[randomColorKey];
-
-                        newBlocks.push({
-                            title: String(title),
-                            startDate: startData,
-                            endDate: endData,
-                            isBlackout: isBlackout,
-                            color: isBlackout ? '#fee2e2' : String(color)
-                        });
-                    }
-                });
-
-                if (newBlocks.length === 0 && results.data.length > 0) {
-                    alert(t('power.alert_no_valid'));
-                }
-
-                setGanttPreview(newBlocks);
-                setIsGanttImporting(false);
-            },
-            error: (error: any) => {
-                console.error("CSV Parse Error", error);
-                alert(t('power.alert_parse_fail'));
-                setIsGanttImporting(false);
-            }
-        });
-    };
-
-    const confirmGanttImport = () => {
-        if (!setGanttBlocks || ganttPreview.length === 0) return;
-        const blocksToAdd: GanttBlock[] = ganttPreview.map(b => ({ ...b, id: generateId() }));
-        setGanttBlocks(prev => [...prev, ...blocksToAdd]);
-        setGanttPreview([]);
-        alert(t('power.alert_imported').replace('${n}', String(blocksToAdd.length)));
-    };
-
 
     return (
         <div className="p-4 space-y-6">
@@ -256,13 +154,6 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                 >
                     <Hand size={14} className="me-1.5" />
                     {t('power.tab_manual')}
-                </button>
-                <button
-                    onClick={() => setSelectionMethod('IMPORT_GANTT')}
-                    className={`flex-1 py-1.5 text-xs font-bold rounded-md flex items-center justify-center transition-all ${selectionMethod === 'IMPORT_GANTT' ? 'bg-white dark:bg-slate-700 shadow text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    <FileJson size={14} className="me-1.5" />
-                    {t('power.tab_import')}
                 </button>
             </div>
 
@@ -395,57 +286,6 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
 
                 ) : null}
 
-                {selectionMethod === 'IMPORT_GANTT' && (
-                    <div className="space-y-4 animate-in fade-in duration-300">
-                        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                            <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">{t('power.import_csv_title')}</h4>
-                            <p className="text-xs text-slate-500 mb-4">{t('power.import_csv_desc')}</p>
-
-                            <div className="flex flex-col gap-3">
-                                <button onClick={downloadGanttTemplate} className="flex items-center text-xs text-blue-600 hover:underline">
-                                    <FileDown size={14} className="me-1" /> {t('power.download_template')}
-                                </button>
-
-                                <label className="flex items-center justify-center w-full h-24 px-4 transition bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 border-dashed rounded-lg appearance-none cursor-pointer hover:border-blue-500 focus:outline-none">
-                                    <div className="flex flex-col items-center space-y-2">
-                                        <Upload className="w-6 h-6 text-slate-400" />
-                                        <span className="font-medium text-slate-500 dark:text-slate-400 text-xs">{isGanttImporting ? t('power.processing') : t('power.drop_csv')}</span>
-                                    </div>
-                                    <input type="file" accept=".csv" className="hidden" onChange={handleGanttFileUpload} disabled={isGanttImporting} />
-                                </label>
-                            </div>
-                        </div>
-
-                        {ganttPreview.length > 0 && (
-                            <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                                <div className="p-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                                    <h5 className="font-bold text-xs text-slate-700 dark:text-slate-300">{t('power.preview')} ({ganttPreview.length} {t('power.items')})</h5>
-                                    <button onClick={() => setGanttPreview([])} className="text-red-500 hover:text-red-600 text-xs"><Trash2 size={14} /></button>
-                                </div>
-                                <div className="max-h-60 overflow-y-auto p-2 space-y-2">
-                                    {ganttPreview.map((block, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-2 rounded bg-slate-50 dark:bg-slate-800/50 text-xs border border-slate-100 dark:border-slate-700">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: block.color }}></div>
-                                                <span className="font-medium">{block.title}</span>
-                                                {block.isBlackout && <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-bold">{t('power.blackout_label')}</span>}
-                                            </div>
-                                            <span className="text-slate-500">{block.startDate} &rarr; {block.endDate}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="p-3 border-t border-slate-200 dark:border-slate-700">
-                                    <button
-                                        onClick={confirmGanttImport}
-                                        className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center"
-                                    >
-                                        <Check size={14} className="me-2" /> {t('power.confirm_import')}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
 
                 {/* Footer Actions (Only for Filter/Manual) */}
                 {selectionMethod !== 'IMPORT_GANTT' && (

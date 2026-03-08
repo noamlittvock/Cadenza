@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ViewState } from '../types';
-import { Calendar, Users, Home, BarChart3, AlertOctagon, Music, Sun, Moon, ChevronLeft, ChevronRight, Settings, List, Zap, Plus, Menu, Smartphone, Sliders, LineChart, GraduationCap, Inbox } from 'lucide-react';
+import { Calendar, Users, Home, BarChart3, AlertOctagon, Music, Sun, Moon, ChevronLeft, ChevronRight, Settings, List, Zap, Plus, Menu, Smartphone, Sliders, LineChart, GraduationCap, Inbox, FileText, FolderOpen, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
 import { AppSettings } from '../types';
@@ -15,6 +15,8 @@ interface LayoutProps {
   isMobileMenuOpen: boolean;
   setIsMobileMenuOpen: (isOpen: boolean) => void;
   inboxOpenCount?: number;
+  /** When true, shows lock badges on gated nav items (first admin, gate not cleared) */
+  isGated?: boolean;
 }
 
 const NavItem = ({
@@ -23,7 +25,8 @@ const NavItem = ({
   icon: Icon,
   label,
   collapsed,
-  badge
+  badge,
+  locked,
 }: {
   active: boolean;
   onClick: () => void;
@@ -31,6 +34,7 @@ const NavItem = ({
   label: string;
   collapsed: boolean;
   badge?: number;
+  locked?: boolean;
 }) => (
   <button
     onClick={onClick}
@@ -55,12 +59,15 @@ const NavItem = ({
         {badge}
       </span>
     )}
+    {locked && (
+      <Lock size={11} className={`text-slate-500 ${collapsed ? 'absolute -top-0.5 -end-0.5' : 'ms-auto'}`} />
+    )}
   </button>
 );
 
-export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, darkMode, toggleDarkMode, settings, isMobileMenuOpen, setIsMobileMenuOpen, inboxOpenCount }) => {
+export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, darkMode, toggleDarkMode, settings, isMobileMenuOpen, setIsMobileMenuOpen, inboxOpenCount, isGated = false }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 1024 : false);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
   const { isAdmin, isSuperAdmin, currentUser, orgId, logout, availableOrgs } = useAuth();
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
   const isRtl = settings.language === 'he-IL';
@@ -70,13 +77,13 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth < 1024;
+      const mobile = window.innerWidth < 768;
+      const narrow = !mobile && window.innerWidth < 1024;
       setIsMobile(mobile);
       if (mobile) {
         setIsCollapsed(false); // Mobile sidebar is always "full width" when open
-      } else {
-        // Desktop defaults
-        if (!isCollapsed) setIsCollapsed(false);
+      } else if (narrow) {
+        setIsCollapsed(true); // Tablet: auto-collapse to 80px icon strip
       }
     };
 
@@ -90,7 +97,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
   // Redirect Viewers from Admin Pages
   useEffect(() => {
     if (currentUser?.role === 'VIEWER') {
-      const adminViews: ViewState[] = ['GANTT', 'POWER_TOOLS', 'MANAGE', 'SETTINGS', 'SUPER_ADMIN', 'STAFF_MEMBERS', 'STUDENTS', 'ADMIN_INBOX'];
+      const adminViews: ViewState[] = ['GANTT', 'POWER_TOOLS', 'MANAGE', 'SETTINGS', 'SUPER_ADMIN', 'STAFF_MEMBERS', 'STUDENTS', 'ADMIN_INBOX', 'PAYSLIPS'];
       if (adminViews.includes(currentView)) {
         setView('CALENDAR');
       }
@@ -114,7 +121,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-[105] lg:hidden"
+          className="fixed inset-0 bg-black/50 z-[105] md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
@@ -123,7 +130,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       <div
         className={`
           sidebar-transition
-          fixed inset-y-0 start-0 z-[110] lg:relative lg:z-50
+          fixed inset-y-0 start-0 z-[110] md:relative md:z-50
           ${isMobile ? 'shadow-2xl' : ''}
           ${isMobile ? (isMobileMenuOpen ? 'translate-x-0' : (isRtl ? 'translate-x-full' : '-translate-x-full')) : 'translate-x-0'}
           bg-slate-900/95 backdrop-blur-2xl dark:bg-slate-950/95 text-white flex flex-col shadow-cadenza-deep 
@@ -183,10 +190,29 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             icon={Calendar}
             label={t('nav.calendar')}
             collapsed={isCollapsed}
+            locked={isGated}
           />
 
 
 
+
+          <NavItem
+            active={currentView === 'PAYSLIPS'}
+            onClick={() => { setView('PAYSLIPS'); setIsMobileMenuOpen(false); }}
+            icon={FileText}
+            label={t('payslip.title')}
+            collapsed={isCollapsed}
+            locked={isGated}
+          />
+
+          <NavItem
+            active={currentView === 'DOCUMENTS'}
+            onClick={() => { setView('DOCUMENTS'); setIsMobileMenuOpen(false); }}
+            icon={FolderOpen}
+            label={t('nav.documents')}
+            collapsed={isCollapsed}
+            locked={isGated}
+          />
 
           {isAdmin && (
             <>
@@ -220,6 +246,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                   icon={GraduationCap}
                   label={t('nav.students')}
                   collapsed={isCollapsed}
+                  locked={isGated}
                 />
               )}
 
@@ -261,7 +288,6 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 label={t('nav.financial')}
                 collapsed={isCollapsed}
               />
-
               <NavItem
                 active={currentView === 'SETTINGS'}
                 onClick={() => { setView('SETTINGS'); setIsMobileMenuOpen(false); }}

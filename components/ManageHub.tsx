@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Room, ListsState, AppSettings, Activity, CalendarSubscription, Teacher } from '../types';
+import { Room, ListsState, AppSettings, Activity, CalendarSubscription, Teacher, CalendarEvent, Student } from '../types';
 import { RoomManager } from './RoomManager';
 import { ManageLists } from './ManageLists';
 import { ActivityManager } from './ActivityManager';
@@ -20,6 +20,8 @@ interface Props {
     subscriptions: CalendarSubscription[];
     setSubscriptions: React.Dispatch<React.SetStateAction<CalendarSubscription[]>>;
     teachers: Teacher[];
+    events: CalendarEvent[];
+    students: Student[];
     onMobileMenuOpen: () => void;
     initialTab?: ManageTab;
     onTabChange?: (tab: ManageTab) => void;
@@ -36,6 +38,8 @@ export const ManageHub: React.FC<Props> = ({
     subscriptions,
     setSubscriptions,
     teachers,
+    events,
+    students,
     onMobileMenuOpen,
     initialTab = 'activities',
     onTabChange
@@ -120,6 +124,8 @@ export const ManageHub: React.FC<Props> = ({
                         activities={activities}
                         setActivities={setActivities}
                         settings={settings}
+                        events={events}
+                        students={students}
                         onMobileMenuOpen={onMobileMenuOpen}
                         embedded={true}
                     />

@@ -79,7 +79,7 @@ export interface Activity {
   orgId: string;
   name: string;
   type: ActivityType;
-  subcategories: Subcategory[];
+  subcategories?: Subcategory[];
   isArchived: boolean;
   createdAt: string;
   updatedAt: string;
@@ -419,7 +419,7 @@ export interface AdminInboxItem {
   markedDoneBy?: string;
 }
 
-export type ViewState = 'CALENDAR' | 'GANTT' | 'MANAGE' | 'SETTINGS' | 'FINANCIAL' | 'POWER_TOOLS' | 'SUPER_ADMIN' | 'STAFF_MEMBERS' | 'STUDENTS' | 'ADMIN_INBOX';
+export type ViewState = 'CALENDAR' | 'GANTT' | 'MANAGE' | 'SETTINGS' | 'FINANCIAL' | 'POWER_TOOLS' | 'SUPER_ADMIN' | 'STAFF_MEMBERS' | 'STUDENTS' | 'ADMIN_INBOX' | 'PAYSLIPS' | 'DOCUMENTS';
 
 // Financial Report Data Types
 export interface TeacherFinancialSummary {
@@ -432,3 +432,49 @@ export interface TeacherFinancialSummary {
   hourlyTotal: number;
   globalMonthlyTotal: number;
 }
+
+// ─── v2.0 Type Re-exports ────────────────────────────────────────────────────
+// Canonical v2.0 types from the Cadenza v2.0 Final spec (Section 05).
+// New code should import from here or directly from './types/v2'.
+
+export type {
+  // Enums
+  ActivityTemplate,
+  ActivityTypeV2,
+  EventStatus,
+  EnrollmentStatus,
+  ImportSessionStatus,
+  ImportRowStatus,
+  RateTypeV2,
+  ParticipantType,
+  AssignmentType,
+  StaffRole,
+  EventNameMode,
+  RevenueItemType,
+  DuplicateAction,
+  ImportEntityType,
+  // Sub-structures
+  ModulesConfig,
+  FirstUseFlags,
+  RateSnapshotV2,
+  RevenueItem,
+  ImportRowResult,
+  // Entities
+  ActivityV2,
+  L1Subcategory,
+  L2Subcategory,
+  StaffMemberV2,
+  TeachingAssignmentV2,
+  OrgRoleV2,
+  StudentV2,
+  EnrollmentV2,
+  EventV2,
+  EventParticipant,
+  EnsembleRosterMember,
+  ImportSession,
+  OnboardingState,
+  OrgSettingsV2,
+  UserProfile,
+} from './types/v2';
+
+export { V2_COLLECTIONS } from './types/v2';

@@ -1,16 +1,25 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { Timestamp } from 'firebase/firestore';
 import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, ListsState, RecurrenceRule, DayOfWeek, Activity } from '../types';
 import { generateId, INITIAL_LISTS, INITIAL_RATE_CARDS } from '../constants';
 import { CATEGORY_SCHEMAS } from '../utils/schemaRegistry';
 import { lookupRate } from '../utils/rateLookup';
-import { ChevronLeft, ChevronRight, AlertCircle, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronUp, ChevronDown, Repeat, Ban, RotateCcw, HelpCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronUp, ChevronDown, Repeat, Ban, RotateCcw, HelpCircle, Search } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { syncEventToGoogle, removeEventFromGoogle, updateEventInGoogle } from '../utils/googleCalendarSync';
 import { DatePicker } from './DatePicker';
 import { Modal } from './Modal';
+import { EventFormV2, EventFormState } from './EventFormV2';
 
 import { TRANSLATIONS } from '../constants';
 import { detectRoomConflicts, getConflictingEventIds } from '../utils/roomConflicts';
+import { ImportExportDropdown } from './ImportExportDropdown';
+import { useFirestoreSync } from '../utils/useFirestoreSync';
+import {
+  ActivityV2, L1Subcategory, L2Subcategory, StaffMemberV2,
+  TeachingAssignmentV2, OrgRoleV2, StudentV2, EnrollmentV2,
+  EnsembleRosterMember, EventV2, EventParticipant, V2_COLLECTIONS,
+} from '../types/v2';
 interface Props {
   events: CalendarEvent[];
   setEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>;
@@ -101,13 +110,81 @@ export const CalendarView: React.FC<Props> = ({
 }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
   const isRtl = settings?.language === 'he-IL';
-  const { googleAccessToken, currentUser } = useAuth();
+  const { googleAccessToken, currentUser, isAdmin, isSuperAdmin, orgId } = useAuth();
 
   // Google Calendar sync is locked to the tenant admin who connected it
   const isCalendarOwner = currentUser?.email?.toLowerCase() === settings.googleCalendarConnectedBy?.toLowerCase();
 
   // Safe Fallback for lists
   const activeLists = lists || INITIAL_LISTS;
+
+  // ─── v2.0 Firestore hooks (Phase 5) ─────────────────────────────────────
+  const [activitiesV2] = useFirestoreSync<ActivityV2>(V2_COLLECTIONS.activities, []);
+  const [l1Subs] = useFirestoreSync<L1Subcategory>(V2_COLLECTIONS.l1Subcategories, []);
+  const [l2Subs] = useFirestoreSync<L2Subcategory>(V2_COLLECTIONS.l2Subcategories, []);
+  const [staffMembersV2] = useFirestoreSync<StaffMemberV2>(V2_COLLECTIONS.staffMembers, []);
+  const [teachingAssignmentsV2] = useFirestoreSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
+  const [orgRolesV2] = useFirestoreSync<OrgRoleV2>(V2_COLLECTIONS.orgRoles, []);
+  const [studentsV2] = useFirestoreSync<StudentV2>(V2_COLLECTIONS.students, []);
+  const [enrollmentsV2] = useFirestoreSync<EnrollmentV2>(V2_COLLECTIONS.enrollments, []);
+  const [ensembleRosterV2] = useFirestoreSync<EnsembleRosterMember>(V2_COLLECTIONS.ensembleRosterMembers, []);
+  const [eventsV2, setEventsV2] = useFirestoreSync<EventV2>(V2_COLLECTIONS.events, []);
+  const [eventParticipantsV2, setEventParticipantsV2] = useFirestoreSync<EventParticipant>(V2_COLLECTIONS.eventParticipants, []);
+
+  // ─── CSV Import/Export data ──────────────────────────────────────────────
+  const canWriteCalendar = isSuperAdmin || isAdmin;
+
+  const eventExportData = useMemo(() => eventsV2.map(e => ({
+    activityName: activitiesV2.find(a => a.id === e.activityId)?.name || '',
+    l2Name: l2Subs.find(l => l.id === e.l2Id)?.name || '',
+    date: e.date || '',
+    startTime: e.startTime || '',
+    endTime: e.endTime || '',
+    location: e.location || '',
+  })), [eventsV2, activitiesV2, l2Subs]);
+
+  const eventDupKeys = useMemo(() => new Set(eventsV2.map(e => {
+    const aName = activitiesV2.find(a => a.id === e.activityId)?.name || '';
+    const lName = l2Subs.find(l => l.id === e.l2Id)?.name || '';
+    return `${aName}|${lName}|${e.date}|${e.startTime}`.toLowerCase();
+  })), [eventsV2, activitiesV2, l2Subs]);
+
+  const csvActivityByName = useMemo(
+    () => Object.fromEntries(activitiesV2.map(a => [a.name.toLowerCase(), a.id])),
+    [activitiesV2],
+  );
+  const csvL2ByName = useMemo(
+    () => Object.fromEntries(l2Subs.map(l => [l.name.toLowerCase(), l.id])),
+    [l2Subs],
+  );
+
+  const handleEventImportComplete = useCallback((rows: Record<string, string>[]) => {
+    const now = Timestamp.now();
+    const newEvents: EventV2[] = rows.map(row => {
+      const actId = csvActivityByName[row['activityName']?.trim().toLowerCase() || ''] || '';
+      const l2Id = csvL2ByName[row['l2Name']?.trim().toLowerCase() || ''] || null;
+      const start = row['startTime'] || '09:00';
+      const end = row['endTime'] || '10:00';
+      const [sh, sm] = start.split(':').map(Number);
+      const [eh, em] = end.split(':').map(Number);
+      const durationMinutes = (eh * 60 + em) - (sh * 60 + sm);
+      return {
+        id: generateId(), orgId: orgId || '',
+        name: row['activityName'] || '',
+        activityId: actId,
+        l1Id: null, l2Id,
+        location: row['location'] || '',
+        date: row['date'] || '',
+        startTime: start, endTime: end,
+        durationMinutes: Math.max(0, durationMinutes),
+        isRecurring: false, recurringGroupId: null,
+        status: 'SCHEDULED' as const,
+        revenueItems: null, notes: null,
+        createdAt: now, updatedAt: now,
+      };
+    });
+    setEventsV2(prev => [...prev, ...newEvents]);
+  }, [orgId, setEventsV2, csvActivityByName, csvL2ByName]);
 
   // Filters
   const [filterTeacher, setFilterTeacher] = useState<string>('ALL');
@@ -127,6 +204,7 @@ export const CalendarView: React.FC<Props> = ({
 
   // Filter UI State
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
+  const [eventSearchQuery, setEventSearchQuery] = useState('');
   const [showCanceled, setShowCanceled] = useState(true);
   const [showBlackouts, setShowBlackouts] = useState(true);
   const [showOnlyOverlapping, setShowOnlyOverlapping] = useState(false);
@@ -139,6 +217,9 @@ export const CalendarView: React.FC<Props> = ({
 
   // Detail Popover State
   const [detailItem, setDetailItem] = useState<DetailItem>(null);
+
+  // Right-click Context Menu State
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; event: CalendarEvent } | null>(null);
 
   // Recurrence Dialog State
   const [recurrenceDialog, setRecurrenceDialog] = useState<{
@@ -430,6 +511,14 @@ export const CalendarView: React.FC<Props> = ({
         if (!teacher.tags.includes(filterTag)) return false;
       }
 
+      if (eventSearchQuery.trim()) {
+        const q = eventSearchQuery.toLowerCase();
+        const nameMatch = evt.name?.toLowerCase().includes(q);
+        const teacherMatch = teacher?.fullName?.toLowerCase().includes(q);
+        const roomMatch = rooms.find(r => r.id === evt.roomId)?.name?.toLowerCase().includes(q);
+        if (!nameMatch && !teacherMatch && !roomMatch) return false;
+      }
+
       return true;
     });
 
@@ -441,7 +530,7 @@ export const CalendarView: React.FC<Props> = ({
     }
 
     return events;
-  }, [expandedEvents, teachers, activities, filterTeacher, filterRoom, filterClass, filterPosition, filterTag, showCanceled, showBlackouts, showOnlyOverlapping]);
+  }, [expandedEvents, teachers, activities, rooms, filterTeacher, filterRoom, filterClass, filterPosition, filterTag, showCanceled, showBlackouts, showOnlyOverlapping, eventSearchQuery]);
 
   const conflictingIds = useMemo(() => {
     const conflicts = detectRoomConflicts(filteredEvents);
@@ -704,6 +793,8 @@ export const CalendarView: React.FC<Props> = ({
   };
 
   const handleSlotClick = (date: Date, hour: number) => {
+    // Only Admin+ can create events
+    if (!isAdmin) return;
     // In MARQUEE mode, don't open the create-event modal when clicking empty space
     if (selectionMode === 'MARQUEE') return;
     const start = new Date(date);
@@ -817,6 +908,219 @@ export const CalendarView: React.FC<Props> = ({
       handleGoogleSync(newEvent);
       handleTeacherGoogleSync(newEvent);
     }
+    setIsModalOpen(false);
+  };
+
+  // ─── Phase 5: v2.0 Event Form Save Handler ─────────────────────────────
+  const handleSaveV2 = (formState: EventFormState) => {
+    const now = { seconds: Date.now() / 1000, nanoseconds: 0 } as any;
+    const selectedActivity = activitiesV2.find(a => a.id === formState.activityId);
+
+    if (editingEvent.id) {
+      // ── Edit existing event ──
+      const isVirtualInstance = editingEvent.id.includes('_') && (editingEvent as CalendarEvent).recurrenceId;
+
+      // Build v2.0 EventV2 document
+      const eventV2Update: Partial<EventV2> = {
+        name: formState.name,
+        activityId: formState.activityId,
+        l1Id: formState.l1Id || null,
+        l2Id: formState.l2Id || null,
+        location: formState.location,
+        date: formState.date,
+        startTime: formState.startTime,
+        endTime: formState.endTime,
+        status: formState.isCanceled ? 'CANCELLED' : 'SCHEDULED',
+        revenueItems: formState.revenueItems.length > 0 ? formState.revenueItems : null,
+        notes: formState.notes || null,
+        updatedAt: now,
+      };
+
+      // Build compat CalendarEvent for rendering
+      const startISO = new Date(`${formState.date}T${formState.startTime}:00`).toISOString();
+      const endISO = new Date(`${formState.date}T${formState.endTime}:00`).toISOString();
+      const primaryStaffId = formState.staffParticipants[0]?.staffMemberId;
+
+      if (isVirtualInstance) {
+        // Create exception edit (same as v1.3 pattern)
+        const parentId = (editingEvent as CalendarEvent).recurrenceId!;
+        const dateKey = (editingEvent as CalendarEvent).originalStart || formState.date;
+
+        setEvents(prev => prev.map(ev => {
+          if (ev.id === parentId) {
+            return { ...ev, exceptions: [...(ev.exceptions || []), dateKey] };
+          }
+          return ev;
+        }));
+
+        const exceptionId = generateId();
+        const exceptionEvent: CalendarEvent = {
+          ...(editingEvent as CalendarEvent),
+          id: exceptionId,
+          name: formState.name,
+          start: startISO,
+          end: endISO,
+          teacherId: primaryStaffId,
+          roomId: formState.roomId || undefined,
+          staffMemberIds: formState.staffParticipants.map(sp => sp.staffMemberId),
+          activityId: formState.activityId,
+          subcategoryId: formState.l2Id || undefined,
+          classification: selectedActivity?.name || '',
+          isCanceled: formState.isCanceled,
+          cancellationPayStatus: formState.cancellationPayStatus,
+          recurrenceId: parentId,
+          isExceptionEdit: true,
+          originalStart: dateKey,
+          recurrenceRule: undefined,
+        };
+        setEvents(prev => [...prev, exceptionEvent]);
+
+        // Write v2.0 event
+        setEventsV2(prev => [...prev, { ...eventV2Update, id: exceptionId, orgId: '', isRecurring: false, recurringGroupId: parentId, durationMinutes: 0, createdAt: now } as EventV2]);
+      } else {
+        // Regular event edit
+        const updatedCE: CalendarEvent = {
+          ...(editingEvent as CalendarEvent),
+          name: formState.name,
+          start: startISO,
+          end: endISO,
+          teacherId: primaryStaffId,
+          roomId: formState.roomId || undefined,
+          staffMemberIds: formState.staffParticipants.map(sp => sp.staffMemberId),
+          activityId: formState.activityId,
+          subcategoryId: formState.l2Id || undefined,
+          classification: selectedActivity?.name || '',
+          isCanceled: formState.isCanceled,
+          cancellationPayStatus: formState.cancellationPayStatus,
+          recurrenceRule: formState.recurrenceRule,
+        };
+        setEvents(prev => prev.map(ev => ev.id === editingEvent.id ? { ...ev, ...updatedCE } : ev));
+        setRecentlySaved(prev => new Set(prev).add(editingEvent.id!));
+        setTimeout(() => setRecentlySaved(prev => { const n = new Set(prev); n.delete(editingEvent.id!); return n; }), 1500);
+
+        // Update v2.0 event
+        setEventsV2(prev => prev.map(ev => ev.id === editingEvent.id ? { ...ev, ...eventV2Update } : ev));
+
+        // Google sync
+        if (updatedCE.googleEventId) handleGoogleSync(updatedCE, true);
+        handleTeacherGoogleSync(updatedCE, true);
+      }
+
+      // Update v2.0 participants (delete old, add new)
+      setEventParticipantsV2(prev => {
+        const withoutOld = prev.filter(p => p.eventId !== editingEvent.id);
+        const newParticipants: EventParticipant[] = [
+          ...formState.staffParticipants.map(sp => ({
+            id: generateId(),
+            orgId: '',
+            eventId: editingEvent.id!,
+            participantType: 'STAFF' as const,
+            staffMemberId: sp.staffMemberId,
+            assignmentType: sp.assignmentType,
+            teachingAssignmentId: sp.teachingAssignmentId || null,
+            orgRoleId: sp.orgRoleId || null,
+            rateSnapshot: sp.rateSnapshot,
+            rateOverride: sp.rateOverride ?? null,
+            createdAt: now,
+          })),
+          ...formState.externalParticipants.map(ep => ({
+            id: generateId(),
+            orgId: '',
+            eventId: editingEvent.id!,
+            participantType: 'EXTERNAL' as const,
+            externalName: ep.externalName,
+            oneOffFee: ep.oneOffFee,
+            notes: ep.notes || null,
+            createdAt: now,
+          })),
+        ];
+        return [...withoutOld, ...newParticipants];
+      });
+    } else {
+      // ── New event ──
+      const newId = generateId();
+      const startISO = new Date(`${formState.date}T${formState.startTime}:00`).toISOString();
+      const endISO = new Date(`${formState.date}T${formState.endTime}:00`).toISOString();
+      const primaryStaffId = formState.staffParticipants[0]?.staffMemberId;
+
+      // CalendarEvent for rendering compat
+      const newCE: CalendarEvent = {
+        id: newId,
+        name: formState.name,
+        description: '',
+        start: startISO,
+        end: endISO,
+        teacherId: primaryStaffId,
+        roomId: formState.roomId || undefined,
+        staffMemberIds: formState.staffParticipants.map(sp => sp.staffMemberId),
+        activityId: formState.activityId,
+        subcategoryId: formState.l2Id || undefined,
+        eventIntent: selectedActivity?.activityType === 'ADMINISTRATIVE' ? 'OPERATIONAL' : 'INSTRUCTIONAL',
+        classification: selectedActivity?.name || '',
+        isCanceled: false,
+        isHidden: false,
+        recurrenceRule: formState.recurrenceRule,
+      };
+      setEvents(prev => [...prev, newCE]);
+      setRecentlySaved(prev => new Set(prev).add(newId));
+      setTimeout(() => setRecentlySaved(prev => { const n = new Set(prev); n.delete(newId); return n; }), 1500);
+
+      // v2.0 EventV2 document
+      const newEventV2: EventV2 = {
+        id: newId,
+        orgId: '',
+        name: formState.name,
+        activityId: formState.activityId,
+        l1Id: formState.l1Id || null,
+        l2Id: formState.l2Id || null,
+        location: formState.location,
+        date: formState.date,
+        startTime: formState.startTime,
+        endTime: formState.endTime,
+        durationMinutes: 0, // Computed server-side via computeDuration
+        isRecurring: !!formState.recurrenceRule,
+        recurringGroupId: null,
+        status: 'SCHEDULED',
+        revenueItems: formState.revenueItems.length > 0 ? formState.revenueItems : null,
+        notes: formState.notes || null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      setEventsV2(prev => [...prev, newEventV2]);
+
+      // v2.0 EventParticipant documents
+      const newParticipants: EventParticipant[] = [
+        ...formState.staffParticipants.map(sp => ({
+          id: generateId(),
+          orgId: '',
+          eventId: newId,
+          participantType: 'STAFF' as const,
+          staffMemberId: sp.staffMemberId,
+          assignmentType: sp.assignmentType,
+          teachingAssignmentId: sp.teachingAssignmentId || null,
+          orgRoleId: sp.orgRoleId || null,
+          rateSnapshot: sp.rateSnapshot,
+          rateOverride: sp.rateOverride ?? null,
+          createdAt: now,
+        })),
+        ...formState.externalParticipants.map(ep => ({
+          id: generateId(),
+          orgId: '',
+          eventId: newId,
+          participantType: 'EXTERNAL' as const,
+          externalName: ep.externalName,
+          oneOffFee: ep.oneOffFee,
+          notes: ep.notes || null,
+          createdAt: now,
+        })),
+      ];
+      setEventParticipantsV2(prev => [...prev, ...newParticipants]);
+
+      // Google sync
+      handleGoogleSync(newCE);
+      handleTeacherGoogleSync(newCE);
+    }
+
     setIsModalOpen(false);
   };
 
@@ -1214,6 +1518,11 @@ export const CalendarView: React.FC<Props> = ({
             setDetailItem({ type: 'EVENT', data: evt });
           }
         }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setContextMenu({ x: e.clientX, y: e.clientY, event: evt });
+        }}
         className={`absolute rounded-xl border shadow-sm transition-shadow select-none overflow-hidden group animate-cadenza-arrive ${selectedEventIds.has(evt.id) ? 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${isConflicting && !evt.isCanceled ? 'ring-2 ring-amber-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
           ? 'canceled-stripe border-slate-300 text-slate-400 dark:border-slate-600 dark:text-slate-500 bg-slate-50 dark:bg-slate-800'
           : isDragging
@@ -1234,11 +1543,6 @@ export const CalendarView: React.FC<Props> = ({
         }}
       >
         <div style={{ color: !evt.isCanceled ? baseColor : undefined }} className={`h-full ${isShort ? 'flex items-center gap-1' : 'flex flex-col'} overflow-hidden`}>
-          {layout.width < 90 && !evt.isCanceled && !isDragging && (
-            <div className="absolute top-0.5 end-0.5 bg-white/80 rounded-full p-0.5 dark:bg-slate-800">
-              <AlertCircle size={isCompact ? 8 : 10} color="red" />
-            </div>
-          )}
           {isConflicting && !evt.isCanceled && (
             <div className="absolute top-0.5 start-0.5 bg-amber-100 dark:bg-amber-900/60 rounded-full p-0.5" title={t('cal.room_conflict')}>
               <AlertOctagon size={isCompact ? 8 : 10} className="text-amber-600 dark:text-amber-400" />
@@ -1252,6 +1556,11 @@ export const CalendarView: React.FC<Props> = ({
               {!isUltraCompact && (
                 <span className="truncate opacity-70 flex-shrink-0" style={{ fontSize: timeFontSize, lineHeight: 1.2 }}>
                   {formatTime(start)}-{formatTime(end)}
+                </span>
+              )}
+              {!isUltraCompact && evt.teacherId && (
+                <span className="truncate opacity-70 flex-shrink-0 flex items-center gap-0.5" style={{ fontSize: timeFontSize, lineHeight: 1.2 }}>
+                  <User size={8} /> {teachers.find(t => t.id === evt.teacherId)?.fullName?.split(' ')[0]}
                 </span>
               )}
               {evt.roomId && !isUltraCompact && (
@@ -1587,6 +1896,11 @@ export const CalendarView: React.FC<Props> = ({
                                             setDetailItem({ type: 'EVENT', data: evt });
                                           }
                                         }}
+                                        onContextMenu={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          setContextMenu({ x: e.clientX, y: e.clientY, event: evt });
+                                        }}
                                         className={`text-[10px] text-start px-1.5 py-1 rounded cursor-pointer border-s-2 animate-cadenza-arrive ${selectedEventIds.has(evt.id) ? 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
                                           ? 'bg-slate-100 text-slate-400 line-through dark:bg-slate-800 dark:text-slate-600 border-slate-400'
                                           : 'hover:opacity-90 hover:shadow-cadenza-soft transition-all'
@@ -1686,6 +2000,15 @@ export const CalendarView: React.FC<Props> = ({
             </div>
             <button onClick={() => setCurrentDate(new Date())} className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 text-xs font-bold rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">{t('cal.today')}</button>
 
+            {/* Jump to Date */}
+            <input
+              type="date"
+              title={t('cal.jump_to_date') || 'Jump to date'}
+              value={currentDate.toISOString().split('T')[0]}
+              onChange={(e) => { if (e.target.value) setCurrentDate(new Date(e.target.value + 'T12:00:00')); }}
+              className="px-2 py-1.5 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+            />
+
             <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 text-xs font-medium">
               {['DAY', 'WEEK', 'MONTH'].map((m) => (
                 <button key={m} onClick={() => setViewMode(m as ViewMode)} className={`px-3 py-1.5 rounded transition-all ${viewMode === m ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>{t('cal.' + m.toLowerCase())}</button>
@@ -1773,6 +2096,34 @@ export const CalendarView: React.FC<Props> = ({
           >
             <Filter size={16} />
           </button>
+
+          {/* Event Search */}
+          <div className="relative flex items-center">
+            <input
+              type="text"
+              value={eventSearchQuery}
+              onChange={(e) => setEventSearchQuery(e.target.value)}
+              placeholder={t('cal.search_placeholder') || 'Search events…'}
+              className="pl-7 pr-2 py-1.5 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none w-36 transition-all focus:w-48"
+            />
+            <Search size={11} className="absolute start-2 text-slate-400 pointer-events-none" />
+            {eventSearchQuery && (
+              <button onClick={() => setEventSearchQuery('')} className="absolute end-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          <ImportExportDropdown
+            entityType="EVENT"
+            existingData={eventExportData}
+            existingDuplicateKeys={eventDupKeys}
+            dependencyMaps={{ activityByName: csvActivityByName, l2ByName: csvL2ByName, staffByEmail: {}, studentByName: {} }}
+            activityNames={activitiesV2.map(a => a.name)}
+            settings={settings}
+            canWrite={canWriteCalendar}
+            onImportComplete={handleEventImportComplete}
+          />
 
           {/* Inline Filter Panel - always flows inline next to the filter toggle */}
           {isFiltersExpanded && (
@@ -1863,11 +2214,12 @@ export const CalendarView: React.FC<Props> = ({
               </button>
             </div>
 
-            {/* Add Event */}
+            {/* Add Event (Admin+ only) */}
+            {isAdmin && (
             <div className="group flex items-center">
               <span
                 className="me-3 px-3 py-1.5 bg-slate-800 dark:bg-white text-white dark:text-slate-900 text-sm font-medium rounded-lg shadow-lg
-                  max-w-0 overflow-hidden whitespace-nowrap opacity-0 
+                  max-w-0 overflow-hidden whitespace-nowrap opacity-0
                   group-hover:max-w-[150px] group-hover:opacity-100
                   transition-all duration-300 ease-out"
               >
@@ -1880,6 +2232,7 @@ export const CalendarView: React.FC<Props> = ({
                 <CalendarIcon size={20} />
               </button>
             </div>
+            )}
           </div>
         )}
 
@@ -1928,8 +2281,8 @@ export const CalendarView: React.FC<Props> = ({
                 )}
               </div>
               <div className="flex gap-3">
-                {detailItem.type === 'EVENT' && <button onClick={() => handleEditEvent(detailItem.data as CalendarEvent)} className="flex-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 py-2 rounded-lg flex items-center justify-center font-medium transition-colors"><Edit size={16} className="me-2" /> {t('cal.detail.edit')}</button>}
-                {detailItem.type === 'EVENT' && (
+                {detailItem.type === 'EVENT' && isAdmin && <button onClick={() => handleEditEvent(detailItem.data as CalendarEvent)} className="flex-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 py-2 rounded-lg flex items-center justify-center font-medium transition-colors"><Edit size={16} className="me-2" /> {t('cal.detail.edit')}</button>}
+                {detailItem.type === 'EVENT' && isAdmin && (
                   <button
                     onClick={() => handleCancelEvent(detailItem.data as CalendarEvent)}
                     className={`flex-1 py-2 rounded-lg flex items-center justify-center font-medium transition-colors ${(detailItem.data as CalendarEvent).isCanceled
@@ -1950,517 +2303,90 @@ export const CalendarView: React.FC<Props> = ({
         </>
       )}
 
+      {/* Right-click Context Menu */}
+      {contextMenu && (
+        <>
+          <div className="fixed inset-0 z-[200]" onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }} />
+          <div
+            className="fixed z-[201] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-cadenza-deep py-1 min-w-[160px] animate-cadenza-arrive"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+          >
+            <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-700 mb-1">
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate max-w-[180px]">{contextMenu.event.name}</p>
+            </div>
+            {isAdmin && (
+              <button
+                onClick={() => { handleEditEvent(contextMenu.event); setContextMenu(null); }}
+                className="w-full text-start px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
+              >
+                <Edit size={14} className="text-blue-500" /> {t('cal.detail.edit')}
+              </button>
+            )}
+            {isAdmin && !contextMenu.event.isCanceled && (
+              <button
+                onClick={() => { handleCancelEvent(contextMenu.event); setContextMenu(null); }}
+                className="w-full text-start px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
+              >
+                <Ban size={14} className="text-amber-500" /> {t('cal.detail.cancel_event')}
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                onClick={() => { handleDeleteEvent(contextMenu.event.id, contextMenu.event); setContextMenu(null); }}
+                className="w-full text-start px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+              >
+                <Trash2 size={14} /> {t('cal.detail.delete')}
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingEvent.id ? t('event.edit') : t('event.new')}
-        isDirty={JSON.stringify(editingEvent) !== JSON.stringify(initialEditingEvent)}
-        onSave={() => saveEvent()}
+        isDirty={true}
         t={t}
-        maxWidth="max-w-lg"
-        footerContent={
-          <div className="flex justify-between w-full mt-2">
-            <div>
-              {editingEvent.id && (
-                <button
-                  type="button"
-                  onClick={() => { handleDeleteEvent(editingEvent.id!, editingEvent as CalendarEvent); setIsModalOpen(false); }}
-                  className="text-red-500 hover:text-red-700 text-sm font-medium pt-2"
-                >
-                  {t('cal.delete_event')}
-                </button>
-              )}
-            </div>
-            <div className="flex space-x-3 rtl:space-x-reverse">
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"
-              >
-                {t('btn.cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={() => saveEvent()}
-                className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium transition-all"
-              >
-                {t('cal.save_changes')}
-              </button>
-            </div>
-          </div>
-        }
+        maxWidth="max-w-2xl"
+        footerContent={<></>}
       >
-        <div className="space-y-4">
-          {/* 1. Event Name */}
-          <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.name')} <span className="text-red-500">*</span></label><input autoFocus required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" value={editingEvent.name || ''} onChange={e => setEditingEvent({ ...editingEvent, name: e.target.value })} placeholder={t('event.name_placeholder')} /></div>
-
-          {/* 2. Activity */}
-          <div>
-            <label className="block text-sm font-medium flex justify-between text-slate-700 dark:text-slate-300 mb-1">
-              <span>{t('event.activity')} <span className="text-red-500">*</span></span>
-            </label>
-            <select required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.activityId || ''} onChange={e => {
-              const selectedActivity = activities.find(a => a.id === e.target.value);
-              setEditingEvent({
-                ...editingEvent,
-                activityId: e.target.value || undefined,
-                subcategoryId: undefined,
-                eventIntent: selectedActivity?.type,
-                teacherId: undefined,
-                positionId: undefined,
-                roomId: undefined,
-                overrideFlags: { ...editingEvent.overrideFlags, isOneOffPayment: false, paymentMethod: 'NONE' },
-                pricingSnapshot: undefined,
-              });
-            }}>
-              <option value="" disabled>{t('event.select_activity')}</option>
-              {activities.filter(a => !a.isArchived).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-          </div>
-
-          {/* 2b. Subcategory (cascading) */}
-          {editingEvent.activityId && (() => {
-            const selectedActivity = activities.find(a => a.id === editingEvent.activityId);
-            const subs = selectedActivity?.subcategories?.filter(s => !s.isArchived) || [];
-            if (subs.length === 0) return null;
-            return (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.subcategory')}</label>
-                <select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.subcategoryId || ''} onChange={e => setEditingEvent({ ...editingEvent, subcategoryId: e.target.value || undefined })}>
-                  <option value="">{t('event.select_subcategory')}</option>
-                  {subs.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-            );
-          })()}
-
-          {/* 3. Teacher */}
-          {(() => {
-            const selActivity = activities.find(a => a.id === editingEvent.activityId);
-            const isInstructional = selActivity?.type === 'INSTRUCTIONAL';
-            const teacherRequired = isInstructional || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE';
-            return (
-              <div>
-                <label className="block flex items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  <span>{t('event.teacher')} {teacherRequired ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span>}</span>
-                </label>
-                <select
-                  required={teacherRequired}
-                  disabled={!editingEvent.activityId}
-                  className={`w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none ${!editingEvent.activityId ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  value={editingEvent.teacherId || ''}
-                  onChange={e => {
-                    const val = e.target.value;
-                    if (val === '') {
-                      let newFlags = { ...editingEvent.overrideFlags };
-                      if (newFlags.paymentMethod === 'POSITION_RATE') newFlags.paymentMethod = 'NONE';
-                      setEditingEvent({ ...editingEvent, teacherId: undefined, positionId: undefined, roomId: undefined, overrideFlags: newFlags });
-                    } else {
-                      setEditingEvent({ ...editingEvent, teacherId: val, positionId: undefined, roomId: undefined });
-                    }
-                  }}
-                >
-                  <option value="">— {editingEvent.activityId ? (teacherRequired ? t('event.select_teacher') : t('event.org_no_teacher')) : t('event.select_category_first')} —</option>
-                  {teachers.filter(teacher => {
-                    if (!editingEvent.activityId || !selActivity) return false;
-                    if (teacher.isArchived) return false;
-                    // OPERATIONAL activities → show all teachers
-                    if (!isInstructional) return true;
-                    // INSTRUCTIONAL → filter by teachingAssignment or legacy positionAssignment match
-                    const hasTeachingAssignment = (teacher.teachingAssignments || []).some(ta => !ta.isArchived && ta.activityId === editingEvent.activityId);
-                    const hasLegacyMatch = teacher.positionAssignments.some(pa => pa.category === selActivity.name);
-                    return hasTeachingAssignment || hasLegacyMatch;
-                  }).map(teacher => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}
-                </select>
-              </div>
-            );
-          })()}
-
-          {/* 4. Position */}
-          <div>
-            {(() => {
-              const selActivity = activities.find(a => a.id === editingEvent.activityId);
-              const isInstructional = selActivity?.type === 'INSTRUCTIONAL';
-              const posRequired = isInstructional || editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE';
-              const teacherForPos = teachers.find(t => t.id === editingEvent.teacherId);
-              const positionOptions = teacherForPos ? teacherForPos.positionAssignments.filter(pa => {
-                if (!editingEvent.activityId) return false;
-                if (!isInstructional) return true;
-                return pa.category === (selActivity?.name || editingEvent.classification);
-              }) : [];
-
-              return (
-                <>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.position')} {posRequired ? <span className="text-red-500">*</span> : <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span>}</label>
-                  <select
-                    required={posRequired}
-                    disabled={!editingEvent.teacherId || editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF' || (!!editingEvent.teacherId && positionOptions.length === 0)}
-                    className={`w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none ${(!editingEvent.teacherId || editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF' || (editingEvent.teacherId && positionOptions.length === 0)) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    value={editingEvent.positionId || ''}
-                    onChange={e => {
-                      const val = e.target.value;
-                      let newFlags = { ...editingEvent.overrideFlags };
-                      if (!val && newFlags.paymentMethod === 'POSITION_RATE') newFlags.paymentMethod = 'NONE';
-                      setEditingEvent({ ...editingEvent, positionId: val || undefined, roomId: undefined, overrideFlags: newFlags });
-                    }}
-                  >
-                    <option value="">
-                      {!editingEvent.teacherId
-                        ? t('event.select_teacher_first')
-                        : positionOptions.length === 0
-                          ? t('event.no_positions')
-                          : t('event.select_position')}
-                    </option>
-                    {positionOptions.map(pa => (
-                      <option key={pa.id} value={pa.id}>
-                        {pa.positionName} ({pa.rateType === 'HOURLY' ? `${settings.currency}${pa.rateValue}${t('fin.per_hr')}` : `${settings.currency}${pa.rateValue.toLocaleString()}${t('fin.per_mo')}`})
-                      </option>
-                    ))}
-                  </select>
-                </>
-              );
-            })()}
-
-            {/* Payment Method for Operational (non-instructional) Activities */}
-            {editingEvent.activityId && (() => {
-              const selActivity = activities.find(a => a.id === editingEvent.activityId);
-              return selActivity?.type !== 'INSTRUCTIONAL';
-            })() && (
-              <div className="mt-4 space-y-3 border-t border-slate-200 dark:border-slate-700 pt-3">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{t('event.payment_method')} <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span></label>
-                <div className="flex flex-col gap-2">
-                  <label className="flex items-center text-sm cursor-pointer dark:text-white">
-                    <input
-                      type="radio"
-                      name="payMethod"
-                      checked={!editingEvent.overrideFlags?.paymentMethod || editingEvent.overrideFlags?.paymentMethod === 'NONE'}
-                      onChange={() => setEditingEvent({ ...editingEvent, overrideFlags: { ...editingEvent.overrideFlags, paymentMethod: 'NONE', isOneOffPayment: false }, pricingSnapshot: undefined })}
-                      className="me-2 focus:ring-blue-500"
-                    />
-                    {t('event.no_payment')}
-                  </label>
-                  <label className={`flex items-center text-sm ${!editingEvent.teacherId || !editingEvent.positionId ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} dark:text-white`}>
-                    <input
-                      type="radio"
-                      name="payMethod"
-                      disabled={!editingEvent.teacherId || !editingEvent.positionId}
-                      checked={editingEvent.overrideFlags?.paymentMethod === 'POSITION_RATE'}
-                      onChange={() => setEditingEvent({ ...editingEvent, overrideFlags: { ...editingEvent.overrideFlags, paymentMethod: 'POSITION_RATE', isOneOffPayment: false }, pricingSnapshot: undefined })}
-                      className="me-2 focus:ring-blue-500"
-                    />
-                    {t('event.use_position_rate')} {(!editingEvent.teacherId || !editingEvent.positionId) && <span className="ms-1 text-xs text-slate-400">{t('event.requires_teacher_position')}</span>}
-                  </label>
-                  <label className="flex items-center text-sm cursor-pointer dark:text-white">
-                    <input
-                      type="radio"
-                      name="payMethod"
-                      checked={editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF'}
-                      onChange={() => setEditingEvent({ ...editingEvent, overrideFlags: { ...editingEvent.overrideFlags, paymentMethod: 'ONE_OFF', isOneOffPayment: true }, positionId: undefined })}
-                      className="me-2 focus:ring-blue-500"
-                    />
-                    {t('event.one_off_payment')}
-                  </label>
-                </div>
-
-                {editingEvent.overrideFlags?.paymentMethod === 'ONE_OFF' && (
-                  <div className="pt-2">
-                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.one_off_price')} ({settings.currency}) <span className="text-red-500">*</span></label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      required
-                      className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                      value={editingEvent.pricingSnapshot?.rateValue ?? ''}
-                      onChange={e => setEditingEvent({
-                        ...editingEvent,
-                        pricingSnapshot: { rateValue: Number(e.target.value), rateType: 'ONE_OFF', source: 'OVERRIDE' }
-                      })}
-                      placeholder={t('event.one_off_price')}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* 4. Room */}
-          <div>
-            <label className="block flex items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-              <span>{t('event.room')} <span className="text-xs text-slate-400 font-normal">{t('event.optional')}</span></span>
-            </label>
-            <select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.roomId || ''} onChange={e => setEditingEvent({ ...editingEvent, roomId: e.target.value || undefined })}>
-              <option value="">— {t('event.no_room')} —</option>
-              {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-            </select>
-          </div>
-
-          {/* 5. Start Time / End Time */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.start_time')}</label>
-              <DatePicker
-                type="datetime-local"
-                required
-                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
-                value={editingEvent.start ? new Date(new Date(editingEvent.start).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}
-                onChange={e => {
-                  const newStart = new Date(e.target.value).toISOString();
-                  let newEnd = editingEvent.end;
-                  if (!newEnd || new Date(newStart) > new Date(newEnd)) {
-                    newEnd = newStart;
-                  }
-                  setEditingEvent({ ...editingEvent, start: newStart, end: newEnd });
-                }}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('event.end_time')}</label>
-              <DatePicker
-                type="datetime-local"
-                required
-                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
-                value={editingEvent.end ? new Date(new Date(editingEvent.end).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}
-                onChange={e => {
-                  const newEnd = new Date(e.target.value).toISOString();
-                  let newStart = editingEvent.start;
-                  if (newStart && new Date(newEnd) < new Date(newStart)) {
-                    newStart = newEnd;
-                  }
-                  setEditingEvent({ ...editingEvent, end: newEnd, start: newStart });
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Recurrence Section */}
-          {!editingEvent.isExceptionEdit && (
-            <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-              <label className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer mb-3">
-                <input
-                  type="checkbox"
-                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-slate-300 dark:border-slate-600"
-                  checked={!!editingEvent.recurrenceRule}
-                  onChange={e => {
-                    if (e.target.checked) {
-                      const startDay = editingEvent.start ? DAY_ABBR[new Date(editingEvent.start).getDay()] : 'MO';
-                      setEditingEvent({
-                        ...editingEvent,
-                        recurrenceRule: { frequency: 'WEEKLY', interval: 1, byDay: [startDay] }
-                      });
-                    } else {
-                      const { recurrenceRule, ...rest } = editingEvent;
-                      setEditingEvent(rest);
-                    }
-                  }}
-                />
-                <div className="flex items-center gap-2">
-                  <Repeat size={16} className="text-blue-500" />
-                  <span className="font-medium text-slate-900 dark:text-white">{t('recurrence.recurring_event')}</span>
-                </div>
-              </label>
-
-              {editingEvent.recurrenceRule && (() => {
-                const rule = editingEvent.recurrenceRule!;
-                const updateRule = (updates: Partial<RecurrenceRule>) => {
-                  setEditingEvent({ ...editingEvent, recurrenceRule: { ...rule, ...updates } });
-                };
-
-                return (
-                  <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-700">
-                    {/* Preset Buttons */}
-                    <div className="flex gap-2 flex-wrap">
-                      {[
-                        { label: t('recurrence.weekly'), rule: { frequency: 'WEEKLY' as const, interval: 1, byDay: [editingEvent.start ? DAY_ABBR[new Date(editingEvent.start).getDay()] : 'MO' as DayOfWeek] } },
-                        { label: t('recurrence.biweekly'), rule: { frequency: 'WEEKLY' as const, interval: 2, byDay: [editingEvent.start ? DAY_ABBR[new Date(editingEvent.start).getDay()] : 'MO' as DayOfWeek] } },
-                        { label: t('recurrence.daily'), rule: { frequency: 'DAILY' as const, interval: 1 } },
-                        { label: t('recurrence.monthly'), rule: { frequency: 'MONTHLY' as const, interval: 1 } },
-                      ].map(preset => (
-                        <button
-                          key={preset.label}
-                          type="button"
-                          onClick={() => updateRule({ ...preset.rule, untilDate: rule.untilDate, count: rule.count })}
-                          className={`px-3 py-1 text-xs rounded-full border transition-colors ${rule.frequency === preset.rule.frequency && rule.interval === preset.rule.interval
-                            ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700'
-                            : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600'
-                            }`}
-                        >
-                          {preset.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Frequency & Interval */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-slate-600 dark:text-slate-400">{t('recurrence.every')}</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={52}
-                        className="w-16 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none"
-                        value={rule.interval}
-                        onChange={e => updateRule({ interval: Math.max(1, parseInt(e.target.value) || 1) })}
-                      />
-                      <select
-                        className="border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none"
-                        value={rule.frequency}
-                        onChange={e => updateRule({ frequency: e.target.value as RecurrenceRule['frequency'] })}
-                      >
-                        <option value="DAILY">{t('recurrence.days')}</option>
-                        <option value="WEEKLY">{t('recurrence.weeks')}</option>
-                        <option value="MONTHLY">{t('recurrence.months')}</option>
-                      </select>
-                    </div>
-
-                    {/* Day-of-week selector for WEEKLY */}
-                    {rule.frequency === 'WEEKLY' && (
-                      <div>
-                        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{t('recurrence.on_days')}</label>
-                        <div className="flex gap-1">
-                          {DAY_ABBR.map(day => (
-                            <button
-                              key={day}
-                              type="button"
-                              onClick={() => {
-                                const current = rule.byDay || [];
-                                const next = current.includes(day)
-                                  ? current.filter(d => d !== day)
-                                  : [...current, day];
-                                updateRule({ byDay: next.length > 0 ? next : [day] });
-                              }}
-                              className={`w-8 h-8 text-xs rounded-full font-medium transition-colors ${(rule.byDay || []).includes(day)
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
-                                }`}
-                            >
-                              {day}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Monthly mode selector */}
-                    {rule.frequency === 'MONTHLY' && editingEvent.start && (() => {
-                      const startDate = new Date(editingEvent.start);
-                      const dayNum = startDate.getDate();
-                      const dayName = [t('recurrence.day_sunday'), t('recurrence.day_monday'), t('recurrence.day_tuesday'), t('recurrence.day_wednesday'), t('recurrence.day_thursday'), t('recurrence.day_friday'), t('recurrence.day_saturday')][startDate.getDay()];
-                      const weekOfMonth = Math.ceil(dayNum / 7);
-                      const posLabels = ['', t('recurrence.pos_1st'), t('recurrence.pos_2nd'), t('recurrence.pos_3rd'), t('recurrence.pos_4th'), t('recurrence.pos_5th')];
-                      const isPositionalMode = !!rule.bySetPos;
-
-                      return (
-                        <div className="space-y-2">
-                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">{t('recurrence.monthly_mode')}</label>
-                          <div className="space-y-1">
-                            <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
-                              <input
-                                type="radio"
-                                name="monthlyMode"
-                                checked={!isPositionalMode}
-                                onChange={() => updateRule({ byMonthDay: dayNum, bySetPos: undefined, byDayOfWeek: undefined })}
-                                className="text-blue-600"
-                              />
-                              {t('recurrence.on_day_of_month').replace('{ordinal}', String(dayNum) + (dayNum === 1 ? t('recurrence.ordinal_st') : dayNum === 2 ? t('recurrence.ordinal_nd') : dayNum === 3 ? t('recurrence.ordinal_rd') : t('recurrence.ordinal_th')))}
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
-                              <input
-                                type="radio"
-                                name="monthlyMode"
-                                checked={isPositionalMode}
-                                onChange={() => updateRule({ bySetPos: weekOfMonth, byDayOfWeek: DAY_ABBR[startDate.getDay()], byMonthDay: undefined })}
-                                className="text-blue-600"
-                              />
-                              {t('recurrence.on_pos_day_of_month').replace('{pos}', posLabels[weekOfMonth]).replace('{dayName}', dayName)}
-                            </label>
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* End Condition */}
-                    <div className="space-y-2">
-                      <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">{t('recurrence.ends')}</label>
-                      <div className="space-y-2">
-                        <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
-                          <input
-                            type="radio"
-                            name="endMode"
-                            checked={!rule.untilDate && !rule.count}
-                            onChange={() => updateRule({ untilDate: undefined, count: undefined })}
-                            className="text-blue-600"
-                          />
-                          {t('recurrence.never')}
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
-                          <input
-                            type="radio"
-                            name="endMode"
-                            checked={!!rule.untilDate}
-                            onChange={() => {
-                              const defaultEnd = new Date();
-                              defaultEnd.setMonth(defaultEnd.getMonth() + 3);
-                              updateRule({ untilDate: defaultEnd.toISOString().split('T')[0], count: undefined });
-                            }}
-                            className="text-blue-600"
-                          />
-                          {t('recurrence.on_date')}
-                          {rule.untilDate && (
-                            <input
-                              type="date"
-                              className="border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none ms-1"
-                              value={rule.untilDate}
-                              onChange={e => updateRule({ untilDate: e.target.value })}
-                            />
-                          )}
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
-                          <input
-                            type="radio"
-                            name="endMode"
-                            checked={!!rule.count}
-                            onChange={() => updateRule({ count: 12, untilDate: undefined })}
-                            className="text-blue-600"
-                          />
-                          {t('recurrence.after')}
-                          {rule.count !== undefined && (
-                            <input
-                              type="number"
-                              min={1}
-                              max={365}
-                              className="w-16 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none"
-                              value={rule.count}
-                              onChange={e => updateRule({ count: Math.max(1, parseInt(e.target.value) || 1) })}
-                            />
-                          )}
-                          {rule.count !== undefined && <span>{t('recurrence.occurrences')}</span>}
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-
-          {editingEvent.id && !editingEvent.recurrenceRule && (
-            <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 mt-2">
-              <label className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer">
-                <input type="checkbox" className="w-5 h-5 text-red-600 rounded focus:ring-red-500 border-slate-300 dark:border-slate-600" checked={editingEvent.isCanceled || false} onChange={e => setEditingEvent({ ...editingEvent, isCanceled: e.target.checked, cancellationPayStatus: e.target.checked && !editingEvent.cancellationPayStatus ? 'NO_PAY_CANCELLATION' : editingEvent.cancellationPayStatus })} />
-                <span className="font-medium text-slate-900 dark:text-white">{t('cal.mark_canceled')}</span>
-              </label>
-              {editingEvent.isCanceled && (
-                <div className="mt-3 ms-8 border-t border-slate-200 dark:border-slate-700 pt-3">
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{t('cal.cancel_pay_status')}</label>
-                  <select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none" value={editingEvent.cancellationPayStatus || 'NO_PAY_CANCELLATION'} onChange={e => setEditingEvent({ ...editingEvent, cancellationPayStatus: e.target.value as any })}>
-                    <option value="NO_PAY_CANCELLATION">{t('cal.no_pay')}</option>
-                    <option value="PAID_CANCELLATION">{t('cal.paid_cancel')}</option>
-                  </select>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        <EventFormV2
+          activitiesV2={activitiesV2}
+          l1Subcategories={l1Subs}
+          l2Subcategories={l2Subs}
+          staffMembers={staffMembersV2}
+          teachingAssignments={teachingAssignmentsV2}
+          orgRoles={orgRolesV2}
+          students={studentsV2}
+          enrollments={enrollmentsV2}
+          ensembleRoster={ensembleRosterV2}
+          rooms={rooms}
+          settings={settings}
+          editingEventId={editingEvent.id || null}
+          existingFormState={editingEvent.id ? {
+            activityId: editingEvent.activityId || '',
+            l1Id: '',
+            l2Id: editingEvent.subcategoryId || '',
+            name: editingEvent.name || '',
+            date: editingEvent.start ? new Date(editingEvent.start).toISOString().split('T')[0] : '',
+            startTime: editingEvent.start ? `${String(new Date(editingEvent.start).getHours()).padStart(2, '0')}:${String(new Date(editingEvent.start).getMinutes()).padStart(2, '0')}` : '',
+            endTime: editingEvent.end ? `${String(new Date(editingEvent.end).getHours()).padStart(2, '0')}:${String(new Date(editingEvent.end).getMinutes()).padStart(2, '0')}` : '',
+            location: '',
+            roomId: editingEvent.roomId || '',
+            isCanceled: editingEvent.isCanceled || false,
+            cancellationPayStatus: editingEvent.cancellationPayStatus,
+            recurrenceRule: editingEvent.recurrenceRule,
+            notes: '',
+          } : undefined}
+          isExceptionEdit={editingEvent.isExceptionEdit}
+          initialStart={editingEvent.start}
+          initialEnd={editingEvent.end}
+          onSave={handleSaveV2}
+          onCancel={() => setIsModalOpen(false)}
+          onDelete={editingEvent.id ? () => { handleDeleteEvent(editingEvent.id!, editingEvent as CalendarEvent); setIsModalOpen(false); } : undefined}
+          t={t}
+        />
       </Modal>
 
       {/* Recurrence Series Dialog - "Just This One" vs "All Events" */}
