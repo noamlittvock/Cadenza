@@ -91,6 +91,12 @@ export function useFirestoreSync<T extends { id: string }>(
     useEffect(() => { dataRef.current = data; }, [data]);
 
     useEffect(() => {
+        // E2E auth bypass — skip Firestore entirely, use empty initial state
+        if (import.meta.env.VITE_E2E_AUTH_BYPASS === 'true') {
+            setLoading(false);
+            return;
+        }
+
         if (!orgId) {
             setData(initialData);
             setLoading(false);
@@ -158,6 +164,12 @@ export function useFirestoreSettings<T>(docId: string, initialData: T) {
     useEffect(() => {
         if (!orgId) {
             setData(initialData);
+            setLoading(false);
+            return;
+        }
+
+        // E2E auth bypass — skip Firestore entirely, use empty initial state
+        if (import.meta.env.VITE_E2E_AUTH_BYPASS === 'true') {
             setLoading(false);
             return;
         }

@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { Teacher, ListsState, AppSettings, Activity, HoursReport, Student, AdminInboxItem } from '../types';
+import { Teacher, ListsState, AppSettings, HoursReport, Student, AdminInboxItem } from '../types';
+import { buildActivityMap, getActivityName } from '../utils/activityLookup';
 import type {
-  StaffMemberV2, TeachingAssignmentV2, OrgRoleV2,
+  ActivityV2, StaffMemberV2, TeachingAssignmentV2, OrgRoleV2,
   StaffRole, RateTypeV2, L2Subcategory,
   EventV2, EventParticipant, FirstUseFlags,
 } from '../types/v2';
@@ -70,7 +71,7 @@ interface Props {
   setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>;
   lists: ListsState;
   setLists: React.Dispatch<React.SetStateAction<ListsState>>;
-  activities: Activity[];
+  activities: ActivityV2[];
   settings: AppSettings;
   hoursReports: HoursReport[];
   setHoursReports: React.Dispatch<React.SetStateAction<HoursReport[]>>;
@@ -78,10 +79,12 @@ interface Props {
   adminInboxItems: AdminInboxItem[];
   setAdminInboxItems: React.Dispatch<React.SetStateAction<AdminInboxItem[]>>;
   onMobileMenuOpen: () => void;
+  navigateToId?: string | null;
+  onNavigateHandled?: () => void;
 }
 
 export const StaffMemberManager: React.FC<Props> = ({
-  activities, settings, onMobileMenuOpen,
+  activities, settings, onMobileMenuOpen, navigateToId, onNavigateHandled,
 }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
   const { currentUser, isSuperAdmin, isAdmin, orgId } = useAuth();
@@ -94,6 +97,8 @@ export const StaffMemberManager: React.FC<Props> = ({
   const [eventsV2] = useFirestoreSync<EventV2>(V2_COLLECTIONS.events, []);
   const [eventParticipantsV2, setEventParticipantsV2] = useFirestoreSync<EventParticipant>(V2_COLLECTIONS.eventParticipants, []);
 
+  const activityMap = useMemo(() => buildActivityMap(activities), [activities]);
+
   // ─── View state ─────────────────────────────────────────────────────────
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
@@ -101,6 +106,15 @@ export const StaffMemberManager: React.FC<Props> = ({
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [detailTab, setDetailTab] = useState<'assignments' | 'orgRoles'>('assignments');
+
+  // ─── Navigate-to from AdminInbox ──────────────────────────────────────────
+  useEffect(() => {
+    if (navigateToId) {
+      setSelectedStaffId(navigateToId);
+      setViewMode('detail');
+      onNavigateHandled?.();
+    }
+  }, [navigateToId]);
 
   // ─── Staff CRUD modal ───────────────────────────────────────────────────
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
@@ -186,7 +200,7 @@ export const StaffMemberManager: React.FC<Props> = ({
 
   const assignmentExportData = useMemo(() => assignments.map(a => ({
     staffEmail: staffMembers.find(s => s.id === a.staffMemberId)?.email || '',
-    activityName: activities.find(act => act.id === a.activityId)?.name || '',
+    activityName: getActivityName(activityMap, a.activityId, ''),
     l2Name: l2Subcategories.find(l => l.id === a.l2Id)?.name || '',
     rateType: a.rateType || '',
     rateValue: String(a.rateValue || ''),
@@ -195,7 +209,7 @@ export const StaffMemberManager: React.FC<Props> = ({
 
   const assignmentDupKeys = useMemo(() => new Set(assignments.map(a => {
     const email = staffMembers.find(s => s.id === a.staffMemberId)?.email || '';
-    const aName = activities.find(act => act.id === a.activityId)?.name || '';
+    const aName = getActivityName(activityMap, a.activityId, '');
     const lName = l2Subcategories.find(l => l.id === a.l2Id)?.name || '';
     return `${email}|${aName}|${lName}`.toLowerCase();
   })), [assignments, staffMembers, activities, l2Subcategories]);
@@ -272,8 +286,8 @@ export const StaffMemberManager: React.FC<Props> = ({
   }, [settings.language]);
 
   const activityName = useCallback((id: string) => {
-    return activities.find(a => a.id === id)?.name || id;
-  }, [activities]);
+    return getActivityName(activityMap, id, id);
+  }, [activityMap]);
 
   const l2Name = useCallback((id: string) => {
     return l2Subcategories.find(l => l.id === id)?.name || id;
@@ -325,7 +339,8 @@ export const StaffMemberManager: React.FC<Props> = ({
 
     if (!formName.trim()) { setStaffError(t('staff.v2.name_required')); return false; }
     if (!formEmail.trim()) { setStaffError(t('staff.v2.email_required')); return false; }
-    if (!editingStaffId && !formUid.trim()) { setStaffError(t('staff.v2.uid_required')); return false; }
+    // SuperAdmin must supply a UID; Admins get one auto-generated
+    if (isSuperAdmin && !editingStaffId && !formUid.trim()) { setStaffError(t('staff.v2.uid_required')); return false; }
 
     const now = Timestamp.now();
 
@@ -344,7 +359,7 @@ export const StaffMemberManager: React.FC<Props> = ({
     } else {
       // Create
       const newStaff: StaffMemberV2 = {
-        id: generateId(), orgId, uid: formUid.trim(),
+        id: generateId(), orgId, uid: isSuperAdmin ? formUid.trim() : crypto.randomUUID(),
         role: formRole, fullName: formName.trim(), email: formEmail.trim(),
         phone: formPhone.trim() || null, isArchived: false,
         createdAt: now, updatedAt: now,
@@ -613,7 +628,7 @@ export const StaffMemberManager: React.FC<Props> = ({
   if (viewMode === 'detail' && selectedStaff) {
     // ─── Detail View ────────────────────────────────────────────────────
     return (
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="h-full overflow-y-auto p-6 max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <button onClick={backToList} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
@@ -674,7 +689,7 @@ export const StaffMemberManager: React.FC<Props> = ({
             <div className="flex items-center gap-2 mb-4">
               {canWrite && (
                 <button onClick={openCreateAssignment}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">
+                  className="inline-flex items-center gap-2 px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium">
                   <Plus size={16} /> {t('staff.v2.add_teaching_assignment')}
                 </button>
               )}
@@ -730,7 +745,7 @@ export const StaffMemberManager: React.FC<Props> = ({
           <div>
             {canWrite && (
               <button onClick={openCreateOrgRole}
-                className="mb-4 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">
+                className="mb-4 inline-flex items-center gap-2 px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium">
                 <Plus size={16} /> {t('staff.v2.add_org_role')}
               </button>
             )}
@@ -840,7 +855,19 @@ export const StaffMemberManager: React.FC<Props> = ({
 
         {/* ─── Archive Cascade Modal ────────────────────────────────────── */}
         <Modal isOpen={!!archiveCascadeStaffId} onClose={() => setArchiveCascadeStaffId(null)}
-          title={t('staff.v2.archive_cascade_title')}>
+          title={t('staff.v2.archive_cascade_title')}
+          footerContent={
+            <div className="flex justify-end gap-3 w-full">
+              <button onClick={() => setArchiveCascadeStaffId(null)}
+                className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm font-medium">
+                {t('common.cancel') || 'Cancel'}
+              </button>
+              <button onClick={confirmArchiveStaff}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
+                {t('staff.archive')}
+              </button>
+            </div>
+          }>
           <div className="space-y-4">
             <p className="text-slate-600 dark:text-slate-300">{t('staff.v2.archive_cascade_message')}</p>
             {(() => {
@@ -853,16 +880,6 @@ export const StaffMemberManager: React.FC<Props> = ({
                 </p>
               ) : null;
             })()}
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setArchiveCascadeStaffId(null)}
-                className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm font-medium">
-                {t('common.cancel') || 'Cancel'}
-              </button>
-              <button onClick={confirmArchiveStaff}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
-                {t('staff.archive')}
-              </button>
-            </div>
           </div>
         </Modal>
       </div>
@@ -871,7 +888,7 @@ export const StaffMemberManager: React.FC<Props> = ({
 
   // ─── List View ──────────────────────────────────────────────────────────
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="h-full overflow-y-auto p-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -896,7 +913,7 @@ export const StaffMemberManager: React.FC<Props> = ({
           </div>
           {canWrite && (
             <button onClick={openCreateStaff}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">
+              className="inline-flex items-center gap-2 px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium">
               <Plus size={16} /> {t('staff.add')}
             </button>
           )}
@@ -1017,12 +1034,12 @@ export const StaffMemberManager: React.FC<Props> = ({
                 )}
                 {walkthroughStep < walkthroughSteps.length ? (
                   <button onClick={() => setWalkthroughStep(walkthroughStep + 1)}
-                    className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded">
+                    className="text-xs px-3 py-1 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded">
                     Next
                   </button>
                 ) : (
                   <button onClick={() => setWalkthroughStep(null)}
-                    className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded">
+                    className="text-xs px-3 py-1 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded">
                     Done
                   </button>
                 )}
@@ -1082,14 +1099,14 @@ export const StaffMemberManager: React.FC<Props> = ({
             </div>
           )}
 
-          {/* UID field (only on create) */}
-          {!editingStaffId && (walkthroughStep === null || walkthroughStep >= 3) && (
+          {/* UID field — SuperAdmin only, on create only */}
+          {isSuperAdmin && !editingStaffId && (walkthroughStep === null || walkthroughStep >= 3) && (
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Firebase UID</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.uid_label')}</label>
               <input type="text" value={formUid} onChange={e => setFormUid(e.target.value)}
-                placeholder="Firebase Auth UID"
+                placeholder={t('staff.v2.uid_placeholder')}
                 className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-mono text-sm" />
-              <p className="text-xs text-slate-500 mt-1">{t('staff.v2.uid_required')}</p>
+              <p className="text-xs text-slate-500 mt-1">{t('staff.v2.uid_hint')}</p>
             </div>
           )}
         </div>
@@ -1097,7 +1114,19 @@ export const StaffMemberManager: React.FC<Props> = ({
 
       {/* ─── Archive Cascade Modal ──────────────────────────────────────── */}
       <Modal isOpen={!!archiveCascadeStaffId} onClose={() => setArchiveCascadeStaffId(null)}
-        title={t('staff.v2.archive_cascade_title')}>
+        title={t('staff.v2.archive_cascade_title')}
+        footerContent={
+          <div className="flex justify-end gap-3 w-full">
+            <button onClick={() => setArchiveCascadeStaffId(null)}
+              className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm font-medium">
+              {t('common.cancel') || 'Cancel'}
+            </button>
+            <button onClick={confirmArchiveStaff}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
+              {t('staff.archive')}
+            </button>
+          </div>
+        }>
         <div className="space-y-4">
           <p className="text-slate-600 dark:text-slate-300">{t('staff.v2.archive_cascade_message')}</p>
           {(() => {
@@ -1110,16 +1139,6 @@ export const StaffMemberManager: React.FC<Props> = ({
               </p>
             ) : null;
           })()}
-          <div className="flex justify-end gap-3">
-            <button onClick={() => setArchiveCascadeStaffId(null)}
-              className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm font-medium">
-              {t('common.cancel') || 'Cancel'}
-            </button>
-            <button onClick={confirmArchiveStaff}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
-              {t('staff.archive')}
-            </button>
-          </div>
         </div>
       </Modal>
     </div>

@@ -4,7 +4,8 @@ import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../utils/firebase';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
-import { AppSettings, CalendarEvent, Activity, Teacher, Room, Student, ListsState } from '../types';
+import { AppSettings, CalendarEvent, Teacher, Room, Student, ListsState } from '../types';
+import type { ActivityV2 } from '../types/v2';
 import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus, Wrench, Edit2, Save, X, Globe, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import { TranslationManager } from './TranslationManager';
 import { DocumentTemplates } from './DocumentRepository';
@@ -33,7 +34,7 @@ interface SuperAdminProps {
     settings: AppSettings;
     events?: CalendarEvent[];
     setEvents?: React.Dispatch<React.SetStateAction<CalendarEvent[]>>;
-    activities?: Activity[];
+    activities?: ActivityV2[];
     teachers?: Teacher[];
     students?: Student[];
     rooms?: Room[];

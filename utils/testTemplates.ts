@@ -291,16 +291,17 @@ import {
 } from './devDataGenerator';
 
 import {
-  Teacher, CalendarEvent, Room, Activity, Student, GanttBlock,
+  Teacher, CalendarEvent, Room, Student, GanttBlock,
   AdminInboxItem, HoursReport, CalendarSubscription,
 } from '../types';
+import type { ActivityV2 } from '../types/v2';
 import { ChartConfiguration } from '../types/chartBuilder';
 
 export interface TemplateData {
   teachers: Teacher[];
   events: CalendarEvent[];
   rooms: Room[];
-  activities: Activity[];
+  activities: ActivityV2[];
   students: Student[];
   ganttBlocks: GanttBlock[];
   hoursReports: HoursReport[];

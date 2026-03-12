@@ -9,7 +9,7 @@
  * Includes walkthrough (4 steps), Guide Me link, and pre-fill from last event.
  */
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { CalendarEvent, RecurrenceRule, DayOfWeek, Room, AppSettings } from '../types';
 import {
   ActivityV2, L1Subcategory, L2Subcategory, StaffMemberV2,
@@ -20,7 +20,7 @@ import {
 import { generateId } from '../constants';
 import { useAuth } from '../context/AuthContext';
 import { DatePicker } from './DatePicker';
-import { Plus, Trash2, ChevronDown, ChevronUp, Repeat, Users, HelpCircle, X, Loader2 } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, Repeat, Users, HelpCircle, X } from 'lucide-react';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -73,6 +73,11 @@ export interface EventFormState {
   notes: string;
 }
 
+export interface EventFormV2Handle {
+  triggerSave: () => void;
+  isSaving: boolean;
+}
+
 export interface EventFormV2Props {
   // v2 data
   activitiesV2: ActivityV2[];
@@ -97,8 +102,6 @@ export interface EventFormV2Props {
   initialEnd?: string;
   // Callbacks
   onSave: (form: EventFormState) => void;
-  onCancel: () => void;
-  onDelete?: () => void;
   // Translation
   t: (key: string) => string;
 }
@@ -123,15 +126,15 @@ function formatDateDisplay(date: string): string {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export const EventFormV2: React.FC<EventFormV2Props> = ({
+export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
   activitiesV2, l1Subcategories, l2Subcategories, staffMembers,
   teachingAssignments, orgRoles, students, enrollments, ensembleRoster,
   rooms, settings,
   editingEventId, existingFormState, existingParticipants,
   isExceptionEdit, initialStart, initialEnd,
-  onSave, onCancel, onDelete,
+  onSave,
   t,
-}) => {
+}, ref) => {
   const { currentUser } = useAuth();
   const uid = currentUser?.uid || '';
 
@@ -220,6 +223,10 @@ export const EventFormV2: React.FC<EventFormV2Props> = ({
 
   const template = selectedActivity?.template || null;
   const eventNameMode: EventNameMode = selectedActivity?.eventNameMode || 'PROMPTED';
+
+  // Template-based L1/L2 visibility: DISCIPLINE shows both, PROGRAM shows L2 only, others hide both
+  const showL1Field = template === 'DISCIPLINE';
+  const showL2Field = template === 'DISCIPLINE' || template === 'PROGRAM';
 
   // L1/L2 options filtered by activity
   const l1Options = useMemo(
@@ -451,6 +458,8 @@ export const EventFormV2: React.FC<EventFormV2Props> = ({
     onSave(finalForm);
   };
 
+  useImperativeHandle(ref, () => ({ triggerSave: handleSave, isSaving }));
+
   // ─── Staff participant management ────────────────────────────────────────
   const addStaffParticipant = (staffId: string, assignmentType: 'TEACHING' | 'ORG_ROLE') => {
     if (form.staffParticipants.some(sp => sp.staffMemberId === staffId)) return;
@@ -632,8 +641,8 @@ export const EventFormV2: React.FC<EventFormV2Props> = ({
         {errors.activityId && <p className={errorCls}>{errors.activityId}</p>}
       </div>
 
-      {/* L1 cascade */}
-      {form.activityId && l1Options.length > 0 && (
+      {/* L1 cascade — DISCIPLINE only */}
+      {form.activityId && showL1Field && l1Options.length > 0 && (
         <div>
           <label className={labelCls}>{t('event.v2.select_l1')}</label>
           <select className={selectCls} value={form.l1Id} onChange={e => setForm(prev => ({ ...prev, l1Id: e.target.value, l2Id: '' }))}>
@@ -643,8 +652,8 @@ export const EventFormV2: React.FC<EventFormV2Props> = ({
         </div>
       )}
 
-      {/* L2 cascade */}
-      {form.activityId && l2Options.length > 0 && (
+      {/* L2 cascade — DISCIPLINE + PROGRAM */}
+      {form.activityId && showL2Field && l2Options.length > 0 && (
         <div>
           <label className={labelCls}>{t('event.v2.select_l2')}</label>
           <select className={selectCls} value={form.l2Id} onChange={e => setForm(prev => ({ ...prev, l2Id: e.target.value, selectedStudentIds: [], staffParticipants: [] }))}>
@@ -1326,34 +1335,6 @@ export const EventFormV2: React.FC<EventFormV2Props> = ({
         </div>
       )}
 
-      {/* ═══ Footer Actions ═══ */}
-      <div className="flex justify-between w-full pt-2 border-t border-slate-200 dark:border-slate-700">
-        <div>
-          {editingEventId && onDelete && (
-            <button type="button" onClick={onDelete} className="text-red-500 hover:text-red-700 text-sm font-medium">
-              {t('cal.delete_event')}
-            </button>
-          )}
-        </div>
-        <div className="flex space-x-3 rtl:space-x-reverse">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"
-          >
-            {t('btn.cancel')}
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaving}
-            className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium transition-all disabled:opacity-60 flex items-center gap-2"
-          >
-            {isSaving && <Loader2 size={14} className="animate-spin" />}
-            {t('cal.save_changes')}
-          </button>
-        </div>
-      </div>
     </div>
   );
-};
+});

@@ -46,7 +46,33 @@ export const useAuth = () => {
 // This is hardcoded and not editable through any UI. Firebase is the only place this could ever change.
 const SUPERADMIN_EMAIL = 'noam.littvock@gmail.com';
 
+// ─── E2E Auth Bypass ─────────────────────────────────────────────────────────
+// When VITE_E2E_AUTH_BYPASS=true (set via .env.e2e), skip all Firebase auth
+// and inject a mock SuperAdmin user so Playwright tests can run without OAuth.
+const E2EAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const pathParts = window.location.pathname.split('/').filter(Boolean);
+  const mockOrgId = pathParts[0] || 'test-org';
+  const mockValue: AuthContextType = {
+    currentUser: { id: 'e2e-uid', name: 'E2E Admin', email: 'e2e@cadenza.test', role: 'SUPERADMIN', orgId: mockOrgId },
+    isAdmin: true,
+    isSuperAdmin: true,
+    orgId: mockOrgId,
+    availableOrgs: [{ id: mockOrgId, name: 'Test Org' }],
+    googleAccessToken: null,
+    login: async () => {},
+    logout: async () => {},
+  };
+  return <AuthContext.Provider value={mockValue}>{children}</AuthContext.Provider>;
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  if (import.meta.env.VITE_E2E_AUTH_BYPASS === 'true' || import.meta.env.VITE_E2E_FIREBASE_BYPASS === 'true') {
+    return <E2EAuthProvider>{children}</E2EAuthProvider>;
+  }
+  return <RealAuthProvider>{children}</RealAuthProvider>;
+};
+
+const RealAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [availableOrgs, setAvailableOrgs] = useState<OrgInfo[] | null>(null);
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(() => sessionStorage.getItem('gcal_token'));

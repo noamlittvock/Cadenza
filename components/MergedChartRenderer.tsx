@@ -19,7 +19,8 @@ import {
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     LabelList,
 } from 'recharts';
-import { CalendarEvent, Teacher, Activity } from '../types';
+import { CalendarEvent, Teacher } from '../types';
+import type { ActivityV2 } from '../types/v2';
 import { ChartConfiguration, MetricSelection } from '../types/chartBuilder';
 import { aggregateByDimension, AggregationConfig } from '../utils/financialAggregator';
 import { DIMENSION_REGISTRY, METRIC_REGISTRY } from '../chartBuilder/smartDefaults';
@@ -48,7 +49,7 @@ interface MergedChartRendererProps {
     roomNameLookup?: Map<string, string>;
     height?: number;
     currencySymbol?: string;
-    activities?: Activity[];
+    activities?: ActivityV2[];
 }
 
 // ── Helpers ──
@@ -166,6 +167,9 @@ function getTypography(dataPointCount: number, height: number) {
 export const MergedChartRenderer: React.FC<MergedChartRendererProps> = ({
     config, datasets, teachers, roomNameLookup, height = 380, currencySymbol = '₪', activities,
 }) => {
+    // Defensive: guard against undefined/null metrics from corrupted saved charts
+    const safeMetrics = config.metrics ?? [];
+
     // ── State ──
     const [hoveredDataset, setHoveredDataset] = useState<string | null>(null);
     const [hiddenDatasets, setHiddenDatasets] = useState<Set<string>>(new Set());
@@ -181,7 +185,7 @@ export const MergedChartRenderer: React.FC<MergedChartRendererProps> = ({
     // ── Aggregate each dataset ──
     const aggregationConfig: AggregationConfig = useMemo(() => ({
         dimension: config.dimension,
-        metrics: config.metrics,
+        metrics: safeMetrics,
         chartFilters: config.chartFilters,
         sort: config.sort,
         limit: config.limit,
@@ -210,7 +214,7 @@ export const MergedChartRenderer: React.FC<MergedChartRendererProps> = ({
         // For each visible dataset, for each metric, create a series key
         const visibleDatasets = perDatasetData.filter(ds => !hiddenDatasets.has(ds.label));
         for (const ds of visibleDatasets) {
-            for (const m of config.metrics) {
+            for (const m of safeMetrics) {
                 const mKey = metricDisplayKey(m);
                 const seriesKey = visibleDatasets.length === 1
                     ? mKey  // If only one dataset, don't prefix
@@ -226,7 +230,7 @@ export const MergedChartRenderer: React.FC<MergedChartRendererProps> = ({
             const row: Record<string, string | number> = { name: label };
             for (const ds of visibleDatasets) {
                 const aggRow = ds.rows.find(r => r.dimensionLabel === label);
-                for (const m of config.metrics) {
+                for (const m of safeMetrics) {
                     const rawKey = `${m.metricId}:${m.aggregation}`;
                     const mKey = metricDisplayKey(m);
                     const seriesKey = visibleDatasets.length === 1
@@ -241,7 +245,7 @@ export const MergedChartRenderer: React.FC<MergedChartRendererProps> = ({
         });
 
         return { mergedData: data, seriesKeys: keys, seriesColors: colors, seriesDatasetMap: dsMap };
-    }, [perDatasetData, config.metrics, hiddenDatasets]);
+    }, [perDatasetData, safeMetrics, hiddenDatasets]);
 
     // ── Min/max per dataset (for each dataset's series keys independently) ──
     const minMaxMap = useMemo(() => {
@@ -311,7 +315,7 @@ export const MergedChartRenderer: React.FC<MergedChartRendererProps> = ({
                             <span style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {entry.name}
                             </span>
-                            : {formatValueSmart(val, key, config.metrics, currencySymbol)}
+                            : {formatValueSmart(val, key, safeMetrics, currencySymbol)}
                             {mMax && ' ▲'}
                             {mMin && ' ▼'}
                         </p>
@@ -514,7 +518,7 @@ export const MergedChartRenderer: React.FC<MergedChartRendererProps> = ({
                         if (outerR < 15) return null;
 
                         const pieData = ds.rows.map(row => {
-                            const m = config.metrics[0];
+                            const m = safeMetrics[0];
                             const rawKey = `${m.metricId}:${m.aggregation}`;
                             return { name: row.dimensionLabel, value: Math.round((row.values[rawKey] ?? 0) * 100) / 100 };
                         });
@@ -577,7 +581,7 @@ export const MergedChartRenderer: React.FC<MergedChartRendererProps> = ({
                                     minMaxMap={minMaxMap}
                                     hoveredDataset={hoveredDataset}
                                     setHoveredDataset={setHoveredDataset}
-                                    metrics={config.metrics}
+                                    metrics={safeMetrics}
                                     currencySymbol={currencySymbol}
                                 />
                             </>

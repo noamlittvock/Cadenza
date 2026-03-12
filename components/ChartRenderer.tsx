@@ -16,7 +16,8 @@ import {
     BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList,
 } from 'recharts';
-import { CalendarEvent, Teacher, Activity } from '../types';
+import { CalendarEvent, Teacher } from '../types';
+import type { ActivityV2 } from '../types/v2';
 import { ChartConfiguration, MetricSelection } from '../types/chartBuilder';
 import { aggregateByDimension, AggregationConfig } from '../utils/financialAggregator';
 import { DIMENSION_REGISTRY, METRIC_REGISTRY } from '../chartBuilder/smartDefaults';
@@ -556,7 +557,7 @@ interface ChartRendererProps {
     height?: number;
     currencySymbol?: string;
     /** Activity list for resolving activityId → name */
-    activities?: Activity[];
+    activities?: ActivityV2[];
 }
 
 export const ChartRenderer: React.FC<ChartRendererProps> = ({
@@ -568,14 +569,17 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({
     currencySymbol = '₪',
     activities,
 }) => {
+    // Defensive: guard against undefined/null metrics from corrupted saved charts
+    const safeMetrics = config.metrics ?? [];
+
     // ── Run the aggregation engine (Phase 1) ──
     const aggregationConfig: AggregationConfig = useMemo(() => ({
         dimension: config.dimension,
-        metrics: config.metrics,
+        metrics: safeMetrics,
         chartFilters: config.chartFilters,
         sort: config.sort,
         limit: config.limit,
-    }), [config.dimension, config.metrics, config.chartFilters, config.sort, config.limit]);
+    }), [config.dimension, safeMetrics, config.chartFilters, config.sort, config.limit]);
 
     const aggregatedData = useMemo(
         () => aggregateByDimension(events, teachers, aggregationConfig, roomNameLookup, activities),
@@ -584,26 +588,26 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({
 
     // ── Reshape into Recharts-friendly format ──
     const metricKeys = useMemo(
-        () => config.metrics.map(m => metricDisplayKey(m)),
-        [config.metrics]
+        () => safeMetrics.map(m => metricDisplayKey(m)),
+        [safeMetrics]
     );
 
     const colors = useMemo(
-        () => config.metrics.map((m, i) => metricColor(m, i)),
-        [config.metrics]
+        () => safeMetrics.map((m, i) => metricColor(m, i)),
+        [safeMetrics]
     );
 
     const chartData = useMemo(() => {
         return aggregatedData.map(row => {
             const point: Record<string, string | number> = { name: row.dimensionLabel };
-            config.metrics.forEach(m => {
+            safeMetrics.forEach(m => {
                 const key = `${m.metricId}:${m.aggregation}`;
                 const displayKey = metricDisplayKey(m);
                 point[displayKey] = Math.round((row.values[key] ?? 0) * 100) / 100;
             });
             return point;
         });
-    }, [aggregatedData, config.metrics]);
+    }, [aggregatedData, safeMetrics]);
 
     // ── Compute min/max per metric for highlighting ──
     const minMax = useMemo(() => computeMinMax(chartData, metricKeys), [chartData, metricKeys]);
@@ -621,12 +625,13 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({
     }
 
     // ── Props shared by all chart sub-renderers ──
+    const safeConfig = useMemo(() => ({ ...config, metrics: safeMetrics }), [config, safeMetrics]);
     const internalProps: InternalChartProps = {
         chartData,
         metricKeys,
         colors,
         height,
-        config,
+        config: safeConfig,
         minMax,
         currencySymbol,
     };

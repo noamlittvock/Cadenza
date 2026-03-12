@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { TRANSLATIONS } from '../constants';
 import { useFirestoreSync } from '../utils/useFirestoreSync';
+import { buildActivityMap, getActivityName } from '../utils/activityLookup';
 import { formatHours, formatCurrency } from '../utils/formatters';
 import { DatePicker } from './DatePicker';
 import {
@@ -183,11 +184,7 @@ export const PayslipGenerator: React.FC<Props> = ({ settings, onMobileMenuOpen }
   );
 
   // Activity name lookup
-  const activityNameMap = useMemo(() => {
-    const map = new Map<string, string>();
-    activitiesV2.forEach(a => map.set(a.id, a.name));
-    return map;
-  }, [activitiesV2]);
+  const activityNameMap = useMemo(() => buildActivityMap(activitiesV2), [activitiesV2]);
 
   // Compute payslip (client-side, Section 17 formulas)
   const payslipData = useMemo<{ items: PayslipLineItem[]; grandTotal: number } | null>(() => {
@@ -263,7 +260,7 @@ export const PayslipGenerator: React.FC<Props> = ({ settings, onMobileMenuOpen }
       if (!group) {
         group = {
           activityId: item.activityId,
-          activityName: activityNameMap.get(item.activityId) || 'Unnamed Activity',
+          activityName: getActivityName(activityNameMap, item.activityId, 'Unnamed Activity'),
           items: [],
           subtotal: 0,
         };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, ChevronLeft, BarChart3, LineChart, X } from 'lucide-react';
-import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState, Activity, Student, CalendarSubscription, HoursReport, AdminInboxItem } from './types';
+import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState, Student, CalendarSubscription, HoursReport, AdminInboxItem } from './types';
+import type { ActivityV2 } from './types/v2';
 import { ChartConfiguration } from './types/chartBuilder';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, TRANSLATIONS, migrateTeacher, generateId } from './constants';
 
@@ -53,7 +54,7 @@ const FinancialHub: React.FC<{
   setSavedCharts: React.Dispatch<React.SetStateAction<ChartConfiguration[]>>;
   hoursReports: HoursReport[];
   setHoursReports: React.Dispatch<React.SetStateAction<HoursReport[]>>;
-  activities: Activity[];
+  activities: ActivityV2[];
   onMobileMenuOpen: () => void;
 }> = ({ financialTab, setFinancialTab, events, teachers, setTeachers, settings, savedCharts, setSavedCharts, hoursReports, setHoursReports, activities, onMobileMenuOpen }) => (
   <div className="flex flex-col h-full">
@@ -161,7 +162,7 @@ function AppContent() {
   const [rooms, setRooms] = useFirestoreSync<Room>('rooms', []);
   const [events, setEvents] = useFirestoreSync<CalendarEvent>('events', []);
   const [ganttBlocks, setGanttBlocks] = useFirestoreSync<GanttBlock>('ganttBlocks', []);
-  const [activities, setActivities] = useFirestoreSync<Activity>('activities', []);
+  const [activities, setActivities] = useFirestoreSync<ActivityV2>('activities', []);
   const [students, setStudents] = useFirestoreSync<Student>('students', []);
   const [calendarSubscriptions, setCalendarSubscriptions] = useFirestoreSync<CalendarSubscription>('calendarSubscriptions', []);
   const [hoursReports, setHoursReports] = useFirestoreSync<HoursReport>('hoursReports', []);
@@ -280,12 +281,16 @@ function AppContent() {
   };
 
   // Navigate to staff member from inbox
-  const handleNavigateToStaff = (_staffId: string) => {
+  const [navigateToStaffId, setNavigateToStaffId] = useState<string | null>(null);
+  const handleNavigateToStaff = (staffId: string) => {
+    setNavigateToStaffId(staffId);
     setCurrentView('STAFF_MEMBERS');
   };
 
   // Navigate to student from inbox
-  const handleNavigateToStudent = (_studentId: string) => {
+  const [navigateToStudentId, setNavigateToStudentId] = useState<string | null>(null);
+  const handleNavigateToStudent = (studentId: string) => {
+    setNavigateToStudentId(studentId);
     setCurrentView('STUDENTS');
   };
 
@@ -304,7 +309,7 @@ function AppContent() {
           end: g.end,
           staffMemberId: '',
           roomId: '',
-          classification: 'OTHER',
+
           isCanceled: false,
           isHidden: false,
           googleEventId: g.googleEventId,
@@ -485,6 +490,8 @@ function AppContent() {
             adminInboxItems={adminInboxItems}
             setAdminInboxItems={setAdminInboxItems}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+            navigateToId={navigateToStaffId}
+            onNavigateHandled={() => setNavigateToStaffId(null)}
           />
         );
       case 'STUDENTS':
@@ -499,6 +506,8 @@ function AppContent() {
             events={events}
             settings={settings}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+            navigateToId={navigateToStudentId}
+            onNavigateHandled={() => setNavigateToStudentId(null)}
           />
         );
       case 'MANAGE':

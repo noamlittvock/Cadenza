@@ -3,7 +3,7 @@
  *
  * Produces a much larger, more varied dataset than the base generateTestData():
  * - 25 teachers (incl. PER_EVENT and ONE_OFF rates, one archived)
- * - 7 activities spanning all ActivityType values (INSTRUCTIONAL / OPERATIONAL)
+ * - 9 activities spanning all 5 ActivityTemplate types (DISCIPLINE / PROGRAM / ENSEMBLE / EXTERNAL / ADMINISTRATIVE)
  * - 300 events: recurring series, add-on items, 6 deliberate room conflicts,
  *   events spanning ±90 days, future events for date-jump testing
  * - 12 students with assignments
@@ -11,12 +11,15 @@
  * - Full chart, hours-report, inbox, and subscription seeds
  */
 
+import { Timestamp } from 'firebase/firestore';
 import {
-  Teacher, CalendarEvent, Room, GanttBlock, Activity, Student, Guardian,
+  Teacher, CalendarEvent, Room, GanttBlock, Student, Guardian,
   AdminInboxItem, HoursReport, HoursEntry, CalendarSubscription,
   PositionAssignment, RateType, Subcategory, AddOnItem,
   StudentAssignment, PedagogicalRecord, TeachingAssignment,
 } from '../types';
+import type { ActivityV2, ActivityTemplate, ActivityTypeV2 } from '../types/v2';
+import { deriveActivityType } from '../types/v2-compat';
 import { COLORS } from '../constants';
 import { ChartConfiguration } from '../types/chartBuilder';
 
@@ -156,7 +159,7 @@ export const generateDevTeachers = (currencySymbol = '₪'): Teacher[] => {
  * activities and subcategories. Must be called AFTER both teachers and
  * activities have been generated. IDs are deterministic: `TA_T{i}_ACT{j}`.
  */
-export const linkTeachersToActivities = (teachers: Teacher[], activities: Activity[]): void => {
+export const linkTeachersToActivities = (teachers: Teacher[], activities: GeneratedActivity[]): void => {
   const activeActivities = activities.filter(a => !a.isArchived);
   if (activeActivities.length === 0) return;
 
@@ -169,13 +172,29 @@ export const linkTeachersToActivities = (teachers: Teacher[], activities: Activi
 
     for (let n = 0; n < count; n++) {
       const act = activeActivities[(tIdx + n) % activeActivities.length];
-      const sub = act.subcategories?.[0];
-      if (!sub) continue;
+
+      // Template-aware subcategoryId — must match the L2 doc IDs created by DevTools seeder
+      let subcategoryId = '';
+      if (act.l1Groups && act.l1Groups.length > 0) {
+        // DISCIPLINE: flatten all L2 names across L1 groups, rotate through them
+        const allL2s = act.l1Groups.flatMap(g => g.l2Names);
+        if (allL2s.length > 0) {
+          const l2Name = allL2s[(tIdx + n) % allL2s.length];
+          subcategoryId = `L2_${act.id}_${l2Name.replace(/\s+/g, '_')}`;
+        }
+      } else if (act.subcategories && act.subcategories.length > 0) {
+        // PROGRAM: raw uid matches DevTools seeder (no prefix)
+        subcategoryId = act.subcategories[(tIdx + n) % act.subcategories.length].id;
+      } else if (act.template === 'ENSEMBLE' || act.template === 'EXTERNAL') {
+        // ENSEMBLE / EXTERNAL: default L2 doc created by DevTools seeder
+        subcategoryId = `L2_${act.id}_default`;
+      }
+      // ADMINISTRATIVE: stays empty (l2Required: false)
 
       tas.push({
         id: `TA_${teacher.id}_${act.id}`,
         activityId: act.id,
-        subcategoryId: sub.id,
+        subcategoryId,
         startDate: addDays(new Date(), -rng(30, 365)).toISOString().slice(0, 10),
         isEnsemble: act.type === 'INSTRUCTIONAL' && act.name.toLowerCase().includes('ensemble'),
         isArchived: false,
@@ -201,56 +220,74 @@ export const generateDevRooms = (): Room[] => [
 
 // ─── 3. Activities ────────────────────────────────────────────────────────────
 
-export const generateDevActivities = (): Activity[] => {
-  const now = new Date().toISOString();
+/**
+ * Extended type for generated activities — carries L1 group data and legacy
+ * fields used by DevTools to seed v2 Firestore collections properly.
+ */
+export type GeneratedActivity = ActivityV2 & {
+  /** Legacy v1.3 fields kept for linkTeachersToActivities seeder */
+  type: 'INSTRUCTIONAL' | 'OPERATIONAL';
+  subcategories: Subcategory[];
+  /** DISCIPLINE only: L1 departments → L2 specialties under each */
+  l1Groups?: { l1Name: string; l2Names: string[] }[];
+};
 
-  const makeSub = (name: string): Subcategory => ({
-    id: uid(), name, isArchived: false,
+export const generateDevActivities = (): GeneratedActivity[] => {
+  const now = Timestamp.now();
+  const makeSub = (name: string): Subcategory => ({ id: uid(), name, isArchived: false });
+
+  const make = (
+    id: string, name: string, template: ActivityTemplate,
+    legacyType: 'INSTRUCTIONAL' | 'OPERATIONAL',
+    opts: { isArchived?: boolean; subcategories?: Subcategory[]; l1Groups?: { l1Name: string; l2Names: string[] }[] } = {}
+  ): GeneratedActivity => ({
+    id, orgId: '', name, template,
+    activityType: deriveActivityType(template),
+    modules: { curriculum: true, staffBilling: true, revenue: false, externalParticipants: false, orgRoleBilling: false },
+    location: null,
+    eventNameMode: template === 'DISCIPLINE' || template === 'PROGRAM' ? 'AUTO' : 'PROMPTED',
+    isArchived: opts.isArchived ?? false,
+    createdAt: now, updatedAt: now,
+    type: legacyType,
+    subcategories: opts.subcategories ?? [],
+    l1Groups: opts.l1Groups,
   });
 
   return [
-    {
-      id: 'ACT1', orgId: '', name: 'Piano Program', type: 'INSTRUCTIONAL',
-      isArchived: false, createdAt: now, updatedAt: now,
-      subcategories: [makeSub('Beginner'), makeSub('Intermediate'), makeSub('Advanced'), makeSub('ABRSM Prep')],
-    },
-    {
-      id: 'ACT2', orgId: '', name: 'Vocal Studies', type: 'INSTRUCTIONAL',
-      isArchived: false, createdAt: now, updatedAt: now,
-      subcategories: [makeSub('Classical Voice'), makeSub('Contemporary Voice'), makeSub('Musical Theatre')],
-    },
-    {
-      id: 'ACT3', orgId: '', name: 'Strings Ensemble', type: 'INSTRUCTIONAL',
-      isArchived: false, createdAt: now, updatedAt: now,
-      subcategories: [makeSub('Junior Strings'), makeSub('Senior Orchestra'), makeSub('Chamber Quartet')],
-    },
-    {
-      id: 'ACT4', orgId: '', name: 'Music Theory & Ear Training', type: 'INSTRUCTIONAL',
-      isArchived: false, createdAt: now, updatedAt: now,
-      subcategories: [makeSub('Grade 1-3'), makeSub('Grade 4-6'), makeSub('Grade 7-8')],
-    },
-    {
-      id: 'ACT5', orgId: '', name: 'Summer Recital Program', type: 'OPERATIONAL',
-      isArchived: false, createdAt: now, updatedAt: now,
-      subcategories: [makeSub('Junior Recital'), makeSub('Senior Recital'), makeSub('Showcase Night')],
-    },
-    {
-      id: 'ACT6', orgId: '', name: 'Adult Community Choir', type: 'INSTRUCTIONAL',
-      isArchived: false, createdAt: now, updatedAt: now,
-      subcategories: [makeSub('Monday Evening'), makeSub('Thursday Morning')],
-    },
-    {
-      // Archived activity — tests filtering/display behavior
-      id: 'ACT7', orgId: '', name: 'Discontinued Jazz Workshop', type: 'INSTRUCTIONAL',
-      isArchived: true, createdAt: now, updatedAt: now,
-      subcategories: [],
-    },
+    make('ACT1', 'Individual Lessons', 'DISCIPLINE', 'INSTRUCTIONAL', {
+      l1Groups: [
+        { l1Name: 'Strings',    l2Names: ['Violin', 'Viola', 'Cello', 'Double Bass'] },
+        { l1Name: 'Keys',       l2Names: ['Piano', 'Organ', 'Harpsichord'] },
+        { l1Name: 'Winds',      l2Names: ['Flute', 'Clarinet', 'Oboe', 'Saxophone'] },
+        { l1Name: 'Voice',      l2Names: ['Classical Voice', 'Contemporary Voice', 'Musical Theatre'] },
+        { l1Name: 'Percussion', l2Names: ['Drums', 'Marimba', 'Timpani'] },
+      ],
+    }),
+    make('ACT2', 'Masterclasses', 'DISCIPLINE', 'INSTRUCTIONAL', {
+      l1Groups: [
+        { l1Name: 'Strings', l2Names: ['Advanced Violin', 'Advanced Cello'] },
+        { l1Name: 'Voice',   l2Names: ['Opera', 'Contemporary'] },
+        { l1Name: 'Keys',    l2Names: ['Advanced Piano', 'Chamber Piano'] },
+      ],
+    }),
+    make('ACT3', 'Theory & Solfège', 'PROGRAM', 'INSTRUCTIONAL', {
+      subcategories: [makeSub('Grade 1-3'), makeSub('Grade 4-6'), makeSub('Grade 7-8'), makeSub('ABRSM Prep')],
+    }),
+    make('ACT4', 'Music Technology', 'PROGRAM', 'INSTRUCTIONAL', {
+      subcategories: [makeSub('Beginner DAW'), makeSub('Intermediate Production'), makeSub('Advanced Composition')],
+    }),
+    make('ACT5', 'Youth Orchestra', 'ENSEMBLE', 'INSTRUCTIONAL'),
+    make('ACT6', 'Chamber Choir', 'ENSEMBLE', 'INSTRUCTIONAL'),
+    make('ACT7', 'Community Outreach', 'EXTERNAL', 'OPERATIONAL'),
+    make('ACT8', 'Staff Administration', 'ADMINISTRATIVE', 'OPERATIONAL'),
+    make('ACT9', 'Discontinued Jazz Workshop', 'DISCIPLINE', 'INSTRUCTIONAL', { isArchived: true, l1Groups: [] }),
   ];
 };
 
 // ─── 4. Events ────────────────────────────────────────────────────────────────
 
-const ACTIVITY_IDS = ['ACT1', 'ACT2', 'ACT3', 'ACT4', 'ACT5', 'ACT6'];
+// Include all non-archived activity IDs (ACT9 is archived)
+const ACTIVITY_IDS = ['ACT1', 'ACT2', 'ACT3', 'ACT4', 'ACT5', 'ACT6', 'ACT7', 'ACT8'];
 const STUDENT_NAMES_POOL = [
   'Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Grace', 'Hank',
   'Ivy', 'Jake', 'Kim', 'Leo', 'Maya', 'Nate', 'Olivia', 'Pete',
@@ -294,7 +331,6 @@ export const generateDevCalendar = (
       teacherId: teacher.id,
       roomId: room.id,
       positionId: pa?.id,
-      classification: pick(['Individual Lesson', 'Group Lesson', 'Other']),
       activityId: activityId ?? pick(ACTIVITY_IDS),
       isCanceled: false,
       isHidden: false,
@@ -347,7 +383,6 @@ export const generateDevCalendar = (
   for (let i = 0; i < 10; i++) {
     events.push(makeEvent(-28 + i * 14, 18, 0, 120, choirTeacher, ensembleRoom, 'ACT6', {
       name: 'Community Choir Rehearsal (bi-weekly)',
-      classification: 'Group Lesson',
     }));
   }
 
@@ -441,7 +476,7 @@ const emptyPedagogicalRecord = (): PedagogicalRecord => ({
   reportCards: [],
 });
 
-export const generateDevStudents = (teachers: Teacher[], activities: Activity[]): Student[] => {
+export const generateDevStudents = (teachers: Teacher[], activities: GeneratedActivity[]): Student[] => {
   const now = new Date();
   const nowIso = now.toISOString();
 
@@ -470,14 +505,31 @@ export const generateDevStudents = (teachers: Teacher[], activities: Activity[])
       relationship: pick(['Mother', 'Father', 'Guardian']),
     } : undefined;
 
-    const assignments: StudentAssignment[] = acts.map(act => {
+    const assignments: StudentAssignment[] = acts.map((act, aIdx) => {
       // Find a teacher who has a teaching assignment for this activity
       const teacherForAct = teachers.find(t => t.teachingAssignments?.some(ta => ta.activityId === act.id));
       const taForAct = teacherForAct?.teachingAssignments?.find(ta => ta.activityId === act.id);
+
+      // Template-aware subcategoryId — mirrors linkTeachersToActivities logic
+      let subcategoryId = taForAct?.subcategoryId ?? '';
+      if (!subcategoryId) {
+        if (act.l1Groups && act.l1Groups.length > 0) {
+          const allL2s = act.l1Groups.flatMap(g => g.l2Names);
+          if (allL2s.length > 0) {
+            const l2Name = allL2s[(i + aIdx) % allL2s.length];
+            subcategoryId = `L2_${act.id}_${l2Name.replace(/\s+/g, '_')}`;
+          }
+        } else if (act.subcategories && act.subcategories.length > 0) {
+          subcategoryId = act.subcategories[(i + aIdx) % act.subcategories.length].id;
+        } else if (act.template === 'ENSEMBLE' || act.template === 'EXTERNAL') {
+          subcategoryId = `L2_${act.id}_default`;
+        }
+      }
+
       return {
         id: uid(),
         activityId: act.id,
-        subcategoryId: taForAct?.subcategoryId ?? act.subcategories?.[0]?.id ?? uid(),
+        subcategoryId,
         staffMemberId: teacherForAct?.id ?? teachers[i % teachers.length]?.id ?? 'T1',
         teachingAssignmentId: taForAct?.id ?? uid(),
         startDate: addDays(now, -rng(30, 365)).toISOString().slice(0, 10),
@@ -614,28 +666,62 @@ export const generateDevHoursReports = (teachers: Teacher[]): HoursReport[] => {
 
 // ─── 9. Saved Charts ─────────────────────────────────────────────────────────
 
-export const generateDevCharts = (): ChartConfiguration[] => [
-  {
-    id: uid(), title: 'Cost by Teacher (Top 10)', type: 'bar',
-    xAxis: 'teacher', yAxis: 'totalCost', filters: {}, colorScheme: 'cadenza',
-  },
-  {
-    id: uid(), title: 'Hours by Month — Current Year', type: 'line',
-    xAxis: 'month', yAxis: 'totalHours', filters: {}, colorScheme: 'cool',
-  },
-  {
-    id: uid(), title: 'Events by Activity', type: 'pie',
-    xAxis: 'activity', yAxis: 'eventCount', filters: {}, colorScheme: 'warm',
-  },
-  {
-    id: uid(), title: 'Cancellation Rate by Teacher', type: 'bar',
-    xAxis: 'teacher', yAxis: 'cancellationRate', filters: {}, colorScheme: 'monochrome',
-  },
-  {
-    id: uid(), title: 'Revenue vs Cost — Quarterly', type: 'bar',
-    xAxis: 'quarter', yAxis: 'netRevenue', filters: {}, colorScheme: 'cadenza',
-  },
-] as any[];
+export const generateDevCharts = (): ChartConfiguration[] => {
+  const ts = new Date().toISOString();
+  return [
+    {
+      id: uid(), title: 'Cost by Teacher (Top 10)',
+      dataSource: 'financial-dashboard',
+      dimension: 'teacher',
+      metrics: [{ metricId: 'totalCost', aggregation: 'SUM' }],
+      visualization: 'bar',
+      sort: { by: 'totalCost', direction: 'desc' },
+      limit: { topN: 10, otherLabel: 'Other' },
+      filterMode: 'live',
+      createdAt: ts, updatedAt: ts,
+    },
+    {
+      id: uid(), title: 'Hours by Month — Current Year',
+      dataSource: 'financial-dashboard',
+      dimension: 'month',
+      metrics: [{ metricId: 'totalHours', aggregation: 'SUM' }],
+      visualization: 'line',
+      filterMode: 'live',
+      createdAt: ts, updatedAt: ts,
+    },
+    {
+      id: uid(), title: 'Events by Activity',
+      dataSource: 'financial-dashboard',
+      dimension: 'activity',
+      metrics: [{ metricId: 'eventCount', aggregation: 'SUM' }],
+      visualization: 'pie',
+      filterMode: 'live',
+      createdAt: ts, updatedAt: ts,
+    },
+    {
+      id: uid(), title: 'Active vs Canceled Hours by Teacher',
+      dataSource: 'financial-dashboard',
+      dimension: 'teacher',
+      metrics: [
+        { metricId: 'activeHours', aggregation: 'SUM' },
+        { metricId: 'canceledHours', aggregation: 'SUM' },
+      ],
+      visualization: 'stacked-bar',
+      filterMode: 'live',
+      createdAt: ts, updatedAt: ts,
+    },
+    {
+      id: uid(), title: 'Average Rate by Position',
+      dataSource: 'financial-dashboard',
+      dimension: 'position',
+      metrics: [{ metricId: 'avgRate', aggregation: 'AVG' }],
+      visualization: 'bar',
+      sort: { by: 'avgRate', direction: 'desc' },
+      filterMode: 'live',
+      createdAt: ts, updatedAt: ts,
+    },
+  ];
+};
 
 // ─── 10. Calendar Subscriptions ───────────────────────────────────────────────
 

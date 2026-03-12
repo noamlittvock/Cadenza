@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { Activity, AppSettings, CalendarEvent, Student } from '../types';
+import { AppSettings, CalendarEvent, Student } from '../types';
 import type {
   ActivityV2, L1Subcategory, L2Subcategory, EnsembleRosterMember,
   ActivityTemplate, ModulesConfig, EventNameMode,
@@ -100,8 +100,8 @@ function templateBorder(color: string) {
 // ─── Props ───────────────────────────────────────────────────────────────────
 
 interface Props {
-  activities: Activity[];
-  setActivities: React.Dispatch<React.SetStateAction<Activity[]>>;
+  activities: ActivityV2[];
+  setActivities: React.Dispatch<React.SetStateAction<ActivityV2[]>>;
   settings: AppSettings;
   events: CalendarEvent[];
   students: Student[];
@@ -154,6 +154,8 @@ export const ActivityManager: React.FC<Props> = ({
   // ─── L1/L2 inline inputs ────────────────────────────────────────────────
   const [l1Input, setL1Input] = useState('');
   const [l2Input, setL2Input] = useState('');
+  // Per-L1 section inputs (used in tree view for l1Required templates)
+  const [l2InputsByL1, setL2InputsByL1] = useState<Record<string, string>>({});
 
   // ─── Roster add ──────────────────────────────────────────────────────────
   const [rosterStudentSearch, setRosterStudentSearch] = useState('');
@@ -169,9 +171,7 @@ export const ActivityManager: React.FC<Props> = ({
     [activities, detailActivityId]
   );
 
-  // Cast to v2 shape for template-aware operations
-  const detailAsV2 = detailActivity as unknown as ActivityV2 | null;
-  const detailConfig = detailAsV2?.template ? TEMPLATE_CONFIGS[detailAsV2.template] : null;
+  const detailConfig = detailActivity?.template ? TEMPLATE_CONFIGS[detailActivity.template] : null;
 
   const activityL1s = useMemo(() =>
     detailActivityId ? l1Subs.filter(l => l.activityId === detailActivityId) : [],
@@ -235,21 +235,20 @@ export const ActivityManager: React.FC<Props> = ({
     setIsModalOpen(true);
   }, [uid]);
 
-  const openEditModal = useCallback((activity: Activity) => {
-    const v2 = activity as unknown as ActivityV2;
+  const openEditModal = useCallback((activity: ActivityV2) => {
     setEditingId(activity.id);
     setFormName(activity.name);
-    setFormTemplate(v2.template || 'DISCIPLINE');
-    setFormModules(v2.modules || { ...TEMPLATE_CONFIGS.DISCIPLINE.defaultModules });
-    setFormLocation(v2.location || '');
-    setFormEventNameMode(v2.eventNameMode || 'AUTO');
+    setFormTemplate(activity.template || 'DISCIPLINE');
+    setFormModules(activity.modules || { ...TEMPLATE_CONFIGS.DISCIPLINE.defaultModules });
+    setFormLocation(activity.location || '');
+    setFormEventNameMode(activity.eventNameMode || 'AUTO');
     setPrefillUsed(false);
     setInitialFormSnapshot(JSON.stringify({
       formName: activity.name,
-      formTemplate: v2.template || 'DISCIPLINE',
-      formModules: v2.modules || TEMPLATE_CONFIGS.DISCIPLINE.defaultModules,
-      formLocation: v2.location || '',
-      formEventNameMode: v2.eventNameMode || 'AUTO',
+      formTemplate: activity.template || 'DISCIPLINE',
+      formModules: activity.modules || TEMPLATE_CONFIGS.DISCIPLINE.defaultModules,
+      formLocation: activity.location || '',
+      formEventNameMode: activity.eventNameMode || 'AUTO',
     }));
     setIsModalOpen(true);
   }, []);
@@ -272,7 +271,7 @@ export const ActivityManager: React.FC<Props> = ({
     if (!formName.trim()) return;
     if (!isSuperAdmin) return;
 
-    const now = new Date().toISOString();
+    const now = Timestamp.now();
     const config = TEMPLATE_CONFIGS[formTemplate];
 
     // Save prefill for next time
@@ -296,14 +295,13 @@ export const ActivityManager: React.FC<Props> = ({
           location: formLocation || null,
           eventNameMode: formEventNameMode,
           updatedAt: now,
-        } as any;
+        };
       }));
     } else {
-      const newActivity = {
+      const newActivity: ActivityV2 = {
         id: generateId(),
         orgId: '',
         name: formName.trim(),
-        type: formTemplate === 'ADMINISTRATIVE' ? 'OPERATIONAL' : 'INSTRUCTIONAL',
         template: formTemplate,
         activityType: deriveActivityType(formTemplate),
         modules: formModules,
@@ -312,7 +310,7 @@ export const ActivityManager: React.FC<Props> = ({
         isArchived: false,
         createdAt: now,
         updatedAt: now,
-      } as any;
+      };
       setActivities(prev => [...prev, newActivity]);
     }
     setIsModalOpen(false);
@@ -320,7 +318,7 @@ export const ActivityManager: React.FC<Props> = ({
 
   // ─── Archive with cascade ────────────────────────────────────────────────
 
-  const initiateArchive = useCallback((activity: Activity) => {
+  const initiateArchive = useCallback((activity: ActivityV2) => {
     if (!isSuperAdmin) return;
     const today = new Date().toISOString().slice(0, 10);
     const futureEvents = eventsV2.filter(e =>
@@ -336,13 +334,12 @@ export const ActivityManager: React.FC<Props> = ({
   const confirmArchive = useCallback(() => {
     if (!archiveCascade || !isSuperAdmin) return;
     const { activityId } = archiveCascade;
-    const now = new Date().toISOString();
     const tsNow = Timestamp.now();
-    const today = now.slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
 
     // Archive the activity
     setActivities(prev => prev.map(a =>
-      a.id === activityId ? { ...a, isArchived: true, updatedAt: now } : a
+      a.id === activityId ? { ...a, isArchived: true, updatedAt: tsNow } : a
     ));
 
     // Cascade: archive ensemble roster members
@@ -366,7 +363,7 @@ export const ActivityManager: React.FC<Props> = ({
   const handleRestore = useCallback((id: string) => {
     if (!isSuperAdmin) return;
     setActivities(prev => prev.map(a =>
-      a.id === id ? { ...a, isArchived: false, updatedAt: new Date().toISOString() } : a
+      a.id === id ? { ...a, isArchived: false, updatedAt: Timestamp.now() } : a
     ));
   }, [isSuperAdmin, setActivities]);
 
@@ -392,19 +389,24 @@ export const ActivityManager: React.FC<Props> = ({
     setL1Input('');
   }, [l1Input, detailActivityId, isSuperAdmin, activityL1s, setL1Subs]);
 
-  const addL2 = useCallback(() => {
-    if (!l2Input.trim() || !detailActivityId || !isSuperAdmin) return;
-    const exists = activityL2s.some(l => l.name.toLowerCase() === l2Input.trim().toLowerCase());
+  const addL2 = useCallback((l1Id: string | null) => {
+    const input = l1Id ? (l2InputsByL1[l1Id] ?? '') : l2Input;
+    if (!input.trim() || !detailActivityId || !isSuperAdmin) return;
+    const exists = activityL2s.some(l => l.name.toLowerCase() === input.trim().toLowerCase());
     if (exists) return;
     const now = Timestamp.now();
     const newL2: L2Subcategory = {
       id: generateId(), orgId: '', activityId: detailActivityId,
-      l1Id: null, name: l2Input.trim(), defaultRate: null,
+      l1Id, name: input.trim(), defaultRate: null,
       isArchived: false, createdAt: now, updatedAt: now,
     };
     setL2Subs(prev => [...prev, newL2]);
-    setL2Input('');
-  }, [l2Input, detailActivityId, isSuperAdmin, activityL2s, setL2Subs]);
+    if (l1Id) {
+      setL2InputsByL1(prev => ({ ...prev, [l1Id]: '' }));
+    } else {
+      setL2Input('');
+    }
+  }, [l2Input, l2InputsByL1, detailActivityId, isSuperAdmin, activityL2s, setL2Subs]);
 
   const archiveL1 = useCallback((id: string) => {
     if (!isSuperAdmin) return;
@@ -489,12 +491,11 @@ export const ActivityManager: React.FC<Props> = ({
 
   if (detailActivity && detailConfig) {
     const Config = detailConfig;
-    const v2 = detailActivity as unknown as ActivityV2;
     const activeL1s = activityL1s.filter(l => !l.isArchived);
     const archivedL1s = activityL1s.filter(l => l.isArchived);
     const activeL2s = activityL2s.filter(l => !l.isArchived);
     const archivedL2s = activityL2s.filter(l => l.isArchived);
-    const isEnsemble = v2.template === 'ENSEMBLE';
+    const isEnsemble = detailActivity.template === 'ENSEMBLE';
 
     const rosterStudents = activityRoster.map(r => {
       const student = students.find(s => s.id === r.studentId);
@@ -522,7 +523,7 @@ export const ActivityManager: React.FC<Props> = ({
           <div className="flex-1">
             <h2 className="text-xl font-bold text-slate-800 dark:text-white">{detailActivity.name}</h2>
             <span className={`text-xs font-semibold uppercase tracking-wider text-${Config.color}-500 dark:text-${Config.color}-400`}>
-              {t(`activities.template_${v2.template?.toLowerCase()}`)}
+              {t(`activities.template_${detailActivity.template?.toLowerCase()}`)}
             </span>
           </div>
           {isSuperAdmin && !detailActivity.isArchived && (
@@ -539,9 +540,9 @@ export const ActivityManager: React.FC<Props> = ({
         )}
 
         {/* Module badges */}
-        {v2.modules && (
+        {detailActivity.modules && (
           <div className="flex flex-wrap gap-2 mb-6">
-            {Object.entries(v2.modules).filter(([, v]) => v).map(([k]) => (
+            {Object.entries(detailActivity.modules).filter(([, v]) => v).map(([k]) => (
               <span key={k} className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                 {t(`activities.module_${k}`)}
               </span>
@@ -572,13 +573,15 @@ export const ActivityManager: React.FC<Props> = ({
         {/* Hierarchy Tab (L1 / L2) */}
         {(detailTab === 'hierarchy' || !isEnsemble) && Config.hasHierarchy && (
           <div className="space-y-8">
-            {/* L1 Section */}
-            {(Config.l1Required || activityL1s.length > 0) && (
+
+            {/* Tree view: L1 (Subcategories) with nested L2 (Sections) — for templates with l1Required */}
+            {Config.l1Required && (
               <div>
                 <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3 flex items-center gap-2">
                   {t('activities.l1_subcategories')}
-                  {Config.l1Required && <span className="text-xs text-red-400">*</span>}
+                  <span className="text-xs text-red-400">*</span>
                 </h3>
+                {/* Add L1 input */}
                 {isSuperAdmin && (
                   <div className="flex gap-2 mb-3">
                     <input
@@ -593,18 +596,74 @@ export const ActivityManager: React.FC<Props> = ({
                     </button>
                   </div>
                 )}
-                <div className="space-y-1.5">
-                  {activeL1s.map(l1 => (
-                    <div key={l1.id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-lg border border-slate-100 dark:border-slate-700 group">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{l1.name}</span>
-                      {isSuperAdmin && (
-                        <button onClick={() => archiveL1(l1.id)} className="text-slate-400 hover:text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Archive size={14} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                {/* L1 rows with nested L2 children */}
+                <div className="space-y-3">
+                  {activeL1s.map(l1 => {
+                    const l1Children = activeL2s.filter(l2 => l2.l1Id === l1.id);
+                    const archivedL1Children = archivedL2s.filter(l2 => l2.l1Id === l1.id);
+                    const l2InputForL1 = l2InputsByL1[l1.id] ?? '';
+                    return (
+                      <div key={l1.id} className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                        {/* L1 header */}
+                        <div className="flex justify-between items-center bg-slate-100 dark:bg-slate-800 px-3 py-2 group">
+                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{l1.name}</span>
+                          {isSuperAdmin && (
+                            <button onClick={() => archiveL1(l1.id)} className="text-slate-400 hover:text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Archive size={14} />
+                            </button>
+                          )}
+                        </div>
+                        {/* L2 children indented under this L1 */}
+                        <div className="px-3 py-2 space-y-1.5 bg-white dark:bg-slate-900">
+                          {l1Children.map(l2 => (
+                            <div key={l2.id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 ml-3 group">
+                              <span className="text-sm text-slate-600 dark:text-slate-400">{l2.name}</span>
+                              {isSuperAdmin && (
+                                <button onClick={() => archiveL2(l2.id)} className="text-slate-400 hover:text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Archive size={14} />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          {l1Children.length === 0 && (
+                            <p className="text-xs text-slate-400 italic ml-3 py-0.5">{t('activities.no_l2')}</p>
+                          )}
+                          {showArchived && archivedL1Children.length > 0 && (
+                            <div className="mt-1 pt-1 border-t border-slate-100 dark:border-slate-700 ml-3">
+                              {archivedL1Children.map(l2 => (
+                                <div key={l2.id} className="flex justify-between items-center bg-amber-50 dark:bg-amber-900/10 px-3 py-1.5 rounded-lg border border-amber-100 dark:border-amber-900/30 mb-1 group opacity-60">
+                                  <span className="text-sm text-amber-700 dark:text-amber-400 line-through">{l2.name}</span>
+                                  {isSuperAdmin && (
+                                    <button onClick={() => restoreL2(l2.id)} className="text-amber-400 hover:text-green-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <RotateCcw size={14} />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {/* Per-L1 "Add Section" input */}
+                          {isSuperAdmin && (
+                            <div className="flex gap-2 mt-1.5 ml-3">
+                              <input
+                                type="text" value={l2InputForL1}
+                                onChange={e => setL2InputsByL1(prev => ({ ...prev, [l1.id]: e.target.value }))}
+                                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addL2(l1.id))}
+                                placeholder={t('activities.l2_placeholder')}
+                                className="flex-1 border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white rounded-lg px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              />
+                              <button type="button" onClick={() => addL2(l1.id)} disabled={!l2InputForL1.trim()}
+                                className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 shadow-cadenza-soft px-2.5 py-1.5 rounded-lg">
+                                <Plus size={16} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                   {activeL1s.length === 0 && <p className="text-sm text-slate-400 italic">{t('activities.no_l1')}</p>}
+                  {/* Archived L1s */}
                   {showArchived && archivedL1s.length > 0 && (
                     <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
                       <h5 className="text-xs font-semibold uppercase text-amber-500 mb-1.5">{t('activities.archived_badge')}</h5>
@@ -624,8 +683,8 @@ export const ActivityManager: React.FC<Props> = ({
               </div>
             )}
 
-            {/* L2 Section */}
-            {Config.l2Required && (
+            {/* Flat L2 list for templates without L1 (ENSEMBLE, EXTERNAL) */}
+            {!Config.l1Required && Config.l2Required && (
               <div>
                 <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3 flex items-center gap-2">
                   {t('activities.l2_subcategories')}
@@ -635,11 +694,11 @@ export const ActivityManager: React.FC<Props> = ({
                   <div className="flex gap-2 mb-3">
                     <input
                       type="text" value={l2Input} onChange={e => setL2Input(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addL2())}
+                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addL2(null))}
                       placeholder={t('activities.l2_placeholder')}
                       className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                     />
-                    <button type="button" onClick={addL2} disabled={!l2Input.trim()}
+                    <button type="button" onClick={() => addL2(null)} disabled={!l2Input.trim()}
                       className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 shadow-cadenza-soft px-3 py-2 rounded-lg">
                       <Plus size={18} />
                     </button>
@@ -734,9 +793,8 @@ export const ActivityManager: React.FC<Props> = ({
   // RENDER — Activity List View
   // ═══════════════════════════════════════════════════════════════════════════
 
-  const getActivityConfig = (activity: Activity) => {
-    const v2 = activity as unknown as ActivityV2;
-    return TEMPLATE_CONFIGS[v2.template] || TEMPLATE_CONFIGS.DISCIPLINE;
+  const getActivityConfig = (activity: ActivityV2) => {
+    return TEMPLATE_CONFIGS[activity.template] || TEMPLATE_CONFIGS.DISCIPLINE;
   };
 
   return (
@@ -796,7 +854,6 @@ export const ActivityManager: React.FC<Props> = ({
           {visibleActivities.map(activity => {
             const config = getActivityConfig(activity);
             const Icon = config.icon;
-            const v2 = activity as unknown as ActivityV2;
             const l2Count = l2Subs.filter(l => l.activityId === activity.id && !l.isArchived).length;
 
             return (
@@ -813,7 +870,7 @@ export const ActivityManager: React.FC<Props> = ({
                     <div>
                       <h3 className="font-bold text-lg text-slate-800 dark:text-white">{activity.name}</h3>
                       <span className={`text-xs font-semibold uppercase tracking-wider text-${config.color}-500 dark:text-${config.color}-400`}>
-                        {t(`activities.template_${(v2.template || 'discipline').toLowerCase()}`)}
+                        {t(`activities.template_${(activity.template || 'discipline').toLowerCase()}`)}
                       </span>
                     </div>
                   </div>
@@ -862,7 +919,6 @@ export const ActivityManager: React.FC<Props> = ({
               {visibleActivities.map(activity => {
                 const config = getActivityConfig(activity);
                 const Icon = config.icon;
-                const v2 = activity as unknown as ActivityV2;
                 const l2Count = l2Subs.filter(l => l.activityId === activity.id && !l.isArchived).length;
                 return (
                   <tr key={activity.id}
@@ -882,7 +938,7 @@ export const ActivityManager: React.FC<Props> = ({
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <span className={`text-xs font-semibold uppercase text-${config.color}-500 dark:text-${config.color}-400`}>
-                        {t(`activities.template_${(v2.template || 'discipline').toLowerCase()}`)}
+                        {t(`activities.template_${(activity.template || 'discipline').toLowerCase()}`)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-slate-500 dark:text-slate-400 hidden lg:table-cell">
@@ -982,6 +1038,18 @@ export const ActivityManager: React.FC<Props> = ({
         onSave={(e?: React.FormEvent) => handleSubmit(e)}
         t={t}
         maxWidth="max-w-lg"
+        footerContent={
+          <div className="flex justify-end space-x-3 rtl:space-x-reverse w-full">
+            <button type="button" onClick={() => setIsModalOpen(false)}
+              className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+              {t('btn.cancel')}
+            </button>
+            <button type="button" onClick={(e) => handleSubmit(e as any)}
+              className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg">
+              {t('btn.save')}
+            </button>
+          </div>
+        }
       >
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Guide Me link (Section 21 — Layer 3) */}
@@ -1121,17 +1189,6 @@ export const ActivityManager: React.FC<Props> = ({
             )}
           </div>
 
-          {/* Form actions */}
-          <div className="flex justify-end space-x-3 rtl:space-x-reverse mt-6">
-            <button type="button" onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
-              {t('btn.cancel')}
-            </button>
-            <button type="submit"
-              className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg">
-              {t('btn.save')}
-            </button>
-          </div>
         </form>
       </Modal>
     </div>

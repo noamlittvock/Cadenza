@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { CalendarSubscription, SubscriptionFilters, Teacher, Room, Activity, AppSettings, ListsState } from '../types';
+import { CalendarSubscription, SubscriptionFilters, Teacher, Room, AppSettings, ListsState } from '../types';
+import type { ActivityV2 } from '../types/v2';
 import { generateId, TRANSLATIONS } from '../constants';
 import { Plus, Copy, Check, XCircle, Rss, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -9,7 +10,7 @@ interface Props {
   setSubscriptions: React.Dispatch<React.SetStateAction<CalendarSubscription[]>>;
   teachers: Teacher[];
   rooms: Room[];
-  activities: Activity[];
+  activities: ActivityV2[];
   lists: ListsState;
   settings: AppSettings;
   embedded?: boolean;

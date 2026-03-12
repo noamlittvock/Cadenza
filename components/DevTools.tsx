@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { writeBatch, doc, getDocs, collection, query, where, Timestamp } from 'firebase/firestore';
+import { writeBatch, doc, getDocs, deleteDoc, collection, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../utils/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useDevSimulation, ROLE_PRESETS } from '../context/DevSimulationContext';
-import { AppSettings, CalendarEvent, Activity, Teacher, Room, Student, ListsState } from '../types';
+import { AppSettings, CalendarEvent, Teacher, Room, Student, ListsState } from '../types';
 import { StaffMemberV2, StudentV2, ActivityV2, L1Subcategory, L2Subcategory, TeachingAssignmentV2, EnrollmentV2, V2_COLLECTIONS } from '../types/v2';
 import {
   Wrench, AlertTriangle, Loader2,
@@ -14,12 +14,13 @@ import { TRANSLATIONS, INITIAL_LISTS } from '../constants';
 import {
   TEST_TEMPLATES, QA_SCENARIOS, generateTemplateData, resolveTemplateDate, resolveTemplateRole,
 } from '../utils/testTemplates';
+import type { GeneratedActivity } from '../utils/devDataGenerator';
 
 interface DevToolsProps {
   settings: AppSettings;
   events: CalendarEvent[];
   setEvents?: React.Dispatch<React.SetStateAction<CalendarEvent[]>>;
-  activities: Activity[];
+  activities: ActivityV2[];
   teachers: Teacher[];
   students: Student[];
   rooms: Room[];
@@ -67,16 +68,13 @@ export const DevTools: React.FC<DevToolsProps> = ({
   const [templateLoading, setTemplateLoading] = useState<string | null>(null);
   const [templateMessage, setTemplateMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [templateProgress, setTemplateProgress] = useState<{ pct: number; label: string } | null>(null);
-  const [simProgress, setSimProgress] = useState<number | null>(null);
+  const [simSpinning, setSimSpinning] = useState(false);
 
-  /** Wrap any simulation change with a quick animated progress bar */
-  const withSimProgress = (fn: () => void) => {
+  /** Wrap any simulation change with a brief spinner */
+  const withSimSpinner = (fn: () => void) => {
     fn();
-    setSimProgress(0);
-    setTimeout(() => setSimProgress(55), 60);
-    setTimeout(() => setSimProgress(90), 180);
-    setTimeout(() => setSimProgress(100), 320);
-    setTimeout(() => setSimProgress(null), 700);
+    setSimSpinning(true);
+    setTimeout(() => setSimSpinning(false), 400);
   };
 
   // ── Template handler ──────────────────────────────────────────────────────
@@ -99,7 +97,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
       setAdminInboxItems?.([]);
       setSavedCharts?.([]);
       setHoursReports?.([]);
-      setLists?.({ positions: [], tags: [], classifications: [], employmentTypes: [], absenceReasons: [] });
+      setLists?.({ positions: [], tags: [], employmentTypes: [], absenceReasons: [] });
 
       setTemplateProgress({ pct: 20, label: 'Clearing Firestore collections…' });
 
@@ -123,6 +121,9 @@ export const DevTools: React.FC<DevToolsProps> = ({
             wipeV2Col(V2_COLLECTIONS.activities),
             wipeV2Col(V2_COLLECTIONS.l1Subcategories),
             wipeV2Col(V2_COLLECTIONS.l2Subcategories),
+            // system_configs single-doc settings
+            deleteDoc(doc(db, 'system_configs', `${orgId}_customCharts`)),
+            deleteDoc(doc(db, 'system_configs', `${orgId}_lists`)),
           ]);
         } catch (firestoreErr) {
           console.warn('v2 Firestore wipe failed (non-fatal):', firestoreErr);
@@ -158,8 +159,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
       if (data.teachers.length > 0) {
         const positions = [...new Set(data.teachers.flatMap(t => t.positionAssignments?.map(pa => pa.positionName) || []))];
         const tags = [...new Set(data.teachers.flatMap(t => t.tags || []))];
-        const classifications = [...new Set(data.teachers.flatMap(t => t.positionAssignments?.map(pa => pa.category) || []))];
-        setLists?.({ positions, tags, classifications, employmentTypes: [], absenceReasons: ['Sick Leave', 'Public Holiday', 'Student Absent', 'Other'] });
+        setLists?.({ positions, tags, employmentTypes: [], absenceReasons: ['Sick Leave', 'Public Holiday', 'Student Absent', 'Other'] });
       }
 
       setTemplateProgress({ pct: 80, label: 'Seeding staff & student records…' });
@@ -215,26 +215,27 @@ export const DevTools: React.FC<DevToolsProps> = ({
             await batch.commit();
           }
 
-          // Seed v2 activities and L1 subcategories from v1.3 activity data
+          // Seed v2 activities with proper template + L1/L2 hierarchy
           if (data.activities.length > 0) {
             const batch = writeBatch(db);
-            data.activities.forEach(act => {
-              const templateMap: Record<string, 'DISCIPLINE' | 'PROGRAM' | 'ENSEMBLE' | 'EXTERNAL' | 'ADMINISTRATIVE'> = {
-                'INSTRUCTIONAL': 'DISCIPLINE',
-                'OPERATIONAL': 'ADMINISTRATIVE',
-              };
+            const genActivities = data.activities as GeneratedActivity[];
+
+            genActivities.forEach(act => {
+              const template = act.template || (act.type === 'OPERATIONAL' ? 'ADMINISTRATIVE' : 'DISCIPLINE');
+              const isAdmin = template === 'ADMINISTRATIVE' || template === 'EXTERNAL';
+
               const activityDoc: ActivityV2 = {
                 id: act.id,
                 orgId,
                 name: act.name,
-                template: templateMap[act.type] || 'DISCIPLINE',
-                activityType: act.type === 'OPERATIONAL' ? 'ADMINISTRATIVE' : 'ACADEMIC',
+                template,
+                activityType: isAdmin ? 'ADMINISTRATIVE' : 'ACADEMIC',
                 modules: {
-                  curriculum: true,
+                  curriculum: template === 'DISCIPLINE' || template === 'PROGRAM',
                   staffBilling: true,
-                  revenue: act.type === 'OPERATIONAL',
-                  externalParticipants: false,
-                  orgRoleBilling: false,
+                  revenue: template === 'EXTERNAL',
+                  externalParticipants: template === 'EXTERNAL',
+                  orgRoleBilling: template === 'ADMINISTRATIVE',
                 },
                 location: null,
                 eventNameMode: 'AUTO',
@@ -244,33 +245,52 @@ export const DevTools: React.FC<DevToolsProps> = ({
               };
               batch.set(doc(db, V2_COLLECTIONS.activities, act.id), activityDoc);
 
-              // Create L1 + L2 subcategory docs from v1.3 subcategories (1:1 mapping)
-              (act.subcategories || []).forEach(sub => {
-                const l1Doc: L1Subcategory = {
-                  id: sub.id,
-                  orgId,
-                  activityId: act.id,
-                  name: sub.name,
-                  isArchived: sub.isArchived,
-                  createdAt: now,
-                  updatedAt: now,
-                };
-                batch.set(doc(db, V2_COLLECTIONS.l1Subcategories, sub.id), l1Doc);
+              // DISCIPLINE: L1 departments → L2 specialties under each
+              if (template === 'DISCIPLINE' && act.l1Groups) {
+                act.l1Groups.forEach(group => {
+                  const l1Id = `L1_${act.id}_${group.l1Name.replace(/\s+/g, '_')}`;
+                  const l1Doc: L1Subcategory = {
+                    id: l1Id, orgId, activityId: act.id, name: group.l1Name,
+                    isArchived: false, createdAt: now, updatedAt: now,
+                  };
+                  batch.set(doc(db, V2_COLLECTIONS.l1Subcategories, l1Id), l1Doc);
 
-                const l2Id = `L2_${sub.id}`;
+                  group.l2Names.forEach(l2Name => {
+                    const l2Id = `L2_${act.id}_${l2Name.replace(/\s+/g, '_')}`;
+                    const l2Doc: L2Subcategory = {
+                      id: l2Id, orgId, activityId: act.id, l1Id,
+                      name: l2Name, defaultRate: null,
+                      isArchived: false, createdAt: now, updatedAt: now,
+                    };
+                    batch.set(doc(db, V2_COLLECTIONS.l2Subcategories, l2Id), l2Doc);
+                  });
+                });
+              }
+
+              // PROGRAM: L2 only (l1Id = null), sourced from subcategories[]
+              if (template === 'PROGRAM') {
+                (act.subcategories || []).forEach(sub => {
+                  const l2Doc: L2Subcategory = {
+                    id: sub.id, orgId, activityId: act.id, l1Id: null,
+                    name: sub.name, defaultRate: null,
+                    isArchived: sub.isArchived, createdAt: now, updatedAt: now,
+                  };
+                  batch.set(doc(db, V2_COLLECTIONS.l2Subcategories, sub.id), l2Doc);
+                });
+              }
+
+              // ENSEMBLE / EXTERNAL: create a single default L2 so assignments can link to it
+              if (template === 'ENSEMBLE' || template === 'EXTERNAL') {
+                const l2Id = `L2_${act.id}_default`;
                 const l2Doc: L2Subcategory = {
-                  id: l2Id,
-                  orgId,
-                  activityId: act.id,
-                  l1Id: sub.id,
-                  name: sub.name,
-                  defaultRate: null,
-                  isArchived: sub.isArchived,
-                  createdAt: now,
-                  updatedAt: now,
+                  id: l2Id, orgId, activityId: act.id, l1Id: null,
+                  name: act.name, defaultRate: null,
+                  isArchived: false, createdAt: now, updatedAt: now,
                 };
                 batch.set(doc(db, V2_COLLECTIONS.l2Subcategories, l2Id), l2Doc);
-              });
+              }
+
+              // ADMINISTRATIVE: no subcategory docs (l2Required: false)
             });
             await batch.commit();
           }
@@ -292,7 +312,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
                   orgId,
                   staffMemberId: t.id,
                   activityId: ta.activityId,
-                  l2Id: `L2_${ta.subcategoryId}`,
+                  l2Id: ta.subcategoryId,
                   rateType: rateMap[primaryPos?.rateType ?? ''] ?? 'HOURLY',
                   rateValue: primaryPos?.rateValue ?? 0,
                   startDate: ta.startDate,
@@ -318,7 +338,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
                   orgId,
                   studentId: s.id,
                   activityId: asgn.activityId,
-                  l2Id: `L2_${asgn.subcategoryId}`,
+                  l2Id: asgn.subcategoryId,
                   startDate: asgn.startDate,
                   endDate: null,
                   status: asgn.status === 'ARCHIVED' ? 'ARCHIVED' : 'ACTIVE',
@@ -357,7 +377,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
 
   // ── Date Simulator helpers ─────────────────────────────────────────────────
   const jumpDate = (days: number) => {
-    withSimProgress(() => {
+    withSimSpinner(() => {
       const base = simulatedDate ?? new Date();
       const d = new Date(base);
       d.setDate(d.getDate() + days);
@@ -367,7 +387,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
   };
 
   const jumpToScenario = (scenario: 'month-end' | 'quarter-end' | 'new-year' | 'sept-1') => {
-    withSimProgress(() => {
+    withSimSpinner(() => {
       const now = new Date();
       let d: Date;
       switch (scenario) {
@@ -398,7 +418,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
     if (!val) return;
     const d = new Date(val + 'T12:00:00'); // noon to avoid TZ off-by-one
     if (!isNaN(d.getTime())) {
-      withSimProgress(() => {
+      withSimSpinner(() => {
         setSimulatedDate(d);
         onNavigateToView?.('CALENDAR');
       });
@@ -433,7 +453,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
               </div>
               <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-emerald-500 rounded-full transition-all duration-300 ease-out"
+                  className="h-full bg-emerald-500 rounded-full transition-all duration-500 ease-out"
                   style={{ width: `${templateProgress.pct}%` }}
                 />
               </div>
@@ -478,6 +498,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
               return (
                 <button
                   key={template.id}
+                  data-template-id={template.id}
                   onClick={() => applyTemplate(template.id)}
                   disabled={!!templateLoading}
                   className={`text-start p-3 rounded-lg border transition-colors ${colorMap[template.color]} ${!!templateLoading && !isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -589,7 +610,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
               <CalendarDays size={14} />
               Simulating: {simulatedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               <button
-                onClick={() => withSimProgress(() => { setSimulatedDate(null); setDateInputValue(''); })}
+                onClick={() => withSimSpinner(() => { setSimulatedDate(null); setDateInputValue(''); })}
                 className="ms-auto text-xs text-violet-500 hover:text-violet-700 dark:hover:text-violet-200 font-normal"
               >
                 Reset to today
@@ -617,7 +638,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
               </button>
             ))}
             <button
-              onClick={() => withSimProgress(() => { setSimulatedDate(new Date()); setDateInputValue(''); })}
+              onClick={() => withSimSpinner(() => { setSimulatedDate(new Date()); setDateInputValue(''); })}
               className="px-3 py-1.5 bg-violet-500 text-white rounded-lg text-xs font-bold hover:bg-violet-600 transition-colors flex items-center gap-1"
             >
               <RefreshCw size={12} /> Today
@@ -654,13 +675,11 @@ export const DevTools: React.FC<DevToolsProps> = ({
             />
           </div>
 
-          {/* Sim progress bar — shared across both simulator sections */}
-          {simProgress !== null && (
-            <div className="h-1 bg-violet-100 dark:bg-violet-900/30 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-violet-500 rounded-full transition-all duration-200 ease-out"
-                style={{ width: `${simProgress}%` }}
-              />
+          {/* Sim spinner — shown briefly after any date/role change */}
+          {simSpinning && (
+            <div className="flex items-center gap-2 text-xs text-violet-500 dark:text-violet-400">
+              <Loader2 size={12} className="animate-spin" />
+              <span>Applying…</span>
             </div>
           )}
         </div>
@@ -680,7 +699,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
               <UserCog size={14} />
               Simulating: {simulatedRole.label}
               <button
-                onClick={() => withSimProgress(() => setSimulatedRole(null))}
+                onClick={() => withSimSpinner(() => setSimulatedRole(null))}
                 className="ms-auto text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-200 font-normal"
               >
                 Clear role
@@ -692,7 +711,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
             {ROLE_PRESETS.map(preset => (
               <button
                 key={preset.label}
-                onClick={() => withSimProgress(() => setSimulatedRole(simulatedRole?.label === preset.label ? null : preset))}
+                onClick={() => withSimSpinner(() => setSimulatedRole(simulatedRole?.label === preset.label ? null : preset))}
                 className={`text-start px-3 py-2.5 rounded-lg border text-xs font-medium transition-colors ${
                   simulatedRole?.label === preset.label
                     ? 'bg-blue-500 border-blue-500 text-white'
@@ -707,18 +726,16 @@ export const DevTools: React.FC<DevToolsProps> = ({
             ))}
           </div>
 
-          {simProgress !== null && (
-            <div className="mt-3 h-1 bg-blue-100 dark:bg-blue-900/30 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-blue-500 rounded-full transition-all duration-200 ease-out"
-                style={{ width: `${simProgress}%` }}
-              />
+          {simSpinning && (
+            <div className="mt-3 flex items-center gap-2 text-xs text-blue-500 dark:text-blue-400">
+              <Loader2 size={12} className="animate-spin" />
+              <span>Applying…</span>
             </div>
           )}
 
           {simulationActive && (
             <button
-              onClick={() => withSimProgress(() => clearAllSimulations())}
+              onClick={() => withSimSpinner(() => clearAllSimulations())}
               className="mt-3 w-full px-3 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
             >
               Exit All Simulations
@@ -782,7 +799,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
                 let alreadyMigrated = 0;
                 events.forEach(evt => {
                   if (evt.activityId) { alreadyMigrated++; return; }
-                  const cls = String(evt.classification ?? '');
+                  const cls = String((evt as any).classification ?? '');
                   if (!cls) return;
                   const aid = nameToId.get(cls);
                   if (aid) {
@@ -904,6 +921,27 @@ export const DevTools: React.FC<DevToolsProps> = ({
           onClose={() => setShowWipeModal(false)}
           title={<span className="flex items-center gap-2 text-red-600 dark:text-red-400"><AlertTriangle size={20} /> {t('super.wipe_modal_title')}</span>}
           maxWidth="max-w-md"
+          footerContent={
+            <div className="flex justify-end gap-3 w-full">
+              <button
+                onClick={() => setShowWipeModal(false)}
+                className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-lg text-sm transition-colors"
+              >
+                {t('common.cancel') || 'Cancel'}
+              </button>
+              <button
+                disabled={!wipeCheckbox || wipeConfirmText !== 'WIPE'}
+                onClick={() => {
+                  console.warn(`[DATA WIPE] Initiated by ${currentUser?.email} at ${new Date().toISOString()}`);
+                  onWipeData?.();
+                  setShowWipeModal(false);
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {t('super.wipe_confirm_btn')}
+              </button>
+            </div>
+          }
         >
           <div className="space-y-4">
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4">
@@ -929,26 +967,6 @@ export const DevTools: React.FC<DevToolsProps> = ({
                 placeholder="WIPE"
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none font-mono"
               />
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => setShowWipeModal(false)}
-                className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-lg text-sm transition-colors"
-              >
-                {t('common.cancel') || 'Cancel'}
-              </button>
-              <button
-                disabled={!wipeCheckbox || wipeConfirmText !== 'WIPE'}
-                onClick={() => {
-                  console.warn(`[DATA WIPE] Initiated by ${currentUser?.email} at ${new Date().toISOString()}`);
-                  onWipeData?.();
-                  setShowWipeModal(false);
-                }}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {t('super.wipe_confirm_btn')}
-              </button>
             </div>
           </div>
         </Modal>

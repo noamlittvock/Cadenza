@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { CalendarEvent, Teacher, Room, AppSettings, ListsState, GanttBlock, Activity } from '../types';
+import { CalendarEvent, Teacher, Room, AppSettings, ListsState, GanttBlock } from '../types';
+import type { ActivityV2 } from '../types/v2';
 import { TRANSLATIONS, generateId, COLORS } from '../constants';
 import { Trash2, Filter, AlertTriangle, Check, Calendar, User, Tag, BoxSelect, MousePointer2, ListFilter, Hand, XCircle } from 'lucide-react';
 import { DatePicker } from './DatePicker';
@@ -17,7 +18,7 @@ interface Props {
     setSelectedEventIds?: React.Dispatch<React.SetStateAction<Set<string>>>;
     ganttBlocks?: GanttBlock[];
     setGanttBlocks?: React.Dispatch<React.SetStateAction<GanttBlock[]>>;
-    activities?: Activity[];
+    activities?: ActivityV2[];
 }
 
 export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms, settings, lists, selectionMode, setSelectionMode, selectedEventIds, setSelectedEventIds, ganttBlocks, setGanttBlocks, activities = [] }) => {

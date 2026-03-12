@@ -6,9 +6,11 @@
 // ──────────────────────────────────────────────
 
 import React, { useState, useMemo } from 'react';
-import { CalendarEvent, Teacher, AppSettings, Activity as ActivityType } from '../types';
+import { CalendarEvent, Teacher, AppSettings } from '../types';
+import type { ActivityV2 } from '../types/v2';
 import { ChartConfiguration } from '../types/chartBuilder';
 import { formatHours, formatCurrency } from '../utils/formatters';
+import { buildActivityMap, getActivityName } from '../utils/activityLookup';
 import {
     Download, Filter, Calendar as CalIcon, ChevronDown, ChevronUp, Menu, Clock, CalendarDays, DollarSign,
     TrendingUp, X, SlidersHorizontal, Tag, User, Briefcase, ToggleLeft, Plus, Pencil, Trash2,
@@ -174,6 +176,12 @@ const DeleteConfirmModal: React.FC<{ chartTitle: string; onConfirm: () => void; 
         isDirty={false}
         t={t}
         maxWidth="max-w-sm"
+        footerContent={
+            <div className="flex items-center gap-2 justify-end w-full">
+                <button onClick={onCancel} className="px-4 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">{t('btn.cancel')}</button>
+                <button onClick={onConfirm} className="px-4 py-2 text-sm rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors">{t('btn.delete')}</button>
+            </div>
+        }
     >
         <div className="flex items-center gap-3 mb-4 mt-2">
             <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg"><Trash2 size={20} className="text-red-500" /></div>
@@ -181,13 +189,9 @@ const DeleteConfirmModal: React.FC<{ chartTitle: string; onConfirm: () => void; 
                 <p className="text-xs text-slate-500 dark:text-slate-400">{t('modal.cannot_undo')}</p>
             </div>
         </div>
-        <p className="text-sm text-slate-600 dark:text-slate-300 mb-6 font-medium">
+        <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">
             {t('fin.confirm_delete_msg').replace('{title}', chartTitle)}
         </p>
-        <div className="flex items-center gap-2 justify-end">
-            <button onClick={onCancel} className="px-4 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">{t('btn.cancel')}</button>
-            <button onClick={onConfirm} className="px-4 py-2 text-sm rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors">{t('btn.delete')}</button>
-        </div>
     </Modal>
 );
 
@@ -268,7 +272,7 @@ interface Props {
     events: CalendarEvent[]; teachers: Teacher[]; settings: AppSettings;
     savedCharts: ChartConfiguration[]; setSavedCharts: React.Dispatch<React.SetStateAction<ChartConfiguration[]>>;
     onMobileMenuOpen: () => void; onNavigateBack: () => void;
-    activities?: ActivityType[];
+    activities?: ActivityV2[];
 }
 
 export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings, savedCharts: rawSavedCharts, setSavedCharts, onMobileMenuOpen, onNavigateBack, activities = [] }) => {
@@ -402,7 +406,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
         let filtered = events.filter(e => !e.isHidden);
         if (activeFilterCount > 0) filtered = filtered.filter(e => filteredTeacherIds.has(e.teacherId));
         if (selectedPositionNames.size > 0) {
-            filtered = filtered.filter(e => { const t = teachers.find(t => t.id === e.teacherId); if (!t) return false; if (e.positionId) { const pa = t.positionAssignments.find(p => p.id === e.positionId); return pa ? selectedPositionNames.has(pa.positionName) : false; } return t.positionAssignments.some(pa => selectedPositionNames.has(pa.positionName)); });
+            filtered = filtered.filter(e => { const t = teachers.find(t => t.id === e.teacherId); if (!t) return false; if (e.positionId) { const pa = (t.positionAssignments ?? []).find(p => p.id === e.positionId); return pa ? selectedPositionNames.has(pa.positionName) : false; } return (t.positionAssignments ?? []).some(pa => selectedPositionNames.has(pa.positionName)); });
         }
         const { startLimit, endLimit } = dateRange;
         if (startLimit) filtered = filtered.filter(e => new Date(e.start) >= startLimit!);
@@ -413,10 +417,11 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
     const monthsInRange = useMemo(() => { const { startLimit, endLimit } = dateRange; if (!startLimit || !endLimit) return 1; return Math.max(1, (endLimit.getFullYear() * 12 + endLimit.getMonth()) - (startLimit.getFullYear() * 12 + startLimit.getMonth()) + 1); }, [dateRange]);
 
     const reportData: TeacherReport[] = useMemo(() => {
+        const activityMap = buildActivityMap(activities);
         const visibleTeachers = activeFilterCount > 0 ? teachers.filter(t => filteredTeacherIds.has(t.id)) : teachers;
         const reports: TeacherReport[] = visibleTeachers.map(teacher => {
             const posFinancials: Record<string, PositionFinancials> = {};
-            teacher.positionAssignments.forEach(pa => {
+            (teacher.positionAssignments ?? []).forEach(pa => {
                 if (selectedPositionNames.size > 0 && !selectedPositionNames.has(pa.positionName)) return;
                 if (selectedCategories.size > 0 && !selectedCategories.has(pa.category)) return;
                 if (selectedRateTypes.size > 0 && !selectedRateTypes.has(pa.rateType)) return;
@@ -428,7 +433,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                 let tid = evt.positionId;
 
                 if (!tid && evt.activityId) {
-                    const actName = activities.find(a => a.id === evt.activityId)?.name || evt.classification || 'Unclassified';
+                    const actName = getActivityName(activityMap, evt.activityId);
                     const syntheticId = `cat_${actName}`;
                     if (!posFinancials[syntheticId]) {
                         posFinancials[syntheticId] = {
@@ -471,7 +476,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
             const hourlyCostTotal = arr.reduce((s, p) => s + p.hourlyCost, 0);
             const oneOffCostTotal = arr.reduce((s, p) => s + p.oneOffCost, 0);
             const globalCostTotal = arr.reduce((s, p) => s + p.globalCost, 0);
-            return { teacherId: teacher.id, teacherName: teacher.fullName, teacherColor: teacher.color, positions: arr, totalActiveHours, totalCanceledHours, totalHours: totalActiveHours + totalCanceledHours, hourlyCostTotal, oneOffCostTotal, globalCostTotal, grandTotal: hourlyCostTotal + oneOffCostTotal + globalCostTotal };
+            return { teacherId: teacher.id, teacherName: teacher.fullName ?? '', teacherColor: teacher.color ?? '#94a3b8', positions: arr ?? [], totalActiveHours, totalCanceledHours, totalHours: totalActiveHours + totalCanceledHours, hourlyCostTotal, oneOffCostTotal, globalCostTotal, grandTotal: hourlyCostTotal + oneOffCostTotal + globalCostTotal };
         });
         return reports.filter(r => r.totalHours > 0 || r.grandTotal > 0 || activeFilterCount > 0);
     }, [filteredEvents, teachers, filteredTeacherIds, activeFilterCount, selectedPositionNames, selectedCategories, selectedRateTypes, monthsInRange]);
@@ -491,6 +496,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
 
     // ── 10 Insight Tiles ──
     const insightTiles: InsightTile[] = useMemo(() => {
+        try {
         const rwd = reportData.filter(r => r.totalHours > 0 || r.grandTotal > 0);
         if (rwd.length === 0) return [];
         const mostHrs = [...rwd].sort((a, b) => b.totalActiveHours - a.totalActiveHours)[0];
@@ -500,24 +506,25 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
         const cancelRate = totals.totalHours > 0 ? (totals.canceledHours / totals.totalHours * 100) : 0;
         const avgCost = rwd.length > 0 ? totals.grandTotal / rwd.length : 0;
         const posCounts: Record<string, number> = {};
-        rwd.forEach(r => r.positions.forEach(p => { posCounts[p.positionName] = (posCounts[p.positionName] || 0) + p.activeHours; }));
+        rwd.forEach(r => (r.positions ?? []).forEach(p => { posCounts[p.positionName] = (posCounts[p.positionName] || 0) + p.activeHours; }));
         const topPos = Object.entries(posCounts).sort((a, b) => b[1] - a[1])[0];
         const hourlyPct = totals.grandTotal > 0 ? (totals.hourlyCost / totals.grandTotal * 100) : 0;
-        const mostPos = [...rwd].sort((a, b) => b.positions.length - a.positions.length)[0];
+        const mostPos = [...rwd].sort((a, b) => (b.positions?.length ?? 0) - (a.positions?.length ?? 0))[0];
         const activeCount = rwd.filter(r => r.totalActiveHours > 0).length;
 
         return [
-            { id: 'most-hours', title: t('insight.most_hours'), icon: <Award size={16} />, value: formatHours(mostHrs.totalActiveHours), entity: mostHrs.teacherName, entityColor: mostHrs.teacherColor, context: `${((mostHrs.totalActiveHours / Math.max(totals.activeHours, 1)) * 100).toFixed(0)}% of all active hours`, highlight: 'max', gradient: 'bg-gradient-to-r from-emerald-400 to-emerald-600' },
-            { id: 'most-canceled', title: t('insight.most_canceled'), icon: <AlertTriangle size={16} />, value: formatHours(mostCanc.totalCanceledHours), entity: mostCanc.teacherName, entityColor: mostCanc.teacherColor, context: mostCanc.totalCanceledHours > 0 ? `${((mostCanc.totalCanceledHours / Math.max(mostCanc.totalHours, 1)) * 100).toFixed(0)}% of their total hours` : 'No cancellations', highlight: mostCanc.totalCanceledHours > 0 ? 'min' : 'neutral', gradient: 'bg-gradient-to-r from-red-400 to-red-600' },
-            { id: 'highest-payroll', title: t('insight.highest_payroll'), icon: <DollarSign size={16} />, value: formatCurrency(highPay.grandTotal, settings.currency), entity: highPay.teacherName, entityColor: highPay.teacherColor, context: `${((highPay.grandTotal / Math.max(totals.grandTotal, 1)) * 100).toFixed(0)}% of total payroll`, highlight: 'max', gradient: 'bg-gradient-to-r from-blue-400 to-indigo-600' },
+            { id: 'most-hours', title: t('insight.most_hours'), icon: <Award size={16} />, value: formatHours(mostHrs?.totalActiveHours ?? 0), entity: mostHrs?.teacherName, entityColor: mostHrs?.teacherColor, context: `${((mostHrs?.totalActiveHours ?? 0) / Math.max(totals.activeHours, 1) * 100).toFixed(0)}% of all active hours`, highlight: 'max', gradient: 'bg-gradient-to-r from-emerald-400 to-emerald-600' },
+            { id: 'most-canceled', title: t('insight.most_canceled'), icon: <AlertTriangle size={16} />, value: formatHours(mostCanc?.totalCanceledHours ?? 0), entity: mostCanc?.teacherName, entityColor: mostCanc?.teacherColor, context: (mostCanc?.totalCanceledHours ?? 0) > 0 ? `${(((mostCanc?.totalCanceledHours ?? 0) / Math.max(mostCanc?.totalHours ?? 1, 1)) * 100).toFixed(0)}% of their total hours` : 'No cancellations', highlight: (mostCanc?.totalCanceledHours ?? 0) > 0 ? 'min' : 'neutral', gradient: 'bg-gradient-to-r from-red-400 to-red-600' },
+            { id: 'highest-payroll', title: t('insight.highest_payroll'), icon: <DollarSign size={16} />, value: formatCurrency(highPay?.grandTotal ?? 0, settings.currency), entity: highPay?.teacherName, entityColor: highPay?.teacherColor, context: `${(((highPay?.grandTotal ?? 0) / Math.max(totals.grandTotal, 1)) * 100).toFixed(0)}% of total payroll`, highlight: 'max', gradient: 'bg-gradient-to-r from-blue-400 to-indigo-600' },
             { id: 'lowest-payroll', title: t('insight.lowest_payroll'), icon: <TrendingDown size={16} />, value: lowPay ? formatCurrency(lowPay.grandTotal, settings.currency) : '—', entity: lowPay?.teacherName, entityColor: lowPay?.teacherColor, context: lowPay ? `${((lowPay.grandTotal / Math.max(totals.grandTotal, 1)) * 100).toFixed(1)}% of total` : 'No data', highlight: 'min', gradient: 'bg-gradient-to-r from-orange-400 to-red-500' },
             { id: 'cancel-rate', title: t('insight.cancel_rate'), icon: <Percent size={16} />, value: `${cancelRate.toFixed(1)}%`, context: `${formatHours(totals.canceledHours)} canceled of ${formatHours(totals.totalHours)} total`, highlight: cancelRate > 25 ? 'min' : cancelRate > 15 ? 'warning' : 'neutral', gradient: cancelRate > 15 ? 'bg-gradient-to-r from-amber-400 to-amber-600' : 'bg-gradient-to-r from-slate-300 to-slate-500' },
             { id: 'avg-cost', title: t('insight.avg_cost'), icon: <Target size={16} />, value: formatCurrency(avgCost, settings.currency), context: `Across ${rwd.length} active teacher${rwd.length !== 1 ? 's' : ''}`, highlight: 'neutral', gradient: 'bg-gradient-to-r from-violet-400 to-purple-600' },
             { id: 'top-position', title: t('insight.top_position'), icon: <Briefcase size={16} />, value: topPos ? formatHours(topPos[1]) : '0:00', entity: topPos ? topPos[0] : undefined, context: t('insight.most_active_position'), highlight: 'neutral', gradient: 'bg-gradient-to-r from-teal-400 to-cyan-600' },
             { id: 'cost-split', title: t('insight.cost_split'), icon: <CreditCard size={16} />, value: `${hourlyPct.toFixed(0)}% / ${(100 - hourlyPct).toFixed(0)}%`, context: `${formatCurrency(totals.hourlyCost, settings.currency)} hourly · ${formatCurrency(totals.globalCost, settings.currency)} global`, highlight: 'neutral', gradient: 'bg-gradient-to-r from-blue-400 to-emerald-500' },
-            { id: 'most-positions', title: t('insight.most_positions'), icon: <UsersIcon size={16} />, value: `${mostPos.positions.length}`, entity: mostPos.teacherName, entityColor: mostPos.teacherColor, context: mostPos.positions.map(p => p.positionName).join(', '), highlight: 'neutral', gradient: 'bg-gradient-to-r from-pink-400 to-rose-600' },
+            { id: 'most-positions', title: t('insight.most_positions'), icon: <UsersIcon size={16} />, value: `${mostPos?.positions?.length ?? 0}`, entity: mostPos?.teacherName, entityColor: mostPos?.teacherColor, context: mostPos?.positions?.map(p => p.positionName).join(', ') ?? '—', highlight: 'neutral', gradient: 'bg-gradient-to-r from-pink-400 to-rose-600' },
             { id: 'active-teachers', title: t('insight.active_teachers'), icon: <Activity size={16} />, value: `${activeCount}`, context: `Out of ${teachers.length} total`, highlight: 'neutral', gradient: 'bg-gradient-to-r from-sky-400 to-blue-600' },
         ];
+        } catch (err) { console.error('insightTiles computation failed:', err); return []; }
     }, [reportData, totals, teachers, settings.currency]);
 
     const customInsightTiles: InsightTile[] = useMemo(() => {
@@ -854,9 +861,9 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                                             {chart.filterMode === 'live' ? <Zap size={8} /> : <Camera size={8} />}
                                             {chart.filterMode === 'live' ? 'LIVE' : 'SNAPSHOT'}
                                         </span>
-                                        {chart.chartFilters && (chart.chartFilters.teacherIds.length + chart.chartFilters.positionNames.length + chart.chartFilters.tags.length + chart.chartFilters.categories.length + chart.chartFilters.rateTypes.length) > 0 && (
+                                        {chart.chartFilters && ((chart.chartFilters.teacherIds?.length ?? 0) + (chart.chartFilters.positionNames?.length ?? 0) + (chart.chartFilters.tags?.length ?? 0) + (chart.chartFilters.categories?.length ?? 0) + (chart.chartFilters.rateTypes?.length ?? 0)) > 0 && (
                                             <span className="flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-800">
-                                                <Filter size={8} />{chart.chartFilters!.teacherIds.length + chart.chartFilters!.positionNames.length + chart.chartFilters!.tags.length + chart.chartFilters!.categories.length + chart.chartFilters!.rateTypes.length} filters
+                                                <Filter size={8} />{(chart.chartFilters.teacherIds?.length ?? 0) + (chart.chartFilters.positionNames?.length ?? 0) + (chart.chartFilters.tags?.length ?? 0) + (chart.chartFilters.categories?.length ?? 0) + (chart.chartFilters.rateTypes?.length ?? 0)} filters
                                             </span>
                                         )}
                                     </div>
@@ -912,7 +919,7 @@ export const FinancialAnalysis: React.FC<Props> = ({ events, teachers, settings,
                                 </div>
                                 {/* Footer */}
                                 <div className="px-4 py-2 bg-slate-50/50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 flex items-center justify-between">
-                                    <span>{chart.dimension} × {chart.metrics.length} metric{chart.metrics.length > 1 ? 's' : ''} → {chart.visualization}{chart.compareEnabled ? ' (compare)' : ''}</span>
+                                    <span>{chart.dimension} × {chart.metrics?.length ?? 0} metric{(chart.metrics?.length ?? 0) > 1 ? 's' : ''} → {chart.visualization}{chart.compareEnabled ? ' (compare)' : ''}</span>
                                     <span>Updated {new Date(chart.updatedAt).toLocaleDateString()}</span>
                                 </div>
                             </div>

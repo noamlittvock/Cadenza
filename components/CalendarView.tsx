@@ -1,15 +1,15 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, ListsState, RecurrenceRule, DayOfWeek, Activity } from '../types';
+import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, ListsState, RecurrenceRule, DayOfWeek } from '../types';
 import { generateId, INITIAL_LISTS, INITIAL_RATE_CARDS } from '../constants';
 import { CATEGORY_SCHEMAS } from '../utils/schemaRegistry';
 import { lookupRate } from '../utils/rateLookup';
-import { ChevronLeft, ChevronRight, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronUp, ChevronDown, Repeat, Ban, RotateCcw, HelpCircle, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronUp, ChevronDown, Repeat, Ban, RotateCcw, HelpCircle, Search, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { syncEventToGoogle, removeEventFromGoogle, updateEventInGoogle } from '../utils/googleCalendarSync';
 import { DatePicker } from './DatePicker';
 import { Modal } from './Modal';
-import { EventFormV2, EventFormState } from './EventFormV2';
+import { EventFormV2, EventFormState, EventFormV2Handle } from './EventFormV2';
 
 import { TRANSLATIONS } from '../constants';
 import { detectRoomConflicts, getConflictingEventIds } from '../utils/roomConflicts';
@@ -29,7 +29,7 @@ interface Props {
   setGanttBlocks: React.Dispatch<React.SetStateAction<GanttBlock[]>>;
   settings: AppSettings;
   lists: ListsState;
-  activities: Activity[];
+  activities: ActivityV2[];
 
   // Navigation & View State
   onNavigate: (view: any) => void;
@@ -119,7 +119,7 @@ export const CalendarView: React.FC<Props> = ({
   const activeLists = lists || INITIAL_LISTS;
 
   // ─── v2.0 Firestore hooks (Phase 5) ─────────────────────────────────────
-  const [activitiesV2] = useFirestoreSync<ActivityV2>(V2_COLLECTIONS.activities, []);
+  // activities prop is already ActivityV2[] from App.tsx — no redundant sync needed
   const [l1Subs] = useFirestoreSync<L1Subcategory>(V2_COLLECTIONS.l1Subcategories, []);
   const [l2Subs] = useFirestoreSync<L2Subcategory>(V2_COLLECTIONS.l2Subcategories, []);
   const [staffMembersV2] = useFirestoreSync<StaffMemberV2>(V2_COLLECTIONS.staffMembers, []);
@@ -135,23 +135,23 @@ export const CalendarView: React.FC<Props> = ({
   const canWriteCalendar = isSuperAdmin || isAdmin;
 
   const eventExportData = useMemo(() => eventsV2.map(e => ({
-    activityName: activitiesV2.find(a => a.id === e.activityId)?.name || '',
+    activityName: activities.find(a => a.id === e.activityId)?.name || '',
     l2Name: l2Subs.find(l => l.id === e.l2Id)?.name || '',
     date: e.date || '',
     startTime: e.startTime || '',
     endTime: e.endTime || '',
     location: e.location || '',
-  })), [eventsV2, activitiesV2, l2Subs]);
+  })), [eventsV2, activities, l2Subs]);
 
   const eventDupKeys = useMemo(() => new Set(eventsV2.map(e => {
-    const aName = activitiesV2.find(a => a.id === e.activityId)?.name || '';
+    const aName = activities.find(a => a.id === e.activityId)?.name || '';
     const lName = l2Subs.find(l => l.id === e.l2Id)?.name || '';
     return `${aName}|${lName}|${e.date}|${e.startTime}`.toLowerCase();
-  })), [eventsV2, activitiesV2, l2Subs]);
+  })), [eventsV2, activities, l2Subs]);
 
   const csvActivityByName = useMemo(
-    () => Object.fromEntries(activitiesV2.map(a => [a.name.toLowerCase(), a.id])),
-    [activitiesV2],
+    () => Object.fromEntries(activities.map(a => [a.name.toLowerCase(), a.id])),
+    [activities],
   );
   const csvL2ByName = useMemo(
     () => Object.fromEntries(l2Subs.map(l => [l.name.toLowerCase(), l.id])),
@@ -212,6 +212,7 @@ export const CalendarView: React.FC<Props> = ({
 
   // Modal State (Edit/Create)
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalAnchorPosition, setModalAnchorPosition] = useState<{ x: number; y: number } | null>(null);
   const [editingEvent, setEditingEvent] = useState<Partial<CalendarEvent>>({});
   const [initialEditingEvent, setInitialEditingEvent] = useState<Partial<CalendarEvent>>({});
 
@@ -236,6 +237,7 @@ export const CalendarView: React.FC<Props> = ({
   const [marqueeStart, setMarqueeStart] = useState<{ x: number; y: number } | null>(null);
   const [marqueeEnd, setMarqueeEnd] = useState<{ x: number; y: number } | null>(null);
   const marqueeContainerRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<EventFormV2Handle>(null);
 
   // Gantt Collapsible State
   const [isGanttExpanded, setIsGanttExpanded] = useState(true);
@@ -770,7 +772,7 @@ export const CalendarView: React.FC<Props> = ({
 
   // --- Event Editor (Modal) ---
 
-  const openModal = (evt?: Partial<CalendarEvent>) => {
+  const openModal = (evt?: Partial<CalendarEvent>, anchor?: { x: number; y: number } | null) => {
     const defaultStart = new Date();
     defaultStart.setMinutes(0, 0, 0);
     const defaultEnd = new Date(defaultStart);
@@ -788,11 +790,12 @@ export const CalendarView: React.FC<Props> = ({
     }
     setEditingEvent(newEvent);
     setInitialEditingEvent(newEvent);
+    setModalAnchorPosition(anchor ?? null);
     setIsModalOpen(true);
     setDetailItem(null);
   };
 
-  const handleSlotClick = (date: Date, hour: number) => {
+  const handleSlotClick = (date: Date, hour: number, e?: React.MouseEvent) => {
     // Only Admin+ can create events
     if (!isAdmin) return;
     // In MARQUEE mode, don't open the create-event modal when clicking empty space
@@ -802,11 +805,12 @@ export const CalendarView: React.FC<Props> = ({
     const end = new Date(start);
     end.setMinutes(start.getMinutes() + settings.defaultEventDuration);
 
+    const anchor = e ? { x: e.clientX, y: e.clientY } : null;
     openModal({
       start: start.toISOString(),
       end: end.toISOString(),
       roomId: rooms[0]?.id
-    });
+    }, anchor);
   };
 
   const handleGoogleSync = async (eventToSync: CalendarEvent, isUpdate: boolean = false) => {
@@ -888,19 +892,14 @@ export const CalendarView: React.FC<Props> = ({
     } else {
       // New event — save with recurrence rule if set
       const newId = generateId();
-      const selectedActivity = activities.find(a => a.id === editingEvent.activityId);
       const newEvent: CalendarEvent = {
         ...editingEvent,
         id: newId,
         isCanceled: false,
         isHidden: false,
         description: editingEvent.description || '',
-        // Phase 3 dual-write fields
         activityId: editingEvent.activityId,
-        subcategoryId: editingEvent.subcategoryId,
-        eventIntent: selectedActivity?.type,
         staffMemberIds: editingEvent.teacherId ? [editingEvent.teacherId] : [],
-        classification: selectedActivity?.name || '',
       } as CalendarEvent;
       setEvents(prev => [...prev, newEvent]);
       setRecentlySaved(prev => new Set(prev).add(newId));
@@ -914,7 +913,7 @@ export const CalendarView: React.FC<Props> = ({
   // ─── Phase 5: v2.0 Event Form Save Handler ─────────────────────────────
   const handleSaveV2 = (formState: EventFormState) => {
     const now = { seconds: Date.now() / 1000, nanoseconds: 0 } as any;
-    const selectedActivity = activitiesV2.find(a => a.id === formState.activityId);
+    const selectedActivity = activities.find(a => a.id === formState.activityId);
 
     if (editingEvent.id) {
       // ── Edit existing event ──
@@ -964,8 +963,6 @@ export const CalendarView: React.FC<Props> = ({
           roomId: formState.roomId || undefined,
           staffMemberIds: formState.staffParticipants.map(sp => sp.staffMemberId),
           activityId: formState.activityId,
-          subcategoryId: formState.l2Id || undefined,
-          classification: selectedActivity?.name || '',
           isCanceled: formState.isCanceled,
           cancellationPayStatus: formState.cancellationPayStatus,
           recurrenceId: parentId,
@@ -988,8 +985,6 @@ export const CalendarView: React.FC<Props> = ({
           roomId: formState.roomId || undefined,
           staffMemberIds: formState.staffParticipants.map(sp => sp.staffMemberId),
           activityId: formState.activityId,
-          subcategoryId: formState.l2Id || undefined,
-          classification: selectedActivity?.name || '',
           isCanceled: formState.isCanceled,
           cancellationPayStatus: formState.cancellationPayStatus,
           recurrenceRule: formState.recurrenceRule,
@@ -1054,9 +1049,6 @@ export const CalendarView: React.FC<Props> = ({
         roomId: formState.roomId || undefined,
         staffMemberIds: formState.staffParticipants.map(sp => sp.staffMemberId),
         activityId: formState.activityId,
-        subcategoryId: formState.l2Id || undefined,
-        eventIntent: selectedActivity?.activityType === 'ADMINISTRATIVE' ? 'OPERATIONAL' : 'INSTRUCTIONAL',
-        classification: selectedActivity?.name || '',
         isCanceled: false,
         isHidden: false,
         recurrenceRule: formState.recurrenceRule,
@@ -1231,14 +1223,14 @@ export const CalendarView: React.FC<Props> = ({
     }
   };
 
-  const handleEditEvent = (evt: CalendarEvent) => {
+  const handleEditEvent = (evt: CalendarEvent, anchor?: { x: number; y: number } | null) => {
     // Check if this is part of a recurring series
     if (evt.recurrenceRule || evt.recurrenceId) {
       setRecurrenceDialog({ type: 'EDIT', event: evt });
       setDetailItem(null);
       return;
     }
-    openModal(evt);
+    openModal(evt, anchor);
   };
 
   const handleCancelEvent = (evt: CalendarEvent) => {
@@ -1408,7 +1400,7 @@ export const CalendarView: React.FC<Props> = ({
     const totalHeight = Math.max(30, lanes.length * laneHeight + 10);
 
     return (
-      <div className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 flex flex-col transition-all duration-300 relative overflow-hidden">
+      <div className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 flex flex-col transition-all duration-150 relative overflow-hidden">
         {/* Collapsed Header */}
         {!isGanttExpanded && (
           <div
@@ -1642,7 +1634,7 @@ export const CalendarView: React.FC<Props> = ({
                     <div
                       key={h}
                       className="h-[60px] border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-cell"
-                      onClick={() => handleSlotClick(day, h)}
+                      onClick={(e) => handleSlotClick(day, h, e)}
                       title={t('cal.click_add')}
                     />
                   ))}
@@ -1939,7 +1931,7 @@ export const CalendarView: React.FC<Props> = ({
                           </div>
                         </div>
 
-                        <button onClick={(e) => { e.stopPropagation(); handleSlotClick(day, 10); }} className="text-slate-300 hover:text-blue-500 opacity-0 group-hover/cell:opacity-100 transition-opacity relative z-30">
+                        <button onClick={(e) => { e.stopPropagation(); handleSlotClick(day, 10, e); }} className="text-slate-300 hover:text-blue-500 opacity-0 group-hover/cell:opacity-100 transition-opacity relative z-30">
                           <Plus size={14} />
                         </button>
                       </div>
@@ -1955,7 +1947,7 @@ export const CalendarView: React.FC<Props> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 transition-colors duration-200 relative">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 transition-colors duration-75 relative">
       <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 shadow-sm z-30">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-4">
@@ -2119,7 +2111,7 @@ export const CalendarView: React.FC<Props> = ({
             existingData={eventExportData}
             existingDuplicateKeys={eventDupKeys}
             dependencyMaps={{ activityByName: csvActivityByName, l2ByName: csvL2ByName, staffByEmail: {}, studentByName: {} }}
-            activityNames={activitiesV2.map(a => a.name)}
+            activityNames={activities.map(a => a.name)}
             settings={settings}
             canWrite={canWriteCalendar}
             onImportComplete={handleEventImportComplete}
@@ -2281,7 +2273,7 @@ export const CalendarView: React.FC<Props> = ({
                 )}
               </div>
               <div className="flex gap-3">
-                {detailItem.type === 'EVENT' && isAdmin && <button onClick={() => handleEditEvent(detailItem.data as CalendarEvent)} className="flex-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 py-2 rounded-lg flex items-center justify-center font-medium transition-colors"><Edit size={16} className="me-2" /> {t('cal.detail.edit')}</button>}
+                {detailItem.type === 'EVENT' && isAdmin && <button onClick={(e) => handleEditEvent(detailItem.data as CalendarEvent, { x: e.clientX, y: e.clientY })} className="flex-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 py-2 rounded-lg flex items-center justify-center font-medium transition-colors"><Edit size={16} className="me-2" /> {t('cal.detail.edit')}</button>}
                 {detailItem.type === 'EVENT' && isAdmin && (
                   <button
                     onClick={() => handleCancelEvent(detailItem.data as CalendarEvent)}
@@ -2316,7 +2308,7 @@ export const CalendarView: React.FC<Props> = ({
             </div>
             {isAdmin && (
               <button
-                onClick={() => { handleEditEvent(contextMenu.event); setContextMenu(null); }}
+                onClick={() => { handleEditEvent(contextMenu.event, { x: contextMenu.x, y: contextMenu.y }); setContextMenu(null); }}
                 className="w-full text-start px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
               >
                 <Edit size={14} className="text-blue-500" /> {t('cal.detail.edit')}
@@ -2344,15 +2336,44 @@ export const CalendarView: React.FC<Props> = ({
 
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => { setIsModalOpen(false); setModalAnchorPosition(null); }}
         title={editingEvent.id ? t('event.edit') : t('event.new')}
+        anchorPosition={modalAnchorPosition}
         isDirty={true}
-        t={t}
         maxWidth="max-w-2xl"
-        footerContent={<></>}
+        footerContent={
+          <div className="flex justify-between w-full">
+            <div>
+              {editingEvent.id && (
+                <button type="button" onClick={() => { handleDeleteEvent(editingEvent.id!, editingEvent as CalendarEvent); setIsModalOpen(false); }} className="text-red-500 hover:text-red-700 text-sm font-medium">
+                  {t('cal.delete_event')}
+                </button>
+              )}
+            </div>
+            <div className="flex space-x-3 rtl:space-x-reverse">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"
+              >
+                {t('btn.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => formRef.current?.triggerSave()}
+                disabled={formRef.current?.isSaving}
+                className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium transition-all disabled:opacity-60 flex items-center gap-2"
+              >
+                {formRef.current?.isSaving && <Loader2 size={14} className="animate-spin" />}
+                {t('cal.save_changes')}
+              </button>
+            </div>
+          </div>
+        }
       >
         <EventFormV2
-          activitiesV2={activitiesV2}
+          ref={formRef}
+          activitiesV2={activities}
           l1Subcategories={l1Subs}
           l2Subcategories={l2Subs}
           staffMembers={staffMembersV2}
@@ -2367,7 +2388,7 @@ export const CalendarView: React.FC<Props> = ({
           existingFormState={editingEvent.id ? {
             activityId: editingEvent.activityId || '',
             l1Id: '',
-            l2Id: editingEvent.subcategoryId || '',
+            l2Id: (editingEvent as any).l2Id || (editingEvent as any).subcategoryId || '',
             name: editingEvent.name || '',
             date: editingEvent.start ? new Date(editingEvent.start).toISOString().split('T')[0] : '',
             startTime: editingEvent.start ? `${String(new Date(editingEvent.start).getHours()).padStart(2, '0')}:${String(new Date(editingEvent.start).getMinutes()).padStart(2, '0')}` : '',
@@ -2383,8 +2404,6 @@ export const CalendarView: React.FC<Props> = ({
           initialStart={editingEvent.start}
           initialEnd={editingEvent.end}
           onSave={handleSaveV2}
-          onCancel={() => setIsModalOpen(false)}
-          onDelete={editingEvent.id ? () => { handleDeleteEvent(editingEvent.id!, editingEvent as CalendarEvent); setIsModalOpen(false); } : undefined}
           t={t}
         />
       </Modal>

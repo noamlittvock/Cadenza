@@ -1,13 +1,3 @@
-export enum Classification {
-  INDIVIDUAL = 'Individual Lesson',
-  GROUP = 'Group Lesson',
-  MASTERCLASS = 'Masterclass',
-  REHEARSAL = 'Rehearsal',
-  RECITAL = 'Recital',
-  ADMIN = 'Administrative',
-  OTHER = 'Other'
-}
-
 export type CancellationPayStatus = 'PAID_CANCELLATION' | 'NO_PAY_CANCELLATION';
 
 export interface AddOnItem {
@@ -203,7 +193,6 @@ export interface CalendarEvent {
   description: string;
   teacherId?: string;
   roomId?: string;
-  categoryId?: string;
   subtypeId?: string;
   schemaPayload?: Record<string, any>;
   pricingSnapshot?: RateSnapshot;
@@ -214,11 +203,7 @@ export interface CalendarEvent {
   addOnItems?: AddOnItem[];
   audit?: { createdBy?: string; updatedBy?: string; createdAt?: string; updatedAt?: string; };
   positionId?: string;       // Links to a PositionAssignment.id on the teacher
-  classification: string;
-  // Phase 3 — Dual-field transition
   activityId?: string;          // → Activity.id
-  subcategoryId?: string;       // → Subcategory.id within Activity
-  eventIntent?: 'INSTRUCTIONAL' | 'OPERATIONAL'; // Derived from Activity.type
   staffMemberIds?: string[];    // Index 0 = primary staff member
   start: string; // ISO Date String
   end: string;   // ISO Date String
@@ -275,7 +260,6 @@ export interface AppSettings {
 export interface ListsState {
   positions: string[];
   tags: string[];
-  classifications: string[];
   employmentTypes?: string[];
   absenceReasons?: string[];
 }

@@ -1,107 +1,73 @@
-Area,Check Item,Status,Notes
-1. Calendar (Core),Create a new event — verify all form fields render correctly,☐,Manual
-1. Calendar (Core),Edit an existing event — confirm pre-populated values,☐,Manual
-1. Calendar (Core),Delete an event — confirm removal from calendar and linked data,☐,Manual
-1. Calendar (Core),Switch between Day / Week / Month views — layout renders correctly,☐,Manual
-1. Calendar (Core),"Month view: event underlines display with correct spacing (mt-px, no cramping)",✅,Code verified — mt-px present in CalendarView.tsx
-1. Calendar (Core),Drag-and-drop events — verify date updates correctly,☐,Manual
-1. Calendar (Core),"Room conflicts: two overlapping events in same room show amber conflict icon (AlertOctagon, not AlertCircle)",✅,Fix verified — AlertCircle removed; only conflictingIds.has() triggers amber icon
-1. Calendar (Core),No false-positive conflict indicators on visually narrow events without shared room,✅,Fix verified — removed width-based AlertCircle block
-1. Calendar (Core),Hide Blackouts toggle: events overlapping a blackout Gantt block are hidden when toggled off,✅,Fix verified — applyBlackoutHiding() marks isHidden on events in devDataGenerator + testTemplates
-1. Calendar (Core),Events marked isHidden do NOT appear on calendar — but their Gantt bar stays visible,☐,Manual
-2. Event Form (EventFormV2),Enrollment check validation fires correctly,✅,89/89 tests pass including enrollment tests
-2. Event Form (EventFormV2),Assignment date-range check works,✅,89/89 tests pass including date-range tests
-2. Event Form (EventFormV2),Timezone check works,☐,Manual (requires live Firebase + browser)
-2. Event Form (EventFormV2),isSaving spinner shows on save button while saving,✅,Code verified — isSaving state + Loader2 spinner present in EventFormV2.tsx
-2. Event Form (EventFormV2),Cancellation pay status options appear when cancelling,☐,Manual
-2. Event Form (EventFormV2),Activity module flags correctly show/hide form fields,☐,Manual
-3. Gantt View,Gantt renders without horizontal overflow,✅,Code verified — overflow-hidden on Gantt container
-3. Gantt View,"Sidebar opens — calendar shifts right, no overlap with Gantt (paddingInlineEnd: 384px)",✅,Code verified — paddingInlineEnd: 384px in App.tsx
-3. Gantt View,Dark mode: chevron icons use correct color (not white-on-white),✅,Code verified — dark:text-slate-400 on Gantt chevrons
-3. Gantt View,Gantt blocks display correct time ranges,☐,Manual
-3. Gantt View,Blackout Gantt blocks remain visible even when Hide Blackouts toggle is off,☐,Manual (Gantt bars always show; only calendar events are hidden)
-4. Navigation & Layout,All nav items render and route correctly,☐,Manual
-4. Navigation & Layout,RTL layout works correctly (switch to Hebrew),☐,Manual — he-IL translations confirmed in constants.ts
-4. Navigation & Layout,Dark mode toggle — all views render properly,☐,Manual
-4. Navigation & Layout,Mobile menu opens and closes,☐,Manual
-4. Navigation & Layout,Sidebar collapse/expand works,☐,Manual
-4. Navigation & Layout,Documents nav item appears and navigates to Document Repository,☐,Manual — DOCUMENTS ViewState + nav item added in Layout.tsx
-5. Manage Hub,Teachers: CRUD operations (create / read / update / delete),☐,Manual
-5. Manage Hub,Students: CRUD operations,☐,Manual
-5. Manage Hub,Staff Members v2: list shows 25 staff after applying Staff Manager template,☐,Manual — v2 Firestore seeded by applyTemplate()
-5. Manage Hub,Student Manager v2: list shows 12 students after applying Student Manager template,☐,Manual — v2 Firestore seeded by applyTemplate()
-5. Manage Hub,Rooms: CRUD operations,☐,Manual
-5. Manage Hub,Activities: create with modules — verify module flags persist,☐,Manual
-5. Manage Hub,Lists: add / edit / remove list items,☐,Manual
-5. Manage Hub,Inline subcategory creator works,☐,Manual
-6. Financial,Financial dashboard: event totals are non-zero after loading events with positionId set,✅,Fix verified — positionId: pa?.id added to makeEvent() in devDataGenerator.ts
-6. Financial,Analysis tab loads and displays correctly,☐,Manual
-6. Financial,Switch between Dashboard and Analysis tabs,☐,Manual
-6. Financial,Saved charts persist after page reload,☐,Manual
-6. Financial,Hours comparison view renders,☐,Manual
-6. Financial,Payslip Generator: select teacher + billing period → verify output,✅,Financial logic 89/89 tests pass including payslip aggregation
-7. Settings,"Settings save and reload correctly (arrays stored as { _items: [...] }, not numeric-key objects)",✅,Code verified — _items wrapper read/write in useFirestoreSync.ts
-7. Settings,Google Calendar import button triggers OAuth flow,☐,Manual (requires OAuth)
-7. Settings,Calendar subscription management works,☐,Manual
-7. Settings,Language switch (en-US to he-IL) applies globally,☐,Manual
-7. Settings,Wipe Data: lists reset to INITIAL_LISTS (positions / tags / classifications cleared),✅,Fix verified — setLists(INITIAL_LISTS) added to onWipeData in App.tsx
-8. Admin Inbox,Room conflict notifications appear for overlapping events in same room,✅,Code verified — conflict detection wired to inbox; 9 room conflict tests pass
-8. Admin Inbox,STUDENT tasks show student names (not teacher names),✅,Code verified — entity-aware expansion in AdminInbox.tsx
-8. Admin Inbox,TEACHER tasks show teacher names (not student names),✅,Code verified — resolveTeacherNames called for TEACHER type in AdminInbox.tsx
-8. Admin Inbox,TEACHER task 'view' button opens inline teacher detail modal (not navigate away),✅,Fix verified — setViewTeacherId() used; Teacher Detail Modal added to AdminInbox.tsx
-8. Admin Inbox,Teacher detail modal: shows avatar / contact / positions / tags,☐,Manual
-8. Admin Inbox,Teacher detail modal: 'Go to full profile' navigates to Staff Manager,☐,Manual
-8. Admin Inbox,STUDENT task 'view' button opens inline student detail modal,☐,Manual
-8. Admin Inbox,Student detail modal: shows guardian and notes,☐,Manual
-8. Admin Inbox,Inbox items are actionable (mark done / mark resolved),☐,Manual
-9. Document Repository,Page loads with correct tabs (teachers / students / reports / charts),☐,Manual — DOCUMENTS wired into ViewState + Layout.tsx nav
-9. Document Repository,Search filters documents correctly,☐,Manual
-9. Document Repository,Grid/list view toggle works,☐,Manual
-9. Document Repository,Documents from all sources aggregate properly,☐,Manual
-10. DevTools — Test Templates,Templates section shows 9 cards (8 scenario + Full Stress Test),☐,Manual — 9th card added to TEST_TEMPLATES in testTemplates.ts
-10. DevTools — Test Templates,Each template: wipes data → generates dataset → sets simulation → navigates to target view,☐,Manual
-10. DevTools — Test Templates,Calendar Happy Path template: navigates to CALENDAR with teachers / rooms / activities / events,☐,Manual
-10. DevTools — Test Templates,Room Conflicts template: generates deliberate double-bookings visible as amber conflict icons,☐,Manual
-10. DevTools — Test Templates,Financial Dashboard template: navigates to FINANCIAL at month-end with hours reports + charts,☐,Manual
-10. DevTools — Test Templates,Student Manager template: 12 students appear in StudentManager v2 list (Firestore seeded),☐,Manual — v2 Firestore write added
-10. DevTools — Test Templates,Staff Manager template: 25 staff appear in StaffMemberManager v2 list (Firestore seeded),☐,Manual — v2 Firestore write added
-10. DevTools — Test Templates,Admin Inbox template: pre-seeded inbox items appear with STUDENT + TEACHER tasks,☐,Manual
-10. DevTools — Test Templates,Gantt View template: 15 Gantt blocks render + calendar has events with some hidden by blackouts,☐,Manual
-10. DevTools — Test Templates,First Admin Onboarding template: empty state + Pre-Gate role sim active + banner shows,☐,Manual
-10. DevTools — Test Templates,Full Stress Test template: all data modules populated + navigates to CALENDAR,☐,Manual
-10. DevTools — Test Templates,Applying any template wipes v2 Firestore (staffMembers / teachingAssignments / students / enrollments) before seeding,☐,Manual
-10. DevTools — Test Templates,Loading indicator shown on active template card while async ops complete,☐,Manual
-11. DevTools — Date Simulator,Relative jump buttons (−30d to +90d) shift the calendar date correctly,☐,Manual
-11. DevTools — Date Simulator,Scenario jumps (Month End / Quarter End / New Year / Sep 1) land on correct dates,☐,Manual
-11. DevTools — Date Simulator,Custom date picker sets the simulated date correctly,☐,Manual
-11. DevTools — Date Simulator,Active simulation date shown in violet banner (date + 'Reset to today' link),☐,Manual
-11. DevTools — Date Simulator,Date jump buttons navigate to CALENDAR view after jumping,✅,Code verified — onNavigateToView?.('CALENDAR') in jumpDate / jumpToScenario / handleCustomDate
-11. DevTools — Date Simulator,Reset to today clears simulated date,☐,Manual
-12. DevTools — Role Simulator,All 5 role presets render as selectable cards,☐,Manual
-12. DevTools — Role Simulator,Activating a preset changes visible nav / permissions in the app,☐,Manual
-12. DevTools — Role Simulator,Clicking active preset again deactivates it,☐,Manual
-12. DevTools — Role Simulator,'Exit All Simulations' clears both date and role simulations,☐,Manual
-12. DevTools — Role Simulator,DevSimulationBanner (violet) is visible during any active simulation without blocking sidebar nav,✅,Fix verified — sticky top-0 placement in DevSimulationBanner.tsx
-12. DevTools — Role Simulator,Real SUPERADMIN nav item stays visible while simulating a lower role,☐,Manual
-12. DevTools — Role Simulator,Viewer role: edit actions are hidden / disabled,☐,Manual
-13. DevTools — Granular Regen,Granular Regeneration section is collapsed by default (details/summary disclosure),✅,Fix verified — wrapped in <details> element in DevTools.tsx
-13. DevTools — Granular Regen,Disclosure chevron rotates when section is expanded,☐,Manual
-13. DevTools — Granular Regen,Each regen button (teachers / events / charts / reports / inbox / students) works independently,☐,Manual
-13. DevTools — Granular Regen,Generate Data amber section is gone (removed),✅,Fix verified — amber GENERATE DATA block removed from DevTools.tsx
-14. SuperAdmin (Other),Wipe Data confirmation dialog appears before wiping,☐,Manual
-14. SuperAdmin (Other),Granular regen uses existing Firestore teachers/rooms/students as dependencies (not fresh generation),✅,Fix verified — dependency fix in SuperAdmin.tsx
-14. SuperAdmin (Other),Power Tools sidebar opens without layout issues,☐,Manual
-14. SuperAdmin (Other),CSV Import modal works,☐,Manual
-14. SuperAdmin (Other),Export scope modal works,☐,Manual
-15. Onboarding,Checklist appears for new orgs,☐,Manual
-15. Onboarding,Steps complete and persist across reload,☐,Manual
-15. Onboarding,Guide Me button navigates correctly,☐,Manual
-16. Firestore Sync,Data persists across page reloads,☐,Manual (requires live Firebase)
-16. Firestore Sync,"Array settings survive round-trip (no numeric-key corruption — { _items: [...] } wrapper)",✅,Code verified — wrap/unwrap logic in useFirestoreSync.ts
-16. Firestore Sync,Multiple tabs don't cause data conflicts,☐,Manual (requires live Firebase)
-17. Cross-Cutting,No console errors on any view,☐,Manual
-17. Cross-Cutting,All translation keys resolve (no raw key strings displayed),☐,Manual — both en-US and he-IL sections confirmed in constants.ts
-17. Cross-Cutting,Dark mode consistent across all components,☐,Manual
-17. Cross-Cutting,RTL consistent across all components,☐,Manual
-17. Cross-Cutting,No z-index stacking issues (modals / dropdowns / sidebars / DevSimulationBanner),☐,Manual
-17. Cross-Cutting,TypeScript — 0 compilation errors,✅,tsc --noEmit passed clean after all session changes
+Area,#,Check Item,Status,Result,Notes
+1. Calendar (Core),1,Create a new event — verify all form fields render correctly,☐,,
+1. Calendar (Core),2,Edit an existing event — confirm pre-populated values,☐,,
+1. Calendar (Core),3,Delete an event — confirm removal from calendar and linked data,☐,,
+1. Calendar (Core),4,Switch between Day / Week / Month views — layout renders correctly,☐,,
+1. Calendar (Core),5,Drag-and-drop events — verify date updates correctly,☐,,
+1. Calendar (Core),6,Events marked isHidden do NOT appear on calendar — Gantt bar stays visible,☐,,Requires Hide Blackouts toggle on
+2. Event Form,7,Timezone check works,☐,,Requires live Firebase + browser
+2. Event Form,8,Cancellation pay status options appear when cancelling,☐,,
+3. Gantt View,9,Gantt blocks display correct time ranges,☐,,
+3. Gantt View,10,Blackout Gantt blocks remain visible even when Hide Blackouts toggle is off,☐,,
+4. Navigation & Layout,11,All nav items render and route correctly,☐,,
+4. Navigation & Layout,12,RTL layout works correctly — switch to Hebrew,☐,,
+4. Navigation & Layout,13,Dark mode toggle — all views render properly,☐,,
+4. Navigation & Layout,14,Mobile menu opens and closes,☐,,
+4. Navigation & Layout,15,Sidebar collapse/expand works,☐,,
+4. Navigation & Layout,16,Documents nav item appears and navigates to Document Repository,☐,,
+5. Manage Hub,17,Teachers: CRUD operations (create / read / update / delete),☐,,
+5. Manage Hub,18,Student Manager v2: list shows 12 students after applying template,☐,,Seeded by applyTemplate()
+5. Manage Hub,19,Rooms: CRUD operations,☐,,
+5. Manage Hub,20,Lists: add / edit / remove list items,☐,,
+5. Manage Hub,21,Inline subcategory creator works,☐,,
+6. Financial,22,Switch between Dashboard and Analysis tabs,☐,,
+6. Financial,23,Saved charts persist after page reload,☐,,
+6. Financial,24,Hours comparison view renders,☐,,
+7. Settings,25,Google Calendar import button triggers OAuth flow,☐,,Requires OAuth
+7. Settings,26,Calendar subscription management works,☐,,
+7. Settings,27,Language switch (en-US to he-IL) applies globally,☐,,
+8. Admin Inbox,28,Teacher detail modal: shows avatar / contact / positions / tags,☐,,
+8. Admin Inbox,29,Teacher detail modal: 'Go to full profile' navigates to Staff Manager,☐,,
+8. Admin Inbox,30,STUDENT task 'view' button opens inline student detail modal,☐,,
+8. Admin Inbox,31,Student detail modal: shows guardian and notes,☐,,
+8. Admin Inbox,32,Inbox items are actionable (mark done / mark resolved),☐,,
+9. Document Repository,33,Page loads with correct tabs (teachers / students / reports / charts),☐,,
+9. Document Repository,34,Search filters documents correctly,☐,,
+9. Document Repository,35,Grid/list view toggle works,☐,,
+9. Document Repository,36,Documents from all sources aggregate properly,☐,,
+10. DevTools — Test Templates,37,Each template: wipes data → generates dataset → sets simulation → navigates to target view,☐,,
+10. DevTools — Test Templates,38,Calendar Happy Path: navigates to CALENDAR with teachers / rooms / activities / events,☐,,
+10. DevTools — Test Templates,39,Room Conflicts: generates deliberate double-bookings visible as amber conflict icons,☐,,
+10. DevTools — Test Templates,40,Financial Dashboard: navigates to FINANCIAL at month-end with hours reports + charts,☐,,
+10. DevTools — Test Templates,41,Student Manager template: 12 students appear in StudentManager v2 list,☐,,
+10. DevTools — Test Templates,42,Staff Manager template: 25 staff appear in StaffMemberManager v2 list,☐,,
+10. DevTools — Test Templates,43,Admin Inbox template: pre-seeded inbox items appear with STUDENT + TEACHER tasks,☐,,
+10. DevTools — Test Templates,44,Gantt View template: 15 Gantt blocks render + some events hidden by blackouts,☐,,
+10. DevTools — Test Templates,45,First Admin Onboarding template: empty state + Pre-Gate role sim + banner shows,☐,,
+10. DevTools — Test Templates,46,Full Stress Test template: all data modules populated + navigates to CALENDAR,☐,,
+10. DevTools — Test Templates,47,Applying any template wipes v2 Firestore before seeding,☐,,staffMembers / teachingAssignments / students / enrollments
+11. DevTools — Date Simulator,48,Relative jump buttons (−30d to +90d) shift the calendar date correctly,☐,,
+11. DevTools — Date Simulator,49,Scenario jumps (Month End / Quarter End / New Year / Sep 1) land on correct dates,☐,,
+11. DevTools — Date Simulator,50,Custom date picker sets the simulated date correctly,☐,,
+11. DevTools — Date Simulator,51,Active simulation date shown in violet banner (date + 'Reset to today' link),☐,,
+11. DevTools — Date Simulator,52,Reset to today clears simulated date,☐,,
+12. DevTools — Role Simulator,53,All 5 role presets render as selectable cards,☐,,
+12. DevTools — Role Simulator,54,Activating a preset changes visible nav / permissions in the app,☐,,
+12. DevTools — Role Simulator,55,Clicking active preset again deactivates it,☐,,
+12. DevTools — Role Simulator,56,'Exit All Simulations' clears both date and role simulations,☐,,
+12. DevTools — Role Simulator,57,Real SUPERADMIN nav item stays visible while simulating a lower role,☐,,
+12. DevTools — Role Simulator,58,Viewer role: edit actions are hidden / disabled,☐,,
+13. DevTools — Granular Regen,59,Disclosure chevron rotates when section is expanded,☐,,
+13. DevTools — Granular Regen,60,Each regen button (teachers / events / charts / reports / inbox / students) works independently,☐,,
+14. SuperAdmin,61,Wipe Data confirmation dialog appears before wiping,☐,,
+14. SuperAdmin,62,Power Tools sidebar opens without layout issues,☐,,
+14. SuperAdmin,63,CSV Import modal works,☐,,
+14. SuperAdmin,64,Export scope modal works,☐,,
+15. Onboarding,65,Checklist appears for new orgs,☐,,
+15. Onboarding,66,Steps complete and persist across reload,☐,,
+15. Onboarding,67,Guide Me button navigates correctly,☐,,
+16. Firestore Sync,68,Data persists across page reloads,☐,,Requires live Firebase
+16. Firestore Sync,69,Multiple tabs don't cause data conflicts,☐,,Requires live Firebase
+17. Cross-Cutting,70,No console errors on any view,☐,,
+17. Cross-Cutting,71,RTL consistent across all components,☐,,
+17. Cross-Cutting,72,No z-index stacking issues (modals / dropdowns / sidebars / DevSimulationBanner),☐,,

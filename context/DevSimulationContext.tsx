@@ -6,7 +6,7 @@
  * SuperAdmin always uses the real hooks directly so it's never locked out.
  */
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { useAuth, UserRole } from './AuthContext';
 import { useOnboarding } from '../utils/useOnboarding';
 import type { UseOnboardingResult, FirstUseFlags, OrgOnboardingState } from '../utils/useOnboarding';
@@ -54,7 +54,22 @@ export const useDevSimulation = (): DevSimulationState => {
 
 export const DevSimulationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [simulatedDate, setSimulatedDate] = useState<Date | null>(null);
-  const [simulatedRole, setSimulatedRole] = useState<SimulatedRole | null>(null);
+  const [simulatedRole, setSimulatedRole] = useState<SimulatedRole | null>(() => {
+    try {
+      const stored = sessionStorage.getItem('e2e_role_sim');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    if (simulatedRole) {
+      sessionStorage.setItem('e2e_role_sim', JSON.stringify(simulatedRole));
+    } else {
+      sessionStorage.removeItem('e2e_role_sim');
+    }
+  }, [simulatedRole]);
 
   const simulationActive = simulatedDate !== null || simulatedRole !== null;
 

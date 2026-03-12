@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { initializeFirestore } from 'firebase/firestore';
+import { getAuth, GoogleAuthProvider, connectAuthEmulator } from 'firebase/auth';
+import { initializeFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 // TODO: Add these variables to your .env file
@@ -18,6 +18,14 @@ export const auth = getAuth(app);
 export const db = initializeFirestore(app, { ignoreUndefinedProperties: true });
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
+
+// ─── Firebase Emulator (E2E Firebase tests only) ─────────────────────────────
+// Connect to local emulators when VITE_USE_FIREBASE_EMULATOR=true (.env.e2e-firebase).
+// Must be called immediately after initialization, before any Firebase operations.
+if (import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') {
+    connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+    connectFirestoreEmulator(db, 'localhost', 8080);
+}
 
 // Request permissions for Google Calendar Management
 googleProvider.addScope('https://www.googleapis.com/auth/calendar.events');

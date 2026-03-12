@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ListsState, AppSettings } from '../types';
-import { Plus, X, Tag, Briefcase, Bookmark, Menu, AlertCircle, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, X, Tag, Briefcase, Menu, AlertCircle, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
 import { Modal } from './Modal';
 interface Props {
@@ -163,15 +163,6 @@ export const ManageLists: React.FC<Props> = ({ lists, setLists, settings, onMobi
           onRemove={(item) => removeItem('tags', item)}
           emptyLabel={t('lists.no_items_found')}
           addPlaceholder={t('lists.add_placeholder').replace('{title}', t('lists.tags'))}
-        />
-        <ListEditor
-          title={t('lists.classifications')}
-          icon={Bookmark}
-          items={lists.classifications}
-          onAdd={(item) => addItem('classifications', item)}
-          onRemove={(item) => removeItem('classifications', item)}
-          emptyLabel={t('lists.no_items_found')}
-          addPlaceholder={t('lists.add_placeholder').replace('{title}', t('lists.classifications'))}
         />
         <ListEditor
           title={t('lists.absence_reasons')}

@@ -30,7 +30,6 @@ describe('Payroll Engine', () => {
         start: '2026-05-15T10:00:00.000Z',
         end: '2026-05-15T11:00:00.000Z',
         isCanceled: false,
-        classification: 'Other',
         teacherId: 't1'
     };
 

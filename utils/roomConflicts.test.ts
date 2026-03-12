@@ -18,7 +18,6 @@ const makeEvent = (
   start,
   end,
   isCanceled: false,
-  classification: 'Other',
   roomId,
   ...opts,
 } as CalendarEvent);

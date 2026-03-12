@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { Student, Teacher, Activity, CalendarEvent, AppSettings } from '../types';
-import type { StudentV2, EnrollmentV2, L2Subcategory, EnrollmentStatus, EnsembleRosterMember } from '../types/v2';
+import { Student, Teacher, CalendarEvent, AppSettings } from '../types';
+import { buildActivityMap, getActivityName } from '../utils/activityLookup';
+import type { ActivityV2, StudentV2, EnrollmentV2, L2Subcategory, EnrollmentStatus, EnsembleRosterMember } from '../types/v2';
 import { ImportExportDropdown } from './ImportExportDropdown';
 import { V2_COLLECTIONS } from '../types/v2';
 import { generateId, TRANSLATIONS } from '../constants';
@@ -48,22 +49,26 @@ interface Props {
   setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
   teachers: Teacher[];
   setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>;
-  activities: Activity[];
-  setActivities: React.Dispatch<React.SetStateAction<Activity[]>>;
+  activities: ActivityV2[];
+  setActivities: React.Dispatch<React.SetStateAction<ActivityV2[]>>;
   events: CalendarEvent[];
   settings: AppSettings;
   onMobileMenuOpen: () => void;
+  navigateToId?: string | null;
+  onNavigateHandled?: () => void;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export const StudentManager: React.FC<Props> = ({
-  activities, settings, onMobileMenuOpen,
+  activities, settings, onMobileMenuOpen, navigateToId, onNavigateHandled,
 }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
   const { currentUser, orgId, isSuperAdmin, isAdmin } = useAuth();
   const canWrite = isSuperAdmin || isAdmin;
   const uid = currentUser?.uid || '';
+
+  const activityMap = useMemo(() => buildActivityMap(activities), [activities]);
 
   // ─── V2.0 Firestore collections ────────────────────────────────────────────
   const [studentsV2, setStudentsV2] = useFirestoreSync<StudentV2>(V2_COLLECTIONS.students, []);
@@ -102,6 +107,15 @@ export const StudentManager: React.FC<Props> = ({
   // ─── Detail tab ────────────────────────────────────────────────────────────
   const [detailTab, setDetailTab] = useState<'profile' | 'enrollments'>('profile');
 
+  // ─── Navigate-to from AdminInbox ──────────────────────────────────────────
+  useEffect(() => {
+    if (navigateToId) {
+      setSelectedId(navigateToId);
+      setViewMode('detail');
+      onNavigateHandled?.();
+    }
+  }, [navigateToId]);
+
   // ─── Derived data ──────────────────────────────────────────────────────────
   const selectedStudent = useMemo(
     () => studentsV2.find(s => s.id === selectedId) || null,
@@ -114,7 +128,8 @@ export const StudentManager: React.FC<Props> = ({
       const q = search.toLowerCase();
       list = list.filter(s =>
         s.fullName.toLowerCase().includes(q) ||
-        (s.parentName && s.parentName.toLowerCase().includes(q))
+        (s.parentName && s.parentName.toLowerCase().includes(q)) ||
+        (s.parentPhone && s.parentPhone.includes(q))
       );
     }
     return list.sort((a, b) => a.fullName.localeCompare(b.fullName));
@@ -135,9 +150,9 @@ export const StudentManager: React.FC<Props> = ({
     [l2Subcategories],
   );
 
-  const getActivityName = useCallback(
-    (id: string) => activities.find(a => a.id === id)?.name || id,
-    [activities],
+  const getActName = useCallback(
+    (id: string) => getActivityName(activityMap, id, id),
+    [activityMap],
   );
 
   const getL2Name = useCallback(
@@ -161,14 +176,14 @@ export const StudentManager: React.FC<Props> = ({
 
   const enrollmentExportData = useMemo(() => enrollments.map(e => ({
     studentFullName: studentsV2.find(s => s.id === e.studentId)?.fullName || '',
-    activityName: activities.find(a => a.id === e.activityId)?.name || '',
+    activityName: getActivityName(activityMap, e.activityId, ''),
     l2Name: l2Subcategories.find(l => l.id === e.l2Id)?.name || '',
     startDate: e.startDate || '',
   })), [enrollments, studentsV2, activities, l2Subcategories]);
 
   const enrollmentDupKeys = useMemo(() => new Set(enrollments.map(e => {
     const sName = studentsV2.find(s => s.id === e.studentId)?.fullName || '';
-    const aName = activities.find(a => a.id === e.activityId)?.name || '';
+    const aName = getActivityName(activityMap, e.activityId, '');
     const lName = l2Subcategories.find(l => l.id === e.l2Id)?.name || '';
     return `${sName}|${aName}|${lName}`.toLowerCase();
   })), [enrollments, studentsV2, activities, l2Subcategories]);
@@ -273,6 +288,7 @@ export const StudentManager: React.FC<Props> = ({
       markStudentWalkthroughDone(uid);
     }
     setShowStudentModal(false);
+    setSearch('');
   }, [studentForm, editingStudentId, orgId, uid, t, setStudentsV2]);
 
   const handleArchiveStudent = useCallback((student: StudentV2) => {
@@ -430,7 +446,7 @@ export const StudentManager: React.FC<Props> = ({
   // ─── RENDER ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 p-4 md:p-6">
+    <div className="h-full overflow-y-auto p-4 md:p-6">
       {/* ── Header ── */}
       <div className="flex items-center gap-3 mb-6">
         <button className="md:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800" onClick={onMobileMenuOpen}>
@@ -455,7 +471,7 @@ export const StudentManager: React.FC<Props> = ({
             {canWrite && (
               <button
                 onClick={openNewStudent}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                className="flex items-center gap-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg text-sm font-medium"
               >
                 <Plus size={16} /> {t('student.add')}
               </button>
@@ -637,7 +653,7 @@ export const StudentManager: React.FC<Props> = ({
                   {canWrite && !selectedStudent.isArchived && (
                     <button
                       onClick={() => { setEnrollWalkStep(null); setStudentWalkStep(null); if (!isEnrollmentWalkthroughDone(uid)) { setEnrollWalkStep(1); } openNewEnrollment(); }}
-                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                      className="flex items-center gap-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-3 py-1.5 rounded-lg text-xs font-medium"
                     >
                       <Plus size={14} /> {t('student.v2.enrollment.add')}
                     </button>
@@ -681,7 +697,7 @@ export const StudentManager: React.FC<Props> = ({
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-slate-900 dark:text-white">
-                          {getActivityName(enrollment.activityId)}
+                          {getActName(enrollment.activityId)}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">
                           {getL2Name(enrollment.l2Id)} · {enrollment.startDate}

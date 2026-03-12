@@ -13,6 +13,7 @@ export interface ModalProps {
     maxWidth?: string; // e.g. "max-w-2xl", "max-w-4xl"
     className?: string; // additional container classes
     hideHeader?: boolean;
+    anchorPosition?: { x: number; y: number } | null; // Position modal near this point instead of centered
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -26,6 +27,7 @@ export const Modal: React.FC<ModalProps> = ({
     maxWidth = 'max-w-2xl',
     className = '',
     hideHeader = false,
+    anchorPosition = null,
 }) => {
     const t = (key: string): string => {
         const lang = document.documentElement.lang || 'en-US';
@@ -44,6 +46,21 @@ export const Modal: React.FC<ModalProps> = ({
         }
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, showConfirm, isDirty]);
+
+    // Compute anchor-based positioning (wide screens only)
+    const anchorStyle = React.useMemo<React.CSSProperties | undefined>(() => {
+        if (!anchorPosition || typeof window === 'undefined' || window.innerWidth < 768) return undefined;
+        const margin = 16;
+        const modalWidth = 672; // max-w-2xl ≈ 42rem ≈ 672px
+        const modalMaxHeight = window.innerHeight * 0.9;
+        // Position: try to place modal so anchor is near the top-left area
+        let left = anchorPosition.x - modalWidth / 2;
+        let top = anchorPosition.y - 40; // slightly above the click
+        // Clamp to viewport
+        left = Math.max(margin, Math.min(left, window.innerWidth - modalWidth - margin));
+        top = Math.max(margin, Math.min(top, window.innerHeight - modalMaxHeight - margin));
+        return { position: 'fixed' as const, top, left, width: modalWidth, maxWidth: '100%' };
+    }, [anchorPosition]);
 
     if (!isOpen) return null;
 
@@ -80,10 +97,13 @@ export const Modal: React.FC<ModalProps> = ({
 
     return (
         <div
-            className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4 transition-opacity duration-200"
+            className={`fixed inset-0 bg-black/50 z-[200] p-4 transition-opacity duration-200 ${anchorStyle ? '' : 'flex items-center justify-center'}`}
             onClick={handleBackdropClick}
         >
-            <div className={`bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh] relative ${maxWidth} ${className}`}>
+            <div
+                className={`bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh] relative ${anchorStyle ? '' : `w-full ${maxWidth}`} ${className}`}
+                style={anchorStyle}
+            >
 
                 {!hideHeader && (
                     <div className="flex justify-between items-center p-6 border-b border-slate-200 dark:border-slate-800">

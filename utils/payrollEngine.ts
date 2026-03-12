@@ -1,4 +1,6 @@
-import { CalendarEvent, Teacher, Activity } from '../types';
+import { CalendarEvent, Teacher } from '../types';
+import type { ActivityV2 } from '../types/v2';
+import { buildActivityMap, getActivityName } from './activityLookup';
 
 export interface PayrollBreakdown {
     label: string;
@@ -27,8 +29,9 @@ export function computePayroll(
     targetEntityId: string | null, // null means Organization
     monthStartIso: string,
     monthEndIso: string,
-    activities: Activity[] = []
+    activities: ActivityV2[] = []
 ): PayrollResult {
+    const activityMap = buildActivityMap(activities);
     const result: PayrollResult = {
         entityId: targetEntityId || 'ORG',
         entityName: targetEntityId ? (teachers.find(t => t.id === targetEntityId)?.fullName || 'Unknown Teacher') : 'Organization',
@@ -131,9 +134,7 @@ export function computePayroll(
         }
 
         // Breakdown aggregation — resolve via Activity lookup
-        const actName = evt.activityId
-            ? (activities.find(a => a.id === evt.activityId)?.name || evt.classification || 'Unclassified')
-            : (evt.classification || 'Unclassified');
+        const actName = getActivityName(activityMap, evt.activityId);
         const bkKey = actName;
         if (!breakdownMap[bkKey]) {
             breakdownMap[bkKey] = { label: bkKey, category: bkKey, hours: 0, pay: 0 };

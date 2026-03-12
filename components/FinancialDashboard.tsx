@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { CalendarEvent, Teacher, AppSettings, HoursReport, Activity } from '../types';
+import { CalendarEvent, Teacher, AppSettings, HoursReport } from '../types';
+import type { ActivityV2 } from '../types/v2';
 import { ChartConfiguration } from '../types/chartBuilder';
 import { formatHours, formatCurrency } from '../utils/formatters';
+import { buildActivityMap, getActivityName } from '../utils/activityLookup';
 import { TRANSLATIONS } from '../constants';
 import {
   Filter, Calendar as CalIcon, ChevronDown, ChevronUp, Menu, Clock, CalendarDays,
@@ -22,7 +24,7 @@ interface Props {
   hoursReports: HoursReport[];
   setHoursReports: React.Dispatch<React.SetStateAction<HoursReport[]>>;
   onMobileMenuOpen: () => void;
-  activities?: Activity[];
+  activities?: ActivityV2[];
 }
 
 type FinancialTab = 'summary' | 'hours_comparison';
@@ -256,6 +258,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeach
 
   // --- Aggregation Logic ---
   const reportData: TeacherReport[] = useMemo(() => {
+    const activityMap = buildActivityMap(activities);
     const visibleTeachers = activeFilterCount > 0 ? teachers.filter(t => filteredTeacherIds.has(t.id)) : teachers;
 
     const reports: TeacherReport[] = visibleTeachers.map(teacher => {
@@ -286,7 +289,7 @@ export const FinancialDashboard: React.FC<Props> = ({ events, teachers, setTeach
 
         // Handle general category events with no position (do not drop them, group under activity)
         if (!targetPosId && evt.activityId) {
-          const actName = activities.find(a => a.id === evt.activityId)?.name || evt.classification || 'Unclassified';
+          const actName = getActivityName(activityMap, evt.activityId);
           const syntheticId = `cat_${actName}`;
           if (!posFinancials[syntheticId]) {
             posFinancials[syntheticId] = {

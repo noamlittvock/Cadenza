@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Room, ListsState, AppSettings, Activity, CalendarSubscription, Teacher, CalendarEvent, Student } from '../types';
+import { Room, ListsState, AppSettings, CalendarSubscription, Teacher, CalendarEvent, Student } from '../types';
+import type { ActivityV2 } from '../types/v2';
 import { RoomManager } from './RoomManager';
 import { ManageLists } from './ManageLists';
 import { ActivityManager } from './ActivityManager';
@@ -15,8 +16,8 @@ interface Props {
     lists: ListsState;
     setLists: React.Dispatch<React.SetStateAction<ListsState>>;
     settings: AppSettings;
-    activities: Activity[];
-    setActivities: React.Dispatch<React.SetStateAction<Activity[]>>;
+    activities: ActivityV2[];
+    setActivities: React.Dispatch<React.SetStateAction<ActivityV2[]>>;
     subscriptions: CalendarSubscription[];
     setSubscriptions: React.Dispatch<React.SetStateAction<CalendarSubscription[]>>;
     teachers: Teacher[];
