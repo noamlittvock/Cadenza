@@ -1455,6 +1455,20 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'staff.v2.uid_hint': 'Required to link this staff member to their Firebase login.',
     'staff.v2.name_required': 'Full name is required.',
     'staff.v2.email_required': 'Email is required.',
+    // Staff Table View
+    'staff.table.name': 'Name',
+    'staff.table.role': 'Role',
+    'staff.table.email': 'Email',
+    'staff.table.activities': 'Activities',
+    'staff.table.assignments': 'Assignments',
+    'staff.table.phone': 'Phone',
+    // Student Table View
+    'student.table.name': 'Name',
+    'student.table.age': 'Age',
+    'student.table.parent': 'Parent',
+    'student.table.phone': 'Phone',
+    'student.table.activities': 'Activities',
+    'student.table.enrollments': 'Enrollments',
     // Student Module (Phase 4)
     'nav.students': 'Students',
     'student.title': 'Students',
@@ -3205,6 +3219,20 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'staff.v2.uid_hint': 'נדרש לקישור חבר הצוות להתחברות Firebase שלו.',
     'staff.v2.name_required': 'שם מלא נדרש.',
     'staff.v2.email_required': 'אימייל נדרש.',
+    // Staff Table View
+    'staff.table.name': 'שם',
+    'staff.table.role': 'תפקיד',
+    'staff.table.email': 'אימייל',
+    'staff.table.activities': 'פעילויות',
+    'staff.table.assignments': 'שיבוצים',
+    'staff.table.phone': 'טלפון',
+    // Student Table View
+    'student.table.name': 'שם',
+    'student.table.age': 'גיל',
+    'student.table.parent': 'הורה',
+    'student.table.phone': 'טלפון',
+    'student.table.activities': 'פעילויות',
+    'student.table.enrollments': 'רישומים',
     // CalendarEvent Migration (Phase 3)
     'event.activity': 'פעילות',
     'event.select_activity': 'בחר פעילות',

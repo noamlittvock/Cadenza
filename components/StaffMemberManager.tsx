@@ -16,8 +16,9 @@ import { Modal } from './Modal';
 import {
   Plus, Edit2, Archive, RotateCcw, ArrowLeft, Menu, LayoutGrid, List, X,
   Search, HelpCircle, Sparkles, Shield, ShieldCheck, User,
-  Briefcase, GraduationCap, ChevronRight, Trash2,
+  Briefcase, GraduationCap, ChevronRight, Trash2, Table2, ChevronUp, ChevronDown,
 } from 'lucide-react';
+import { useSortState } from '../utils/useSortState';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -102,7 +103,7 @@ export const StaffMemberManager: React.FC<Props> = ({
   // ─── View state ─────────────────────────────────────────────────────────
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
-  const [listStyle, setListStyle] = useState<'grid' | 'list'>('list');
+  const [listStyle, setListStyle] = useState<'grid' | 'list' | 'table'>('list');
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [detailTab, setDetailTab] = useState<'assignments' | 'orgRoles'>('assignments');
@@ -166,6 +167,41 @@ export const StaffMemberManager: React.FC<Props> = ({
       .filter(s => showArchived ? s.isArchived : !s.isArchived)
       .filter(s => !q || s.fullName.toLowerCase().includes(q) || s.email.toLowerCase().includes(q));
   }, [staffMembers, search, showArchived]);
+
+  // ─── Table view: sort + activity summary ──────────────────────────────
+  type StaffSortKey = 'fullName' | 'role' | 'email' | 'assignmentCount';
+  const { sortKey, sortDirection, toggleSort } = useSortState<StaffSortKey>('fullName');
+
+  const staffActivitySummary = useMemo(() => {
+    const map = new Map<string, { names: string[]; count: number }>();
+    for (const s of filteredStaff) {
+      const active = assignments.filter(a => a.staffMemberId === s.id && !a.isArchived);
+      const names = active.map(a => getActivityName(activityMap, a.activityId)).filter(Boolean);
+      map.set(s.id, { names, count: active.length });
+    }
+    return map;
+  }, [filteredStaff, assignments, activityMap]);
+
+  const sortedStaff = useMemo(() => {
+    if (listStyle !== 'table') return filteredStaff;
+    const sorted = [...filteredStaff];
+    sorted.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case 'fullName': cmp = a.fullName.localeCompare(b.fullName); break;
+        case 'role': cmp = (a.role || '').localeCompare(b.role || ''); break;
+        case 'email': cmp = (a.email || '').localeCompare(b.email || ''); break;
+        case 'assignmentCount': {
+          const ac = staffActivitySummary.get(a.id)?.count ?? 0;
+          const bc = staffActivitySummary.get(b.id)?.count ?? 0;
+          cmp = ac - bc;
+          break;
+        }
+      }
+      return sortDirection === 'desc' ? -cmp : cmp;
+    });
+    return sorted;
+  }, [filteredStaff, listStyle, sortKey, sortDirection, staffActivitySummary]);
 
   const staffAssignments = useMemo(
     () => selectedStaffId ? assignments.filter(a => a.staffMemberId === selectedStaffId) : [],
@@ -886,6 +922,20 @@ export const StaffMemberManager: React.FC<Props> = ({
     );
   }
 
+  // ─── Inline SortHeader for table view ───────────────────────────────────
+  const SortHeader: React.FC<{
+    sortKey_: StaffSortKey; sortDir: 'asc' | 'desc'; column: StaffSortKey;
+    onToggle: (k: StaffSortKey) => void; align: 'start' | 'end'; children: React.ReactNode;
+  }> = ({ sortKey_: sk, sortDir, column, onToggle, align, children }) => (
+    <th className={`py-2 px-3 text-${align} text-slate-500 dark:text-slate-400 font-medium cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-200 transition-colors`}
+      onClick={() => onToggle(column)}>
+      <span className="inline-flex items-center gap-1">
+        {children}
+        {sk === column && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+      </span>
+    </th>
+  );
+
   // ─── List View ──────────────────────────────────────────────────────────
   return (
     <div className="h-full overflow-y-auto p-6 max-w-5xl mx-auto">
@@ -909,6 +959,10 @@ export const StaffMemberManager: React.FC<Props> = ({
             <button onClick={() => setListStyle('list')}
               className={`p-1.5 rounded ${listStyle === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm' : ''}`}>
               <List size={16} className="text-slate-600 dark:text-slate-400" />
+            </button>
+            <button onClick={() => setListStyle('table')}
+              className={`hidden md:block p-1.5 rounded ${listStyle === 'table' ? 'bg-white dark:bg-slate-700 shadow-sm' : ''}`}>
+              <Table2 size={16} className="text-slate-600 dark:text-slate-400" />
             </button>
           </div>
           {canWrite && (
@@ -972,6 +1026,71 @@ export const StaffMemberManager: React.FC<Props> = ({
             </button>
           ))}
         </div>
+      ) : listStyle === 'table' ? (
+        <>
+          {/* Mobile fallback — list cards */}
+          <div className="md:hidden space-y-1">
+            {sortedStaff.map(s => (
+              <button key={s.id} onClick={() => openDetail(s.id)}
+                className="w-full text-left flex items-center gap-4 p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
+                <div className="flex-1 min-w-0">
+                  <span className="font-medium text-slate-800 dark:text-slate-200">{s.fullName}</span>
+                  <span className="text-sm text-slate-500 dark:text-slate-400 ml-2">{s.email}</span>
+                </div>
+                <RoleBadge role={s.role} />
+                <ChevronRight size={16} className="text-slate-400 shrink-0" />
+              </button>
+            ))}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="sticky top-0 bg-slate-50 dark:bg-slate-900 z-10 border-b border-slate-200 dark:border-slate-700">
+                  <SortHeader sortKey_={sortKey} sortDir={sortDirection} column="fullName" onToggle={toggleSort} align="start">{t('staff.table.name')}</SortHeader>
+                  <SortHeader sortKey_={sortKey} sortDir={sortDirection} column="role" onToggle={toggleSort} align="start">{t('staff.table.role')}</SortHeader>
+                  <SortHeader sortKey_={sortKey} sortDir={sortDirection} column="email" onToggle={toggleSort} align="start">{t('staff.table.email')}</SortHeader>
+                  <th className="py-2 px-3 text-start text-slate-500 dark:text-slate-400 font-medium">{t('staff.table.activities')}</th>
+                  <SortHeader sortKey_={sortKey} sortDir={sortDirection} column="assignmentCount" onToggle={toggleSort} align="end">{t('staff.table.assignments')}</SortHeader>
+                  <th className="py-2 px-3 text-start text-slate-500 dark:text-slate-400 font-medium">{t('staff.table.phone')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedStaff.map(s => {
+                  const summary = staffActivitySummary.get(s.id);
+                  const names = summary?.names ?? [];
+                  const shown = names.slice(0, 3);
+                  const extra = names.length - 3;
+                  return (
+                    <tr key={s.id} onClick={() => openDetail(s.id)}
+                      className="border-b border-slate-100 dark:border-slate-800 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 cursor-pointer transition-colors">
+                      <td className="py-2 px-3 text-start font-medium text-slate-800 dark:text-slate-200">
+                        {s.fullName}
+                        {s.isArchived && (
+                          <span className="ml-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded">
+                            {t('staff.archived_badge')}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2 px-3 text-start"><RoleBadge role={s.role} /></td>
+                      <td className="py-2 px-3 text-start text-slate-600 dark:text-slate-400">{s.email || '—'}</td>
+                      <td className="py-2 px-3 text-start text-slate-600 dark:text-slate-400">
+                        {shown.length > 0 ? (
+                          <>
+                            {shown.join(', ')}
+                            {extra > 0 && <span className="text-slate-400 dark:text-slate-500 ml-1">+{extra} more</span>}
+                          </>
+                        ) : '—'}
+                      </td>
+                      <td className="py-2 px-3 text-end text-slate-600 dark:text-slate-400">{summary?.count ?? 0}</td>
+                      <td className="py-2 px-3 text-start text-slate-600 dark:text-slate-400">{s.phone || '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       ) : (
         <div className="space-y-1">
           {filteredStaff.map(s => (

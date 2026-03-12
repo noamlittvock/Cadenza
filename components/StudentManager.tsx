@@ -12,7 +12,9 @@ import { Modal } from './Modal';
 import {
   Plus, Edit2, Archive, RotateCcw, ArrowLeft, Menu, LayoutGrid, List, X,
   Search, HelpCircle, Sparkles, GraduationCap, BookOpen, ChevronRight, Trash2,
+  Table2, ChevronUp, ChevronDown,
 } from 'lucide-react';
+import { useSortState } from '../utils/useSortState';
 
 // ─── Local storage helpers ──────────────────────────────────────────────────
 
@@ -80,7 +82,7 @@ export const StudentManager: React.FC<Props> = ({
   type ViewMode = 'list' | 'detail';
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [listStyle, setListStyle] = useState<'grid' | 'list'>('list');
+  const [listStyle, setListStyle] = useState<'grid' | 'list' | 'table'>('list');
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
 
@@ -134,6 +136,61 @@ export const StudentManager: React.FC<Props> = ({
     }
     return list.sort((a, b) => a.fullName.localeCompare(b.fullName));
   }, [studentsV2, showArchived, search]);
+
+  // ─── Table view: sort + activity summary ──────────────────────────────
+  type StudentSortKey = 'fullName' | 'age' | 'parentName' | 'enrollmentCount';
+  const { sortKey, sortDirection, toggleSort } = useSortState<StudentSortKey>('fullName');
+
+  const computeAge = useCallback((dob: string | null | undefined): number | null => {
+    if (!dob) return null;
+    const birth = new Date(dob);
+    if (isNaN(birth.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age;
+  }, []);
+
+  const studentActivitySummary = useMemo(() => {
+    const map = new Map<string, { labels: string[]; count: number }>();
+    for (const s of filteredStudents) {
+      const active = enrollments.filter(e => e.studentId === s.id && e.status === 'ACTIVE');
+      const labels = active.map(e => {
+        const actName = getActivityName(activityMap, e.activityId);
+        const l2 = l2Subcategories.find(l => l.id === e.l2Id);
+        return l2 ? `${actName} (${l2.name})` : actName;
+      }).filter(Boolean);
+      map.set(s.id, { labels, count: active.length });
+    }
+    return map;
+  }, [filteredStudents, enrollments, activityMap, l2Subcategories]);
+
+  const sortedStudents = useMemo(() => {
+    if (listStyle !== 'table') return filteredStudents;
+    const sorted = [...filteredStudents];
+    sorted.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case 'fullName': cmp = a.fullName.localeCompare(b.fullName); break;
+        case 'age': {
+          const aa = computeAge(a.dateOfBirth) ?? -1;
+          const ba = computeAge(b.dateOfBirth) ?? -1;
+          cmp = aa - ba;
+          break;
+        }
+        case 'parentName': cmp = (a.parentName || '').localeCompare(b.parentName || ''); break;
+        case 'enrollmentCount': {
+          const ac = studentActivitySummary.get(a.id)?.count ?? 0;
+          const bc = studentActivitySummary.get(b.id)?.count ?? 0;
+          cmp = ac - bc;
+          break;
+        }
+      }
+      return sortDirection === 'desc' ? -cmp : cmp;
+    });
+    return sorted;
+  }, [filteredStudents, listStyle, sortKey, sortDirection, computeAge, studentActivitySummary]);
 
   const studentEnrollments = useMemo(
     () => selectedId ? enrollments.filter(e => e.studentId === selectedId) : [],
@@ -443,6 +500,20 @@ export const StudentManager: React.FC<Props> = ({
     </div>
   );
 
+  // ─── Inline SortHeader for table view ───────────────────────────────────
+  const StudentSortHeader: React.FC<{
+    sortKey_: StudentSortKey; sortDir: 'asc' | 'desc'; column: StudentSortKey;
+    onToggle: (k: StudentSortKey) => void; align: 'start' | 'end'; children: React.ReactNode;
+  }> = ({ sortKey_: sk, sortDir, column, onToggle, align, children }) => (
+    <th className={`py-2 px-3 text-${align} text-slate-500 dark:text-slate-400 font-medium cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-200 transition-colors`}
+      onClick={() => onToggle(column)}>
+      <span className="inline-flex items-center gap-1">
+        {children}
+        {sk === column && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+      </span>
+    </th>
+  );
+
   // ─── RENDER ────────────────────────────────────────────────────────────────
 
   return (
@@ -523,6 +594,9 @@ export const StudentManager: React.FC<Props> = ({
                 <button onClick={() => setListStyle('grid')} className={`p-2 ${listStyle === 'grid' ? 'bg-slate-200 dark:bg-slate-700' : 'bg-white dark:bg-slate-800'}`}>
                   <LayoutGrid size={14} className="text-slate-600 dark:text-slate-400" />
                 </button>
+                <button onClick={() => setListStyle('table')} className={`hidden md:block p-2 ${listStyle === 'table' ? 'bg-slate-200 dark:bg-slate-700' : 'bg-white dark:bg-slate-800'}`}>
+                  <Table2 size={14} className="text-slate-600 dark:text-slate-400" />
+                </button>
               </div>
             </div>
           </div>
@@ -533,6 +607,81 @@ export const StudentManager: React.FC<Props> = ({
               <GraduationCap size={48} className="mx-auto mb-3 opacity-30" />
               <p className="text-sm">{search ? t('student.no_results') : t('student.empty_state')}</p>
             </div>
+          ) : listStyle === 'table' ? (
+            <>
+              {/* Mobile fallback — list cards */}
+              <div className="md:hidden space-y-2">
+                {sortedStudents.map(student => {
+                  const count = activeEnrollmentCount(student.id);
+                  return (
+                    <button key={student.id} onClick={() => selectStudent(student.id)}
+                      className={`w-full text-left flex items-center gap-4 p-3 rounded-lg border transition-colors hover:border-blue-300 dark:hover:border-blue-700 ${
+                        student.isArchived ? 'border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'
+                      }`}>
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium text-slate-900 dark:text-white">{student.fullName}</span>
+                        <span className="text-sm text-slate-500 dark:text-slate-400 ml-2">{student.parentName || ''}</span>
+                      </div>
+                      {count > 0 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+                          {count}
+                        </span>
+                      )}
+                      <ChevronRight size={16} className="text-slate-400 shrink-0" />
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="sticky top-0 bg-slate-50 dark:bg-slate-900 z-10 border-b border-slate-200 dark:border-slate-700">
+                      <StudentSortHeader sortKey_={sortKey} sortDir={sortDirection} column="fullName" onToggle={toggleSort} align="start">{t('student.table.name')}</StudentSortHeader>
+                      <StudentSortHeader sortKey_={sortKey} sortDir={sortDirection} column="age" onToggle={toggleSort} align="end">{t('student.table.age')}</StudentSortHeader>
+                      <StudentSortHeader sortKey_={sortKey} sortDir={sortDirection} column="parentName" onToggle={toggleSort} align="start">{t('student.table.parent')}</StudentSortHeader>
+                      <th className="py-2 px-3 text-start text-slate-500 dark:text-slate-400 font-medium">{t('student.table.phone')}</th>
+                      <th className="py-2 px-3 text-start text-slate-500 dark:text-slate-400 font-medium">{t('student.table.activities')}</th>
+                      <StudentSortHeader sortKey_={sortKey} sortDir={sortDirection} column="enrollmentCount" onToggle={toggleSort} align="end">{t('student.table.enrollments')}</StudentSortHeader>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedStudents.map(student => {
+                      const summary = studentActivitySummary.get(student.id);
+                      const labels = summary?.labels ?? [];
+                      const shown = labels.slice(0, 3);
+                      const extra = labels.length - 3;
+                      const age = computeAge(student.dateOfBirth);
+                      return (
+                        <tr key={student.id} onClick={() => selectStudent(student.id)}
+                          className="border-b border-slate-100 dark:border-slate-800 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 cursor-pointer transition-colors">
+                          <td className="py-2 px-3 text-start font-medium text-slate-800 dark:text-slate-200">
+                            {student.fullName}
+                            {student.isArchived && (
+                              <span className="ml-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded">
+                                {t('student.archived_badge')}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 text-end text-slate-600 dark:text-slate-400">{age != null ? age : '—'}</td>
+                          <td className="py-2 px-3 text-start text-slate-600 dark:text-slate-400">{student.parentName || '—'}</td>
+                          <td className="py-2 px-3 text-start text-slate-600 dark:text-slate-400">{student.parentPhone || '—'}</td>
+                          <td className="py-2 px-3 text-start text-slate-600 dark:text-slate-400">
+                            {shown.length > 0 ? (
+                              <>
+                                {shown.join(', ')}
+                                {extra > 0 && <span className="text-slate-400 dark:text-slate-500 ml-1">+{extra} more</span>}
+                              </>
+                            ) : '—'}
+                          </td>
+                          <td className="py-2 px-3 text-end text-slate-600 dark:text-slate-400">{summary?.count ?? 0}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : (
             <div className={listStyle === 'grid'
               ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3'
