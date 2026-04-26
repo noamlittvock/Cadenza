@@ -14,8 +14,8 @@ import { CalendarEvent, RecurrenceRule, DayOfWeek, Room, AppSettings } from '../
 import {
   ActivityV2, L1Subcategory, L2Subcategory, StaffMemberV2,
   TeachingAssignmentV2, OrgRoleV2, StudentV2, EnrollmentV2,
-  EnsembleRosterMember, EventParticipant, RevenueItem, RevenueItemType,
-  EventNameMode, RateSnapshotV2,
+  EnsembleRosterMember, EventParticipant,
+  EventNameMode,
 } from '../types/v2';
 import { generateId } from '../constants';
 import { useAuth } from '../context/AuthContext';
@@ -36,14 +36,11 @@ interface StaffParticipantDraft {
   assignmentType: 'TEACHING' | 'ORG_ROLE';
   teachingAssignmentId?: string;
   orgRoleId?: string;
-  rateSnapshot?: RateSnapshotV2;
-  rateOverride?: number | null;
 }
 
 interface ExternalParticipantDraft {
   id: string;
   externalName: string;
-  oneOffFee: number;
   notes: string;
 }
 
@@ -62,7 +59,6 @@ export interface EventFormState {
   selectedStudentIds: string[];
   lessonMode: 'INDIVIDUAL' | 'GROUP';
   staffParticipants: StaffParticipantDraft[];
-  revenueItems: RevenueItem[];
   // Zone 3
   externalParticipants: ExternalParticipantDraft[];
   // Recurrence (passthrough from v1.3)
@@ -179,7 +175,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       return {
         activityId: '', l1Id: '', l2Id: '', name: '', date: '', startTime: '', endTime: '',
         location: '', roomId: '', selectedStudentIds: [], lessonMode: 'INDIVIDUAL' as const,
-        staffParticipants: [], revenueItems: [], externalParticipants: [],
+        staffParticipants: [], externalParticipants: [],
         isCanceled: false, notes: '',
         ...existingFormState,
       };
@@ -197,7 +193,6 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       selectedStudentIds: [],
       lessonMode: 'INDIVIDUAL',
       staffParticipants: [],
-      revenueItems: [],
       externalParticipants: [],
       isCanceled: false,
       notes: '',
@@ -319,7 +314,6 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       location: act?.location || '',
       selectedStudentIds: [],
       staffParticipants: [],
-      revenueItems: [],
       externalParticipants: [],
     }));
     setErrors({});
@@ -470,12 +464,6 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       const assignment = resolveAssignment(staffId);
       if (assignment) {
         draft.teachingAssignmentId = assignment.id;
-        // Client-side rate preview (authoritative resolution happens server-side)
-        draft.rateSnapshot = {
-          rateType: assignment.rateType,
-          rateValue: assignment.rateValue,
-          snapshotDate: { seconds: Date.now() / 1000, nanoseconds: 0 } as any,
-        };
       }
     }
 
@@ -493,54 +481,12 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
     }));
   };
 
-  const setStaffRateOverride = (staffId: string, override: number | null) => {
-    setForm(prev => ({
-      ...prev,
-      staffParticipants: prev.staffParticipants.map(sp =>
-        sp.staffMemberId === staffId ? { ...sp, rateOverride: override } : sp
-      ),
-    }));
-  };
-
   const setStaffOrgRole = (staffId: string, roleId: string) => {
-    const role = orgRoles.find(r => r.id === roleId);
     setForm(prev => ({
       ...prev,
       staffParticipants: prev.staffParticipants.map(sp =>
-        sp.staffMemberId === staffId ? {
-          ...sp,
-          orgRoleId: roleId,
-          rateSnapshot: role ? {
-            rateType: role.rateType,
-            rateValue: role.rateValue,
-            snapshotDate: { seconds: Date.now() / 1000, nanoseconds: 0 } as any,
-          } : undefined,
-        } : sp
+        sp.staffMemberId === staffId ? { ...sp, orgRoleId: roleId } : sp
       ),
-    }));
-  };
-
-  // ─── Revenue item management ─────────────────────────────────────────────
-  const addRevenueItem = () => {
-    setForm(prev => ({
-      ...prev,
-      revenueItems: [...prev.revenueItems, {
-        id: generateId(), type: 'OTHER' as RevenueItemType, amount: 0, quantity: null, notes: null,
-      }],
-    }));
-  };
-
-  const updateRevenueItem = (id: string, updates: Partial<RevenueItem>) => {
-    setForm(prev => ({
-      ...prev,
-      revenueItems: prev.revenueItems.map(ri => ri.id === id ? { ...ri, ...updates } : ri),
-    }));
-  };
-
-  const removeRevenueItem = (id: string) => {
-    setForm(prev => ({
-      ...prev,
-      revenueItems: prev.revenueItems.filter(ri => ri.id !== id),
     }));
   };
 
@@ -549,7 +495,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
     setForm(prev => ({
       ...prev,
       externalParticipants: [...prev.externalParticipants, {
-        id: generateId(), externalName: '', oneOffFee: 0, notes: '',
+        id: generateId(), externalName: '', notes: '',
       }],
     }));
   };
@@ -887,13 +833,6 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
                   <div key={sp.staffMemberId} className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 rounded-lg p-2 mb-2">
                     <div>
                       <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{staff?.fullName}</span>
-                      {sp.rateSnapshot && (
-                        <span className="text-xs text-slate-400 ms-2">
-                          {settings.currency}{sp.rateSnapshot.rateValue}
-                          {sp.rateSnapshot.rateType === 'HOURLY' ? t('fin.per_hr') : sp.rateSnapshot.rateType === 'PER_EVENT' ? '/event' : t('fin.per_mo')}
-                          {editingEventId && <span className="ms-1 text-amber-500">({t('event.v2.rate_locked')})</span>}
-                        </span>
-                      )}
                     </div>
                     <button onClick={() => removeStaffParticipant(sp.staffMemberId)} className="text-red-400 hover:text-red-600"><X size={14} /></button>
                   </div>
@@ -911,14 +850,9 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
                 <option value="">{t('event.v2.add_staff')}</option>
                 {eligibleStaff
                   .filter(s => !form.staffParticipants.some(sp => sp.staffMemberId === s.id))
-                  .map(s => {
-                    const assignment = resolveAssignment(s.id);
-                    return (
-                      <option key={s.id} value={s.id}>
-                        {s.fullName} {assignment ? `(${settings.currency}${assignment.rateValue})` : ''}
-                      </option>
-                    );
-                  })
+                  .map(s => (
+                    <option key={s.id} value={s.id}>{s.fullName}</option>
+                  ))
                 }
               </select>
               {errors.staff && <p className={errorCls}>{errors.staff}</p>}
@@ -949,13 +883,13 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
                         <select className={selectCls} value={sp.orgRoleId || ''} onChange={e => setStaffOrgRole(sp.staffMemberId, e.target.value)}>
                           <option value="">{t('event.v2.select_role')}</option>
                           {activeRoles.map(r => (
-                            <option key={r.id} value={r.id}>{r.roleTitle} ({settings.currency}{r.rateValue})</option>
+                            <option key={r.id} value={r.id}>{r.roleTitle}</option>
                           ))}
                         </select>
                       </div>
                     )}
                     {selectedRole && (
-                      <span className="text-xs text-slate-400">{selectedRole.roleTitle} · {settings.currency}{selectedRole.rateValue}</span>
+                      <span className="text-xs text-slate-400">{selectedRole.roleTitle}</span>
                     )}
                   </div>
                 );
@@ -976,11 +910,6 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
                     // Auto-resolve if single role
                     if (roles.length === 1) {
                       draft.orgRoleId = roles[0].id;
-                      draft.rateSnapshot = {
-                        rateType: roles[0].rateType,
-                        rateValue: roles[0].rateValue,
-                        snapshotDate: { seconds: Date.now() / 1000, nanoseconds: 0 } as any,
-                      };
                     }
                     setForm(prev => ({
                       ...prev,
@@ -1001,51 +930,6 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
             </div>
           )}
 
-          {/* ── Revenue Module ── */}
-          {modules.revenue && (
-            <div>
-              <label className={labelCls}>{t('event.v2.revenue')}</label>
-              {form.revenueItems.map(ri => (
-                <div key={ri.id} className="grid grid-cols-[1fr_80px_60px_auto] gap-2 mb-2 items-end">
-                  <select
-                    className={selectCls}
-                    value={ri.type}
-                    onChange={e => updateRevenueItem(ri.id, { type: e.target.value as RevenueItemType })}
-                  >
-                    <option value="TICKET">{t('event.v2.revenue_ticket')}</option>
-                    <option value="PARTICIPATION_FEE">{t('event.v2.revenue_participation')}</option>
-                    <option value="ROOM_HIRE">{t('event.v2.revenue_room')}</option>
-                    <option value="OTHER">{t('event.v2.revenue_other')}</option>
-                  </select>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    className={inputCls}
-                    value={ri.amount}
-                    onChange={e => updateRevenueItem(ri.id, { amount: Number(e.target.value) })}
-                    placeholder={t('event.v2.revenue_amount')}
-                  />
-                  <input
-                    type="number"
-                    min="1"
-                    className={inputCls}
-                    value={ri.quantity ?? ''}
-                    onChange={e => updateRevenueItem(ri.id, { quantity: e.target.value ? Number(e.target.value) : null })}
-                    placeholder="Qty"
-                  />
-                  <button onClick={() => removeRevenueItem(ri.id)} className="text-red-400 hover:text-red-600 pb-2"><Trash2 size={14} /></button>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={addRevenueItem}
-                className="text-sm text-blue-500 hover:text-blue-700 flex items-center gap-1"
-              >
-                <Plus size={14} /> {t('event.v2.add_revenue')}
-              </button>
-            </div>
-          )}
         </div>
       )}
 
@@ -1063,52 +947,17 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
 
           {zone3Open && (
             <div className="mt-3 space-y-4">
-              {/* Rate overrides for each staff participant */}
-              {form.staffParticipants.length > 0 && (
-                <div>
-                  <label className={labelCls}>{t('event.v2.rate_override')}</label>
-                  <p className="text-xs text-slate-400 mb-2">{t('event.v2.rate_override_desc')}</p>
-                  {form.staffParticipants.map(sp => {
-                    const staff = staffMembers.find(s => s.id === sp.staffMemberId);
-                    return (
-                      <div key={sp.staffMemberId} className="flex items-center gap-2 mb-2">
-                        <span className="text-sm text-slate-600 dark:text-slate-300 min-w-[120px]">{staff?.fullName}</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          className={`${inputCls} max-w-[120px]`}
-                          value={sp.rateOverride ?? ''}
-                          onChange={e => setStaffRateOverride(sp.staffMemberId, e.target.value ? Number(e.target.value) : null)}
-                          placeholder={sp.rateSnapshot ? String(sp.rateSnapshot.rateValue) : '0'}
-                        />
-                        <span className="text-xs text-slate-400">{settings.currency}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
               {/* External participants — only ENSEMBLE/EXTERNAL templates */}
               {modules.externalParticipants && (template === 'ENSEMBLE' || template === 'EXTERNAL') && (
                 <div>
                   <label className={labelCls}>{t('event.v2.external')}</label>
                   {form.externalParticipants.map(ep => (
-                    <div key={ep.id} className="grid grid-cols-[1fr_80px_auto] gap-2 mb-2 items-end">
+                    <div key={ep.id} className="grid grid-cols-[1fr_auto] gap-2 mb-2 items-end">
                       <input
                         className={inputCls}
                         value={ep.externalName}
                         onChange={e => updateExternalParticipant(ep.id, { externalName: e.target.value })}
                         placeholder={t('event.v2.external_name')}
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className={inputCls}
-                        value={ep.oneOffFee}
-                        onChange={e => updateExternalParticipant(ep.id, { oneOffFee: Number(e.target.value) })}
-                        placeholder={t('event.v2.external_fee')}
                       />
                       <button onClick={() => removeExternalParticipant(ep.id)} className="text-red-400 hover:text-red-600 pb-2"><Trash2 size={14} /></button>
                     </div>

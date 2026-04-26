@@ -287,7 +287,6 @@ export interface EventV2 {
   isRecurring: boolean;
   recurringGroupId: string | null;
   status: EventStatus;
-  revenueItems: RevenueItem[] | null;
   notes: string | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
