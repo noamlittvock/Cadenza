@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, ChevronLeft, BarChart3, LineChart, X } from 'lucide-react';
+import { ChevronRight, ChevronLeft, X } from 'lucide-react';
 import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState, Student, CalendarSubscription, HoursReport, AdminInboxItem } from './types';
 import type { ActivityV2 } from './types/v2';
 import { ChartConfiguration } from './types/chartBuilder';
@@ -19,8 +19,6 @@ import { ImportedGoogleEvent } from './utils/googleCalendarSync';
 import { Layout } from './components/Layout';
 import { CalendarView } from './components/CalendarView';
 import { GanttManager } from './components/GanttManager';
-import { FinancialDashboard } from './components/FinancialDashboard';
-import { FinancialAnalysis } from './components/FinancialAnalysis';
 import { PowerTools } from './components/PowerTools';
 import { Settings } from './components/Settings';
 import { ManageHub } from './components/ManageHub';
@@ -28,7 +26,6 @@ import { StaffMemberManager } from './components/StaffMemberManager';
 import { StudentManager } from './components/StudentManager';
 import { SuperAdmin } from './components/SuperAdmin';
 import { AdminInbox } from './components/AdminInbox';
-import { PayslipGenerator } from './components/PayslipGenerator';
 import { DocumentTemplates } from './components/DocumentRepository';
 import { OnboardingChecklist } from './components/OnboardingChecklist';
 
@@ -41,51 +38,6 @@ import { DevSimulationProvider, useEffectiveAuth, useEffectiveOnboarding, useDev
 import { DevSimulationBanner } from './components/DevSimulationBanner';
 import { ScenarioBanner } from './components/ScenarioBanner';
 
-
-// --- Financial Hub: Tabbed container for Dashboard + Analysis ---
-const FinancialHub: React.FC<{
-  financialTab: 'dashboard' | 'analysis';
-  setFinancialTab: (tab: 'dashboard' | 'analysis') => void;
-  events: CalendarEvent[];
-  teachers: Teacher[];
-  setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>;
-  settings: AppSettings;
-  savedCharts: ChartConfiguration[];
-  setSavedCharts: React.Dispatch<React.SetStateAction<ChartConfiguration[]>>;
-  hoursReports: HoursReport[];
-  setHoursReports: React.Dispatch<React.SetStateAction<HoursReport[]>>;
-  activities: ActivityV2[];
-  onMobileMenuOpen: () => void;
-}> = ({ financialTab, setFinancialTab, events, teachers, setTeachers, settings, savedCharts, setSavedCharts, hoursReports, setHoursReports, activities, onMobileMenuOpen }) => (
-  <div className="flex flex-col h-full">
-    <div className="flex items-center gap-1 px-4 pt-3 pb-1">
-      {[
-        { key: 'dashboard' as const, icon: BarChart3, label: t('nav.financial_dashboard') || 'Dashboard' },
-        { key: 'analysis' as const, icon: LineChart, label: t('nav.financial_analysis') || 'Analysis' },
-      ].map(tab => (
-        <button
-          key={tab.key}
-          onClick={() => setFinancialTab(tab.key)}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            financialTab === tab.key
-              ? 'bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft'
-              : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <tab.icon size={16} />
-          {tab.label}
-        </button>
-      ))}
-    </div>
-    <div className="flex-1 overflow-auto">
-      {financialTab === 'dashboard' ? (
-        <FinancialDashboard events={events} teachers={teachers} setTeachers={setTeachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} hoursReports={hoursReports} setHoursReports={setHoursReports} activities={activities} onMobileMenuOpen={onMobileMenuOpen} />
-      ) : (
-        <FinancialAnalysis events={events} teachers={teachers} settings={settings} savedCharts={savedCharts} setSavedCharts={setSavedCharts} activities={activities} onMobileMenuOpen={onMobileMenuOpen} onNavigateBack={() => setFinancialTab('dashboard')} />
-      )}
-    </div>
-  </div>
-);
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -143,7 +95,6 @@ function AppContent() {
   const [currentView, setCurrentView] = useState<ViewState>('CALENDAR');
   const onboarding = useEffectiveOnboarding();
   const { simulatedDate } = useDevSimulation();
-  const [financialTab, setFinancialTab] = useState<'dashboard' | 'analysis'>('dashboard');
   const { liveTranslations } = useTranslation();
 
   // Initialize darkMode synchronously from localStorage to prevent flash
@@ -338,7 +289,7 @@ function AppContent() {
   };
 
   // Onboarding gate: first admin is blocked from these views until setupGateCleared
-  const GATED_VIEWS: ViewState[] = ['CALENDAR', 'GANTT', 'POWER_TOOLS', 'STUDENTS', 'PAYSLIPS'];
+  const GATED_VIEWS: ViewState[] = ['CALENDAR', 'GANTT', 'POWER_TOOLS', 'STUDENTS'];
   const isHardGated =
     !isSuperAdmin &&
     onboarding.isFirstAdmin &&
@@ -547,23 +498,6 @@ function AppContent() {
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
           />
         );
-      case 'FINANCIAL':
-        return (
-          <FinancialHub
-            financialTab={financialTab}
-            setFinancialTab={setFinancialTab}
-            events={events}
-            teachers={teachers}
-            setTeachers={setTeachers}
-            settings={settings}
-            savedCharts={savedCharts}
-            setSavedCharts={setSavedCharts}
-            hoursReports={hoursReports}
-            setHoursReports={setHoursReports}
-            activities={activities}
-            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
-          />
-        );
       case 'SUPER_ADMIN':
         return (
           <SuperAdmin
@@ -668,13 +602,6 @@ function AppContent() {
             setSettings={setSettings}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
             onImportGoogleEvents={handleImportGoogleEvents}
-          />
-        );
-      case 'PAYSLIPS':
-        return (
-          <PayslipGenerator
-            settings={settings}
-            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
           />
         );
       case 'DOCUMENTS':

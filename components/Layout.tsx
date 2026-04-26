@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ViewState } from '../types';
-import { Calendar, Users, Home, BarChart3, AlertOctagon, Music, Sun, Moon, ChevronLeft, ChevronRight, Settings, List, Zap, Plus, Menu, Smartphone, Sliders, LineChart, GraduationCap, Inbox, FileText, FolderOpen, Lock } from 'lucide-react';
+import { Calendar, Users, Home, AlertOctagon, Music, Sun, Moon, ChevronLeft, ChevronRight, Settings, List, Zap, Plus, Menu, Smartphone, Sliders, LineChart, GraduationCap, Inbox, FolderOpen, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
 import { AppSettings } from '../types';
@@ -97,7 +97,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
   // Redirect Viewers from Admin Pages
   useEffect(() => {
     if (currentUser?.role === 'VIEWER') {
-      const adminViews: ViewState[] = ['GANTT', 'POWER_TOOLS', 'MANAGE', 'SETTINGS', 'SUPER_ADMIN', 'STAFF_MEMBERS', 'STUDENTS', 'ADMIN_INBOX', 'PAYSLIPS'];
+      const adminViews: ViewState[] = ['GANTT', 'POWER_TOOLS', 'MANAGE', 'SETTINGS', 'SUPER_ADMIN', 'STAFF_MEMBERS', 'STUDENTS', 'ADMIN_INBOX'];
       if (adminViews.includes(currentView)) {
         setView('CALENDAR');
       }
@@ -197,15 +197,6 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
 
           <NavItem
-            active={currentView === 'PAYSLIPS'}
-            onClick={() => { setView('PAYSLIPS'); setIsMobileMenuOpen(false); }}
-            icon={FileText}
-            label={t('payslip.title')}
-            collapsed={isCollapsed}
-            locked={isGated}
-          />
-
-          <NavItem
             active={currentView === 'DOCUMENTS'}
             onClick={() => { setView('DOCUMENTS'); setIsMobileMenuOpen(false); }}
             icon={FolderOpen}
@@ -271,23 +262,6 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 />
               )}
 
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 truncate overflow-hidden"
-                style={{
-                  opacity: isCollapsed ? 0 : 1,
-                  maxHeight: isCollapsed ? 0 : 24,
-                  marginBottom: isCollapsed ? 0 : 4,
-                  marginTop: isCollapsed ? 0 : 16,
-                  transition: 'opacity 200ms ease, max-height 400ms ease, margin-bottom 400ms ease, margin-top 400ms ease',
-                }}>
-                {t('nav.section.analytics')}
-              </div>
-              <NavItem
-                active={currentView === 'FINANCIAL'}
-                onClick={() => { setView('FINANCIAL'); setIsMobileMenuOpen(false); }}
-                icon={BarChart3}
-                label={t('nav.financial')}
-                collapsed={isCollapsed}
-              />
               <NavItem
                 active={currentView === 'SETTINGS'}
                 onClick={() => { setView('SETTINGS'); setIsMobileMenuOpen(false); }}

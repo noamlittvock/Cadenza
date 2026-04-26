@@ -404,7 +404,7 @@ export interface AdminInboxItem {
   autoResolvedReason?: 'CONFLICT_CLEARED';
 }
 
-export type ViewState = 'CALENDAR' | 'GANTT' | 'MANAGE' | 'SETTINGS' | 'FINANCIAL' | 'POWER_TOOLS' | 'SUPER_ADMIN' | 'STAFF_MEMBERS' | 'STUDENTS' | 'ADMIN_INBOX' | 'PAYSLIPS' | 'DOCUMENTS';
+export type ViewState = 'CALENDAR' | 'GANTT' | 'MANAGE' | 'SETTINGS' | 'POWER_TOOLS' | 'SUPER_ADMIN' | 'STAFF_MEMBERS' | 'STUDENTS' | 'ADMIN_INBOX' | 'DOCUMENTS';
 
 // Financial Report Data Types
 export interface TeacherFinancialSummary {
