@@ -3,7 +3,6 @@ import { Timestamp } from 'firebase/firestore';
 import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, ListsState, RecurrenceRule, DayOfWeek } from '../types';
 import { generateId, INITIAL_LISTS, INITIAL_RATE_CARDS } from '../constants';
 import { CATEGORY_SCHEMAS } from '../utils/schemaRegistry';
-import { lookupRate } from '../utils/rateLookup';
 import { ChevronLeft, ChevronRight, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronUp, ChevronDown, Repeat, Ban, RotateCcw, HelpCircle, Search, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { syncEventToGoogle, removeEventFromGoogle, updateEventInGoogle } from '../utils/googleCalendarSync';
