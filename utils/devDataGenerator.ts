@@ -15,7 +15,7 @@ import { Timestamp } from 'firebase/firestore';
 import {
   Teacher, CalendarEvent, Room, GanttBlock, Student, Guardian,
   AdminInboxItem, HoursReport, HoursEntry, CalendarSubscription,
-  PositionAssignment, RateType, Subcategory, AddOnItem,
+  PositionAssignment, Subcategory,
   StudentAssignment, PedagogicalRecord, TeachingAssignment,
 } from '../types';
 import type { ActivityV2, ActivityTemplate, ActivityTypeV2 } from '../types/v2';
@@ -98,20 +98,10 @@ export const generateDevTeachers = (currencySymbol = '₪'): Teacher[] => {
     const shuffled = [...POSITIONS].sort(() => Math.random() - 0.5).slice(0, posCount);
 
     const positionAssignments: PositionAssignment[] = shuffled.map((pos, idx) => {
-      const rateTypes: RateType[] = ['HOURLY', 'HOURLY', 'HOURLY', 'GLOBAL_MONTHLY', 'PER_EVENT'];
-      const rateType: RateType = i === 25 ? 'ONE_OFF' : pick(rateTypes);
-      const rateValue =
-        rateType === 'HOURLY' ? rng(pos.hourlyRange[0], pos.hourlyRange[1]) :
-        rateType === 'GLOBAL_MONTHLY' ? rng(2, 8) * 1000 :
-        rateType === 'PER_EVENT' ? rng(150, 400) :
-        rng(500, 3000);
-
       return {
         id: `T${i}_PA${idx}`,
         positionName: pos.name,
         category: pick(pos.categories),
-        rateType,
-        rateValue,
       };
     });
 
@@ -242,7 +232,7 @@ export const generateDevActivities = (): GeneratedActivity[] => {
   ): GeneratedActivity => ({
     id, orgId: '', name, template,
     activityType: deriveActivityType(template),
-    modules: { curriculum: true, staffBilling: true, revenue: false, externalParticipants: false, orgRoleBilling: false },
+    modules: { curriculum: true, externalParticipants: false },
     location: null,
     eventNameMode: template === 'DISCIPLINE' || template === 'PROGRAM' ? 'AUTO' : 'PROMPTED',
     isArchived: opts.isArchived ?? false,
@@ -329,7 +319,6 @@ export const generateDevCalendar = (
       end: endDate.toISOString(),
       teacherId: teacher.id,
       roomId: room.id,
-      positionId: pa?.id,
       activityId: activityId ?? pick(ACTIVITY_IDS),
       isCanceled: false,
       isHidden: false,
@@ -346,22 +335,9 @@ export const generateDevCalendar = (
     const startMin = pick([0, 15, 30, 45]);
     const duration = pick(DURATIONS);
     const isCanceled = Math.random() < 0.08;
-    const hasAddOns = Math.random() < 0.12;
-    const hasRateOverride = Math.random() < 0.10;
-
-    const addOnItems: AddOnItem[] | undefined = hasAddOns ? [
-      { id: uid(), label: 'Music Sheet Pack', amount: rng(20, 80), affectsPayroll: false },
-      ...(Math.random() > 0.5 ? [{ id: uid(), label: 'Recording Fee', amount: rng(50, 150), affectsPayroll: true }] : []),
-    ] : undefined;
 
     events.push(makeEvent(dayOffset, startHour, startMin, duration, teacher, room, pick(ACTIVITY_IDS), {
       isCanceled,
-      cancellationPayStatus: isCanceled ? (Math.random() > 0.5 ? 'PAID_CANCELLATION' : 'NO_PAY_CANCELLATION') : undefined,
-      ...(addOnItems ? { addOnItems } : {}),
-      ...(hasRateOverride ? {
-        overrideFlags: { isRateOverridden: true },
-        overrideReason: 'Student discount applied',
-      } : {}),
     }));
   }
 

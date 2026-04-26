@@ -1,4 +1,4 @@
-import { Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState, PositionAssignment, RateCard } from './types';
+import { Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState, PositionAssignment } from './types';
 
 export const COLORS = [
   '#3b82f6', // blue
@@ -36,8 +36,6 @@ export const migrateTeacher = (t: any): Teacher => {
     id: `${t.id}_PA${idx}`,
     positionName: posName,
     category: 'Individual Lesson',  // Safe default
-    rateType: 'HOURLY' as const,
-    rateValue: 0,                   // Unknown until user sets it
   }));
 
   return {
@@ -62,7 +60,6 @@ export const INITIAL_SETTINGS: AppSettings = {
   timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   defaultEventDuration: 60,
   weekNumberDisplay: 'none',
-  currency: '₪',
   developerMode: false
 };
 
@@ -3788,7 +3785,7 @@ export const INITIAL_TEACHERS: Teacher[] = [
     id: 'T1', fullName: 'John Smith',
     positions: ['Piano Instructor'],
     positionAssignments: [
-      { id: 'T1_PA0', positionName: 'Piano Instructor', category: 'Individual Lesson', rateType: 'HOURLY', rateValue: 150 },
+      { id: 'T1_PA0', positionName: 'Piano Instructor', category: 'Individual Lesson' },
     ],
     tags: ['Piano Dept', 'Senior Staff'], phone: '555-0101', email: 'john@music.com', color: '#3b82f6'
   },
@@ -3796,8 +3793,8 @@ export const INITIAL_TEACHERS: Teacher[] = [
     id: 'T2', fullName: 'Sarah Jones',
     positions: ['Voice Coach', 'Choir Director'],
     positionAssignments: [
-      { id: 'T2_PA0', positionName: 'Voice Coach', category: 'Individual Lesson', rateType: 'HOURLY', rateValue: 120 },
-      { id: 'T2_PA1', positionName: 'Choir Director', category: 'Group Lesson', rateType: 'GLOBAL_MONTHLY', rateValue: 5000 },
+      { id: 'T2_PA0', positionName: 'Voice Coach', category: 'Individual Lesson' },
+      { id: 'T2_PA1', positionName: 'Choir Director', category: 'Group Lesson' },
     ],
     tags: ['Vocal Dept'], phone: '555-0102', email: 'sarah@music.com', color: '#ef4444'
   },
@@ -3805,7 +3802,7 @@ export const INITIAL_TEACHERS: Teacher[] = [
     id: 'T3', fullName: 'Michael Brown',
     positions: ['Violin Teacher'],
     positionAssignments: [
-      { id: 'T3_PA0', positionName: 'Violin Teacher', category: 'Individual Lesson', rateType: 'HOURLY', rateValue: 130 },
+      { id: 'T3_PA0', positionName: 'Violin Teacher', category: 'Individual Lesson' },
     ],
     tags: ['Strings Dept'], phone: '555-0103', email: 'mike@music.com', color: '#10b981'
   },
@@ -3815,18 +3812,6 @@ export const INITIAL_ROOMS: Room[] = [
   { id: 'R1', name: 'Studio A', itinerary: 'Grand Piano, roughly 20 person capacity.' },
   { id: 'R2', name: 'Studio B', itinerary: 'Upright Piano, soundproofed.' },
   { id: 'R3', name: 'Practice Room 1', itinerary: 'Small room for individual practice.' },
-];
-
-export const INITIAL_RATE_CARDS: RateCard[] = [
-  {
-    id: 'RC_DEFAULT',
-    versionId: 'V1',
-    entries: [
-      { id: 'RC_DEFAULT_E1', categoryId: 'individual_lesson', effectiveFrom: '2020-01-01', rateType: 'HOURLY', rateValue: 150 },
-      { id: 'RC_DEFAULT_E2', categoryId: 'group_lesson', effectiveFrom: '2020-01-01', rateType: 'GLOBAL_MONTHLY', rateValue: 5000 },
-      { id: 'RC_DEFAULT_E3', categoryId: 'rehearsal', effectiveFrom: '2020-01-01', rateType: 'HOURLY', rateValue: 100 },
-    ]
-  }
 ];
 
 // Helper to generate some initial events relative to "today"
@@ -3845,7 +3830,6 @@ export const INITIAL_EVENTS: CalendarEvent[] = [
     description: 'Weekly lesson',
     teacherId: 'T1',
     roomId: 'R1',
-    positionId: 'T1_PA0',
     start: getIso(0, 10),
     end: getIso(0, 11),
     isCanceled: false,
@@ -3857,7 +3841,6 @@ export const INITIAL_EVENTS: CalendarEvent[] = [
     description: 'Prep for recital',
     teacherId: 'T2',
     roomId: 'R2',
-    positionId: 'T2_PA0',
     start: getIso(0, 10), // INTENTIONAL CONFLICT with time, different room
     end: getIso(0, 11),
     isCanceled: false,
@@ -3869,7 +3852,6 @@ export const INITIAL_EVENTS: CalendarEvent[] = [
     description: 'Beginner theory',
     teacherId: 'T1', // INTENTIONAL CONFLICT: T1 is also in E1 at this time
     roomId: 'R3',
-    positionId: 'T1_PA0',
     start: getIso(0, 10),
     end: getIso(0, 11),
     isCanceled: false,

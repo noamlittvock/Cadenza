@@ -12,9 +12,7 @@ export type LessonMode = 'INDIVIDUAL' | 'GROUP';
 
 export interface ActivityModules {
   curriculum: boolean;
-  staffBilling: boolean;
-  orgRoleBilling: boolean;
-  revenue: boolean;
+  externalParticipants: boolean;
 }
 
 export interface EventFormInput {

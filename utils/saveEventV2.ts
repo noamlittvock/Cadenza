@@ -16,7 +16,6 @@ export interface EventFormStateLite {
   roomId: string;
   activityId: string;
   isCanceled: boolean;
-  cancellationPayStatus?: 'PAID_CANCELLATION' | 'NO_PAY_CANCELLATION';
   staffParticipants: { staffMemberId: string }[];
   recurrenceRule?: any;
 }
@@ -57,7 +56,6 @@ export function buildUpdatedCalendarEvent(
       staffMemberIds: formState.staffParticipants.map(sp => sp.staffMemberId),
       activityId: formState.activityId,
       isCanceled: formState.isCanceled,
-      cancellationPayStatus: formState.cancellationPayStatus,
       recurrenceId: parentId,
       isExceptionEdit: true,
       originalStart: dateKey,
@@ -77,7 +75,6 @@ export function buildUpdatedCalendarEvent(
     staffMemberIds: formState.staffParticipants.map(sp => sp.staffMemberId),
     activityId: formState.activityId,
     isCanceled: formState.isCanceled,
-    cancellationPayStatus: formState.cancellationPayStatus,
     recurrenceRule: formState.recurrenceRule,
   };
 

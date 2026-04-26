@@ -1,43 +1,3 @@
-export type CancellationPayStatus = 'PAID_CANCELLATION' | 'NO_PAY_CANCELLATION';
-
-export interface AddOnItem {
-  id: string;
-  label: string;
-  amount: number;
-  tagCategory?: string;
-  affectsPayroll: boolean;
-  notes?: string;
-}
-
-export interface RateSnapshot {
-  rateValue: number;
-  rateType: RateType;
-  source: 'RATE_CARD' | 'MANUAL';
-}
-
-export interface RateSourceRef {
-  rateCardId: string;
-  rateVersionId: string;
-  effectiveDateUsed: string;
-}
-
-export interface RateCardEntry {
-  id: string;
-  categoryId: string;
-  teacherId?: string;
-  positionId?: string;
-  effectiveFrom: string;
-  effectiveTo?: string;
-  rateType: RateType;
-  rateValue: number;
-}
-
-export interface RateCard {
-  id: string;
-  versionId: string;
-  entries: RateCardEntry[];
-}
-
 export interface CategorySchemaField {
   id: string;
   label: string;
@@ -125,28 +85,17 @@ export interface StaffDocument {
   uploadedBy: string;
 }
 
-// Rate assignment types for position-based billing
-export type RateType = 'HOURLY' | 'GLOBAL_MONTHLY' | 'ONE_OFF' | 'PER_EVENT';
-
 export interface PositionAssignment {
   id: string;               // Unique ID for this assignment
   positionName: string;      // e.g. "Piano Instructor"
   category: string;          // e.g. "Individual Lesson", "Group Lesson", "Administrative"
-  rateType: RateType;        // HOURLY or GLOBAL_MONTHLY or PER_EVENT
-  rateValue: number;         // Rate amount (per-hour, per-event, or flat monthly fee)
-  cost?: number;             // Cost per position
-  vat?: { type: 'PERCENTAGE' | 'FLAT', value: number };
-  overheadFeeType?: 'PERCENTAGE' | 'FLAT';
-  overheadFeeValue?: number;
-  socialBenefitsType?: 'PERCENTAGE' | 'FLAT';
-  socialBenefitsValue?: number;
 }
 
 export interface Teacher {
   id: string;
   fullName: string;
   positions: string[];                    // Derived from positionAssignments for backward compat
-  positionAssignments: PositionAssignment[]; // Source of truth for positions + rates
+  positionAssignments: PositionAssignment[]; // Source of truth for positions
   tags: string[];
   phone: string;
   email: string;
@@ -195,14 +144,7 @@ export interface CalendarEvent {
   roomId?: string;
   subtypeId?: string;
   schemaPayload?: Record<string, any>;
-  pricingSnapshot?: RateSnapshot;
-  rateSourceRef?: RateSourceRef;
-  overrideFlags?: { isRateOverridden?: boolean, [key: string]: any };
-  overrideReason?: string;
-  cancellationPayStatus?: CancellationPayStatus;
-  addOnItems?: AddOnItem[];
   audit?: { createdBy?: string; updatedBy?: string; createdAt?: string; updatedAt?: string; };
-  positionId?: string;       // Links to a PositionAssignment.id on the teacher
   activityId?: string;          // → Activity.id
   staffMemberIds?: string[];    // Index 0 = primary staff member
   start: string; // ISO Date String
@@ -246,7 +188,6 @@ export interface AppSettings {
   timeZone: string;
   defaultEventDuration: number;
   weekNumberDisplay: 'none' | 'week-number' | 'week-of';
-  currency: string;
   developerMode: boolean; // Legacy — kept for backward compat, no longer shown in UI
   googleCalendarSyncEnabled?: boolean;
   googleCalendarId?: string;
@@ -406,18 +347,6 @@ export interface AdminInboxItem {
 
 export type ViewState = 'CALENDAR' | 'GANTT' | 'MANAGE' | 'SETTINGS' | 'POWER_TOOLS' | 'SUPER_ADMIN' | 'STAFF_MEMBERS' | 'STUDENTS' | 'ADMIN_INBOX' | 'DOCUMENTS';
 
-// Financial Report Data Types
-export interface TeacherFinancialSummary {
-  teacherName: string;
-  teacherId: string;
-  totalHours: number;
-  activeHours: number;
-  canceledHours: number;
-  breakdown: Record<string, number>;
-  hourlyTotal: number;
-  globalMonthlyTotal: number;
-}
-
 // ─── v2.0 Type Re-exports ────────────────────────────────────────────────────
 // Canonical v2.0 types from the Cadenza v2.0 Final spec (Section 05).
 // New code should import from here or directly from './types/v2'.
@@ -430,19 +359,14 @@ export type {
   EnrollmentStatus,
   ImportSessionStatus,
   ImportRowStatus,
-  RateTypeV2,
   ParticipantType,
   AssignmentType,
   StaffRole,
   EventNameMode,
-  RevenueItemType,
   DuplicateAction,
   ImportEntityType,
   // Sub-structures
-  ModulesConfig,
   FirstUseFlags,
-  RateSnapshotV2,
-  RevenueItem,
   ImportRowResult,
   // Entities
   ActivityV2,

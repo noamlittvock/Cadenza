@@ -38,31 +38,31 @@ const TEMPLATE_CONFIGS: Record<ActivityTemplate, TemplateConfig> = {
   DISCIPLINE: {
     template: 'DISCIPLINE', icon: GraduationCap, color: 'blue',
     l1Required: true, l2Required: true, hasHierarchy: true,
-    defaultModules: { curriculum: true, staffBilling: true, revenue: false, externalParticipants: false, orgRoleBilling: false },
+    defaultModules: { curriculum: true, externalParticipants: false },
     eventNameMode: 'AUTO',
   },
   PROGRAM: {
     template: 'PROGRAM', icon: Layers, color: 'green',
     l1Required: true, l2Required: true, hasHierarchy: true,
-    defaultModules: { curriculum: true, staffBilling: true, revenue: false, externalParticipants: false, orgRoleBilling: false },
+    defaultModules: { curriculum: true, externalParticipants: false },
     eventNameMode: 'AUTO',
   },
   ENSEMBLE: {
     template: 'ENSEMBLE', icon: Music, color: 'purple',
     l1Required: false, l2Required: true, hasHierarchy: true,
-    defaultModules: { curriculum: true, staffBilling: true, revenue: false, externalParticipants: false, orgRoleBilling: false },
+    defaultModules: { curriculum: true, externalParticipants: false },
     eventNameMode: 'PROMPTED',
   },
   EXTERNAL: {
     template: 'EXTERNAL', icon: Globe, color: 'amber',
     l1Required: false, l2Required: true, hasHierarchy: true,
-    defaultModules: { curriculum: false, staffBilling: false, revenue: true, externalParticipants: true, orgRoleBilling: false },
+    defaultModules: { curriculum: false, externalParticipants: true },
     eventNameMode: 'PROMPTED',
   },
   ADMINISTRATIVE: {
     template: 'ADMINISTRATIVE', icon: Briefcase, color: 'slate',
     l1Required: false, l2Required: false, hasHierarchy: false,
-    defaultModules: { curriculum: false, staffBilling: false, revenue: false, externalParticipants: false, orgRoleBilling: true },
+    defaultModules: { curriculum: false, externalParticipants: false },
     eventNameMode: 'PROMPTED',
   },
 };
@@ -260,15 +260,8 @@ export const ActivityManager: React.FC<Props> = ({
     setIsModalOpen(true);
   }, []);
 
-  // ─── Module mutex enforcement (Section 15) ──────────────────────────────
   const toggleModule = useCallback((key: keyof ModulesConfig) => {
-    setFormModules(prev => {
-      const next = { ...prev, [key]: !prev[key] };
-      // staffBilling + orgRoleBilling are mutually exclusive
-      if (key === 'staffBilling' && next.staffBilling) next.orgRoleBilling = false;
-      if (key === 'orgRoleBilling' && next.orgRoleBilling) next.staffBilling = false;
-      return next;
-    });
+    setFormModules(prev => ({ ...prev, [key]: !prev[key] }));
   }, []);
 
   // ─── Submit ──────────────────────────────────────────────────────────────
@@ -1547,9 +1540,6 @@ export const ActivityManager: React.FC<Props> = ({
                 </label>
               ))}
             </div>
-            {formModules.staffBilling && formModules.orgRoleBilling && (
-              <p className="text-xs text-red-500 mt-1">{t('activities.modules_mutex_warning')}</p>
-            )}
           </div>
 
         </form>

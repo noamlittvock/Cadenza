@@ -30,10 +30,7 @@ const DEFAULT_FIRST_USE_FLAGS: FirstUseFlags = {
 
 const DEFAULT_MODULES: ModulesConfig = {
   curriculum: true,
-  staffBilling: true,
-  revenue: false,
   externalParticipants: false,
-  orgRoleBilling: false,
 };
 
 /**

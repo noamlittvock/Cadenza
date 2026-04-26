@@ -32,7 +32,7 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
     // Navigation hierarchy
     const NAV_HIERARCHY: Record<string, string[]> = {
         Operations: ['CalendarView', 'GanttManager', 'PowerTools'],
-        Admin: ['TeacherManager', 'ManageHub', 'RoomManager', 'ManageLists', 'SuperAdmin', 'TranslationManager'],
+        Admin: ['StaffMemberManager', 'ManageHub', 'RoomManager', 'ManageLists', 'SuperAdmin', 'TranslationManager'],
         System: ['App', 'AuthContext', 'Layout', 'Modal', 'Settings'],
     };
 

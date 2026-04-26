@@ -238,10 +238,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
                 activityType: isAdmin ? 'ADMINISTRATIVE' : 'ACADEMIC',
                 modules: {
                   curriculum: template === 'DISCIPLINE' || template === 'PROGRAM',
-                  staffBilling: true,
-                  revenue: template === 'EXTERNAL',
                   externalParticipants: template === 'EXTERNAL',
-                  orgRoleBilling: template === 'ADMINISTRATIVE',
                 },
                 location: null,
                 eventNameMode: 'AUTO',

@@ -13,9 +13,7 @@ import {
 
 const baseModules: ActivityModules = {
   curriculum: false,
-  staffBilling: false,
-  orgRoleBilling: false,
-  revenue: false,
+  externalParticipants: false,
 };
 
 const validBase: EventFormInput = {
@@ -26,7 +24,7 @@ const validBase: EventFormInput = {
   name: 'Test Event',
   eventNameMode: 'PROMPTED',
   template: 'DISCIPLINE',
-  modules: { ...baseModules, curriculum: true, staffBilling: true },
+  modules: { ...baseModules, curriculum: true },
   lessonMode: 'INDIVIDUAL',
   selectedStudentIds: ['s1'],
   staffParticipantCount: 1,
@@ -136,7 +134,7 @@ describe('validateEventForm', () => {
     const errors = validateEventForm({
       ...validBase,
       template: 'PROGRAM',
-      modules: { ...baseModules, curriculum: true, staffBilling: true },
+      modules: { ...baseModules, curriculum: true },
       selectedStudentIds: ['s1'],
       staffParticipantCount: 0,
     });
@@ -148,7 +146,7 @@ describe('validateEventForm', () => {
     const errors = validateEventForm({
       ...validBase,
       template: 'ADMINISTRATIVE',
-      modules: { ...baseModules, orgRoleBilling: true },
+      modules: { ...baseModules },
       selectedStudentIds: [],
       staffParticipantCount: 0,
     });

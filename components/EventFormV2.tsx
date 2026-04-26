@@ -65,7 +65,6 @@ export interface EventFormState {
   recurrenceRule?: RecurrenceRule;
   // Status
   isCanceled: boolean;
-  cancellationPayStatus?: 'PAID_CANCELLATION' | 'NO_PAY_CANCELLATION';
   notes: string;
 }
 
@@ -212,8 +211,8 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
   );
 
   const modules = selectedActivity?.modules || {
-    curriculum: false, staffBilling: false, revenue: false,
-    externalParticipants: false, orgRoleBilling: false,
+    curriculum: false,
+    externalParticipants: false,
   };
 
   const template = selectedActivity?.template || null;
@@ -1153,20 +1152,10 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
               onChange={e => setForm(prev => ({
                 ...prev,
                 isCanceled: e.target.checked,
-                cancellationPayStatus: e.target.checked && !prev.cancellationPayStatus ? 'NO_PAY_CANCELLATION' : prev.cancellationPayStatus,
               }))}
             />
             <span className="font-medium text-slate-900 dark:text-white">{t('cal.mark_canceled')}</span>
           </label>
-          {form.isCanceled && (
-            <div className="mt-3 ms-8 border-t border-slate-200 dark:border-slate-700 pt-3">
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{t('cal.cancel_pay_status')}</label>
-              <select className={selectCls} value={form.cancellationPayStatus || 'NO_PAY_CANCELLATION'} onChange={e => setForm(prev => ({ ...prev, cancellationPayStatus: e.target.value as any }))}>
-                <option value="NO_PAY_CANCELLATION">{t('cal.no_pay')}</option>
-                <option value="PAID_CANCELLATION">{t('cal.paid_cancel')}</option>
-              </select>
-            </div>
-          )}
         </div>
       )}
 

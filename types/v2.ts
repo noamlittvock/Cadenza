@@ -51,9 +51,6 @@ export type ImportRowStatus =
   | 'IMPORTED'
   | 'SKIPPED';
 
-/** Section 05 — TeachingAssignment / OrgRole rate types */
-export type RateTypeV2 = 'HOURLY' | 'PER_EVENT' | 'MONTHLY_FLAT';
-
 /** Section 05 — EventParticipant.participantType */
 export type ParticipantType = 'STAFF' | 'EXTERNAL';
 
@@ -65,9 +62,6 @@ export type StaffRole = 'SUPER_ADMIN' | 'ADMIN' | 'STAFF';
 
 /** Section 05 — Activity.eventNameMode */
 export type EventNameMode = 'AUTO' | 'PROMPTED';
-
-/** Section 05 — RevenueItem.type */
-export type RevenueItemType = 'TICKET' | 'PARTICIPATION_FEE' | 'ROOM_HIRE' | 'OTHER';
 
 /** Section 05 — ImportRowResult.duplicateAction */
 export type DuplicateAction = 'OVERWRITE' | 'SKIP';
@@ -88,10 +82,7 @@ export type ImportEntityType =
 /** Section 05 — Activity.modules */
 export interface ModulesConfig {
   curriculum: boolean;
-  staffBilling: boolean;
-  revenue: boolean;
   externalParticipants: boolean;
-  orgRoleBilling: boolean;
 }
 
 /** Section 05 — StaffMember.firstUseFlags */
@@ -102,22 +93,6 @@ export interface FirstUseFlags {
   eventCreation: boolean;
   enrollment: boolean;
   payslips: boolean;
-}
-
-/** Section 05 — EventParticipant.rateSnapshot (immutable after creation) */
-export interface RateSnapshotV2 {
-  rateType: RateTypeV2;
-  rateValue: number;
-  snapshotDate: Timestamp;
-}
-
-/** Section 05 — RevenueItem (embedded in Event) */
-export interface RevenueItem {
-  id: string;
-  type: RevenueItemType;
-  amount: number;
-  quantity: number | null;
-  notes: string | null;
 }
 
 /** Section 05 — ImportRowResult (embedded in ImportSession) */
@@ -299,11 +274,8 @@ export interface EventParticipant {
   assignmentType?: AssignmentType;
   teachingAssignmentId?: string | null;
   orgRoleId?: string | null;
-  rateSnapshot?: RateSnapshotV2;
-  rateOverride?: number | null;
   // EXTERNAL fields
   externalName?: string;
-  oneOffFee?: number;
   notes?: string | null;
   createdAt: Timestamp;
 }

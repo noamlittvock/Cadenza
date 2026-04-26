@@ -178,34 +178,6 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
             </div>
           </section>
 
-          {/* Currency */}
-          <section>
-            <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
-              {t('settings.currency_title')}
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  {t('settings.currency_symbol_label')}
-                </label>
-                <select
-                  className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                  value={tempSettings.currency}
-                  onChange={(e) => handleChange('currency', e.target.value)}
-                >
-                  <option value="₪">{t('settings.currency_ils')}</option>
-                  <option value="$">{t('settings.currency_usd')}</option>
-                  <option value="€">{t('settings.currency_eur')}</option>
-                  <option value="£">{t('settings.currency_gbp')}</option>
-                  <option value="¥">{t('settings.currency_jpy')}</option>
-                  <option value="₹">{t('settings.currency_inr')}</option>
-                  <option value="₿">{t('settings.currency_btc')}</option>
-                </select>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t('settings.currency_desc')}</p>
-              </div>
-            </div>
-          </section>
-
           {/* Date & Time */}
           <section>
             <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">

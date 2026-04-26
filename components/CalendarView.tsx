@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, ListsState, RecurrenceRule, DayOfWeek } from '../types';
-import { generateId, INITIAL_LISTS, INITIAL_RATE_CARDS } from '../constants';
+import { generateId, INITIAL_LISTS } from '../constants';
 import { CATEGORY_SCHEMAS } from '../utils/schemaRegistry';
 import { ChevronLeft, ChevronRight, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronUp, ChevronDown, Repeat, Ban, RotateCcw, HelpCircle, Search, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -961,7 +961,6 @@ export const CalendarView: React.FC<Props> = ({
           staffMemberIds: formState.staffParticipants.map(sp => sp.staffMemberId),
           activityId: formState.activityId,
           isCanceled: formState.isCanceled,
-          cancellationPayStatus: formState.cancellationPayStatus,
           recurrenceId: parentId,
           isExceptionEdit: true,
           originalStart: dateKey,
@@ -983,7 +982,6 @@ export const CalendarView: React.FC<Props> = ({
           staffMemberIds: formState.staffParticipants.map(sp => sp.staffMemberId),
           activityId: formState.activityId,
           isCanceled: formState.isCanceled,
-          cancellationPayStatus: formState.cancellationPayStatus,
           recurrenceRule: formState.recurrenceRule,
         };
         setEvents(prev => prev.map(ev => ev.id === editingEvent.id ? { ...ev, ...updatedCE } : ev));

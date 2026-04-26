@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { Teacher, Student, AppSettings } from '../types';
 import { TRANSLATIONS } from '../constants';
-import { FileText, Copy, Check, Clock, DollarSign, GraduationCap, Eye } from 'lucide-react';
+import { FileText, Copy, Check, Clock, GraduationCap, Eye } from 'lucide-react';
 
-type TemplateId = 'hourly_self_report' | 'financial_summary' | 'student_report_card';
+type TemplateId = 'hourly_self_report' | 'student_report_card';
 
 interface Props {
   settings: AppSettings;
@@ -51,38 +51,6 @@ function buildHourlyReportHTML(teacher: { name: string; id: string }, orgName: s
     <div><div class="sig-line">Admin Signature</div></div>
     <div><div class="sig-line">Date</div></div>
   </div>
-</body></html>`;
-}
-
-function buildFinancialSummaryHTML(teacher: { name: string; rate: number; vat: number }, orgName: string, period: string): string {
-  const totalHours = SAMPLE_HOURS.reduce((s, h) => s + h.hours, 0);
-  const gross = totalHours * teacher.rate;
-  const vatAmount = gross * (teacher.vat / 100);
-  const net = gross + vatAmount;
-  return `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><title>Financial Summary</title>
-<style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1e293b; }
-  h1 { font-size: 20px; margin-bottom: 4px; }
-  .subtitle { color: #64748b; font-size: 13px; margin-bottom: 20px; }
-  .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
-  .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
-  .row.total { font-weight: 700; font-size: 16px; border-top: 2px solid #e2e8f0; margin-top: 8px; padding-top: 12px; }
-  .label { color: #64748b; }
-</style></head>
-<body>
-  <h1>Teacher Financial Summary</h1>
-  <div class="subtitle">${orgName} &mdash; ${period}</div>
-  <p style="font-size:14px;"><strong>Teacher:</strong> ${teacher.name}</p>
-  <div class="card">
-    <div class="row"><span class="label">Total Hours</span><span>${totalHours}</span></div>
-    <div class="row"><span class="label">Hourly Rate</span><span>₪${teacher.rate.toFixed(2)}</span></div>
-    <div class="row"><span class="label">Gross Amount</span><span>₪${gross.toFixed(2)}</span></div>
-    <div class="row"><span class="label">VAT (${teacher.vat}%)</span><span>₪${vatAmount.toFixed(2)}</span></div>
-    <div class="row total"><span>Net Payable</span><span>₪${net.toFixed(2)}</span></div>
-  </div>
-  <p style="font-size:11px; color:#94a3b8; margin-top:24px;">This is an automatically generated summary. For discrepancies, contact administration.</p>
 </body></html>`;
 }
 
@@ -135,7 +103,6 @@ function buildReportCardHTML(student: { name: string; instrument: string }, orgN
 
 const TEMPLATES: { id: TemplateId; icon: React.ElementType; color: string }[] = [
   { id: 'hourly_self_report', icon: Clock, color: 'text-blue-500 bg-blue-50 dark:bg-blue-900/30' },
-  { id: 'financial_summary', icon: DollarSign, color: 'text-amber-500 bg-amber-50 dark:bg-amber-900/30' },
   { id: 'student_report_card', icon: GraduationCap, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30' },
 ];
 
@@ -150,21 +117,14 @@ export const DocumentTemplates: React.FC<Props> = ({ settings, teachers, student
   const sampleTeacher = teachers[0] || { fullName: 'Sarah Cohen', id: 'sample' };
   const sampleStudent = students[0] || { fullName: 'David Levy', id: 'sample' };
 
-  const teacherRate = useMemo(() => {
-    const pa = (sampleTeacher as Teacher).positionAssignments?.[0];
-    return { rate: pa?.rateValue || 150, vat: pa?.vat?.value || 17 };
-  }, [sampleTeacher]);
-
   const html = useMemo(() => {
     switch (selected) {
       case 'hourly_self_report':
         return buildHourlyReportHTML({ name: sampleTeacher.fullName, id: sampleTeacher.id }, orgName, period);
-      case 'financial_summary':
-        return buildFinancialSummaryHTML({ name: sampleTeacher.fullName, ...teacherRate }, orgName, period);
       case 'student_report_card':
         return buildReportCardHTML({ name: sampleStudent.fullName, instrument: (sampleStudent as Student).assignments?.[0]?.subcategoryId || 'Piano' }, orgName, period);
     }
-  }, [selected, sampleTeacher, sampleStudent, teacherRate]);
+  }, [selected, sampleTeacher, sampleStudent]);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(html);
