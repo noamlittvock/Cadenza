@@ -9,12 +9,18 @@ import { generateId, TRANSLATIONS } from '../constants';
 import { useFirestoreSync } from '../utils/useFirestoreSync';
 import { useAuth } from '../context/AuthContext';
 import { Modal } from './Modal';
+import { SlideOver } from './SlideOver';
+import { StudentSlideOverContent } from './StudentSlideOverContent';
 import {
-  Plus, Edit2, Archive, RotateCcw, ArrowLeft, Menu, LayoutGrid, List, X,
-  Search, HelpCircle, Sparkles, GraduationCap, BookOpen, ChevronRight, Trash2,
-  Table2, ChevronUp, ChevronDown,
+  Plus, Edit2, Archive, RotateCcw, Menu, LayoutGrid, List, X,
+  Search, HelpCircle, Sparkles, GraduationCap, ChevronRight, Trash2,
+  Table2, ChevronUp, ChevronDown, Filter,
 } from 'lucide-react';
 import { useSortState } from '../utils/useSortState';
+import { useListStyle } from '../utils/useListStyle';
+import { useColumnFilters, type ColumnFilterConfig } from '../utils/useColumnFilters';
+import { ColumnFilterDropdown } from './ColumnFilterDropdown';
+import { FilterPills } from './FilterPills';
 
 // ─── Local storage helpers ──────────────────────────────────────────────────
 
@@ -79,18 +85,17 @@ export const StudentManager: React.FC<Props> = ({
   const [rosterMembers, setRosterMembers] = useFirestoreSync<EnsembleRosterMember>(V2_COLLECTIONS.ensembleRosterMembers, []);
 
   // ─── View state ────────────────────────────────────────────────────────────
-  type ViewMode = 'list' | 'detail';
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [listStyle, setListStyle] = useState<'grid' | 'list' | 'table'>('list');
+  const [listStyle, setListStyle] = useListStyle(['grid', 'list', 'table']);
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
 
   // ─── Student form state ────────────────────────────────────────────────────
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
-  const [studentForm, setStudentForm] = useState({ fullName: '', dateOfBirth: '', parentName: '', parentPhone: '' });
+  const [studentForm, setStudentForm] = useState({ fullName: '', dateOfBirth: '', parentName: '', parentPhone: '', grade: '', startDate: '', level: '', tags: [] as string[], phone2: '', email: '', address: '' });
   const [studentError, setStudentError] = useState<string | null>(null);
+  const [tagInput, setTagInput] = useState('');
 
   // ─── Enrollment form state ─────────────────────────────────────────────────
   const [showEnrollmentModal, setShowEnrollmentModal] = useState(false);
@@ -107,13 +112,11 @@ export const StudentManager: React.FC<Props> = ({
   const [enrollWalkStep, setEnrollWalkStep] = useState<number | null>(null);
 
   // ─── Detail tab ────────────────────────────────────────────────────────────
-  const [detailTab, setDetailTab] = useState<'profile' | 'enrollments'>('profile');
 
   // ─── Navigate-to from AdminInbox ──────────────────────────────────────────
   useEffect(() => {
     if (navigateToId) {
       setSelectedId(navigateToId);
-      setViewMode('detail');
       onNavigateHandled?.();
     }
   }, [navigateToId]);
@@ -138,8 +141,45 @@ export const StudentManager: React.FC<Props> = ({
   }, [studentsV2, showArchived, search]);
 
   // ─── Table view: sort + activity summary ──────────────────────────────
-  type StudentSortKey = 'fullName' | 'age' | 'parentName' | 'enrollmentCount';
+  type StudentSortKey = 'fullName' | 'age' | 'grade' | 'level' | 'parentName' | 'enrollmentCount';
   const { sortKey, sortDirection, toggleSort } = useSortState<StudentSortKey>('fullName');
+
+  // ─── Column filters ─────────────────────────────────────────────────────
+  const GRADE_ORDER: Record<string, number> = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (let i = 1; i <= 12; i++) map[t(`student.v2.grade.${i}`)] = i;
+    map[t('student.v2.grade.graduate')] = 13;
+    return map;
+  }, [t]);
+
+  const studentColumnConfigs: ColumnFilterConfig<StudentV2>[] = useMemo(() => [
+    { key: 'fullName', type: 'text' as const, label: t('student.table.name'), getValue: s => s.fullName },
+    { key: 'grade', type: 'checkbox' as const, label: t('student.table.grade'), getValue: s => s.grade ?? '' },
+    { key: 'level', type: 'checkbox' as const, label: t('student.table.level'), getValue: s => s.level != null ? String(s.level) : '' },
+    { key: 'parentName', type: 'text' as const, label: t('student.table.parent'), getValue: s => s.parentName ?? '' },
+    { key: 'tags', type: 'checkbox' as const, label: t('student.table.tags'), getValue: s => s.tags ?? [] },
+    { key: 'enrollments', type: 'checkbox' as const, label: t('student.table.enrollments'), getValue: (s: StudentV2) => {
+      const active = enrollments.filter(e => e.studentId === s.id && e.status === 'ACTIVE');
+      return active.map(e => {
+        const actName = getActivityName(activityMap, e.activityId);
+        const l2 = l2Subcategories.find(l => l.id === e.l2Id);
+        return l2 ? `${actName} (${l2.name})` : actName;
+      }).filter(Boolean);
+    }},
+  ], [t, enrollments, activityMap, l2Subcategories]);
+
+  const {
+    filters: columnFilters,
+    setCheckboxFilter,
+    clearFilter: clearColumnFilter,
+    clearAll: clearAllColumnFilters,
+    hasActiveFilters,
+    filteredData: columnFilteredStudents,
+    distinctValues,
+    activeFilterSummary,
+  } = useColumnFilters(filteredStudents, studentColumnConfigs);
+
+  const [openFilterKey, setOpenFilterKey] = useState<string | null>(null);
 
   const computeAge = useCallback((dob: string | null | undefined): number | null => {
     if (!dob) return null;
@@ -154,7 +194,7 @@ export const StudentManager: React.FC<Props> = ({
 
   const studentActivitySummary = useMemo(() => {
     const map = new Map<string, { labels: string[]; count: number }>();
-    for (const s of filteredStudents) {
+    for (const s of columnFilteredStudents) {
       const active = enrollments.filter(e => e.studentId === s.id && e.status === 'ACTIVE');
       const labels = active.map(e => {
         const actName = getActivityName(activityMap, e.activityId);
@@ -164,11 +204,11 @@ export const StudentManager: React.FC<Props> = ({
       map.set(s.id, { labels, count: active.length });
     }
     return map;
-  }, [filteredStudents, enrollments, activityMap, l2Subcategories]);
+  }, [columnFilteredStudents, enrollments, activityMap, l2Subcategories]);
 
   const sortedStudents = useMemo(() => {
-    if (listStyle !== 'table') return filteredStudents;
-    const sorted = [...filteredStudents];
+    if (listStyle !== 'table') return columnFilteredStudents;
+    const sorted = [...columnFilteredStudents];
     sorted.sort((a, b) => {
       let cmp = 0;
       switch (sortKey) {
@@ -177,6 +217,18 @@ export const StudentManager: React.FC<Props> = ({
           const aa = computeAge(a.dateOfBirth) ?? -1;
           const ba = computeAge(b.dateOfBirth) ?? -1;
           cmp = aa - ba;
+          break;
+        }
+        case 'grade': {
+          const ag = GRADE_ORDER[a.grade ?? ''] ?? 99;
+          const bg = GRADE_ORDER[b.grade ?? ''] ?? 99;
+          cmp = ag - bg;
+          break;
+        }
+        case 'level': {
+          const al = a.level ?? -1;
+          const bl = b.level ?? -1;
+          cmp = al - bl;
           break;
         }
         case 'parentName': cmp = (a.parentName || '').localeCompare(b.parentName || ''); break;
@@ -190,7 +242,7 @@ export const StudentManager: React.FC<Props> = ({
       return sortDirection === 'desc' ? -cmp : cmp;
     });
     return sorted;
-  }, [filteredStudents, listStyle, sortKey, sortDirection, computeAge, studentActivitySummary]);
+  }, [columnFilteredStudents, listStyle, sortKey, sortDirection, computeAge, studentActivitySummary, GRADE_ORDER]);
 
   const studentEnrollments = useMemo(
     () => selectedId ? enrollments.filter(e => e.studentId === selectedId) : [],
@@ -224,6 +276,13 @@ export const StudentManager: React.FC<Props> = ({
     dateOfBirth: s.dateOfBirth || '',
     parentName: s.parentName || '',
     parentPhone: s.parentPhone || '',
+    grade: s.grade || '',
+    startDate: s.startDate || '',
+    level: s.level != null ? String(s.level) : '',
+    tags: (s.tags ?? []).join(', '),
+    phone2: s.phone2 || '',
+    email: s.email || '',
+    address: s.address || '',
   })), [studentsV2]);
 
   const studentDupKeys = useMemo(
@@ -266,7 +325,15 @@ export const StudentManager: React.FC<Props> = ({
       dateOfBirth: row['dateOfBirth'] || null,
       parentName: row['parentName'] || null,
       parentPhone: row['parentPhone'] || null,
+      grade: row['grade'] || null,
+      startDate: row['startDate'] || null,
+      level: row['level'] ? parseInt(row['level'], 10) || null : null,
+      tags: row['tags'] ? row['tags'].split(',').map(t => t.trim()).filter(Boolean) : [],
+      phone2: row['phone2'] || null,
+      email: row['email'] || null,
+      address: row['address'] || null,
       isArchived: false,
+      documents: [],
       createdAt: now, updatedAt: now,
     }));
     setStudentsV2(prev => [...prev, ...newStudents]);
@@ -291,7 +358,8 @@ export const StudentManager: React.FC<Props> = ({
 
   const openNewStudent = useCallback(() => {
     setEditingStudentId(null);
-    setStudentForm({ fullName: '', dateOfBirth: '', parentName: '', parentPhone: '' });
+    setStudentForm({ fullName: '', dateOfBirth: '', parentName: '', parentPhone: '', grade: '', startDate: '', level: '', tags: [], phone2: '', email: '', address: '' });
+    setTagInput('');
     setStudentError(null);
     if (!isStudentWalkthroughDone(uid)) {
       setStudentWalkStep(1);
@@ -308,7 +376,15 @@ export const StudentManager: React.FC<Props> = ({
       dateOfBirth: s.dateOfBirth || '',
       parentName: s.parentName || '',
       parentPhone: s.parentPhone || '',
+      grade: s.grade || '',
+      startDate: s.startDate || '',
+      level: s.level != null ? String(s.level) : '',
+      tags: s.tags ?? [],
+      phone2: s.phone2 || '',
+      email: s.email || '',
+      address: s.address || '',
     });
+    setTagInput('');
     setStudentError(null);
     setStudentWalkStep(null);
     setShowStudentModal(true);
@@ -327,6 +403,13 @@ export const StudentManager: React.FC<Props> = ({
         dateOfBirth: studentForm.dateOfBirth || null,
         parentName: studentForm.parentName.trim() || null,
         parentPhone: studentForm.parentPhone.trim() || null,
+        grade: studentForm.grade || null,
+        startDate: studentForm.startDate || null,
+        level: studentForm.level ? parseInt(studentForm.level, 10) || null : null,
+        tags: studentForm.tags,
+        phone2: studentForm.phone2.trim() || null,
+        email: studentForm.email.trim() || null,
+        address: studentForm.address.trim() || null,
         updatedAt: now,
       } : s));
     } else {
@@ -337,7 +420,15 @@ export const StudentManager: React.FC<Props> = ({
         dateOfBirth: studentForm.dateOfBirth || null,
         parentName: studentForm.parentName.trim() || null,
         parentPhone: studentForm.parentPhone.trim() || null,
+        grade: studentForm.grade || null,
+        startDate: studentForm.startDate || null,
+        level: studentForm.level ? parseInt(studentForm.level, 10) || null : null,
+        tags: studentForm.tags,
+        phone2: studentForm.phone2.trim() || null,
+        email: studentForm.email.trim() || null,
+        address: studentForm.address.trim() || null,
         isArchived: false,
+        documents: [],
         createdAt: now,
         updatedAt: now,
       };
@@ -372,13 +463,21 @@ export const StudentManager: React.FC<Props> = ({
     setRosterMembers(prev => prev.map(r => r.studentId === sid && !r.isArchived
       ? { ...r, isArchived: true, updatedAt: now } : r));
     setArchiveCascadeTarget(null);
-    if (selectedId === sid) { setViewMode('list'); setSelectedId(null); }
+    if (selectedId === sid) { setSelectedId(null); }
   }, [archiveCascadeTarget, selectedId, setStudentsV2, setEnrollments, setRosterMembers]);
 
   const handleRestoreStudent = useCallback((student: StudentV2) => {
     setStudentsV2(prev => prev.map(s => s.id === student.id
       ? { ...s, isArchived: false, updatedAt: Timestamp.now() } : s));
   }, [setStudentsV2]);
+
+  // ─── Document update ───────────────────────────────────────────────────────
+
+  const handleStudentDocumentsUpdate = useCallback((documents: import('../types/v2').DocumentEntry[]) => {
+    if (!selectedId) return;
+    setStudentsV2(prev => prev.map(s => s.id === selectedId
+      ? { ...s, documents, updatedAt: Timestamp.now() } : s));
+  }, [selectedId, setStudentsV2]);
 
   // ─── Enrollment CRUD ───────────────────────────────────────────────────────
 
@@ -471,13 +570,6 @@ export const StudentManager: React.FC<Props> = ({
 
   const selectStudent = useCallback((id: string) => {
     setSelectedId(id);
-    setViewMode('detail');
-    setDetailTab('profile');
-  }, []);
-
-  const backToList = useCallback(() => {
-    setViewMode('list');
-    setSelectedId(null);
   }, []);
 
   // ─── Walkthrough helpers ───────────────────────────────────────────────────
@@ -504,78 +596,91 @@ export const StudentManager: React.FC<Props> = ({
   const StudentSortHeader: React.FC<{
     sortKey_: StudentSortKey; sortDir: 'asc' | 'desc'; column: StudentSortKey;
     onToggle: (k: StudentSortKey) => void; align: 'start' | 'end'; children: React.ReactNode;
-  }> = ({ sortKey_: sk, sortDir, column, onToggle, align, children }) => (
-    <th className={`py-2 px-3 text-${align} text-slate-500 dark:text-slate-400 font-medium cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-200 transition-colors`}
-      onClick={() => onToggle(column)}>
+    filterKey?: string;
+  }> = ({ sortKey_: sk, sortDir, column, onToggle, align, children, filterKey }) => (
+    <th className={`py-2 px-3 text-${align} text-slate-500 dark:text-slate-400 font-medium select-none relative`}>
       <span className="inline-flex items-center gap-1">
-        {children}
-        {sk === column && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+        <span className="cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors" onClick={() => onToggle(column)}>
+          {children}
+          {sk === column && (sortDir === 'asc' ? <ChevronUp size={14} className="inline" /> : <ChevronDown size={14} className="inline" />)}
+        </span>
+        {filterKey && distinctValues[filterKey] && (
+          <button
+            onClick={e => { e.stopPropagation(); setOpenFilterKey(prev => prev === filterKey ? null : filterKey); }}
+            className={`p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 ${columnFilters[filterKey]?.selected.size ? 'text-blue-600 dark:text-blue-400' : ''}`}
+          >
+            <Filter size={12} />
+          </button>
+        )}
       </span>
+      {filterKey && openFilterKey === filterKey && distinctValues[filterKey] && (
+        <ColumnFilterDropdown
+          values={distinctValues[filterKey]}
+          selected={columnFilters[filterKey]?.selected ?? new Set()}
+          onChange={vals => setCheckboxFilter(filterKey, vals)}
+          onClose={() => setOpenFilterKey(null)}
+          t={t}
+        />
+      )}
     </th>
   );
 
   // ─── RENDER ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-full overflow-y-auto p-4 md:p-6">
+    <>
+    <div className="h-full flex">
+    <div className="flex-1 min-w-0 overflow-y-auto p-4 md:p-6">
       {/* ── Header ── */}
       <div className="flex items-center gap-3 mb-6">
         <button className="md:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800" onClick={onMobileMenuOpen}>
           <Menu size={20} className="text-slate-600 dark:text-slate-400" />
         </button>
-        {viewMode === 'detail' && (
-          <button onClick={backToList} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
-            <ArrowLeft size={20} className="text-slate-600 dark:text-slate-400" />
-          </button>
-        )}
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <GraduationCap size={24} />
-            {viewMode === 'detail' && selectedStudent ? selectedStudent.fullName : t('student.title')}
+            {t('student.title')}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            {viewMode === 'detail' ? t('student.v2.detail_title') : t('student.subtitle')}
+            {t('student.subtitle')}
           </p>
         </div>
-        {viewMode === 'list' && (
-          <div className="flex items-center gap-2">
-            {canWrite && (
-              <button
-                onClick={openNewStudent}
-                className="flex items-center gap-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg text-sm font-medium"
-              >
-                <Plus size={16} /> {t('student.add')}
-              </button>
-            )}
-            <ImportExportDropdown
-              entityType="STUDENT"
-              existingData={studentExportData}
-              existingDuplicateKeys={studentDupKeys}
-              dependencyMaps={{ activityByName: csvActivityByName, l2ByName: csvL2ByName, staffByEmail: {}, studentByName: csvStudentByName }}
-              activityNames={activities.map(a => a.name)}
-              settings={settings}
-              canWrite={canWrite}
-              onImportComplete={handleStudentImportComplete}
-            />
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {canWrite && (
+            <button
+              onClick={openNewStudent}
+              className="flex items-center gap-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg text-sm font-medium"
+            >
+              <Plus size={16} /> {t('student.add')}
+            </button>
+          )}
+          <ImportExportDropdown
+            entityType="STUDENT"
+            existingData={studentExportData}
+            existingDuplicateKeys={studentDupKeys}
+            dependencyMaps={{ activityByName: csvActivityByName, l2ByName: csvL2ByName, staffByEmail: {}, studentByName: csvStudentByName }}
+            activityNames={activities.map(a => a.name)}
+            settings={settings}
+            canWrite={canWrite}
+            onImportComplete={handleStudentImportComplete}
+          />
+        </div>
       </div>
 
-      {/* ── List View ── */}
-      {viewMode === 'list' && (
-        <>
+      {/* ── List View (always visible) ── */}
+      <>
           {/* Search & filters */}
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <div className="relative flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder={t('student.search')}
-                className="w-full pl-9 pr-8 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full ps-9 pe-8 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
               />
               {search && (
-                <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <button onClick={() => setSearch('')} className="absolute end-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                   <X size={14} />
                 </button>
               )}
@@ -601,8 +706,18 @@ export const StudentManager: React.FC<Props> = ({
             </div>
           </div>
 
+          {/* Filter pills */}
+          {hasActiveFilters && (
+            <FilterPills
+              pills={activeFilterSummary}
+              onRemove={clearColumnFilter}
+              onClearAll={clearAllColumnFilters}
+              t={t}
+            />
+          )}
+
           {/* Student list */}
-          {filteredStudents.length === 0 ? (
+          {columnFilteredStudents.length === 0 ? (
             <div className="text-center py-12 text-slate-400 dark:text-slate-500">
               <GraduationCap size={48} className="mx-auto mb-3 opacity-30" />
               <p className="text-sm">{search ? t('student.no_results') : t('student.empty_state')}</p>
@@ -639,19 +754,41 @@ export const StudentManager: React.FC<Props> = ({
                     <tr className="sticky top-0 bg-slate-50 dark:bg-slate-900 z-10 border-b border-slate-200 dark:border-slate-700">
                       <StudentSortHeader sortKey_={sortKey} sortDir={sortDirection} column="fullName" onToggle={toggleSort} align="start">{t('student.table.name')}</StudentSortHeader>
                       <StudentSortHeader sortKey_={sortKey} sortDir={sortDirection} column="age" onToggle={toggleSort} align="end">{t('student.table.age')}</StudentSortHeader>
+                      <StudentSortHeader sortKey_={sortKey} sortDir={sortDirection} column="grade" onToggle={toggleSort} align="start" filterKey="grade">{t('student.table.grade')}</StudentSortHeader>
+                      <StudentSortHeader sortKey_={sortKey} sortDir={sortDirection} column="level" onToggle={toggleSort} align="end" filterKey="level">{t('student.table.level')}</StudentSortHeader>
                       <StudentSortHeader sortKey_={sortKey} sortDir={sortDirection} column="parentName" onToggle={toggleSort} align="start">{t('student.table.parent')}</StudentSortHeader>
                       <th className="py-2 px-3 text-start text-slate-500 dark:text-slate-400 font-medium">{t('student.table.phone')}</th>
-                      <th className="py-2 px-3 text-start text-slate-500 dark:text-slate-400 font-medium">{t('student.table.activities')}</th>
-                      <StudentSortHeader sortKey_={sortKey} sortDir={sortDirection} column="enrollmentCount" onToggle={toggleSort} align="end">{t('student.table.enrollments')}</StudentSortHeader>
+                      <th className="py-2 px-3 text-start text-slate-500 dark:text-slate-400 font-medium relative">
+                        <span className="inline-flex items-center gap-1">
+                          {t('student.table.tags')}
+                          {distinctValues['tags'] && (
+                            <button
+                              onClick={() => setOpenFilterKey(prev => prev === 'tags' ? null : 'tags')}
+                              className={`p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 ${columnFilters['tags']?.selected.size ? 'text-blue-600 dark:text-blue-400' : ''}`}
+                            >
+                              <Filter size={12} />
+                            </button>
+                          )}
+                        </span>
+                        {openFilterKey === 'tags' && distinctValues['tags'] && (
+                          <ColumnFilterDropdown
+                            values={distinctValues['tags']}
+                            selected={columnFilters['tags']?.selected ?? new Set()}
+                            onChange={vals => setCheckboxFilter('tags', vals)}
+                            onClose={() => setOpenFilterKey(null)}
+                            t={t}
+                          />
+                        )}
+                      </th>
+                      <StudentSortHeader sortKey_={sortKey} sortDir={sortDirection} column="enrollmentCount" onToggle={toggleSort} align="start" filterKey="enrollments">{t('student.table.enrollments')}</StudentSortHeader>
                     </tr>
                   </thead>
                   <tbody>
                     {sortedStudents.map(student => {
                       const summary = studentActivitySummary.get(student.id);
                       const labels = summary?.labels ?? [];
-                      const shown = labels.slice(0, 3);
-                      const extra = labels.length - 3;
                       const age = computeAge(student.dateOfBirth);
+                      const tags = student.tags ?? [];
                       return (
                         <tr key={student.id} onClick={() => selectStudent(student.id)}
                           className="border-b border-slate-100 dark:border-slate-800 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 cursor-pointer transition-colors">
@@ -664,17 +801,39 @@ export const StudentManager: React.FC<Props> = ({
                             )}
                           </td>
                           <td className="py-2 px-3 text-end text-slate-600 dark:text-slate-400">{age != null ? age : '—'}</td>
+                          <td className="py-2 px-3 text-start text-slate-600 dark:text-slate-400">{student.grade || '—'}</td>
+                          <td className="py-2 px-3 text-end text-slate-600 dark:text-slate-400">{student.level != null ? student.level : '—'}</td>
                           <td className="py-2 px-3 text-start text-slate-600 dark:text-slate-400">{student.parentName || '—'}</td>
                           <td className="py-2 px-3 text-start text-slate-600 dark:text-slate-400">{student.parentPhone || '—'}</td>
                           <td className="py-2 px-3 text-start text-slate-600 dark:text-slate-400">
-                            {shown.length > 0 ? (
+                            {tags.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {tags.slice(0, 2).map((tag, i) => (
+                                  <span key={i} className="px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs">{tag}</span>
+                                ))}
+                                {tags.length > 2 && <span className="text-xs text-slate-400">+{tags.length - 2}</span>}
+                              </div>
+                            ) : '—'}
+                          </td>
+                          <td className="py-2 px-3 text-start text-slate-600 dark:text-slate-400 relative group">
+                            {labels.length > 0 ? (
                               <>
-                                {shown.join(', ')}
-                                {extra > 0 && <span className="text-slate-400 dark:text-slate-500 ml-1">+{extra} more</span>}
+                                <span>{labels[0]}</span>
+                                {labels.length > 1 && (
+                                  <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-default">
+                                    +{labels.length - 1}
+                                  </span>
+                                )}
+                                {labels.length > 1 && (
+                                  <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-2 hidden group-hover:block min-w-[160px]" onClick={e => e.stopPropagation()}>
+                                    {labels.map((label, i) => (
+                                      <p key={i} className="text-xs text-slate-700 dark:text-slate-300 py-0.5">{label}</p>
+                                    ))}
+                                  </div>
+                                )}
                               </>
                             ) : '—'}
                           </td>
-                          <td className="py-2 px-3 text-end text-slate-600 dark:text-slate-400">{summary?.count ?? 0}</td>
                         </tr>
                       );
                     })}
@@ -687,7 +846,7 @@ export const StudentManager: React.FC<Props> = ({
               ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3'
               : 'space-y-2'
             }>
-              {filteredStudents.map(student => {
+              {columnFilteredStudents.map(student => {
                 const count = activeEnrollmentCount(student.id);
                 return (
                   <button
@@ -730,164 +889,52 @@ export const StudentManager: React.FC<Props> = ({
             </div>
           )}
         </>
-      )}
 
-      {/* ── Detail View ── */}
-      {viewMode === 'detail' && selectedStudent && (
-        <div className="flex-1 flex flex-col min-h-0">
-          {/* Actions */}
-          {canWrite && (
-            <div className="flex gap-2 mb-4">
-              <button onClick={() => openEditStudent(selectedStudent)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700">
-                <Edit2 size={12} /> {t('student.edit')}
-              </button>
-              {selectedStudent.isArchived ? (
-                <button onClick={() => handleRestoreStudent(selectedStudent)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800">
-                  <RotateCcw size={12} /> {t('student.restore')}
-                </button>
-              ) : (
-                <button onClick={() => handleArchiveStudent(selectedStudent)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-800">
-                  <Archive size={12} /> {t('student.archive')}
-                </button>
-              )}
-            </div>
-          )}
+      </div>{/* end main content */}
 
-          {/* Tabs */}
-          <div className="flex border-b border-slate-200 dark:border-slate-700 mb-4">
-            {(['profile', 'enrollments'] as const).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setDetailTab(tab)}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  detailTab === tab
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-                }`}
-              >
-                {t(`student.tab.${tab}`)}
-              </button>
-            ))}
-          </div>
+      {/* ── Student Slide-Over ── */}
+      <SlideOver
+        isOpen={!!selectedId}
+        onClose={() => setSelectedId(null)}
+        title={selectedStudent?.fullName}
+      >
+        {selectedStudent && (
+          <StudentSlideOverContent
+            student={selectedStudent}
+            enrollments={studentEnrollments}
+            activities={activities}
+            settings={settings}
+            canWrite={canWrite}
+            t={t}
+            getActName={getActName}
+            getL2Name={getL2Name}
+            onEdit={openEditStudent}
+            onArchive={handleArchiveStudent}
+            onRestore={handleRestoreStudent}
+            onNewEnrollment={openNewEnrollment}
+            onEditEnrollment={openEditEnrollment}
+            onArchiveEnrollment={handleArchiveEnrollment}
+            onReinstateEnrollment={handleReinstateEnrollment}
+            enrollmentExportData={enrollmentExportData}
+            enrollmentDupKeys={enrollmentDupKeys}
+            csvActivityByName={csvActivityByName}
+            csvL2ByName={csvL2ByName}
+            csvStudentByName={csvStudentByName}
+            onEnrollmentImportComplete={handleEnrollmentImportComplete}
+            orgId={orgId || ''}
+            onDocumentsUpdate={handleStudentDocumentsUpdate}
+            uid={uid}
+            isEnrollmentWalkthroughDone={isEnrollmentWalkthroughDone}
+            enrollWalkStep={enrollWalkStep}
+            setEnrollWalkStep={setEnrollWalkStep}
+            markEnrollmentWalkthroughDone={markEnrollmentWalkthroughDone}
+            WalkthroughBanner={WalkthroughBanner}
+          />
+        )}
+      </SlideOver>
+    </div>{/* end flex row */}
 
-          {/* Profile Tab */}
-          {detailTab === 'profile' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
-                <div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{t('student.full_name')}</p>
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">{selectedStudent.fullName}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{t('student.date_of_birth')}</p>
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">{selectedStudent.dateOfBirth || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{t('student.v2.parent_name')}</p>
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">{selectedStudent.parentName || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{t('student.v2.parent_phone')}</p>
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">{selectedStudent.parentPhone || '—'}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Enrollments Tab */}
-          {detailTab === 'enrollments' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {canWrite && !selectedStudent.isArchived && (
-                    <button
-                      onClick={() => { setEnrollWalkStep(null); setStudentWalkStep(null); if (!isEnrollmentWalkthroughDone(uid)) { setEnrollWalkStep(1); } openNewEnrollment(); }}
-                      className="flex items-center gap-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-3 py-1.5 rounded-lg text-xs font-medium"
-                    >
-                      <Plus size={14} /> {t('student.v2.enrollment.add')}
-                    </button>
-                  )}
-                  <ImportExportDropdown
-                    entityType="ENROLLMENT"
-                    existingData={enrollmentExportData}
-                    existingDuplicateKeys={enrollmentDupKeys}
-                    dependencyMaps={{ activityByName: csvActivityByName, l2ByName: csvL2ByName, staffByEmail: {}, studentByName: csvStudentByName }}
-                    activityNames={activities.map(a => a.name)}
-                    settings={settings}
-                    canWrite={canWrite}
-                    onImportComplete={handleEnrollmentImportComplete}
-                  />
-                </div>
-                {canWrite && !selectedStudent.isArchived && (
-                  <button
-                    onClick={() => { setEnrollWalkStep(1); openNewEnrollment(); }}
-                    className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400"
-                  >
-                    <HelpCircle size={12} /> {t('student.v2.guide_me')}
-                  </button>
-                )}
-              </div>
-
-              {studentEnrollments.length === 0 ? (
-                <div className="text-center py-8 text-slate-400 dark:text-slate-500">
-                  <BookOpen size={32} className="mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">{t('student.v2.enrollment.empty')}</p>
-                </div>
-              ) : (
-                studentEnrollments.map(enrollment => (
-                  <div
-                    key={enrollment.id}
-                    className={`p-3 rounded-lg border ${
-                      enrollment.status === 'ARCHIVED'
-                        ? 'border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10'
-                        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-slate-900 dark:text-white">
-                          {getActName(enrollment.activityId)}
-                        </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {getL2Name(enrollment.l2Id)} · {enrollment.startDate}
-                          {enrollment.endDate ? ` → ${enrollment.endDate}` : ''}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          enrollment.status === 'ACTIVE'
-                            ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
-                            : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
-                        }`}>
-                          {t(`student.v2.enrollment.${enrollment.status.toLowerCase()}`)}
-                        </span>
-                        {canWrite && (
-                          <div className="flex gap-1">
-                            <button onClick={() => openEditEnrollment(enrollment)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700">
-                              <Edit2 size={12} className="text-slate-400" />
-                            </button>
-                            {enrollment.status === 'ACTIVE' ? (
-                              <button onClick={() => handleArchiveEnrollment(enrollment)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700">
-                                <Archive size={12} className="text-amber-500" />
-                              </button>
-                            ) : (
-                              <button onClick={() => handleReinstateEnrollment(enrollment)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700">
-                                <RotateCcw size={12} className="text-green-500" />
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Student Modal ── */}
+    {/* ── Student Modal ── */}
       <Modal
         isOpen={showStudentModal}
         onClose={() => setShowStudentModal(false)}
@@ -960,6 +1007,107 @@ export const StudentManager: React.FC<Props> = ({
               value={studentForm.parentPhone}
               onChange={e => setStudentForm(p => ({ ...p, parentPhone: e.target.value }))}
               placeholder={t('student.v2.parent_phone_placeholder')}
+              className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            />
+          </div>
+
+          {/* ── New fields (Phase 1) ── */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('student.grade')}</label>
+              <select
+                value={studentForm.grade}
+                onChange={e => setStudentForm(p => ({ ...p, grade: e.target.value }))}
+                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              >
+                <option value="">{t('student.v2.grade_select')}</option>
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i + 1} value={t(`student.v2.grade.${i + 1}`)}>{t(`student.v2.grade.${i + 1}`)}</option>
+                ))}
+                <option value={t('student.v2.grade.graduate')}>{t('student.v2.grade.graduate')}</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('student.v2.level')}</label>
+              <input
+                type="number"
+                min={1}
+                max={7}
+                value={studentForm.level}
+                onChange={e => setStudentForm(p => ({ ...p, level: e.target.value }))}
+                placeholder={t('student.v2.level_placeholder')}
+                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('student.v2.start_date')}</label>
+            <input
+              type="date"
+              value={studentForm.startDate}
+              onChange={e => setStudentForm(p => ({ ...p, startDate: e.target.value }))}
+              placeholder={t('student.v2.start_date_placeholder')}
+              className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('student.v2.phone2')}</label>
+            <input
+              value={studentForm.phone2}
+              onChange={e => setStudentForm(p => ({ ...p, phone2: e.target.value }))}
+              placeholder={t('student.v2.phone2_placeholder')}
+              className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('student.v2.email')}</label>
+            <input
+              type="email"
+              value={studentForm.email}
+              onChange={e => setStudentForm(p => ({ ...p, email: e.target.value }))}
+              placeholder={t('student.v2.email_placeholder')}
+              className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('student.v2.address')}</label>
+            <input
+              value={studentForm.address}
+              onChange={e => setStudentForm(p => ({ ...p, address: e.target.value }))}
+              placeholder={t('student.v2.address_placeholder')}
+              className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('student.v2.tags')}</label>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {studentForm.tags.map((tag, i) => (
+                <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs">
+                  {tag}
+                  <button type="button" onClick={() => setStudentForm(p => ({ ...p, tags: p.tags.filter((_, j) => j !== i) }))} className="hover:text-red-500">
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <input
+              value={tagInput}
+              onChange={e => setTagInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && tagInput.trim()) {
+                  e.preventDefault();
+                  if (!studentForm.tags.includes(tagInput.trim())) {
+                    setStudentForm(p => ({ ...p, tags: [...p.tags, tagInput.trim()] }));
+                  }
+                  setTagInput('');
+                }
+              }}
+              placeholder={t('student.v2.tags') + '...'}
               className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
@@ -1139,6 +1287,6 @@ export const StudentManager: React.FC<Props> = ({
           })()}
         </div>
       </Modal>
-    </div>
+    </>
   );
 };

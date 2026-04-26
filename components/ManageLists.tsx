@@ -39,11 +39,11 @@ const ListEditor = ({
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 flex flex-col h-full">
-      <div className="flex items-center space-x-3 rtl:space-x-reverse mb-4">
+      <div className="flex items-center justify-center space-x-3 rtl:space-x-reverse mb-4">
         <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400">
           <Icon size={20} />
         </div>
-        <h3 className="font-bold text-lg text-slate-800 dark:text-white">{title}</h3>
+        <h3 className="font-bold text-lg text-slate-800 dark:text-white text-center">{title}</h3>
       </div>
 
       <div className="flex gap-2 mb-4">
@@ -53,7 +53,7 @@ const ListEditor = ({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
           placeholder={addPlaceholder || `Add ${title}...`}
-          className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-center"
         />
         <button
           onClick={handleAdd}
@@ -66,11 +66,11 @@ const ListEditor = ({
 
       <div className="flex-1 overflow-y-auto space-y-2 pe-1 custom-scrollbar max-h-[300px]">
         {items.map((item, idx) => (
-          <div key={idx} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-lg border border-slate-100 dark:border-slate-700 group">
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{item}</span>
+          <div key={idx} className="relative flex items-center justify-center bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-lg border border-slate-100 dark:border-slate-700 group">
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300 text-center">{item}</span>
             <button
               onClick={() => onRemove(item)}
-              className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute end-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <X size={16} />
             </button>

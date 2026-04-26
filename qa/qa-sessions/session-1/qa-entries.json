@@ -1,0 +1,62 @@
+[
+  {
+    "id": "entry-1777202722805-rjho",
+    "type": "revision",
+    "description": "in tabs that have lists such as these (for example teachers, rooms etc.) allow for an alphabetical order from top to bottom or the opposite",
+    "screenshots": [
+      "/Users/noamlitt/Building/apps/cadenza/qa/qa-sessions/session-1/qa-assets/capture-1777202679876.png"
+    ],
+    "timestamp": "2026-04-26T11:25:22.805Z",
+    "severity": null
+  },
+  {
+    "id": "entry-1777202754676-2p24",
+    "type": "revision",
+    "description": "align to center",
+    "screenshots": [
+      "/Users/noamlitt/Building/apps/cadenza/qa/qa-sessions/session-1/qa-assets/capture-1777202737262.png"
+    ],
+    "timestamp": "2026-04-26T11:25:54.676Z",
+    "severity": null
+  },
+  {
+    "id": "entry-1777202817672-uz2j",
+    "type": "fix",
+    "description": "in RTL staff is still set to LTR alignment - fix this and make a pass of all tabs to see that everything is aligned RTL when RTL is selected in the language settings",
+    "screenshots": [
+      "/Users/noamlitt/Building/apps/cadenza/qa/qa-sessions/session-1/qa-assets/capture-1777202772365.png"
+    ],
+    "timestamp": "2026-04-26T11:26:57.672Z",
+    "severity": null
+  },
+  {
+    "id": "entry-1777203051354-cmys",
+    "type": "revision",
+    "description": "reduce the jump to date view so that only the calendar icon is showing and indicates that it is clickable. \nremove the calendar icon next to \"week of the...\"\ntransfer the jump to date option to the end of the chain so that the options are \"today, day, week, month,jump to date",
+    "screenshots": [
+      "/Users/noamlitt/Building/apps/cadenza/qa/qa-sessions/session-1/qa-assets/capture-1777202945443.png"
+    ],
+    "timestamp": "2026-04-26T11:30:51.354Z",
+    "severity": null
+  },
+  {
+    "id": "entry-1777203212706-jixc",
+    "type": "revision",
+    "description": "embed the \"canceled, blacked, and conflicting\" into the expanded filter menu. place it at the begining of the chain",
+    "screenshots": [
+      "/Users/noamlitt/Building/apps/cadenza/qa/qa-sessions/session-1/qa-assets/capture-1777203122790.png"
+    ],
+    "timestamp": "2026-04-26T11:33:32.706Z",
+    "severity": null
+  },
+  {
+    "id": "entry-1777203281603-d99b",
+    "type": "fix",
+    "description": "minimized icons don not sit in the same horizontal coordinates as the expanded sidebar",
+    "screenshots": [
+      "/Users/noamlitt/Building/apps/cadenza/qa/qa-sessions/session-1/qa-assets/capture-1777203246982.png"
+    ],
+    "timestamp": "2026-04-26T11:34:41.603Z",
+    "severity": null
+  }
+]

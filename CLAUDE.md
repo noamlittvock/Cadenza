@@ -14,6 +14,9 @@ Project vault: `/Users/noamlitt/Library/Mobile Documents/com~apple~CloudDocs/Obs
 - Recharts, Playwright, Vitest
 - RTL support + Hebrew calendar (@hebcal/core)
 
+## Dev
+Port: 3001
+
 ## Key commands
 - `npm run dev` — local dev server
 - `npm run build` — production build

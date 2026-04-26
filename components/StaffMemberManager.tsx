@@ -14,11 +14,20 @@ import { useFirestoreSync } from '../utils/useFirestoreSync';
 import { useAuth } from '../context/AuthContext';
 import { Modal } from './Modal';
 import {
-  Plus, Edit2, Archive, RotateCcw, ArrowLeft, Menu, LayoutGrid, List, X,
+  Plus, Edit2, Archive, RotateCcw, Menu, LayoutGrid, List, X,
   Search, HelpCircle, Sparkles, Shield, ShieldCheck, User,
-  Briefcase, GraduationCap, ChevronRight, Trash2, Table2, ChevronUp, ChevronDown,
+  Briefcase, GraduationCap, ChevronRight, Trash2, Table2, ChevronUp, ChevronDown, Filter,
+  Check,
 } from 'lucide-react';
 import { useSortState } from '../utils/useSortState';
+import { useListStyle } from '../utils/useListStyle';
+import { SlideOver } from './SlideOver';
+import { StaffSlideOverContent } from './StaffSlideOverContent';
+import { useColumnFilters, type ColumnFilterConfig } from '../utils/useColumnFilters';
+import { ColumnFilterDropdown } from './ColumnFilterDropdown';
+import { FilterPills } from './FilterPills';
+import { RateConfigFields } from './RateConfigFields';
+import { DocumentSection } from './DocumentSection';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -101,18 +110,15 @@ export const StaffMemberManager: React.FC<Props> = ({
   const activityMap = useMemo(() => buildActivityMap(activities), [activities]);
 
   // ─── View state ─────────────────────────────────────────────────────────
-  const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
-  const [listStyle, setListStyle] = useState<'grid' | 'list' | 'table'>('list');
+  const [listStyle, setListStyle] = useListStyle(['grid', 'list', 'table']);
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
-  const [detailTab, setDetailTab] = useState<'assignments' | 'orgRoles'>('assignments');
 
   // ─── Navigate-to from AdminInbox ──────────────────────────────────────────
   useEffect(() => {
     if (navigateToId) {
       setSelectedStaffId(navigateToId);
-      setViewMode('detail');
       onNavigateHandled?.();
     }
   }, [navigateToId]);
@@ -125,10 +131,14 @@ export const StaffMemberManager: React.FC<Props> = ({
   const [formPhone, setFormPhone] = useState('');
   const [formRole, setFormRole] = useState<StaffRole>('STAFF');
   const [formUid, setFormUid] = useState('');
+  const [formStartDate, setFormStartDate] = useState('');
   const [staffError, setStaffError] = useState('');
 
   // ─── Walkthrough ────────────────────────────────────────────────────────
   const [walkthroughStep, setWalkthroughStep] = useState<number | null>(null);
+
+  // ─── Onboarding wizard (create flow only) ─────────────────────────────
+  const [wizardStep, setWizardStep] = useState<number | null>(null);
 
   // ─── Assignment modal ───────────────────────────────────────────────────
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
@@ -151,6 +161,28 @@ export const StaffMemberManager: React.FC<Props> = ({
   const [orFormEndDate, setOrFormEndDate] = useState('');
   const [orgRoleError, setOrgRoleError] = useState('');
 
+  // ─── Form reset helpers ────────────────────────────────────────────────
+
+  const resetAssignmentForm = useCallback(() => {
+    setAssignmentError('');
+    setEditingAssignmentId(null);
+    setAFormActivityId('');
+    setAFormL2Id('');
+    setAFormRateType('HOURLY');
+    setAFormRateValue(0);
+    setAFormStartDate(new Date().toISOString().slice(0, 10));
+    setAFormEndDate('');
+  }, []);
+
+  const resetOrgRoleForm = useCallback(() => {
+    setOrgRoleError('');
+    setOrFormTitle('');
+    setOrFormRateType('MONTHLY_FLAT');
+    setOrFormRateValue(0);
+    setOrFormStartDate(new Date().toISOString().slice(0, 10));
+    setOrFormEndDate('');
+  }, []);
+
   // ─── Archive cascade modal ──────────────────────────────────────────────
   const [archiveCascadeStaffId, setArchiveCascadeStaffId] = useState<string | null>(null);
 
@@ -172,19 +204,43 @@ export const StaffMemberManager: React.FC<Props> = ({
   type StaffSortKey = 'fullName' | 'role' | 'email' | 'assignmentCount';
   const { sortKey, sortDirection, toggleSort } = useSortState<StaffSortKey>('fullName');
 
+  // ─── Column filters ─────────────────────────────────────────────────────
+  const staffColumnConfigs: ColumnFilterConfig<StaffMemberV2>[] = useMemo(() => [
+    { key: 'fullName', type: 'text' as const, label: t('staff.table.name'), getValue: s => s.fullName },
+    { key: 'role', type: 'checkbox' as const, label: t('staff.table.role'), getValue: s => s.role },
+    { key: 'email', type: 'text' as const, label: t('staff.table.email'), getValue: s => s.email ?? '' },
+    { key: 'activities', type: 'checkbox' as const, label: t('staff.table.activities'), getValue: (s: StaffMemberV2) => {
+      const active = assignments.filter(a => a.staffMemberId === s.id && !a.isArchived);
+      return active.map(a => getActivityName(activityMap, a.activityId)).filter(Boolean);
+    }},
+  ], [t, assignments, activityMap]);
+
+  const {
+    filters: staffColumnFilters,
+    setCheckboxFilter: setStaffCheckboxFilter,
+    clearFilter: clearStaffColumnFilter,
+    clearAll: clearAllStaffColumnFilters,
+    hasActiveFilters: hasStaffActiveFilters,
+    filteredData: staffColumnFilteredData,
+    distinctValues: staffDistinctValues,
+    activeFilterSummary: staffActiveFilterSummary,
+  } = useColumnFilters(filteredStaff, staffColumnConfigs);
+
+  const [openStaffFilterKey, setOpenStaffFilterKey] = useState<string | null>(null);
+
   const staffActivitySummary = useMemo(() => {
     const map = new Map<string, { names: string[]; count: number }>();
-    for (const s of filteredStaff) {
+    for (const s of staffColumnFilteredData) {
       const active = assignments.filter(a => a.staffMemberId === s.id && !a.isArchived);
       const names = active.map(a => getActivityName(activityMap, a.activityId)).filter(Boolean);
       map.set(s.id, { names, count: active.length });
     }
     return map;
-  }, [filteredStaff, assignments, activityMap]);
+  }, [staffColumnFilteredData, assignments, activityMap]);
 
   const sortedStaff = useMemo(() => {
-    if (listStyle !== 'table') return filteredStaff;
-    const sorted = [...filteredStaff];
+    if (listStyle !== 'table') return staffColumnFilteredData;
+    const sorted = [...staffColumnFilteredData];
     sorted.sort((a, b) => {
       let cmp = 0;
       switch (sortKey) {
@@ -201,7 +257,7 @@ export const StaffMemberManager: React.FC<Props> = ({
       return sortDirection === 'desc' ? -cmp : cmp;
     });
     return sorted;
-  }, [filteredStaff, listStyle, sortKey, sortDirection, staffActivitySummary]);
+  }, [staffColumnFilteredData, listStyle, sortKey, sortDirection, staffActivitySummary]);
 
   const staffAssignments = useMemo(
     () => selectedStaffId ? assignments.filter(a => a.staffMemberId === selectedStaffId) : [],
@@ -281,6 +337,8 @@ export const StaffMemberManager: React.FC<Props> = ({
       isFirstAdmin: false,
       onboardingDismissed: true,
       firstUseFlags: DEFAULT_FIRST_USE_FLAGS,
+      startDate: null,
+      documents: [],
       createdAt: now, updatedAt: now,
     }));
     setStaffMembers(prev => [...prev, ...newStaff]);
@@ -342,6 +400,7 @@ export const StaffMemberManager: React.FC<Props> = ({
     setFormPhone('');
     setFormRole(prefill?.role || 'STAFF');
     setFormUid('');
+    setFormStartDate('');
 
     // Check walkthrough
     if (currentUser && !isWalkthroughDone(currentUser.uid)) {
@@ -350,6 +409,7 @@ export const StaffMemberManager: React.FC<Props> = ({
       setWalkthroughStep(null);
     }
 
+    setWizardStep(1);
     setIsStaffModalOpen(true);
   }, [canWrite, currentUser]);
 
@@ -362,7 +422,9 @@ export const StaffMemberManager: React.FC<Props> = ({
     setFormPhone(staff.phone || '');
     setFormRole(staff.role);
     setFormUid(staff.uid);
+    setFormStartDate(staff.startDate ?? '');
     setWalkthroughStep(null);
+    setWizardStep(null);
     setIsStaffModalOpen(true);
   }, [canWrite]);
 
@@ -375,8 +437,6 @@ export const StaffMemberManager: React.FC<Props> = ({
 
     if (!formName.trim()) { setStaffError(t('staff.v2.name_required')); return false; }
     if (!formEmail.trim()) { setStaffError(t('staff.v2.email_required')); return false; }
-    // SuperAdmin must supply a UID; Admins get one auto-generated
-    if (isSuperAdmin && !editingStaffId && !formUid.trim()) { setStaffError(t('staff.v2.uid_required')); return false; }
 
     const now = Timestamp.now();
 
@@ -390,33 +450,51 @@ export const StaffMemberManager: React.FC<Props> = ({
 
       setStaffMembers(prev => prev.map(s => s.id === editingStaffId ? {
         ...s, fullName: formName.trim(), email: formEmail.trim(),
-        phone: formPhone.trim() || null, role: formRole, updatedAt: now,
+        phone: formPhone.trim() || null, role: formRole,
+        startDate: formStartDate || null, updatedAt: now,
       } : s));
+
+      // Wizard mode: advance back to step 2 after editing
+      if (wizardStep === 1) {
+        setWizardStep(2);
+        resetAssignmentForm();
+        return false; // prevent modal close
+      }
     } else {
       // Create
       const newStaff: StaffMemberV2 = {
-        id: generateId(), orgId, uid: isSuperAdmin ? formUid.trim() : crypto.randomUUID(),
+        id: generateId(), orgId, uid: crypto.randomUUID(),
         role: formRole, fullName: formName.trim(), email: formEmail.trim(),
-        phone: formPhone.trim() || null, isArchived: false,
+        phone: formPhone.trim() || null, startDate: formStartDate || null,
+        isArchived: false,
         createdAt: now, updatedAt: now,
         isFirstAdmin: false, onboardingDismissed: false,
         firstUseFlags: {
           activityHub: false, staffModule: false, studentModule: false,
           eventCreation: false, enrollment: false, payslips: false,
         },
+        documents: [],
       };
       setStaffMembers(prev => [...prev, newStaff]);
+      setSelectedStaffId(newStaff.id);
 
       // Save prefill
       if (currentUser) {
         savePrefill(currentUser.uid, { role: formRole, rateType: 'HOURLY', rateValue: 0 });
         markWalkthroughDone(currentUser.uid);
       }
+
+      // Wizard mode: advance to step 2 instead of closing
+      if (wizardStep === 1) {
+        setWizardStep(2);
+        resetAssignmentForm();
+        return false; // prevent modal close
+      }
     }
 
     setIsStaffModalOpen(false);
     return undefined;
-  }, [canWrite, orgId, formName, formEmail, formPhone, formRole, formUid, editingStaffId, staffMembers, isSuperAdmin, currentUser, setStaffMembers, t]);
+  }, [canWrite, orgId, formName, formEmail, formPhone, formRole, formUid, editingStaffId, staffMembers, isSuperAdmin, currentUser, setStaffMembers, setSelectedStaffId, t, wizardStep]);
 
   const handleArchiveStaff = useCallback((staffId: string) => {
     if (!canWrite) return;
@@ -442,7 +520,6 @@ export const StaffMemberManager: React.FC<Props> = ({
 
     setArchiveCascadeStaffId(null);
     if (selectedStaffId === archiveCascadeStaffId) {
-      setViewMode('list');
       setSelectedStaffId(null);
     }
   }, [archiveCascadeStaffId, selectedStaffId, setStaffMembers, eventsV2, setEventParticipantsV2]);
@@ -457,16 +534,9 @@ export const StaffMemberManager: React.FC<Props> = ({
 
   const openCreateAssignment = useCallback(() => {
     if (!canWrite || !selectedStaffId) return;
-    setEditingAssignmentId(null);
-    setAssignmentError('');
-    setAFormActivityId('');
-    setAFormL2Id('');
-    setAFormRateType('HOURLY');
-    setAFormRateValue(0);
-    setAFormStartDate(new Date().toISOString().slice(0, 10));
-    setAFormEndDate('');
+    resetAssignmentForm();
     setIsAssignmentModalOpen(true);
-  }, [canWrite, selectedStaffId]);
+  }, [canWrite, selectedStaffId, resetAssignmentForm]);
 
   const openEditAssignment = useCallback((a: TeachingAssignmentV2) => {
     if (!canWrite) return;
@@ -533,14 +603,9 @@ export const StaffMemberManager: React.FC<Props> = ({
   const openCreateOrgRole = useCallback(() => {
     if (!canWrite || !selectedStaffId) return;
     setEditingOrgRoleId(null);
-    setOrgRoleError('');
-    setOrFormTitle('');
-    setOrFormRateType('MONTHLY_FLAT');
-    setOrFormRateValue(0);
-    setOrFormStartDate(new Date().toISOString().slice(0, 10));
-    setOrFormEndDate('');
+    resetOrgRoleForm();
     setIsOrgRoleModalOpen(true);
-  }, [canWrite, selectedStaffId]);
+  }, [canWrite, selectedStaffId, resetOrgRoleForm]);
 
   const openEditOrgRole = useCallback((r: OrgRoleV2) => {
     if (!canWrite) return;
@@ -588,17 +653,84 @@ export const StaffMemberManager: React.FC<Props> = ({
       ? { ...r, isArchived: archive, updatedAt: Timestamp.now() } : r));
   }, [canWrite, setOrgRoles]);
 
+  // ─── Document update ───────────────────────────────────────────────────
+
+  const handleStaffDocumentsUpdate = useCallback((documents: import('../types/v2').DocumentEntry[]) => {
+    if (!selectedStaffId) return;
+    setStaffMembers(prev => prev.map(s => s.id === selectedStaffId
+      ? { ...s, documents, updatedAt: Timestamp.now() } : s));
+  }, [selectedStaffId, setStaffMembers]);
+
+  // ─── Wizard helpers ────────────────────────────────────────────────────
+
+  const wizardAssignments = useMemo(
+    () => (wizardStep !== null && selectedStaffId) ? assignments.filter(a => a.staffMemberId === selectedStaffId && !a.isArchived) : [],
+    [assignments, selectedStaffId, wizardStep],
+  );
+
+  const wizardOrgRoles = useMemo(
+    () => (wizardStep !== null && selectedStaffId) ? orgRoles.filter(r => r.staffMemberId === selectedStaffId && !r.isArchived) : [],
+    [orgRoles, selectedStaffId, wizardStep],
+  );
+
+  const handleWizardAssignmentAdd = useCallback(() => {
+    if (!canWrite || !orgId || !selectedStaffId) return;
+    if (!aFormActivityId) { setAssignmentError(t('staff.v2.select_activity')); return; }
+    if (!aFormL2Id) { setAssignmentError(t('staff.v2.select_l2')); return; }
+    if (!aFormStartDate) { setAssignmentError(t('staff.v2.date_start_required')); return; }
+
+    const overlapping = wizardAssignments.find(a =>
+      a.activityId === aFormActivityId &&
+      a.l2Id === aFormL2Id &&
+      datesOverlap(a.startDate, a.endDate, aFormStartDate, aFormEndDate || null)
+    );
+    if (overlapping) { setAssignmentError(t('staff.v2.overlap_error')); return; }
+
+    const now = Timestamp.now();
+    const newAssignment: TeachingAssignmentV2 = {
+      id: generateId(), orgId, staffMemberId: selectedStaffId,
+      activityId: aFormActivityId, l2Id: aFormL2Id,
+      rateType: aFormRateType, rateValue: aFormRateValue,
+      startDate: aFormStartDate, endDate: aFormEndDate || null,
+      isArchived: false, createdAt: now, updatedAt: now,
+    };
+    setAssignments(prev => [...prev, newAssignment]);
+    resetAssignmentForm();
+  }, [canWrite, orgId, selectedStaffId, aFormActivityId, aFormL2Id, aFormRateType, aFormRateValue, aFormStartDate, aFormEndDate, wizardAssignments, setAssignments, t, resetAssignmentForm]);
+
+  const handleWizardOrgRoleAdd = useCallback(() => {
+    if (!canWrite || !orgId || !selectedStaffId) return;
+    if (!orFormTitle.trim()) { setOrgRoleError(t('staff.v2.role_title')); return; }
+    if (!orFormStartDate) { setOrgRoleError(t('staff.v2.date_start_required')); return; }
+
+    const now = Timestamp.now();
+    const newRole: OrgRoleV2 = {
+      id: generateId(), orgId, staffMemberId: selectedStaffId,
+      roleTitle: orFormTitle.trim(), rateType: orFormRateType,
+      rateValue: orFormRateValue, startDate: orFormStartDate,
+      endDate: orFormEndDate || null, isArchived: false,
+      createdAt: now, updatedAt: now,
+    };
+    setOrgRoles(prev => [...prev, newRole]);
+    resetOrgRoleForm();
+  }, [canWrite, orgId, selectedStaffId, orFormTitle, orFormRateType, orFormRateValue, orFormStartDate, orFormEndDate, setOrgRoles, t, resetOrgRoleForm]);
+
+  const handleWizardClose = useCallback(() => {
+    setIsStaffModalOpen(false);
+    setWizardStep(null);
+  }, []);
+
+  const wizardStepLabels = [
+    t('staff.v2.wizard.step_basic_info'),
+    t('staff.v2.wizard.step_assignments'),
+    t('staff.v2.wizard.step_org_roles'),
+    t('staff.v2.wizard.step_documents'),
+  ];
+
   // ─── Navigation ─────────────────────────────────────────────────────────
 
   const openDetail = useCallback((staffId: string) => {
     setSelectedStaffId(staffId);
-    setDetailTab('assignments');
-    setViewMode('detail');
-  }, []);
-
-  const backToList = useCallback(() => {
-    setViewMode('list');
-    setSelectedStaffId(null);
   }, []);
 
   // ─── Walkthrough steps ──────────────────────────────────────────────────
@@ -621,324 +753,52 @@ export const StaffMemberManager: React.FC<Props> = ({
     );
   };
 
-  // ─── Render: Rate config fields (shared) ────────────────────────────────
-
-  const RateConfigFields: React.FC<{
-    rateType: RateTypeV2; setRateType: (v: RateTypeV2) => void;
-    rateValue: number; setRateValue: (v: number) => void;
-    startDate: string; setStartDate: (v: string) => void;
-    endDate: string; setEndDate: (v: string) => void;
-  }> = ({ rateType, setRateType, rateValue, setRateValue, startDate, setStartDate, endDate, setEndDate }) => (
-    <div className="space-y-3">
-      <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.rate_type')}</label>
-        <select value={rateType} onChange={e => setRateType(e.target.value as RateTypeV2)}
-          className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
-          {RATE_TYPES.map(rt => <option key={rt} value={rt}>{rateLabel(rt)}</option>)}
-        </select>
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.rate_value')}</label>
-        <input type="number" min={0} step={0.01} value={rateValue} onChange={e => setRateValue(Number(e.target.value))}
-          className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.start_date')}</label>
-          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-            className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.end_date_optional')}</label>
-          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
-            className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
-        </div>
-      </div>
-    </div>
-  );
+  // RateConfigFields extracted to ./RateConfigFields.tsx
 
   // ═══════════════════════════════════════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════════════════════════════════════
 
-  if (viewMode === 'detail' && selectedStaff) {
-    // ─── Detail View ────────────────────────────────────────────────────
-    return (
-      <div className="h-full overflow-y-auto p-6 max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={backToList} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-            <ArrowLeft size={20} className="text-slate-600 dark:text-slate-400" />
-          </button>
-          <div className="flex-1">
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{selectedStaff.fullName}</h2>
-            <div className="flex items-center gap-2 mt-1">
-              <RoleBadge role={selectedStaff.role} />
-              <span className="text-sm text-slate-500 dark:text-slate-400">{selectedStaff.email}</span>
-              {selectedStaff.phone && <span className="text-sm text-slate-500 dark:text-slate-400">| {selectedStaff.phone}</span>}
-            </div>
-          </div>
-          {canWrite && (
-            <div className="flex gap-2">
-              <button onClick={() => openEditStaff(selectedStaff)}
-                className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-400">
-                <Edit2 size={18} />
-              </button>
-              {!selectedStaff.isArchived ? (
-                <button onClick={() => handleArchiveStaff(selectedStaff.id)}
-                  className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-red-500">
-                  <Archive size={18} />
-                </button>
-              ) : (
-                <button onClick={() => handleRestoreStaff(selectedStaff.id)}
-                  className="p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors text-green-600">
-                  <RotateCcw size={18} />
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {selectedStaff.isArchived && (
-          <div className="mb-4 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-700 dark:text-amber-400 text-sm font-medium">
-            {t('staff.archived_badge')}
-          </div>
-        )}
-
-        {/* Tabs */}
-        <div className="flex border-b border-slate-200 dark:border-slate-700 mb-6">
-          <button onClick={() => setDetailTab('assignments')}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${detailTab === 'assignments' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}>
-            <GraduationCap size={16} className="inline-block mr-1 -mt-0.5" />
-            {t('staff.tab.teaching_assignments')}
-          </button>
-          <button onClick={() => setDetailTab('orgRoles')}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${detailTab === 'orgRoles' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}>
-            <Briefcase size={16} className="inline-block mr-1 -mt-0.5" />
-            {t('staff.tab.org_roles')}
-          </button>
-        </div>
-
-        {/* Teaching Assignments Tab */}
-        {detailTab === 'assignments' && (
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              {canWrite && (
-                <button onClick={openCreateAssignment}
-                  className="inline-flex items-center gap-2 px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium">
-                  <Plus size={16} /> {t('staff.v2.add_teaching_assignment')}
-                </button>
-              )}
-              <ImportExportDropdown
-                entityType="TEACHING_ASSIGNMENT"
-                existingData={assignmentExportData}
-                existingDuplicateKeys={assignmentDupKeys}
-                dependencyMaps={{ activityByName: csvActivityByName, l2ByName: csvL2ByName, staffByEmail: csvStaffByEmail, studentByName: {} }}
-                activityNames={activities.map(a => a.name)}
-                settings={settings}
-                canWrite={canWrite}
-                onImportComplete={handleAssignmentImportComplete}
-              />
-            </div>
-
-            {staffAssignments.length === 0 ? (
-              <p className="text-slate-500 dark:text-slate-400 text-sm py-8 text-center">{t('staff.v2.assignment_empty')}</p>
-            ) : (
-              <div className="space-y-2">
-                {staffAssignments.map(a => (
-                  <div key={a.id} className={`flex items-center justify-between p-4 rounded-lg border ${a.isArchived ? 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 opacity-60' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-slate-800 dark:text-slate-200 truncate">
-                        {activityName(a.activityId)} <ChevronRight size={14} className="inline text-slate-400" /> {l2Name(a.l2Id)}
-                      </div>
-                      <div className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                        {rateLabel(a.rateType)}: {a.rateValue} | {a.startDate}{a.endDate ? ` — ${a.endDate}` : ''}
-                        {a.isArchived && <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">({t('staff.archived_badge')})</span>}
-                      </div>
-                    </div>
-                    {canWrite && (
-                      <div className="flex gap-1 ml-3 shrink-0">
-                        <button onClick={() => openEditAssignment(a)}
-                          className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500"><Edit2 size={15} /></button>
-                        {a.isArchived ? (
-                          <button onClick={() => toggleAssignmentArchive(a.id, false)}
-                            className="p-1.5 rounded hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600"><RotateCcw size={15} /></button>
-                        ) : (
-                          <button onClick={() => toggleAssignmentArchive(a.id, true)}
-                            className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500"><Archive size={15} /></button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Org Roles Tab */}
-        {detailTab === 'orgRoles' && (
-          <div>
-            {canWrite && (
-              <button onClick={openCreateOrgRole}
-                className="mb-4 inline-flex items-center gap-2 px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium">
-                <Plus size={16} /> {t('staff.v2.add_org_role')}
-              </button>
-            )}
-
-            {staffOrgRoles.length === 0 ? (
-              <p className="text-slate-500 dark:text-slate-400 text-sm py-8 text-center">{t('staff.v2.org_role_empty')}</p>
-            ) : (
-              <div className="space-y-2">
-                {staffOrgRoles.map(r => (
-                  <div key={r.id} className={`flex items-center justify-between p-4 rounded-lg border ${r.isArchived ? 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 opacity-60' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-slate-800 dark:text-slate-200 truncate">{r.roleTitle}</div>
-                      <div className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                        {rateLabel(r.rateType)}: {r.rateValue} | {r.startDate}{r.endDate ? ` — ${r.endDate}` : ''}
-                        {r.isArchived && <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">({t('staff.archived_badge')})</span>}
-                      </div>
-                    </div>
-                    {canWrite && (
-                      <div className="flex gap-1 ml-3 shrink-0">
-                        <button onClick={() => openEditOrgRole(r)}
-                          className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500"><Edit2 size={15} /></button>
-                        {r.isArchived ? (
-                          <button onClick={() => toggleOrgRoleArchive(r.id, false)}
-                            className="p-1.5 rounded hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600"><RotateCcw size={15} /></button>
-                        ) : (
-                          <button onClick={() => toggleOrgRoleArchive(r.id, true)}
-                            className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500"><Archive size={15} /></button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ─── Assignment Modal ─────────────────────────────────────────── */}
-        <Modal isOpen={isAssignmentModalOpen} onClose={() => setIsAssignmentModalOpen(false)}
-          title={editingAssignmentId ? t('staff.v2.edit_teaching_assignment') : t('staff.v2.add_teaching_assignment')}
-          isDirty={!!aFormActivityId || !!aFormL2Id}
-          onSave={handleAssignmentSubmit}>
-          <div className="space-y-4">
-            {assignmentError && (
-              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">{assignmentError}</div>
-            )}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.select_activity')}</label>
-              <select value={aFormActivityId} onChange={e => { setAFormActivityId(e.target.value); setAFormL2Id(''); }}
-                className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
-                <option value="">{t('staff.v2.select_activity')}</option>
-                {activities.filter(a => !a.isArchived).map(a => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
-              {activities.filter(a => !a.isArchived).length === 0 && (
-                <p className="text-xs text-slate-500 mt-1">{t('staff.v2.no_activities')}</p>
-              )}
-            </div>
-            {aFormActivityId && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.select_l2')}</label>
-                <select value={aFormL2Id} onChange={e => setAFormL2Id(e.target.value)}
-                  className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
-                  <option value="">{t('staff.v2.select_l2')}</option>
-                  {l2sForActivity.map(l => (
-                    <option key={l.id} value={l.id}>{l.name}</option>
-                  ))}
-                </select>
-                {l2sForActivity.length === 0 && (
-                  <p className="text-xs text-slate-500 mt-1">{t('staff.v2.no_l2s')}</p>
-                )}
-              </div>
-            )}
-            <RateConfigFields
-              rateType={aFormRateType} setRateType={setAFormRateType}
-              rateValue={aFormRateValue} setRateValue={setAFormRateValue}
-              startDate={aFormStartDate} setStartDate={setAFormStartDate}
-              endDate={aFormEndDate} setEndDate={setAFormEndDate}
-            />
-          </div>
-        </Modal>
-
-        {/* ─── Org Role Modal ───────────────────────────────────────────── */}
-        <Modal isOpen={isOrgRoleModalOpen} onClose={() => setIsOrgRoleModalOpen(false)}
-          title={editingOrgRoleId ? t('staff.v2.edit_org_role') : t('staff.v2.add_org_role')}
-          isDirty={!!orFormTitle}
-          onSave={handleOrgRoleSubmit}>
-          <div className="space-y-4">
-            {orgRoleError && (
-              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">{orgRoleError}</div>
-            )}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.role_title')}</label>
-              <input type="text" value={orFormTitle} onChange={e => setOrFormTitle(e.target.value)}
-                placeholder={t('staff.v2.role_title_placeholder')}
-                className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
-            </div>
-            <RateConfigFields
-              rateType={orFormRateType} setRateType={setOrFormRateType}
-              rateValue={orFormRateValue} setRateValue={setOrFormRateValue}
-              startDate={orFormStartDate} setStartDate={setOrFormStartDate}
-              endDate={orFormEndDate} setEndDate={setOrFormEndDate}
-            />
-          </div>
-        </Modal>
-
-        {/* ─── Archive Cascade Modal ────────────────────────────────────── */}
-        <Modal isOpen={!!archiveCascadeStaffId} onClose={() => setArchiveCascadeStaffId(null)}
-          title={t('staff.v2.archive_cascade_title')}
-          footerContent={
-            <div className="flex justify-end gap-3 w-full">
-              <button onClick={() => setArchiveCascadeStaffId(null)}
-                className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm font-medium">
-                {t('common.cancel') || 'Cancel'}
-              </button>
-              <button onClick={confirmArchiveStaff}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
-                {t('staff.archive')}
-              </button>
-            </div>
-          }>
-          <div className="space-y-4">
-            <p className="text-slate-600 dark:text-slate-300">{t('staff.v2.archive_cascade_message')}</p>
-            {(() => {
-              const today = new Date().toISOString().slice(0, 10);
-              const futureEventIds = new Set(eventsV2.filter(e => e.status === 'SCHEDULED' && e.date >= today).map(e => e.id));
-              const count = eventParticipantsV2.filter(ep => ep.staffMemberId === archiveCascadeStaffId && futureEventIds.has(ep.eventId)).length;
-              return count > 0 ? (
-                <p className="text-sm text-amber-600 dark:text-amber-400">
-                  {t('staff.v2.archive_cascade_events').replace('{count}', String(count))}
-                </p>
-              ) : null;
-            })()}
-          </div>
-        </Modal>
-      </div>
-    );
-  }
+  // Detail view removed — replaced by SlideOver below
 
   // ─── Inline SortHeader for table view ───────────────────────────────────
   const SortHeader: React.FC<{
     sortKey_: StaffSortKey; sortDir: 'asc' | 'desc'; column: StaffSortKey;
     onToggle: (k: StaffSortKey) => void; align: 'start' | 'end'; children: React.ReactNode;
-  }> = ({ sortKey_: sk, sortDir, column, onToggle, align, children }) => (
-    <th className={`py-2 px-3 text-${align} text-slate-500 dark:text-slate-400 font-medium cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-200 transition-colors`}
-      onClick={() => onToggle(column)}>
+    filterKey?: string;
+  }> = ({ sortKey_: sk, sortDir, column, onToggle, align, children, filterKey }) => (
+    <th className={`py-2 px-3 text-${align} text-slate-500 dark:text-slate-400 font-medium select-none relative`}>
       <span className="inline-flex items-center gap-1">
-        {children}
-        {sk === column && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+        <span className="cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors" onClick={() => onToggle(column)}>
+          {children}
+          {sk === column && (sortDir === 'asc' ? <ChevronUp size={14} className="inline" /> : <ChevronDown size={14} className="inline" />)}
+        </span>
+        {filterKey && staffDistinctValues[filterKey] && (
+          <button
+            onClick={e => { e.stopPropagation(); setOpenStaffFilterKey(prev => prev === filterKey ? null : filterKey); }}
+            className={`p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 ${staffColumnFilters[filterKey]?.selected.size ? 'text-blue-600 dark:text-blue-400' : ''}`}
+          >
+            <Filter size={12} />
+          </button>
+        )}
       </span>
+      {filterKey && openStaffFilterKey === filterKey && staffDistinctValues[filterKey] && (
+        <ColumnFilterDropdown
+          values={staffDistinctValues[filterKey]}
+          selected={staffColumnFilters[filterKey]?.selected ?? new Set()}
+          onChange={vals => setStaffCheckboxFilter(filterKey, vals)}
+          onClose={() => setOpenStaffFilterKey(null)}
+          t={t}
+        />
+      )}
     </th>
   );
 
   // ─── List View ──────────────────────────────────────────────────────────
   return (
-    <div className="h-full overflow-y-auto p-6 max-w-5xl mx-auto">
+    <>
+    <div className="h-full flex">
+    <div className="flex-1 min-w-0 overflow-y-auto p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -993,10 +853,10 @@ export const StaffMemberManager: React.FC<Props> = ({
       {/* Search + filter bar */}
       <div className="flex gap-3 mb-4">
         <div className="flex-1 relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder={t('staff.search')}
-            className="w-full pl-9 pr-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-sm" />
+            className="w-full ps-9 pe-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-sm" />
         </div>
         <label className="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer">
           <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)}
@@ -1005,14 +865,24 @@ export const StaffMemberManager: React.FC<Props> = ({
         </label>
       </div>
 
+      {/* Filter pills */}
+      {hasStaffActiveFilters && (
+        <FilterPills
+          pills={staffActiveFilterSummary}
+          onRemove={clearStaffColumnFilter}
+          onClearAll={clearAllStaffColumnFilters}
+          t={t}
+        />
+      )}
+
       {/* Staff List */}
-      {filteredStaff.length === 0 ? (
+      {staffColumnFilteredData.length === 0 ? (
         <p className="text-slate-500 dark:text-slate-400 text-sm py-16 text-center">
           {search ? t('staff.no_results') : t('staff.empty_state')}
         </p>
       ) : listStyle === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filteredStaff.map(s => (
+          {staffColumnFilteredData.map(s => (
             <button key={s.id} onClick={() => openDetail(s.id)}
               className="text-left p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
               <div className="font-medium text-slate-800 dark:text-slate-200 truncate">{s.fullName}</div>
@@ -1048,9 +918,30 @@ export const StaffMemberManager: React.FC<Props> = ({
               <thead>
                 <tr className="sticky top-0 bg-slate-50 dark:bg-slate-900 z-10 border-b border-slate-200 dark:border-slate-700">
                   <SortHeader sortKey_={sortKey} sortDir={sortDirection} column="fullName" onToggle={toggleSort} align="start">{t('staff.table.name')}</SortHeader>
-                  <SortHeader sortKey_={sortKey} sortDir={sortDirection} column="role" onToggle={toggleSort} align="start">{t('staff.table.role')}</SortHeader>
+                  <SortHeader sortKey_={sortKey} sortDir={sortDirection} column="role" onToggle={toggleSort} align="start" filterKey="role">{t('staff.table.role')}</SortHeader>
                   <SortHeader sortKey_={sortKey} sortDir={sortDirection} column="email" onToggle={toggleSort} align="start">{t('staff.table.email')}</SortHeader>
-                  <th className="py-2 px-3 text-start text-slate-500 dark:text-slate-400 font-medium">{t('staff.table.activities')}</th>
+                  <th className="py-2 px-3 text-start text-slate-500 dark:text-slate-400 font-medium relative">
+                    <span className="inline-flex items-center gap-1">
+                      {t('staff.table.activities')}
+                      {staffDistinctValues['activities'] && (
+                        <button
+                          onClick={() => setOpenStaffFilterKey(prev => prev === 'activities' ? null : 'activities')}
+                          className={`p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 ${staffColumnFilters['activities']?.selected.size ? 'text-blue-600 dark:text-blue-400' : ''}`}
+                        >
+                          <Filter size={12} />
+                        </button>
+                      )}
+                    </span>
+                    {openStaffFilterKey === 'activities' && staffDistinctValues['activities'] && (
+                      <ColumnFilterDropdown
+                        values={staffDistinctValues['activities']}
+                        selected={staffColumnFilters['activities']?.selected ?? new Set()}
+                        onChange={vals => setStaffCheckboxFilter('activities', vals)}
+                        onClose={() => setOpenStaffFilterKey(null)}
+                        t={t}
+                      />
+                    )}
+                  </th>
                   <SortHeader sortKey_={sortKey} sortDir={sortDirection} column="assignmentCount" onToggle={toggleSort} align="end">{t('staff.table.assignments')}</SortHeader>
                   <th className="py-2 px-3 text-start text-slate-500 dark:text-slate-400 font-medium">{t('staff.table.phone')}</th>
                 </tr>
@@ -1093,7 +984,7 @@ export const StaffMemberManager: React.FC<Props> = ({
         </>
       ) : (
         <div className="space-y-1">
-          {filteredStaff.map(s => (
+          {staffColumnFilteredData.map(s => (
             <button key={s.id} onClick={() => openDetail(s.id)}
               className="w-full text-left flex items-center gap-4 p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
               <div className="flex-1 min-w-0">
@@ -1112,121 +1003,364 @@ export const StaffMemberManager: React.FC<Props> = ({
         </div>
       )}
 
-      {/* ─── Staff Create/Edit Modal ───────────────────────────────────── */}
-      <Modal isOpen={isStaffModalOpen} onClose={() => setIsStaffModalOpen(false)}
+      {/* ─── Staff Create/Edit Modal (with onboarding wizard) ─────────── */}
+      <Modal isOpen={isStaffModalOpen} onClose={handleWizardClose}
         title={
-          <div>
-            <span>{editingStaffId ? t('staff.edit') : t('staff.add_new')}</span>
-            {!editingStaffId && (
-              <button onClick={openGuideMe} className="ml-3 text-xs text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
-                <Sparkles size={12} /> {t('staff.v2.guide_me')}
-              </button>
-            )}
-          </div>
-        }
-        isDirty={!!formName || !!formEmail}
-        onSave={handleStaffSubmit}>
-        <div className="space-y-4">
-          {staffError && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">{staffError}</div>
-          )}
-
-          {/* Walkthrough overlay */}
-          {walkthroughStep !== null && (
-            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                    {walkthroughStep}/{walkthroughSteps.length}
-                  </span>
-                  <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300">{walkthroughSteps[walkthroughStep - 1]?.title}</h4>
-                </div>
-                <button onClick={() => setWalkthroughStep(null)} className="text-blue-400 hover:text-blue-600"><X size={14} /></button>
-              </div>
-              <p className="text-sm text-blue-700 dark:text-blue-400">{walkthroughSteps[walkthroughStep - 1]?.desc}</p>
-              <div className="flex gap-2 mt-3">
-                {walkthroughStep > 1 && (
-                  <button onClick={() => setWalkthroughStep(walkthroughStep - 1)}
-                    className="text-xs px-3 py-1 border border-blue-300 dark:border-blue-700 rounded text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40">
-                    Back
+          wizardStep !== null && wizardStep >= 2
+            ? wizardStepLabels[wizardStep - 1]
+            : (
+              <div>
+                <span>{editingStaffId ? t('staff.edit') : t('staff.add_new')}</span>
+                {!editingStaffId && wizardStep === 1 && (
+                  <button onClick={openGuideMe} className="ml-3 text-xs text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
+                    <Sparkles size={12} /> {t('staff.v2.guide_me')}
                   </button>
                 )}
-                {walkthroughStep < walkthroughSteps.length ? (
-                  <button onClick={() => setWalkthroughStep(walkthroughStep + 1)}
-                    className="text-xs px-3 py-1 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded">
-                    Next
+              </div>
+            )
+        }
+        isDirty={wizardStep === 1 || wizardStep === null ? (!!formName || !!formEmail) : false}
+        footerContent={
+          wizardStep === 1 ? (
+            /* Step 1: Save & Continue */
+            <div className="flex justify-end w-full">
+              <button onClick={() => { handleStaffSubmit(); }}
+                className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium">
+                {t('staff.v2.wizard.next')}
+              </button>
+            </div>
+          ) : wizardStep !== null && wizardStep >= 2 ? (
+            /* Steps 2–4: Back + Add + Skip/Next/Done */
+            <div className="flex justify-between w-full">
+              <button onClick={() => {
+                if (wizardStep === 2) {
+                  // Go back to step 1 — pre-fill form from saved staff member
+                  const staff = selectedStaff;
+                  if (staff) {
+                    setEditingStaffId(staff.id);
+                    setFormName(staff.fullName);
+                    setFormEmail(staff.email);
+                    setFormPhone(staff.phone || '');
+                    setFormRole(staff.role);
+                    setFormStartDate(staff.startDate ?? '');
+                  }
+                  setWizardStep(1);
+                } else if (wizardStep === 3) {
+                  setWizardStep(2);
+                  resetAssignmentForm();
+                } else if (wizardStep === 4) {
+                  setWizardStep(3);
+                  resetOrgRoleForm();
+                }
+              }}
+                className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm font-medium">
+                {t('staff.v2.wizard.back')}
+              </button>
+              <div className="flex gap-2">
+                {wizardStep === 2 && (
+                  <button onClick={handleWizardAssignmentAdd}
+                    className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium">
+                    {t('staff.v2.wizard.add')}
+                  </button>
+                )}
+                {wizardStep === 3 && (
+                  <button onClick={handleWizardOrgRoleAdd}
+                    className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium">
+                    {t('staff.v2.wizard.add')}
+                  </button>
+                )}
+                {wizardStep < 4 ? (
+                  <button onClick={() => {
+                    if (wizardStep === 2) {
+                      setWizardStep(3);
+                      resetOrgRoleForm();
+                    } else {
+                      setWizardStep(4);
+                    }
+                  }}
+                    className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm font-medium">
+                    {(wizardStep === 2 ? wizardAssignments.length : wizardOrgRoles.length) > 0
+                      ? t('staff.v2.wizard.next')
+                      : t('staff.v2.wizard.skip')}
                   </button>
                 ) : (
-                  <button onClick={() => setWalkthroughStep(null)}
-                    className="text-xs px-3 py-1 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded">
-                    Done
+                  <button onClick={handleWizardClose}
+                    className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium">
+                    {t('staff.v2.wizard.done')}
                   </button>
                 )}
               </div>
             </div>
+          ) : (
+            /* Edit mode (no wizard): Save button */
+            <div className="flex justify-end w-full">
+              <button onClick={() => { handleStaffSubmit(); }}
+                className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium">
+                {t('common.save') || 'Save'}
+              </button>
+            </div>
+          )
+        }>
+        <div className="space-y-4">
+          {/* ─── Wizard step indicator ───────────────────────────────── */}
+          {wizardStep !== null && !editingStaffId && (
+            <div className="flex items-center justify-center gap-0 mb-2">
+              {wizardStepLabels.map((label, i) => {
+                const stepNum = i + 1;
+                const isCurrent = stepNum === wizardStep;
+                const isCompleted = stepNum < wizardStep!;
+                return (
+                  <React.Fragment key={stepNum}>
+                    {i > 0 && (
+                      <div className={`flex-1 h-0.5 mx-1 ${isCompleted ? 'bg-blue-500' : 'bg-slate-200 dark:bg-slate-700'}`} />
+                    )}
+                    <div className="flex flex-col items-center gap-1">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium border-2 transition-colors ${
+                        isCurrent ? 'border-blue-500 bg-blue-500 text-white'
+                        : isCompleted ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                        : 'border-slate-300 dark:border-slate-600 text-slate-400 dark:text-slate-500'
+                      }`}>
+                        {isCompleted ? <Check size={14} /> : stepNum}
+                      </div>
+                      <span className={`text-xs whitespace-nowrap ${
+                        isCurrent ? 'text-blue-600 dark:text-blue-400 font-medium'
+                        : isCompleted ? 'text-blue-500 dark:text-blue-400'
+                        : 'text-slate-400 dark:text-slate-500'
+                      }`}>{label}</span>
+                    </div>
+                  </React.Fragment>
+                );
+              })}
+            </div>
           )}
 
-          {/* Step 1: Name + Email */}
-          {(walkthroughStep === null || walkthroughStep >= 1) && (
+          {/* ─── Step 1: Basic Info (staff form) ─────────────────────── */}
+          {(wizardStep === null || wizardStep === 1) && (
             <>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.full_name')}</label>
-                <input type="text" value={formName} onChange={e => setFormName(e.target.value)}
-                  className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.email')}</label>
-                <input type="email" value={formEmail} onChange={e => setFormEmail(e.target.value)}
-                  className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
-              </div>
+              {staffError && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">{staffError}</div>
+              )}
+
+              {/* Walkthrough overlay */}
+              {walkthroughStep !== null && (
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                        {walkthroughStep}/{walkthroughSteps.length}
+                      </span>
+                      <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300">{walkthroughSteps[walkthroughStep - 1]?.title}</h4>
+                    </div>
+                    <button onClick={() => setWalkthroughStep(null)} className="text-blue-400 hover:text-blue-600"><X size={14} /></button>
+                  </div>
+                  <p className="text-sm text-blue-700 dark:text-blue-400">{walkthroughSteps[walkthroughStep - 1]?.desc}</p>
+                  <div className="flex gap-2 mt-3">
+                    {walkthroughStep > 1 && (
+                      <button onClick={() => setWalkthroughStep(walkthroughStep - 1)}
+                        className="text-xs px-3 py-1 border border-blue-300 dark:border-blue-700 rounded text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40">
+                        Back
+                      </button>
+                    )}
+                    {walkthroughStep < walkthroughSteps.length ? (
+                      <button onClick={() => setWalkthroughStep(walkthroughStep + 1)}
+                        className="text-xs px-3 py-1 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded">
+                        Next
+                      </button>
+                    ) : (
+                      <button onClick={() => setWalkthroughStep(null)}
+                        className="text-xs px-3 py-1 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded">
+                        Done
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Name + Email */}
+              {(walkthroughStep === null || walkthroughStep >= 1) && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.full_name')}</label>
+                    <input type="text" value={formName} onChange={e => setFormName(e.target.value)}
+                      className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.email')}</label>
+                    <input type="email" value={formEmail} onChange={e => setFormEmail(e.target.value)}
+                      className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
+                  </div>
+                </>
+              )}
+
+              {/* Role — only shown when editing (role is managed via Settings for new staff) */}
+              {editingStaffId && (walkthroughStep === null || walkthroughStep >= 2) && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.role')}</label>
+                  <div className="flex gap-2">
+                    {STAFF_ROLES.map(r => {
+                      const cfg = ROLE_CONFIG[r];
+                      const Icon = cfg.icon;
+                      const disabled = !isSuperAdmin;
+                      return (
+                        <button key={r} onClick={() => !disabled && setFormRole(r)}
+                          disabled={disabled}
+                          className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${formRole === r
+                            ? `border-${cfg.color}-400 bg-${cfg.color}-50 dark:bg-${cfg.color}-900/20 text-${cfg.color}-700 dark:text-${cfg.color}-400`
+                            : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                          } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                          <Icon size={16} /> {roleLabel(r)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {!isSuperAdmin && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{t('staff.role_change_forbidden')}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Phone */}
+              {(walkthroughStep === null || walkthroughStep >= 3) && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.phone')}</label>
+                  <input type="tel" value={formPhone} onChange={e => setFormPhone(e.target.value)}
+                    className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
+                </div>
+              )}
+
+              {/* Start Date */}
+              {(walkthroughStep === null || walkthroughStep >= 3) && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.start_date_work')}</label>
+                  <input type="date" value={formStartDate} onChange={e => setFormStartDate(e.target.value)}
+                    className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
+                </div>
+              )}
+
             </>
           )}
 
-          {/* Step 2: Role */}
-          {(walkthroughStep === null || walkthroughStep >= 2) && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.role')}</label>
-              <div className="flex gap-2">
-                {STAFF_ROLES.map(r => {
-                  const cfg = ROLE_CONFIG[r];
-                  const Icon = cfg.icon;
-                  const disabled = !isSuperAdmin && editingStaffId != null;
-                  return (
-                    <button key={r} onClick={() => !disabled && setFormRole(r)}
-                      disabled={disabled}
-                      className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${formRole === r
-                        ? `border-${cfg.color}-400 bg-${cfg.color}-50 dark:bg-${cfg.color}-900/20 text-${cfg.color}-700 dark:text-${cfg.color}-400`
-                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                      } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                      <Icon size={16} /> {roleLabel(r)}
-                    </button>
-                  );
-                })}
-              </div>
-              {!isSuperAdmin && editingStaffId && (
-                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{t('staff.role_change_forbidden')}</p>
+          {/* ─── Step 2: Teaching Assignments ────────────────────────── */}
+          {wizardStep === 2 && (
+            <>
+              {/* Added assignments list */}
+              {wizardAssignments.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t('staff.v2.wizard.added_count').replace('{count}', String(wizardAssignments.length))}
+                  </p>
+                  {wizardAssignments.map(a => (
+                    <div key={a.id} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                      <div className="text-sm text-slate-700 dark:text-slate-300">
+                        {activityName(a.activityId)} — {l2Name(a.l2Id)}
+                        <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">{rateLabel(a.rateType)} {a.rateValue}</span>
+                      </div>
+                      <button onClick={() => toggleAssignmentArchive(a.id, true)} className="text-slate-400 hover:text-red-500 transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-400 dark:text-slate-500 italic">{t('staff.v2.wizard.none_added')}</p>
               )}
-            </div>
+
+              {/* Assignment form */}
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-3 mt-1">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">{t('staff.v2.wizard.add')} {t('staff.v2.wizard.step_assignments').toLowerCase()}</p>
+              </div>
+              {assignmentError && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">{assignmentError}</div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.select_activity')}</label>
+                <select value={aFormActivityId} onChange={e => { setAFormActivityId(e.target.value); setAFormL2Id(''); }}
+                  className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                  <option value="">{t('staff.v2.select_activity')}</option>
+                  {activities.filter(a => !a.isArchived).map(a => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+              {aFormActivityId && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.select_l2')}</label>
+                  <select value={aFormL2Id} onChange={e => setAFormL2Id(e.target.value)}
+                    className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                    <option value="">{t('staff.v2.select_l2')}</option>
+                    {l2sForActivity.map(l => (
+                      <option key={l.id} value={l.id}>{l.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <RateConfigFields
+                rateType={aFormRateType} setRateType={setAFormRateType}
+                rateValue={aFormRateValue} setRateValue={setAFormRateValue}
+                startDate={aFormStartDate} setStartDate={setAFormStartDate}
+                endDate={aFormEndDate} setEndDate={setAFormEndDate}
+                t={t} rateLabel={rateLabel}
+              />
+            </>
           )}
 
-          {/* Step 3: Phone */}
-          {(walkthroughStep === null || walkthroughStep >= 3) && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.phone')}</label>
-              <input type="tel" value={formPhone} onChange={e => setFormPhone(e.target.value)}
-                className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
-            </div>
+          {/* ─── Step 3: Org Roles ───────────────────────────────────── */}
+          {wizardStep === 3 && (
+            <>
+              {/* Added org roles list */}
+              {wizardOrgRoles.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t('staff.v2.wizard.added_count').replace('{count}', String(wizardOrgRoles.length))}
+                  </p>
+                  {wizardOrgRoles.map(r => (
+                    <div key={r.id} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                      <div className="text-sm text-slate-700 dark:text-slate-300">
+                        {r.roleTitle}
+                        <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">{rateLabel(r.rateType)} {r.rateValue}</span>
+                      </div>
+                      <button onClick={() => toggleOrgRoleArchive(r.id, true)} className="text-slate-400 hover:text-red-500 transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-400 dark:text-slate-500 italic">{t('staff.v2.wizard.none_added')}</p>
+              )}
+
+              {/* Org role form */}
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-3 mt-1">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">{t('staff.v2.wizard.add')} {t('staff.v2.wizard.step_org_roles').toLowerCase()}</p>
+              </div>
+              {orgRoleError && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">{orgRoleError}</div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.role_title')}</label>
+                <input type="text" value={orFormTitle} onChange={e => setOrFormTitle(e.target.value)}
+                  placeholder={t('staff.v2.role_title_placeholder')}
+                  className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
+              </div>
+              <RateConfigFields
+                rateType={orFormRateType} setRateType={setOrFormRateType}
+                rateValue={orFormRateValue} setRateValue={setOrFormRateValue}
+                startDate={orFormStartDate} setStartDate={setOrFormStartDate}
+                endDate={orFormEndDate} setEndDate={setOrFormEndDate}
+                t={t} rateLabel={rateLabel}
+              />
+            </>
           )}
 
-          {/* UID field — SuperAdmin only, on create only */}
-          {isSuperAdmin && !editingStaffId && (walkthroughStep === null || walkthroughStep >= 3) && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.uid_label')}</label>
-              <input type="text" value={formUid} onChange={e => setFormUid(e.target.value)}
-                placeholder={t('staff.v2.uid_placeholder')}
-                className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-mono text-sm" />
-              <p className="text-xs text-slate-500 mt-1">{t('staff.v2.uid_hint')}</p>
-            </div>
+          {/* ─── Step 4: Documents ───────────────────────────────────── */}
+          {wizardStep === 4 && selectedStaff && (
+            <DocumentSection
+              documents={selectedStaff.documents ?? []}
+              orgId={orgId || ''}
+              canWrite={canWrite}
+              t={t}
+              onUpdate={handleStaffDocumentsUpdate}
+            />
           )}
         </div>
       </Modal>
@@ -1260,6 +1394,114 @@ export const StaffMemberManager: React.FC<Props> = ({
           })()}
         </div>
       </Modal>
-    </div>
+
+      </div>{/* end main content */}
+
+      {/* ─── Staff Slide-Over ──────────────────────────────────────────── */}
+      <SlideOver
+        isOpen={!!selectedStaffId && wizardStep === null}
+        onClose={() => setSelectedStaffId(null)}
+        title={selectedStaff?.fullName}
+      >
+        {selectedStaff && (
+          <StaffSlideOverContent
+            staff={selectedStaff}
+            assignments={staffAssignments}
+            orgRoles={staffOrgRoles}
+            activities={activities}
+            settings={settings}
+            orgId={orgId || ''}
+            canWrite={canWrite}
+            t={t}
+            activityName={activityName}
+            l2Name={l2Name}
+            rateLabel={rateLabel}
+            onEdit={openEditStaff}
+            onArchive={handleArchiveStaff}
+            onRestore={handleRestoreStaff}
+            onNewAssignment={openCreateAssignment}
+            onEditAssignment={openEditAssignment}
+            onToggleAssignmentArchive={toggleAssignmentArchive}
+            onNewOrgRole={openCreateOrgRole}
+            onEditOrgRole={openEditOrgRole}
+            onToggleOrgRoleArchive={toggleOrgRoleArchive}
+            onDocumentsUpdate={handleStaffDocumentsUpdate}
+            assignmentExportData={assignmentExportData}
+            assignmentDupKeys={assignmentDupKeys}
+            csvActivityByName={csvActivityByName}
+            csvL2ByName={csvL2ByName}
+            csvStaffByEmail={csvStaffByEmail}
+            onAssignmentImportComplete={handleAssignmentImportComplete}
+          />
+        )}
+      </SlideOver>
+    </div>{/* end flex row */}
+
+      {/* ─── Assignment Modal ─────────────────────────────────────────── */}
+      <Modal isOpen={isAssignmentModalOpen} onClose={() => setIsAssignmentModalOpen(false)}
+        title={editingAssignmentId ? t('staff.v2.edit_teaching_assignment') : t('staff.v2.add_teaching_assignment')}
+        isDirty={!!aFormActivityId || !!aFormL2Id}
+        onSave={handleAssignmentSubmit}>
+        <div className="space-y-4">
+          {assignmentError && (
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">{assignmentError}</div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.select_activity')}</label>
+            <select value={aFormActivityId} onChange={e => { setAFormActivityId(e.target.value); setAFormL2Id(''); }}
+              className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+              <option value="">{t('staff.v2.select_activity')}</option>
+              {activities.filter(a => !a.isArchived).map(a => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          </div>
+          {aFormActivityId && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.select_l2')}</label>
+              <select value={aFormL2Id} onChange={e => setAFormL2Id(e.target.value)}
+                className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                <option value="">{t('staff.v2.select_l2')}</option>
+                {l2sForActivity.map(l => (
+                  <option key={l.id} value={l.id}>{l.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <RateConfigFields
+            rateType={aFormRateType} setRateType={setAFormRateType}
+            rateValue={aFormRateValue} setRateValue={setAFormRateValue}
+            startDate={aFormStartDate} setStartDate={setAFormStartDate}
+            endDate={aFormEndDate} setEndDate={setAFormEndDate}
+            t={t} rateLabel={rateLabel}
+          />
+        </div>
+      </Modal>
+
+      {/* ─── Org Role Modal ───────────────────────────────────────────── */}
+      <Modal isOpen={isOrgRoleModalOpen} onClose={() => setIsOrgRoleModalOpen(false)}
+        title={editingOrgRoleId ? t('staff.v2.edit_org_role') : t('staff.v2.add_org_role')}
+        isDirty={!!orFormTitle}
+        onSave={handleOrgRoleSubmit}>
+        <div className="space-y-4">
+          {orgRoleError && (
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">{orgRoleError}</div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.role_title')}</label>
+            <input type="text" value={orFormTitle} onChange={e => setOrFormTitle(e.target.value)}
+              placeholder={t('staff.v2.role_title_placeholder')}
+              className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
+          </div>
+          <RateConfigFields
+            rateType={orFormRateType} setRateType={setOrFormRateType}
+            rateValue={orFormRateValue} setRateValue={setOrFormRateValue}
+            startDate={orFormStartDate} setStartDate={setOrFormStartDate}
+            endDate={orFormEndDate} setEndDate={setOrFormEndDate}
+            t={t} rateLabel={rateLabel}
+          />
+        </div>
+      </Modal>
+    </>
   );
 };

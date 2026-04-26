@@ -39,7 +39,7 @@ const NavItem = ({
   <button
     onClick={onClick}
     title={collapsed ? label : undefined}
-    className={`relative flex items-center w-full py-2.5 rounded-xl text-start ${collapsed ? 'justify-center px-3' : 'px-4 space-x-2 rtl:space-x-reverse'} ${active
+    className={`relative flex items-center w-full py-2.5 rounded-xl text-start px-4 ${collapsed ? '' : 'space-x-2 rtl:space-x-reverse'} ${active
       ? 'bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft font-semibold'
       : 'text-slate-400 hover:text-white hover:bg-white/5 hover:shadow-cadenza-soft'
       } btn-cadenza`}
@@ -143,9 +143,9 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
           willChange: 'width, transform'
         }}
       >
-        <div className={`p-2 flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3 rtl:space-x-reverse'} border-b border-slate-800 h-16 overflow-hidden`}
+        <div className={`p-2 flex items-center ${isCollapsed ? '' : 'space-x-3 rtl:space-x-reverse'} border-b border-slate-800 h-16 overflow-hidden`}
           style={{ transition: 'all 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
-          <div className={`${isCollapsed ? 'p-1 mx-auto' : 'p-1.5'} bg-transparent rounded-xl flex-shrink-0 overflow-hidden`}
+          <div className="p-1.5 bg-transparent rounded-xl flex-shrink-0 overflow-hidden"
             style={{ transition: 'all 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
             <img src="/logo.png?v=2" alt={t('layout.logo_alt')} className="w-12 h-12 object-cover rounded shadow-sm" />
           </div>

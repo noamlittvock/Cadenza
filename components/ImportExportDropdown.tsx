@@ -16,6 +16,8 @@ import { ExportScopeModal } from './ExportScopeModal';
 
 interface Props {
   entityType: ImportEntityType;
+  /** Overrides the default "Import / Export" button label */
+  label?: string;
   /** Rows pre-formatted with template column names — for export & duplicate detection */
   existingData: Record<string, string>[];
   /** Pre-computed duplicate keys (e.g. lower-case fullName / email / composite) */
@@ -36,7 +38,7 @@ interface Props {
 }
 
 export const ImportExportDropdown: React.FC<Props> = ({
-  entityType, existingData, existingDuplicateKeys, dependencyMaps,
+  entityType, label, existingData, existingDuplicateKeys, dependencyMaps,
   activityNames, settings, canWrite, onImportComplete,
 }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
@@ -68,7 +70,7 @@ export const ImportExportDropdown: React.FC<Props> = ({
           onClick={() => setOpen(v => !v)}
           className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
         >
-          {t('csv.dropdown_label')}
+          {label ?? t('csv.dropdown_label')}
           <ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
 

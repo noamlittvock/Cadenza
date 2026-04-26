@@ -85,6 +85,8 @@ export function teacherToStaffMember(
     isFirstAdmin: false,
     onboardingDismissed: false,
     firstUseFlags: { ...DEFAULT_FIRST_USE_FLAGS },
+    startDate: null,
+    documents: [],
   };
 }
 

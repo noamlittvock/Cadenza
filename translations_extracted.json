@@ -2686,5 +2686,2381 @@
   {
     "key": "common_discard",
     "screen_group": "Modal"
+  },
+  {
+    "key": "activities.confirm_permanent_delete",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.roster_remove_confirm",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.walkthrough_step1",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.walkthrough_step2",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.walkthrough_step3",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.walkthrough_step4",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.template_${detailActivity.template?.toLowerCase()}",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.read_only",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.module_${k}",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.l2_subcategories",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.roster",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.l1_subcategories",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.l1_placeholder",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.no_l2",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.l2_placeholder",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.no_l1",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.archived_badge",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.roster_add",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.roster_empty",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.roster_remove",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.title",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.subtitle",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.show_archived",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.add",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.empty_state",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.subcategories",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.name",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.type",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "btn.edit",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.choose_template",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.template_${tmpl.toLowerCase()}",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.template_${tmpl.toLowerCase()}_desc",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.archive_cascade_title",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.archive_cascade_message",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.archive_cascade_no_events",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.archive",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.edit",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.add_new",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.guide_me",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.walkthrough_title",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.walkthrough_dismiss",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.prefill_notice",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.template_${formTemplate.toLowerCase()}",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.name_placeholder",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.location",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.location_placeholder",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.event_name_mode",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.event_name_auto",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.event_name_prompted",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.modules",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.module_${key}",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.modules_mutex_warning",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "inbox.title",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.subtitle",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.tab_tasks",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.tab_notifications",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.hide_completed",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.show_completed",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.hide_resolved",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.show_resolved",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.help_title",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.help_room_conflicts",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.help_manual_tasks",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.help_system_events",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.no_tasks",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.task_done",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.students_count",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.view",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.staff_count",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.marked_done_by",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.mark_done",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.conflict_progress",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.no_notifications",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.resolved",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.dismissed",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.conflict_on",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.hide_resolution",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.resolve_conflict",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.view_in_calendar",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.view_staff",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.view_student",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.events_not_found",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.dismiss",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "btn.close",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.go_to_full_profile",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "teacher.archived",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "staff.section.contact",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "teacher.positions",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "student.guardians",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "staff.section.notes",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "inbox.reschedule",
+    "screen_group": "AdminInbox"
+  },
+  {
+    "key": "subscriptions.revoke_confirm",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "input",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.filters_staff",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.filters_tags",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.filters_positions",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.filters_rooms",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.filters_activities",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.no_filters",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.title",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.create",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.name",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.name_placeholder",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.filters",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.save",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.cancel",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.empty",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.status_active",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.status_revoked",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.feed_url_label",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.copied",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.copy_url",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.created_at",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.created_by",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": "subscriptions.revoke",
+    "screen_group": "CalendarSubscriptionManager"
+  },
+  {
+    "key": ":",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "cal.room_conflict",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "cal.jump_to_date",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "cal.overlapping",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "cal.aria_toggle_overlapping",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "cal.search_placeholder",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "cal.filter.activity_all",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "cal.help_title",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "cal.help_text",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "col.total",
+    "screen_group": "ChartRenderer"
+  },
+  {
+    "key": "inbox.recurring",
+    "screen_group": "ConflictResolutionPanel"
+  },
+  {
+    "key": "inbox.no_room",
+    "screen_group": "ConflictResolutionPanel"
+  },
+  {
+    "key": "inbox.change_room",
+    "screen_group": "ConflictResolutionPanel"
+  },
+  {
+    "key": "inbox.cancel_event",
+    "screen_group": "ConflictResolutionPanel"
+  },
+  {
+    "key": "inbox.recurrence_prompt",
+    "screen_group": "ConflictResolutionPanel"
+  },
+  {
+    "key": "inbox.this_occurrence",
+    "screen_group": "ConflictResolutionPanel"
+  },
+  {
+    "key": "inbox.all_in_series",
+    "screen_group": "ConflictResolutionPanel"
+  },
+  {
+    "key": "csv.import_title",
+    "screen_group": "CsvImportModal"
+  },
+  {
+    "key": "csv.upload_desc",
+    "screen_group": "CsvImportModal"
+  },
+  {
+    "key": "csv.drop_file",
+    "screen_group": "CsvImportModal"
+  },
+  {
+    "key": "csv.column_mapping",
+    "screen_group": "CsvImportModal"
+  },
+  {
+    "key": "csv.not_mapped",
+    "screen_group": "CsvImportModal"
+  },
+  {
+    "key": "csv.importing",
+    "screen_group": "CsvImportModal"
+  },
+  {
+    "key": "csv.imported",
+    "screen_group": "CsvImportModal"
+  },
+  {
+    "key": "csv.skipped",
+    "screen_group": "CsvImportModal"
+  },
+  {
+    "key": "csv.errors",
+    "screen_group": "CsvImportModal"
+  },
+  {
+    "key": "csv.error_report",
+    "screen_group": "CsvImportModal"
+  },
+  {
+    "key": "btn.back",
+    "screen_group": "CsvImportModal"
+  },
+  {
+    "key": "csv.review",
+    "screen_group": "CsvImportModal"
+  },
+  {
+    "key": "csv.import_n",
+    "screen_group": "CsvImportModal"
+  },
+  {
+    "key": "csv.done",
+    "screen_group": "CsvImportModal"
+  },
+  {
+    "key": "../utils/testTemplates",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "sa.migration_title",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "sa.migration_desc",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "sa.migration_scan",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "sa.migration_backfill_confirm",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "sa.migration_backfill_success",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "sa.migration_backfill_error",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "sa.migration_running",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "sa.migration_backfill_btn",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "sa.migration_total",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "sa.migration_already",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "sa.migration_matched",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "sa.migration_unmatched",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "sa.migration_show_unmatched",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "super.wipe_modal_title",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "super.wipe_modal_warning",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "super.wipe_confirm_btn",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "super.wipe_checkbox_label",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "super.wipe_type_confirm",
+    "screen_group": "DevTools"
+  },
+  {
+    "key": "templates.title",
+    "screen_group": "DocumentRepository"
+  },
+  {
+    "key": "templates.subtitle",
+    "screen_group": "DocumentRepository"
+  },
+  {
+    "key": "templates.${tmpl.id}",
+    "screen_group": "DocumentRepository"
+  },
+  {
+    "key": "templates.${tmpl.id}_desc",
+    "screen_group": "DocumentRepository"
+  },
+  {
+    "key": "templates.preview",
+    "screen_group": "DocumentRepository"
+  },
+  {
+    "key": "templates.sample_data",
+    "screen_group": "DocumentRepository"
+  },
+  {
+    "key": "templates.copied",
+    "screen_group": "DocumentRepository"
+  },
+  {
+    "key": "templates.copy_html",
+    "screen_group": "DocumentRepository"
+  },
+  {
+    "key": "event.v2.select_activity",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.date",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.start_time",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.end_time",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.err_end_before_start",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.err_zero_duration",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.name_placeholder",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.err_individual_max",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.err_students_required",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.err_staff_required",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.err_role_required",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.err_no_timezone",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.err_not_enrolled",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.err_assignment_not_started",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.err_assignment_ended",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.guide_me",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.prefill.notice",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.activity",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.select_l1",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.select_l2",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.name",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.name_auto",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.location",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.location_inherited",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.location_placeholder",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.room",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.no_room",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.zone2_title",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.ensemble_roster",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.ensemble_roster_desc",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.ensemble_empty",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.students",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.individual",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.group",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.no_enrolled",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.staff",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.rate_locked",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.add_staff",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.org_role",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.multiple_roles",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.select_role",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.revenue",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.revenue_ticket",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.revenue_participation",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.revenue_room",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.revenue_other",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.revenue_amount",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.add_revenue",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.add_exception",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.rate_override",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.rate_override_desc",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.external",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.external_name",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.external_fee",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.add_external",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.notes",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.notes_placeholder",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "csv.export_scope",
+    "screen_group": "ExportScopeModal"
+  },
+  {
+    "key": "csv.date_range",
+    "screen_group": "ExportScopeModal"
+  },
+  {
+    "key": "csv.activity_filter",
+    "screen_group": "ExportScopeModal"
+  },
+  {
+    "key": "csv.all_activities",
+    "screen_group": "ExportScopeModal"
+  },
+  {
+    "key": "csv.include_archived",
+    "screen_group": "ExportScopeModal"
+  },
+  {
+    "key": "csv.will_export",
+    "screen_group": "ExportScopeModal"
+  },
+  {
+    "key": "csv.export_btn",
+    "screen_group": "ExportScopeModal"
+  },
+  {
+    "key": "btn.delete",
+    "screen_group": "FinancialAnalysis"
+  },
+  {
+    "key": "fin.confirm_delete_msg",
+    "screen_group": "FinancialAnalysis"
+  },
+  {
+    "key": "analysis.help_title",
+    "screen_group": "FinancialAnalysis"
+  },
+  {
+    "key": "analysis.help_text",
+    "screen_group": "FinancialAnalysis"
+  },
+  {
+    "key": "fin.no_insights",
+    "screen_group": "FinancialAnalysis"
+  },
+  {
+    "key": "fin.tab_summary",
+    "screen_group": "FinancialDashboard"
+  },
+  {
+    "key": "nav.hours_comparison",
+    "screen_group": "FinancialDashboard"
+  },
+  {
+    "key": "guide_me",
+    "screen_group": "GuideMeButton"
+  },
+  {
+    "key": "hours.entry_manual",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "hours.entry_confirmed",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "hours.entry_adjusted",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "hours.entry_not_completed",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "hours.comparison_title",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "hours.comparison_subtitle",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "filter.all_teachers",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "hours.comparison_no_reports",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "hours.comparison_submitted_at",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "hours.${report.status.toLowerCase()}",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "hours.form_date",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "label.name",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "hours.comparison_calendar_hours",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "hours.comparison_reported_hours",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "hours.comparison_difference",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "hours.comparison_entry_type",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "hours.comparison_admin_notes",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "hours.comparison_save_notes",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "hours.comparison_mark_reviewed",
+    "screen_group": "HoursComparisonView"
+  },
+  {
+    "key": "csv.dropdown_label",
+    "screen_group": "ImportExportDropdown"
+  },
+  {
+    "key": "csv.import",
+    "screen_group": "ImportExportDropdown"
+  },
+  {
+    "key": "csv.export",
+    "screen_group": "ImportExportDropdown"
+  },
+  {
+    "key": "csv.template",
+    "screen_group": "ImportExportDropdown"
+  },
+  {
+    "key": "activities.duplicate_subcategory",
+    "screen_group": "InlineSubcategoryCreator"
+  },
+  {
+    "key": "activities.confirm_add_subcategory",
+    "screen_group": "InlineSubcategoryCreator"
+  },
+  {
+    "key": "activities.add_subcategory_placeholder",
+    "screen_group": "InlineSubcategoryCreator"
+  },
+  {
+    "key": "activities.add_subcategory_inline",
+    "screen_group": "InlineSubcategoryCreator"
+  },
+  {
+    "key": "payslip.title",
+    "screen_group": "Layout"
+  },
+  {
+    "key": "nav.documents",
+    "screen_group": "Layout"
+  },
+  {
+    "key": "nav.staff_members",
+    "screen_group": "Layout"
+  },
+  {
+    "key": "nav.students",
+    "screen_group": "Layout"
+  },
+  {
+    "key": "nav.admin_inbox",
+    "screen_group": "Layout"
+  },
+  {
+    "key": "nav.activities",
+    "screen_group": "ManageHub"
+  },
+  {
+    "key": "nav.subscriptions",
+    "screen_group": "ManageHub"
+  },
+  {
+    "key": "lists.help_title",
+    "screen_group": "ManageLists"
+  },
+  {
+    "key": "lists.help_text",
+    "screen_group": "ManageLists"
+  },
+  {
+    "key": "lists.absence_reasons",
+    "screen_group": "ManageLists"
+  },
+  {
+    "key": "onboarding.step_1",
+    "screen_group": "OnboardingChecklist"
+  },
+  {
+    "key": "onboarding.step_create_activity",
+    "screen_group": "OnboardingChecklist"
+  },
+  {
+    "key": "onboarding.step_2",
+    "screen_group": "OnboardingChecklist"
+  },
+  {
+    "key": "onboarding.step_add_staff",
+    "screen_group": "OnboardingChecklist"
+  },
+  {
+    "key": "onboarding.step_3",
+    "screen_group": "OnboardingChecklist"
+  },
+  {
+    "key": "onboarding.step_4",
+    "screen_group": "OnboardingChecklist"
+  },
+  {
+    "key": "onboarding.step_create_event",
+    "screen_group": "OnboardingChecklist"
+  },
+  {
+    "key": "onboarding.locked_title",
+    "screen_group": "OnboardingChecklist"
+  },
+  {
+    "key": "onboarding.locked_msg",
+    "screen_group": "OnboardingChecklist"
+  },
+  {
+    "key": "onboarding.view_checklist",
+    "screen_group": "OnboardingChecklist"
+  },
+  {
+    "key": "onboarding.gate_cleared_title",
+    "screen_group": "OnboardingChecklist"
+  },
+  {
+    "key": "onboarding.gate_cleared_msg",
+    "screen_group": "OnboardingChecklist"
+  },
+  {
+    "key": "onboarding.dismiss",
+    "screen_group": "OnboardingChecklist"
+  },
+  {
+    "key": "onboarding.setup_title",
+    "screen_group": "OnboardingChecklist"
+  },
+  {
+    "key": "onboarding.setup_subtitle",
+    "screen_group": "OnboardingChecklist"
+  },
+  {
+    "key": "payslip.err_no_staff",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.err_no_period",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.hourly",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.per_event",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.monthly_flat",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.guide_me",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.prefill.notice",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.staff_select",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.select_staff",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.no_staff",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.billing_period",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.start_date",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.end_date",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.generate",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.period_for",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.no_events",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.event_date",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.event_name",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.rate_type",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.rate",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.duration",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.cost",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.override_applied",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.subtotal",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "payslip.total",
+    "screen_group": "PayslipGenerator"
+  },
+  {
+    "key": "power.all_activities",
+    "screen_group": "PowerTools"
+  },
+  {
+    "key": "room.confirm_archive",
+    "screen_group": "RoomManager"
+  },
+  {
+    "key": "room.confirm_permanent_delete",
+    "screen_group": "RoomManager"
+  },
+  {
+    "key": "room.show_archived",
+    "screen_group": "RoomManager"
+  },
+  {
+    "key": "view.grid",
+    "screen_group": "RoomManager"
+  },
+  {
+    "key": "view.list",
+    "screen_group": "RoomManager"
+  },
+  {
+    "key": "room.archived_badge",
+    "screen_group": "RoomManager"
+  },
+  {
+    "key": "room.restore",
+    "screen_group": "RoomManager"
+  },
+  {
+    "key": "room.permanent_delete",
+    "screen_group": "RoomManager"
+  },
+  {
+    "key": "room.archive",
+    "screen_group": "RoomManager"
+  },
+  {
+    "key": "settings.import_no_events",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.import_success",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.tz_london",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.tz_paris",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.currency_title",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.currency_symbol_label",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.academic_calendar",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.school_year_start",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.school_year_end",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.school_year_label",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.school_year_label_desc",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.google_import_hint",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.disconnect",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.connected_via",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.fetching_calendars",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.cal_error",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.select_target_cal",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.cal_primary",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.import_from_google",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.import_desc",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "staff.v2.rate_hourly",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.rate_per_event",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.rate_monthly_flat",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.role.super_admin",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.role.admin",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.role.staff",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.name_required",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.email_required",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.uid_required",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.role_change_forbidden",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.role_self_change_forbidden",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.select_activity",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.select_l2",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.date_start_required",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.overlap_error",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.role_title",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.walkthrough.step1_title",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.walkthrough.step1_desc",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.walkthrough.step2_title",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.walkthrough.step2_desc",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.walkthrough.step3_title",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.walkthrough.step3_desc",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.rate_type",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.rate_value",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.start_date",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.end_date_optional",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.archived_badge",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.tab.teaching_assignments",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.tab.org_roles",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.add_teaching_assignment",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.assignment_empty",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.add_org_role",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.org_role_empty",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.edit_teaching_assignment",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.no_activities",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.no_l2s",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.edit_org_role",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.role_title_placeholder",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.archive_cascade_title",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.archive",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.archive_cascade_message",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.archive_cascade_events",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.title",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.subtitle",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.add",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "activities.readonly_notice",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.search",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.show_archived",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.no_results",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.empty_state",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.table.name",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.table.role",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.table.email",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.table.activities",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.table.assignments",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.table.phone",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.edit",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.add_new",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.guide_me",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.full_name",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.email",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.role",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.phone",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.uid_label",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.uid_placeholder",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.uid_hint",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "student.err_name_required",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.enrollment.err_activity",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.enrollment.err_l2",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.enrollment.err_start",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "staff.v2.walkthrough.step",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.title",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.detail_title",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.subtitle",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.add",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.search",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.show_archived",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.no_results",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.empty_state",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.table.name",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.table.age",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.table.parent",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.table.phone",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.table.activities",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.table.enrollments",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.archived_badge",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.active_enrollments",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.edit",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.restore",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.archive",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.tab.${tab}",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.full_name",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.date_of_birth",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.parent_name",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.parent_phone",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.enrollment.add",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.guide_me",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.enrollment.empty",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.enrollment.${enrollment.status.toLowerCase()}",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.add_new",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.walkthrough.step1",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.full_name_placeholder",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.walkthrough.step2",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.parent_name_placeholder",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.parent_phone_placeholder",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.walkthrough.step3",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.enrollment.edit",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.prefill.notice",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.walkthrough.enrollment1",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.enrollment.activity",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.enrollment.select_activity",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.walkthrough.enrollment2",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.enrollment.l2",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.enrollment.select_l2",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.enrollment.no_l2",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.walkthrough.enrollment3",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.enrollment.start_date",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.enrollment.end_date",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.archive_cascade.title",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.archive_cascade.message",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.archive_cascade.roster",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "sa.tab_templates",
+    "screen_group": "SuperAdmin"
+  },
+  {
+    "key": "hours.form_title",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_submitted",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_submitted_msg",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_subtitle",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_period",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_events",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_no_events",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_confirmed",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_adjusted",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_not_completed",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_actual_hours",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_absence_reason",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_select_reason",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_manual_entries",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_add_manual",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_hours",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_description",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_activity",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "label.optional",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_subcategory",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "hours.form_submit",
+    "screen_group": "TeacherHoursForm"
+  },
+  {
+    "key": "tag_input.type_new",
+    "screen_group": "TeacherManager"
+  },
+  {
+    "key": "tag_input.select_existing",
+    "screen_group": "TeacherManager"
+  },
+  {
+    "key": "tm.deploy_success",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.deploy_failed",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.no_missing",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.api_key_missing",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.auto_translate_success",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.auto_translate_failed",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.loading",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.title",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.search_placeholder",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.auto_translate_placeholder",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.auto_translate",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.deploy",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.section_${branch.toLowerCase()}",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.missing",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.complete",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.needs_translation",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.completed_group",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.back_to_groups",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.lock_tooltip",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.unlock_tooltip",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.status_untranslated",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.status_auto",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.status_reviewed",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.label_original",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "tm.label_translation",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "nav.financial_dashboard",
+    "screen_group": "App"
+  },
+  {
+    "key": "nav.financial_analysis",
+    "screen_group": "App"
+  },
+  {
+    "key": "./utils/testTemplates",
+    "screen_group": "App"
+  },
+  {
+    "key": "onboarding.tour_title",
+    "screen_group": "App"
+  },
+  {
+    "key": "onboarding.tour_msg",
+    "screen_group": "App"
+  },
+  {
+    "key": "onboarding.tour_dismiss",
+    "screen_group": "App"
+  },
+  {
+    "key": "filter.search",
+    "screen_group": "ColumnFilterDropdown"
+  },
+  {
+    "key": "filter.select_all",
+    "screen_group": "ColumnFilterDropdown"
+  },
+  {
+    "key": "filter.clear",
+    "screen_group": "ColumnFilterDropdown"
+  },
+  {
+    "key": "filter.no_values",
+    "screen_group": "ColumnFilterDropdown"
+  },
+  {
+    "key": "common.document.delete_confirm",
+    "screen_group": "DocumentSection"
+  },
+  {
+    "key": "common.documents",
+    "screen_group": "DocumentSection"
+  },
+  {
+    "key": "common.document.add",
+    "screen_group": "DocumentSection"
+  },
+  {
+    "key": "common.document.empty",
+    "screen_group": "DocumentSection"
+  },
+  {
+    "key": "common.document.type.${doc.type.toLowerCase()}",
+    "screen_group": "DocumentSection"
+  },
+  {
+    "key": "common.document.name",
+    "screen_group": "DocumentSection"
+  },
+  {
+    "key": "common.document.type",
+    "screen_group": "DocumentSection"
+  },
+  {
+    "key": "common.document.type.${dt.toLowerCase()}",
+    "screen_group": "DocumentSection"
+  },
+  {
+    "key": "common.document.date",
+    "screen_group": "DocumentSection"
+  },
+  {
+    "key": "common.document.notes",
+    "screen_group": "DocumentSection"
+  },
+  {
+    "key": "common.document.upload",
+    "screen_group": "DocumentSection"
+  },
+  {
+    "key": "filter.clear_all",
+    "screen_group": "FilterPills"
+  },
+  {
+    "key": ".",
+    "screen_group": "RateConfigFields"
+  },
+  {
+    "key": "../types/v2",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.wizard.step_basic_info",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.wizard.step_assignments",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.wizard.step_org_roles",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.wizard.step_documents",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.wizard.back",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.wizard.add",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.wizard.next",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.wizard.skip",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.wizard.done",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.start_date_work",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.wizard.added_count",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.wizard.none_added",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.restore",
+    "screen_group": "StaffSlideOverContent"
+  },
+  {
+    "key": "staff.role.${staff.role.toLowerCase()}",
+    "screen_group": "StaffSlideOverContent"
+  },
+  {
+    "key": "staff.v2.years_active",
+    "screen_group": "StaffSlideOverContent"
+  },
+  {
+    "key": "student.v2.grade.${i}",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.grade.graduate",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.table.grade",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.table.level",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.table.tags",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.grade",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.grade_select",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.grade.${i + 1}",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.level",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.level_placeholder",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.start_date",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.start_date_placeholder",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.phone2",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.phone2_placeholder",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.email",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.email_placeholder",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.address",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.address_placeholder",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.tags",
+    "screen_group": "StudentManager"
+  },
+  {
+    "key": "student.v2.years_of_study",
+    "screen_group": "StudentSlideOverContent"
+  },
+  {
+    "key": "student.tab.enrollments",
+    "screen_group": "StudentSlideOverContent"
+  },
+  {
+    "key": "common.document.upload_failed",
+    "screen_group": "DocumentSection"
+  },
+  {
+    "key": "activities.confirm_bulk_archive",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.confirm_bulk_permanent_delete",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "sort.alphabetical",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.cancel_selection",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.select",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.selected_count",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.select_all",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.bulk_restore",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.bulk_permanent_delete",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.bulk_archive",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "itinerary",
+    "screen_group": "RoomManager"
   }
 ]

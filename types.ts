@@ -401,6 +401,7 @@ export interface AdminInboxItem {
   createdAt: string;
   markedDoneAt?: string;
   markedDoneBy?: string;
+  autoResolvedReason?: 'CONFLICT_CLEARED';
 }
 
 export type ViewState = 'CALENDAR' | 'GANTT' | 'MANAGE' | 'SETTINGS' | 'FINANCIAL' | 'POWER_TOOLS' | 'SUPER_ADMIN' | 'STAFF_MEMBERS' | 'STUDENTS' | 'ADMIN_INBOX' | 'PAYSLIPS' | 'DOCUMENTS';

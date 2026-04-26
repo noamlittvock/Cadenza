@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import {
   parseCSVText, mapColumns, unmappedColumns, rowDuplicateKey,
-  generateExportCSV, TEMPLATE_COLUMNS,
+  generateExportCSV, TEMPLATE_COLUMNS, REQUIRED_COLUMNS,
 } from '../utils/csvUtils';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -116,7 +116,7 @@ export const CsvImportModal: React.FC<Props> = ({
 
       // Validate required fields
       let errorMessage: string | null = null;
-      const required = expectedCols.filter(c => !['dateOfBirth', 'parentName', 'parentPhone', 'phone', 'location', 'endDate'].includes(c));
+      const required = REQUIRED_COLUMNS[entityType];
       const missing = required.filter(c => !mapped[c]);
       if (missing.length > 0) errorMessage = `Missing required: ${missing.join(', ')}`;
 
@@ -311,17 +311,22 @@ export const CsvImportModal: React.FC<Props> = ({
                         </select>
                         {columnMapping[col] ? (
                           <Check size={14} className="text-green-500 shrink-0" />
+                        ) : REQUIRED_COLUMNS[entityType].includes(col) ? (
+                          <span className="text-[10px] text-amber-500 shrink-0">required</span>
                         ) : (
                           <span className="text-[10px] text-slate-400 shrink-0">optional</span>
                         )}
                       </div>
                     ))}
                   </div>
-                  {missingMappings.filter(c => !['dateOfBirth', 'parentName', 'parentPhone', 'phone', 'location'].includes(c)).length > 0 && (
-                    <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-2">
-                      <Info size={13} /> Required columns not mapped: {missingMappings.join(', ')}
-                    </div>
-                  )}
+                  {(() => {
+                    const unmappedRequired = missingMappings.filter(c => REQUIRED_COLUMNS[entityType].includes(c));
+                    return unmappedRequired.length > 0 && (
+                      <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-2">
+                        <Info size={13} /> Required columns not mapped: {unmappedRequired.join(', ')}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>

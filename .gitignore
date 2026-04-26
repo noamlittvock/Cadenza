@@ -25,3 +25,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Code internal session state
+.claude/
+
+# Playwright test artifacts
+playwright-report/
+test-results/

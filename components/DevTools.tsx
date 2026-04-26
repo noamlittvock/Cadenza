@@ -190,6 +190,8 @@ export const DevTools: React.FC<DevToolsProps> = ({
                   activityHub: true, staffModule: true, studentModule: true,
                   eventCreation: true, enrollment: true, payslips: true,
                 },
+                startDate: null,
+                documents: [],
               };
               batch.set(doc(db, V2_COLLECTIONS.staffMembers, t.id), staffDoc);
             });
@@ -206,7 +208,15 @@ export const DevTools: React.FC<DevToolsProps> = ({
                 dateOfBirth: s.dateOfBirth || null,
                 parentName: s.guardians?.[0]?.fullName || null,
                 parentPhone: s.guardians?.[0]?.phone || null,
+                grade: null,
+                startDate: null,
+                level: null,
+                tags: [],
+                phone2: null,
+                email: null,
+                address: null,
                 isArchived: s.profileStatus === 'ARCHIVED',
+                documents: [],
                 createdAt: now,
                 updatedAt: now,
               };

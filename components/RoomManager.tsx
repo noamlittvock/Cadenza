@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Room, AppSettings } from '../types';
 import { generateId } from '../constants';
-import { Plus, Edit2, Trash2, Home, Menu, LayoutGrid, List, Archive, RotateCcw } from 'lucide-react';
+import { Plus, Edit2, Trash2, Home, Menu, LayoutGrid, List, Archive, RotateCcw, ArrowUp, ArrowDown } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
 import { Modal } from './Modal';
+import { useListStyle } from '../utils/useListStyle';
+import { useSortState } from '../utils/useSortState';
+import { ImportExportDropdown } from './ImportExportDropdown';
 interface Props {
   rooms: Room[];
   setRooms: React.Dispatch<React.SetStateAction<Room[]>>;
@@ -18,8 +21,9 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Room>>({});
   const [initialFormData, setInitialFormData] = useState<Partial<Room>>({});
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [viewMode, setViewMode] = useListStyle(['grid', 'list']);
   const [showArchived, setShowArchived] = useState(false);
+  const { sortKey, sortDirection, toggleSort } = useSortState<'name' | 'itinerary'>('name');
 
   const handleOpenModal = (room?: Room) => {
     if (room) {
@@ -66,11 +70,49 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
     setIsModalOpen(false);
   };
 
-  const filteredRooms = rooms.filter(r => {
-    if (!showArchived && r.isArchived) return false;
-    if (showArchived && !r.isArchived) return false;
-    return true;
-  });
+  const filteredRooms = useMemo(() => {
+    const base = rooms.filter(r => {
+      if (!showArchived && r.isArchived) return false;
+      if (showArchived && !r.isArchived) return false;
+      return true;
+    });
+    const dir = sortDirection === 'asc' ? 1 : -1;
+    return [...base].sort((a, b) => {
+      const av = (sortKey === 'name' ? a.name : (a.itinerary || '')).toLocaleLowerCase();
+      const bv = (sortKey === 'name' ? b.name : (b.itinerary || '')).toLocaleLowerCase();
+      return av.localeCompare(bv) * dir;
+    });
+  }, [rooms, showArchived, sortKey, sortDirection]);
+
+  const csvExistingData = useMemo<Record<string, string>[]>(
+    () => rooms.map(r => ({ name: r.name, itinerary: r.itinerary || '' })),
+    [rooms],
+  );
+  const csvDuplicateKeys = useMemo(
+    () => new Set(rooms.map(r => r.name.trim().toLowerCase())),
+    [rooms],
+  );
+
+  const handleRoomImportComplete = useCallback((rows: Record<string, string>[]) => {
+    const existing = new Map<string, Room>(rooms.map(r => [r.name.trim().toLowerCase(), r]));
+    const additions: Room[] = [];
+    const updates = new Map<string, Partial<Room>>();
+    rows.forEach(row => {
+      const name = (row['name'] || '').trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      const itinerary = row['itinerary'] || '';
+      if (existing.has(key)) {
+        updates.set(existing.get(key)!.id, { name, itinerary });
+      } else {
+        additions.push({ id: generateId(), name, itinerary });
+      }
+    });
+    setRooms(prev => [
+      ...prev.map(r => updates.has(r.id) ? { ...r, ...updates.get(r.id)! } : r),
+      ...additions,
+    ]);
+  }, [rooms, setRooms]);
 
   return (
     <div className={`${embedded ? 'h-full overflow-auto' : ''} p-8 max-w-6xl mx-auto`}>
@@ -102,6 +144,14 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
               <Archive size={16} />
               {t('room.show_archived')}
             </button>
+            <button
+              onClick={() => toggleSort('name')}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              title={t('sort.alphabetical') || 'Sort A–Z'}
+            >
+              {sortKey === 'name' && sortDirection === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
+              <span className="text-xs font-medium">{sortDirection === 'asc' ? 'A→Z' : 'Z→A'}</span>
+            </button>
             <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
               <button onClick={() => setViewMode('grid')} className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`} title={t('view.grid')}>
                 <LayoutGrid size={16} />
@@ -110,6 +160,17 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
                 <List size={16} />
               </button>
             </div>
+            {settings && (
+              <ImportExportDropdown
+                entityType="ROOM"
+                existingData={csvExistingData}
+                existingDuplicateKeys={csvDuplicateKeys}
+                dependencyMaps={{ activityByName: {}, l2ByName: {}, staffByEmail: {}, studentByName: {} }}
+                settings={settings}
+                canWrite={true}
+                onImportComplete={handleRoomImportComplete}
+              />
+            )}
             <button
               onClick={() => handleOpenModal()}
               className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg flex items-center "
@@ -139,6 +200,17 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
               <List size={16} />
             </button>
           </div>
+          {settings && (
+            <ImportExportDropdown
+              entityType="ROOM"
+              existingData={csvExistingData}
+              existingDuplicateKeys={csvDuplicateKeys}
+              dependencyMaps={{ activityByName: {}, l2ByName: {}, staffByEmail: {}, studentByName: {} }}
+              settings={settings}
+              canWrite={true}
+              onImportComplete={handleRoomImportComplete}
+            />
+          )}
           <button
             onClick={() => handleOpenModal()}
             className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg flex items-center "
@@ -202,8 +274,18 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">{t('label.room_name')}</th>
-                <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hidden md:table-cell">{t('room.itinerary_equipment')}</th>
+                <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">
+                  <button onClick={() => toggleSort('name')} className="inline-flex items-center gap-1 hover:text-slate-900 dark:hover:text-white">
+                    {t('label.room_name')}
+                    {sortKey === 'name' && (sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
+                  </button>
+                </th>
+                <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hidden md:table-cell">
+                  <button onClick={() => toggleSort('itinerary')} className="inline-flex items-center gap-1 hover:text-slate-900 dark:hover:text-white">
+                    {t('room.itinerary_equipment')}
+                    {sortKey === 'itinerary' && (sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
+                  </button>
+                </th>
                 <th className="text-end px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">{t('btn.edit')}</th>
               </tr>
             </thead>

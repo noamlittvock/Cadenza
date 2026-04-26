@@ -7,7 +7,6 @@ import { lookupRate } from '../utils/rateLookup';
 import { ChevronLeft, ChevronRight, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronUp, ChevronDown, Repeat, Ban, RotateCcw, HelpCircle, Search, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { syncEventToGoogle, removeEventFromGoogle, updateEventInGoogle } from '../utils/googleCalendarSync';
-import { DatePicker } from './DatePicker';
 import { Modal } from './Modal';
 import { EventFormV2, EventFormState, EventFormV2Handle } from './EventFormV2';
 
@@ -1962,16 +1961,14 @@ export const CalendarView: React.FC<Props> = ({
                 {isRtl ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
               </button>
               <div className="px-3 flex items-center relative group">
-                <DatePicker type="date" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e: any) => { if (e.target.value) setCurrentDate(new Date(e.target.value)); }} />
                 <div className="flex flex-col items-center justify-center min-w-[150px]">
-                  <span className="text-sm font-bold text-slate-800 dark:text-slate-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex items-center">
+                  <span className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center">
                     {viewMode === 'MONTH'
                       ? currentDate.toLocaleDateString(settings.language, { month: 'long', year: 'numeric' })
                       : viewMode === 'WEEK'
                         ? `${t('cal.week_of')} ${getStartOfWeek(currentDate).toLocaleDateString(settings.language)}`
                         : currentDate.toLocaleDateString(settings.language, { weekday: 'long', month: 'short', day: 'numeric' })
                     }
-                    <CalendarIcon size={14} className="ms-2 opacity-50" />
                   </span>
                   {settings.weekNumberDisplay !== 'none' && (
                     <span className="text-[10px] text-slate-400 uppercase tracking-wider">
@@ -1992,95 +1989,35 @@ export const CalendarView: React.FC<Props> = ({
             </div>
             <button onClick={() => setCurrentDate(new Date())} className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 text-xs font-bold rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">{t('cal.today')}</button>
 
-            {/* Jump to Date */}
-            <input
-              type="date"
-              title={t('cal.jump_to_date') || 'Jump to date'}
-              value={currentDate.toISOString().split('T')[0]}
-              onChange={(e) => { if (e.target.value) setCurrentDate(new Date(e.target.value + 'T12:00:00')); }}
-              className="px-2 py-1.5 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
-            />
-
             <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 text-xs font-medium">
               {['DAY', 'WEEK', 'MONTH'].map((m) => (
                 <button key={m} onClick={() => setViewMode(m as ViewMode)} className={`px-3 py-1.5 rounded transition-all ${viewMode === m ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>{t('cal.' + m.toLowerCase())}</button>
               ))}
             </div>
+
+            {/* Jump to Date — icon-only trigger that opens a native date picker */}
+            <label
+              title={t('cal.jump_to_date') || 'Jump to date'}
+              className="relative p-2 rounded-lg border bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer flex items-center justify-center"
+            >
+              <CalendarIcon size={16} />
+              <input
+                type="date"
+                aria-label={t('cal.jump_to_date') || 'Jump to date'}
+                value={currentDate.toISOString().split('T')[0]}
+                onChange={(e) => { if (e.target.value) setCurrentDate(new Date(e.target.value + 'T12:00:00')); }}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+            </label>
           </div>
 
           {/* Divider */}
           <div className="w-px h-6 bg-slate-300 dark:bg-slate-600"></div>
 
-          {/* Canceled Status Toggle */}
-          <div className="flex items-center gap-2">
-            <span className={`text-[10px] leading-tight font-medium transition-colors text-end ${!showCanceled ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>{t('cal.hide_canceled').split(' ')[0]}<br />{t('cal.hide_canceled').split(' ')[1]}</span>
-            <button
-              onClick={() => setShowCanceled(!showCanceled)}
-              className="status-toggle-track"
-              role="switch"
-              aria-checked={!showCanceled}
-              aria-label={t('cal.aria_toggle_canceled')}
-              style={{
-                backgroundColor: !showCanceled ? '#ef4444' : '#cbd5e1',
-              }}
-            >
-              <span
-                className="status-toggle-thumb"
-                style={{
-                  transform: !showCanceled ? (isRtl ? 'translateX(-16px)' : 'translateX(16px)') : (isRtl ? 'translateX(-2px)' : 'translateX(2px)'),
-                }}
-              />
-            </button>
-          </div>
-
-          {/* Blackouts Status Toggle */}
-          <div className="flex items-center gap-2">
-            <span className={`text-[10px] leading-tight font-medium transition-colors text-end ${!showBlackouts ? 'text-orange-600 dark:text-orange-400' : 'text-slate-500 dark:text-slate-400'}`}>{t('cal.hide_blackouts').split(' ')[0]}<br />{t('cal.hide_blackouts').split(' ')[1]}</span>
-            <button
-              onClick={() => setShowBlackouts(!showBlackouts)}
-              className="status-toggle-track"
-              role="switch"
-              aria-checked={!showBlackouts}
-              aria-label={t('cal.aria_toggle_blackouts')}
-              style={{
-                backgroundColor: !showBlackouts ? '#f97316' : '#cbd5e1',
-              }}
-            >
-              <span
-                className="status-toggle-thumb"
-                style={{
-                  transform: !showBlackouts ? (isRtl ? 'translateX(-16px)' : 'translateX(16px)') : (isRtl ? 'translateX(-2px)' : 'translateX(2px)'),
-                }}
-              />
-            </button>
-          </div>
-
-          {/* Overlapping Lessons Toggle */}
-          <div className="flex items-center gap-2">
-            <span className={`text-[10px] leading-tight font-medium transition-colors text-end ${showOnlyOverlapping ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>{t('cal.overlapping').split(' ')[0]}<br />{t('cal.overlapping').split(' ')[1] || 'Lessons'}</span>
-            <button
-              onClick={() => setShowOnlyOverlapping(!showOnlyOverlapping)}
-              className="status-toggle-track"
-              role="switch"
-              aria-checked={showOnlyOverlapping}
-              aria-label={t('cal.aria_toggle_overlapping')}
-              style={{
-                backgroundColor: showOnlyOverlapping ? '#dc2626' : '#cbd5e1',
-              }}
-            >
-              <span
-                className="status-toggle-thumb"
-                style={{
-                  transform: showOnlyOverlapping ? (isRtl ? 'translateX(-16px)' : 'translateX(16px)') : (isRtl ? 'translateX(-2px)' : 'translateX(2px)'),
-                }}
-              />
-            </button>
-          </div>
-
           {/* Filter Toggle Button */}
           <button
             onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
-            className={`p-2 rounded-lg border transition-colors ${isFiltersExpanded || filterTeacher !== 'ALL' || filterRoom !== 'ALL' || filterClass !== 'ALL' || filterPosition !== 'ALL' || filterTag !== 'ALL'
+            className={`p-2 rounded-lg border transition-colors ${isFiltersExpanded || !showCanceled || !showBlackouts || showOnlyOverlapping || filterTeacher !== 'ALL' || filterRoom !== 'ALL' || filterClass !== 'ALL' || filterPosition !== 'ALL' || filterTag !== 'ALL'
               ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800'
               : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
@@ -2120,6 +2057,56 @@ export const CalendarView: React.FC<Props> = ({
           {/* Inline Filter Panel - always flows inline next to the filter toggle */}
           {isFiltersExpanded && (
             <div className="flex items-center gap-2 flex-nowrap">
+              {/* Event-state toggles (canceled / blackouts / overlapping) — embedded at the start of the chain */}
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] leading-tight font-medium transition-colors text-end ${!showCanceled ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>{t('cal.hide_canceled').split(' ')[0]}<br />{t('cal.hide_canceled').split(' ')[1]}</span>
+                <button
+                  onClick={() => setShowCanceled(!showCanceled)}
+                  className="status-toggle-track"
+                  role="switch"
+                  aria-checked={!showCanceled}
+                  aria-label={t('cal.aria_toggle_canceled')}
+                  style={{ backgroundColor: !showCanceled ? '#ef4444' : '#cbd5e1' }}
+                >
+                  <span
+                    className="status-toggle-thumb"
+                    style={{ transform: !showCanceled ? (isRtl ? 'translateX(-16px)' : 'translateX(16px)') : (isRtl ? 'translateX(-2px)' : 'translateX(2px)') }}
+                  />
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] leading-tight font-medium transition-colors text-end ${!showBlackouts ? 'text-orange-600 dark:text-orange-400' : 'text-slate-500 dark:text-slate-400'}`}>{t('cal.hide_blackouts').split(' ')[0]}<br />{t('cal.hide_blackouts').split(' ')[1]}</span>
+                <button
+                  onClick={() => setShowBlackouts(!showBlackouts)}
+                  className="status-toggle-track"
+                  role="switch"
+                  aria-checked={!showBlackouts}
+                  aria-label={t('cal.aria_toggle_blackouts')}
+                  style={{ backgroundColor: !showBlackouts ? '#f97316' : '#cbd5e1' }}
+                >
+                  <span
+                    className="status-toggle-thumb"
+                    style={{ transform: !showBlackouts ? (isRtl ? 'translateX(-16px)' : 'translateX(16px)') : (isRtl ? 'translateX(-2px)' : 'translateX(2px)') }}
+                  />
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] leading-tight font-medium transition-colors text-end ${showOnlyOverlapping ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>{t('cal.overlapping').split(' ')[0]}<br />{t('cal.overlapping').split(' ')[1] || 'Lessons'}</span>
+                <button
+                  onClick={() => setShowOnlyOverlapping(!showOnlyOverlapping)}
+                  className="status-toggle-track"
+                  role="switch"
+                  aria-checked={showOnlyOverlapping}
+                  aria-label={t('cal.aria_toggle_overlapping')}
+                  style={{ backgroundColor: showOnlyOverlapping ? '#dc2626' : '#cbd5e1' }}
+                >
+                  <span
+                    className="status-toggle-thumb"
+                    style={{ transform: showOnlyOverlapping ? (isRtl ? 'translateX(-16px)' : 'translateX(16px)') : (isRtl ? 'translateX(-2px)' : 'translateX(2px)') }}
+                  />
+                </button>
+              </div>
+              <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>
               <select className="filter-select-uniform" value={filterTeacher} onChange={e => setFilterTeacher(e.target.value)}>
                 <option value="ALL">{t('cal.filter.teacher_all')}</option>
                 {teachers.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}

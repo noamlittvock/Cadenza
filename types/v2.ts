@@ -78,7 +78,10 @@ export type ImportEntityType =
   | 'STAFF_MEMBER'
   | 'ENROLLMENT'
   | 'EVENT'
-  | 'TEACHING_ASSIGNMENT';
+  | 'TEACHING_ASSIGNMENT'
+  | 'ROOM'
+  | 'ACTIVITY'
+  | 'ACTIVITY_HIERARCHY';
 
 // ─── Sub-structures ──────────────────────────────────────────────────────────
 
@@ -127,6 +130,18 @@ export interface ImportRowResult {
   duplicateOf: string | null;
   duplicateAction: DuplicateAction | null;
   autoCreated: string[] | null;
+}
+
+// ─── Document Entry (shared by Staff & Student) ─────────────────────────────
+
+export interface DocumentEntry {
+  id: string;
+  name: string;
+  type: string; // DIPLOMA | CERTIFICATE | ID | OTHER
+  date: string; // ISO date
+  notes: string | null;
+  fileUrl: string | null;
+  filePath: string | null; // Storage path for deletion
 }
 
 // ─── Entity Interfaces ───────────────────────────────────────────────────────
@@ -179,6 +194,7 @@ export interface StaffMemberV2 {
   fullName: string;
   email: string;
   phone: string | null;
+  startDate: string | null;
   isArchived: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -186,6 +202,7 @@ export interface StaffMemberV2 {
   isFirstAdmin: boolean;
   onboardingDismissed: boolean;
   firstUseFlags: FirstUseFlags;
+  documents: DocumentEntry[];
 }
 
 /** Section 05 — teachingAssignments/{assignmentId} */
@@ -227,9 +244,17 @@ export interface StudentV2 {
   dateOfBirth: string | null;
   parentName: string | null;
   parentPhone: string | null;
+  grade: string | null;
+  startDate: string | null;
+  level: number | null;
+  tags: string[];
+  phone2: string | null;
+  email: string | null;
+  address: string | null;
   isArchived: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  documents: DocumentEntry[];
 }
 
 /** Section 05 — enrollments/{enrollmentId} */

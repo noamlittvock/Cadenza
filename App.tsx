@@ -207,12 +207,15 @@ function AppContent() {
     }
   }, [darkMode]);
 
-  // Room conflict detection → admin inbox notifications
+  // Room conflict detection → admin inbox notifications + auto-resolution
   useEffect(() => {
     const conflicts = detectRoomConflicts(events);
-    if (conflicts.length === 0) return;
 
-    // Use functional updater to read latest adminInboxItems without stale closure
+    // Build set of active conflict fingerprints
+    const activeFingerprints = new Set(
+      conflicts.map(c => [c.eventA.id, c.eventB.id].sort().join('|'))
+    );
+
     setAdminInboxItems(prev => {
       const existingFingerprints = new Set(
         prev
@@ -220,6 +223,22 @@ function AppContent() {
           .map(item => (item.relatedEntityIds || []).sort().join('|'))
       );
 
+      // Auto-resolve: mark OPEN ROOM_CONFLICT items as DONE if conflict no longer active
+      const now = new Date().toISOString();
+      let updated = prev.map(item => {
+        if (
+          item.relatedEntityType === 'ROOM_CONFLICT' &&
+          item.status === 'OPEN'
+        ) {
+          const fp = (item.relatedEntityIds || []).sort().join('|');
+          if (!activeFingerprints.has(fp)) {
+            return { ...item, status: 'DONE' as const, markedDoneAt: now, autoResolvedReason: 'CONFLICT_CLEARED' as const };
+          }
+        }
+        return item;
+      });
+
+      // Add new conflict notifications
       const newItems = conflicts
         .map(c => {
           const fingerprint = [c.eventA.id, c.eventB.id].sort().join('|');
@@ -239,8 +258,8 @@ function AppContent() {
         })
         .filter((item): item is NonNullable<typeof item> => item !== null);
 
-      if (newItems.length === 0) return prev;
-      return [...prev, ...newItems];
+      if (newItems.length === 0 && updated === prev) return prev;
+      return [...updated, ...newItems];
     });
   }, [events, rooms]);
 
@@ -633,6 +652,8 @@ function AppContent() {
             teachers={teachers}
             students={students}
             events={events}
+            setEvents={setEvents}
+            rooms={rooms}
             settings={settings}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
             onNavigateToEvent={handleNavigateToConflict}

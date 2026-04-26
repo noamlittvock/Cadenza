@@ -13,6 +13,21 @@ export const TEMPLATE_COLUMNS: Record<ImportEntityType, string[]> = {
   ENROLLMENT: ['studentFullName', 'activityName', 'l2Name', 'startDate'],
   EVENT: ['activityName', 'l2Name', 'date', 'startTime', 'endTime', 'location'],
   TEACHING_ASSIGNMENT: ['staffEmail', 'activityName', 'l2Name', 'rateType', 'rateValue', 'startDate'],
+  ROOM: ['name', 'itinerary'],
+  ACTIVITY: ['name', 'template', 'location'],
+  ACTIVITY_HIERARCHY: ['l1', 'template', 'location', 'l2', 'l3'],
+};
+
+/** Columns that MUST be present and non-empty per entity. All others are optional. */
+export const REQUIRED_COLUMNS: Record<ImportEntityType, string[]> = {
+  STUDENT: ['fullName'],
+  STAFF_MEMBER: ['fullName'],
+  ENROLLMENT: ['studentFullName', 'activityName', 'l2Name', 'startDate'],
+  EVENT: ['activityName', 'l2Name', 'date', 'startTime', 'endTime'],
+  TEACHING_ASSIGNMENT: ['staffEmail', 'activityName', 'l2Name', 'rateType', 'rateValue', 'startDate'],
+  ROOM: ['name'],
+  ACTIVITY: ['name', 'template'],
+  ACTIVITY_HIERARCHY: ['l1', 'template'],
 };
 
 const TEMPLATE_EXAMPLES: Record<ImportEntityType, string[][]> = {
@@ -21,6 +36,14 @@ const TEMPLATE_EXAMPLES: Record<ImportEntityType, string[][]> = {
   ENROLLMENT: [['Jane Smith', 'Piano', 'Beginner', '2024-09-01']],
   EVENT: [['Piano', 'Beginner', '2024-09-15', '09:00', '10:00', 'Room A']],
   TEACHING_ASSIGNMENT: [['john@music.com', 'Piano', 'Beginner', 'HOURLY', '150', '2024-09-01']],
+  ROOM: [['Room A', 'Grand piano, music stands x4']],
+  ACTIVITY: [['Piano', 'DISCIPLINE', 'Room A']],
+  ACTIVITY_HIERARCHY: [
+    ['Piano', 'DISCIPLINE', '', 'Strings', 'Violin'],
+    ['Piano', 'DISCIPLINE', '', 'Strings', 'Cello'],
+    ['Piano', 'DISCIPLINE', '', 'Wind', 'Flute'],
+    ['Ensembles', 'ENSEMBLE', '', '', 'Chamber Orchestra'],
+  ],
 };
 
 export function generateTemplate(entityType: ImportEntityType): string {
@@ -95,6 +118,12 @@ export function rowDuplicateKey(row: Record<string, string>, entityType: ImportE
       return [row['activityName'], row['l2Name'], row['date'], row['startTime']].join('|').toLowerCase();
     case 'TEACHING_ASSIGNMENT':
       return [row['staffEmail'], row['activityName'], row['l2Name']].join('|').toLowerCase();
+    case 'ROOM':
+      return (row['name'] ?? '').toLowerCase().trim();
+    case 'ACTIVITY':
+      return (row['name'] ?? '').toLowerCase().trim();
+    case 'ACTIVITY_HIERARCHY':
+      return [row['l1'] ?? '', row['l2'] ?? '', row['l3'] ?? ''].join('|').toLowerCase().trim();
   }
 }
 

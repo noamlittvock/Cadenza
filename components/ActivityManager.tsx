@@ -15,8 +15,11 @@ import { Modal } from './Modal';
 import {
   Plus, Edit2, Archive, RotateCcw, Layers, Trash2, Menu, LayoutGrid, List, X,
   GraduationCap, Briefcase, Music, Globe, Settings2, ArrowLeft, HelpCircle,
-  Users, UserPlus, UserMinus, ChevronRight, Sparkles,
+  Users, UserPlus, UserMinus, ChevronRight, Sparkles, ArrowUp, ArrowDown, CheckSquare,
 } from 'lucide-react';
+import { useListStyle } from '../utils/useListStyle';
+import { useSortState } from '../utils/useSortState';
+import { ImportExportDropdown } from './ImportExportDropdown';
 
 // ─── Template configuration (Section 06) ────────────────────────────────────
 
@@ -127,8 +130,11 @@ export const ActivityManager: React.FC<Props> = ({
   const [enrollmentsV2, setEnrollmentsV2] = useFirestoreSync<EnrollmentV2>(V2_COLLECTIONS.enrollments, []);
 
   // ─── UI State ────────────────────────────────────────────────────────────
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useListStyle(['grid', 'list']);
   const [showArchived, setShowArchived] = useState(false);
+  const { sortDirection, toggleSort } = useSortState<'name'>('name');
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -161,10 +167,11 @@ export const ActivityManager: React.FC<Props> = ({
   const [rosterStudentSearch, setRosterStudentSearch] = useState('');
 
   // ─── Derived data ────────────────────────────────────────────────────────
-  const visibleActivities = useMemo(() =>
-    activities.filter(a => showArchived || !a.isArchived),
-    [activities, showArchived]
-  );
+  const visibleActivities = useMemo(() => {
+    const base = activities.filter(a => showArchived || !a.isArchived);
+    const dir = sortDirection === 'asc' ? 1 : -1;
+    return [...base].sort((a, b) => a.name.toLocaleLowerCase().localeCompare(b.name.toLocaleLowerCase()) * dir);
+  }, [activities, showArchived, sortDirection]);
 
   const detailActivity = useMemo(() =>
     activities.find(a => a.id === detailActivityId) || null,
@@ -373,6 +380,223 @@ export const ActivityManager: React.FC<Props> = ({
       setActivities(prev => prev.filter(a => a.id !== id));
     }
   }, [isSuperAdmin, setActivities, t]);
+
+  // ─── Selection / Bulk actions ───────────────────────────────────────────
+  const toggleSelected = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleBulkArchive = useCallback(() => {
+    if (!isSuperAdmin || selectedIds.size === 0) return;
+    const count = selectedIds.size;
+    if (!window.confirm(t('activities.confirm_bulk_archive').replace('{n}', String(count)))) return;
+    const ids = selectedIds;
+    const tsNow = Timestamp.now();
+    const today = new Date().toISOString().slice(0, 10);
+    setActivities(prev => prev.map(a => ids.has(a.id) ? { ...a, isArchived: true, updatedAt: tsNow } : a));
+    setRosterMembers(prev => prev.map(r => ids.has(r.activityId) ? { ...r, isArchived: true, updatedAt: tsNow } : r));
+    setEventsV2(prev => prev.map(e =>
+      ids.has(e.activityId) && e.status === 'SCHEDULED' && e.date >= today
+        ? { ...e, status: 'ARCHIVED' as EventStatus, updatedAt: tsNow }
+        : e
+    ));
+    exitSelectMode();
+  }, [isSuperAdmin, selectedIds, setActivities, setRosterMembers, setEventsV2, t, exitSelectMode]);
+
+  const handleBulkPermanentDelete = useCallback(() => {
+    if (!isSuperAdmin || selectedIds.size === 0) return;
+    const count = selectedIds.size;
+    if (!window.confirm(t('activities.confirm_bulk_permanent_delete').replace('{n}', String(count)))) return;
+    const ids = selectedIds;
+    setActivities(prev => prev.filter(a => !ids.has(a.id)));
+    exitSelectMode();
+  }, [isSuperAdmin, selectedIds, setActivities, t, exitSelectMode]);
+
+  const handleBulkRestore = useCallback(() => {
+    if (!isSuperAdmin || selectedIds.size === 0) return;
+    const ids = selectedIds;
+    const tsNow = Timestamp.now();
+    setActivities(prev => prev.map(a => ids.has(a.id) ? { ...a, isArchived: false, updatedAt: tsNow } : a));
+    exitSelectMode();
+  }, [isSuperAdmin, selectedIds, setActivities, exitSelectMode]);
+
+  // ─── CSV Import ─────────────────────────────────────────────────────────
+  const csvExistingData = useMemo<Record<string, string>[]>(
+    () => activities.map(a => ({
+      name: a.name,
+      template: a.template || 'DISCIPLINE',
+      location: a.location || '',
+    })),
+    [activities],
+  );
+  const csvDuplicateKeys = useMemo(
+    () => new Set(activities.map(a => a.name.trim().toLowerCase())),
+    [activities],
+  );
+
+  // Hierarchy import — existing data flattened to l1/l2/l3 rows
+  const hierarchyCsvData = useMemo<Record<string, string>[]>(() => {
+    const rows: Record<string, string>[] = [];
+    activities.forEach(activity => {
+      const actL1s = l1Subs.filter(l => l.activityId === activity.id && !l.isArchived);
+      const actL2s = l2Subs.filter(l => l.activityId === activity.id && !l.isArchived);
+      if (actL1s.length === 0 && actL2s.length === 0) {
+        rows.push({ l1: activity.name, template: activity.template, location: activity.location ?? '', l2: '', l3: '' });
+        return;
+      }
+      actL1s.forEach(l1 => {
+        const children = actL2s.filter(l => l.l1Id === l1.id);
+        if (children.length === 0) {
+          rows.push({ l1: activity.name, template: activity.template, location: activity.location ?? '', l2: l1.name, l3: '' });
+        } else {
+          children.forEach(l2 => {
+            rows.push({ l1: activity.name, template: activity.template, location: activity.location ?? '', l2: l1.name, l3: l2.name });
+          });
+        }
+      });
+      actL2s.filter(l => !l.l1Id).forEach(l2 => {
+        rows.push({ l1: activity.name, template: activity.template, location: activity.location ?? '', l2: '', l3: l2.name });
+      });
+    });
+    return rows;
+  }, [activities, l1Subs, l2Subs]);
+
+  const hierarchyDuplicateKeys = useMemo(() => {
+    const set = new Set<string>();
+    l2Subs.forEach(l2 => {
+      const activity = activities.find(a => a.id === l2.activityId);
+      const l1 = l2.l1Id ? l1Subs.find(l => l.id === l2.l1Id) : null;
+      if (activity) {
+        set.add([activity.name, l1?.name ?? '', l2.name].join('|').toLowerCase());
+      }
+    });
+    return set;
+  }, [activities, l1Subs, l2Subs]);
+
+  const handleActivityImportComplete = useCallback((rows: Record<string, string>[]) => {
+    if (!isSuperAdmin) return;
+    const existingByName = new Map<string, ActivityV2>(
+      activities.map(a => [a.name.trim().toLowerCase(), a]),
+    );
+    const now = Timestamp.now();
+    const updates = new Map<string, Partial<ActivityV2>>();
+    const additions: ActivityV2[] = [];
+    rows.forEach(row => {
+      const name = (row['name'] || '').trim();
+      if (!name) return;
+      const rawTpl = (row['template'] || '').trim().toUpperCase();
+      const template = (ALL_TEMPLATES.includes(rawTpl as ActivityTemplate) ? rawTpl : 'DISCIPLINE') as ActivityTemplate;
+      const config = TEMPLATE_CONFIGS[template];
+      const location = (row['location'] || '').trim() || null;
+      const key = name.toLowerCase();
+      const existing = existingByName.get(key);
+      if (existing) {
+        updates.set(existing.id, { name, template, activityType: deriveActivityType(template), location, updatedAt: now });
+      } else {
+        additions.push({
+          id: generateId(), orgId: '', name, template,
+          activityType: deriveActivityType(template),
+          modules: { ...config.defaultModules },
+          location,
+          eventNameMode: config.eventNameMode,
+          isArchived: false,
+          createdAt: now, updatedAt: now,
+        });
+      }
+    });
+    setActivities(prev => [
+      ...prev.map(a => updates.has(a.id) ? { ...a, ...updates.get(a.id)! } : a),
+      ...additions,
+    ]);
+  }, [activities, isSuperAdmin, setActivities]);
+
+  const handleActivityHierarchyImportComplete = useCallback((rows: Record<string, string>[]) => {
+    if (!isSuperAdmin) return;
+    const now = Timestamp.now();
+
+    const activityByName = new Map<string, ActivityV2>(
+      activities.map(a => [a.name.trim().toLowerCase(), a]),
+    );
+    const l1ByKey = new Map<string, L1Subcategory>(
+      l1Subs.map(l => [`${l.activityId}|${l.name.trim().toLowerCase()}`, l]),
+    );
+    const l2ByKey = new Map<string, L2Subcategory>(
+      l2Subs.map(l => [`${l.activityId}|${l.l1Id ?? ''}|${l.name.trim().toLowerCase()}`, l]),
+    );
+
+    const activityAdditions: ActivityV2[] = [];
+    const l1Additions: L1Subcategory[] = [];
+    const l2Additions: L2Subcategory[] = [];
+    const newActivityIdByName = new Map<string, string>();
+    const newL1IdByKey = new Map<string, string>();
+
+    rows.forEach(row => {
+      const l1Name = (row['l1'] || '').trim();
+      if (!l1Name) return;
+      const rawTpl = (row['template'] || '').trim().toUpperCase();
+      const template = (ALL_TEMPLATES.includes(rawTpl as ActivityTemplate) ? rawTpl : 'DISCIPLINE') as ActivityTemplate;
+      const config = TEMPLATE_CONFIGS[template];
+      const location = (row['location'] || '').trim() || null;
+      const l2Name = (row['l2'] || '').trim();
+      const l3Name = (row['l3'] || '').trim();
+
+      const activityKey = l1Name.toLowerCase();
+      let activityId: string;
+      if (!activityByName.has(activityKey) && !newActivityIdByName.has(activityKey)) {
+        activityId = generateId();
+        newActivityIdByName.set(activityKey, activityId);
+        activityAdditions.push({
+          id: activityId, orgId: '', name: l1Name, template,
+          activityType: deriveActivityType(template),
+          modules: { ...config.defaultModules },
+          location, eventNameMode: config.eventNameMode,
+          isArchived: false, createdAt: now, updatedAt: now,
+        });
+      } else {
+        activityId = activityByName.get(activityKey)?.id ?? newActivityIdByName.get(activityKey)!;
+      }
+
+      if (!l2Name) return;
+
+      const l1Key = `${activityId}|${l2Name.toLowerCase()}`;
+      let l1Id: string;
+      if (!l1ByKey.has(l1Key) && !newL1IdByKey.has(l1Key)) {
+        l1Id = generateId();
+        newL1IdByKey.set(l1Key, l1Id);
+        l1Additions.push({
+          id: l1Id, orgId: '', activityId,
+          name: l2Name, isArchived: false, createdAt: now, updatedAt: now,
+        });
+      } else {
+        l1Id = l1ByKey.get(l1Key)?.id ?? newL1IdByKey.get(l1Key)!;
+      }
+
+      if (!l3Name) return;
+
+      const l2Key = `${activityId}|${l1Id}|${l3Name.toLowerCase()}`;
+      if (!l2ByKey.has(l2Key)) {
+        l2ByKey.set(l2Key, {} as L2Subcategory);
+        l2Additions.push({
+          id: generateId(), orgId: '', activityId, l1Id,
+          name: l3Name, defaultRate: null,
+          isArchived: false, createdAt: now, updatedAt: now,
+        });
+      }
+    });
+
+    if (activityAdditions.length) setActivities(prev => [...prev, ...activityAdditions]);
+    if (l1Additions.length) setL1Subs(prev => [...prev, ...l1Additions]);
+    if (l2Additions.length) setL2Subs(prev => [...prev, ...l2Additions]);
+  }, [activities, l1Subs, l2Subs, isSuperAdmin, setActivities, setL1Subs, setL2Subs]);
 
   // ─── L1 / L2 CRUD ───────────────────────────────────────────────────────
 
@@ -825,6 +1049,14 @@ export const ActivityManager: React.FC<Props> = ({
             <Archive size={16} />
             {t('activities.show_archived')}
           </button>
+          <button
+            onClick={() => toggleSort('name')}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            title={t('sort.alphabetical') || 'Sort A–Z'}
+          >
+            {sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+            <span className="text-xs font-medium">{sortDirection === 'asc' ? 'A→Z' : 'Z→A'}</span>
+          </button>
           <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
             <button onClick={() => setViewMode('grid')} className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
               <LayoutGrid size={16} />
@@ -835,6 +1067,42 @@ export const ActivityManager: React.FC<Props> = ({
           </div>
           {isSuperAdmin && (
             <button
+              onClick={() => { if (selectMode) exitSelectMode(); else setSelectMode(true); }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border transition-colors ${selectMode
+                ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
+                : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+              }`}
+            >
+              <CheckSquare size={16} />
+              {selectMode ? t('activities.cancel_selection') : t('activities.select')}
+            </button>
+          )}
+          {isSuperAdmin && (
+            <ImportExportDropdown
+              entityType="ACTIVITY"
+              label={settings.language === 'he-IL' ? 'פעילויות' : 'Activities'}
+              existingData={csvExistingData}
+              existingDuplicateKeys={csvDuplicateKeys}
+              dependencyMaps={{ activityByName: {}, l2ByName: {}, staffByEmail: {}, studentByName: {} }}
+              settings={settings}
+              canWrite={true}
+              onImportComplete={handleActivityImportComplete}
+            />
+          )}
+          {isSuperAdmin && (
+            <ImportExportDropdown
+              entityType="ACTIVITY_HIERARCHY"
+              label={settings.language === 'he-IL' ? 'היררכיה' : 'Hierarchy'}
+              existingData={hierarchyCsvData}
+              existingDuplicateKeys={hierarchyDuplicateKeys}
+              dependencyMaps={{ activityByName: {}, l2ByName: {}, staffByEmail: {}, studentByName: {} }}
+              settings={settings}
+              canWrite={true}
+              onImportComplete={handleActivityHierarchyImportComplete}
+            />
+          )}
+          {isSuperAdmin && (
+            <button
               onClick={() => setTemplatePickerOpen(true)}
               className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft px-4 py-2 rounded-lg flex items-center"
             >
@@ -843,6 +1111,61 @@ export const ActivityManager: React.FC<Props> = ({
           )}
         </div>
       </div>
+
+      {/* Bulk Action Bar (selection mode) */}
+      {selectMode && (
+        <div className="sticky top-0 z-20 mb-4 flex items-center justify-between gap-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-2.5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+              {t('activities.selected_count').replace('{n}', String(selectedIds.size))}
+            </span>
+            <button
+              onClick={() => {
+                const allIds = new Set(visibleActivities.map(a => a.id));
+                setSelectedIds(prev => prev.size === allIds.size ? new Set() : allIds);
+              }}
+              className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              {t('activities.select_all')}
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            {showArchived ? (
+              <>
+                <button
+                  onClick={handleBulkRestore}
+                  disabled={selectedIds.size === 0}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 inline-flex items-center gap-1.5"
+                >
+                  <RotateCcw size={14} /> {t('activities.bulk_restore')}
+                </button>
+                <button
+                  onClick={handleBulkPermanentDelete}
+                  disabled={selectedIds.size === 0}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 inline-flex items-center gap-1.5"
+                >
+                  <Trash2 size={14} /> {t('activities.bulk_permanent_delete')}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={handleBulkArchive}
+                disabled={selectedIds.size === 0}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 inline-flex items-center gap-1.5"
+              >
+                <Archive size={14} /> {t('activities.bulk_archive')}
+              </button>
+            )}
+            <button
+              onClick={exitSelectMode}
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 dark:hover:text-slate-200"
+              title={t('activities.cancel_selection')}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Activity Grid / List */}
       {visibleActivities.length === 0 ? (
@@ -856,14 +1179,27 @@ export const ActivityManager: React.FC<Props> = ({
             const Icon = config.icon;
             const l2Count = l2Subs.filter(l => l.activityId === activity.id && !l.isArchived).length;
 
+            const isSelected = selectedIds.has(activity.id);
             return (
               <div
                 key={activity.id}
-                onClick={() => { setDetailActivityId(activity.id); setDetailTab('hierarchy'); }}
-                className={`bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 flex flex-col hover:shadow-md transition-shadow cursor-pointer ${activity.isArchived ? 'opacity-60' : ''}`}
+                onClick={() => {
+                  if (selectMode) toggleSelected(activity.id);
+                  else { setDetailActivityId(activity.id); setDetailTab('hierarchy'); }
+                }}
+                className={`bg-white dark:bg-slate-900 rounded-xl shadow-sm border p-6 flex flex-col hover:shadow-md transition-shadow cursor-pointer ${activity.isArchived ? 'opacity-60' : ''} ${selectMode && isSelected ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-900' : 'border-slate-200 dark:border-slate-800'}`}
               >
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center space-x-3 rtl:space-x-reverse">
+                    {selectMode && (
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelected(activity.id)}
+                        onClick={e => e.stopPropagation()}
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    )}
                     <div className={`p-2 rounded-lg bg-${config.color}-100 dark:bg-${config.color}-900/50 text-${config.color}-600 dark:text-${config.color}-300`}>
                       <Icon size={20} />
                     </div>
@@ -909,6 +1245,19 @@ export const ActivityManager: React.FC<Props> = ({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                {selectMode && (
+                  <th className="px-4 py-2 w-10">
+                    <input
+                      type="checkbox"
+                      checked={visibleActivities.length > 0 && visibleActivities.every(a => selectedIds.has(a.id))}
+                      onChange={() => {
+                        const allIds = new Set(visibleActivities.map(a => a.id));
+                        setSelectedIds(prev => prev.size === allIds.size ? new Set() : allIds);
+                      }}
+                      className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
+                )}
                 <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">{t('activities.name')}</th>
                 <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hidden md:table-cell">{t('activities.type')}</th>
                 <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hidden lg:table-cell">{t('activities.subcategories')}</th>
@@ -920,11 +1269,25 @@ export const ActivityManager: React.FC<Props> = ({
                 const config = getActivityConfig(activity);
                 const Icon = config.icon;
                 const l2Count = l2Subs.filter(l => l.activityId === activity.id && !l.isArchived).length;
+                const isSelected = selectedIds.has(activity.id);
                 return (
                   <tr key={activity.id}
-                    onClick={() => { setDetailActivityId(activity.id); setDetailTab('hierarchy'); }}
-                    className={`border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer ${activity.isArchived ? 'opacity-60' : ''}`}
+                    onClick={() => {
+                      if (selectMode) toggleSelected(activity.id);
+                      else { setDetailActivityId(activity.id); setDetailTab('hierarchy'); }
+                    }}
+                    className={`border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer ${activity.isArchived ? 'opacity-60' : ''} ${selectMode && isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
                   >
+                    {selectMode && (
+                      <td className="px-4 py-3 w-10" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelected(activity.id)}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className={`p-1.5 rounded-lg bg-${config.color}-100 dark:bg-${config.color}-900/50 text-${config.color}-600 dark:text-${config.color}-300`}>
