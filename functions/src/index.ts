@@ -12,7 +12,6 @@ export { onStaffMemberWrite } from "./triggers/syncUserProfile";
 // Callable stubs (implementation in later phases)
 export { resolveRate } from "./callable/resolveRate";
 export { computeDuration } from "./callable/computeDuration";
-export { generatePayslip } from "./callable/generatePayslip";
 
 // --- Types (mirror of client-side types relevant to iCal generation) ---
 
