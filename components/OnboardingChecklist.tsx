@@ -2,7 +2,7 @@
  * OnboardingChecklist — Phase 11
  *
  * Two roles:
- *  1. "Hard gate" screen — shown instead of locked views (CALENDAR/STUDENTS/PAYSLIPS)
+ *  1. "Hard gate" screen — shown instead of locked views (CALENDAR/STUDENTS)
  *     when isFirstAdmin && !setupGateCleared.
  *  2. "Gate cleared" celebration — shown once setup is complete with a dismiss CTA.
  *

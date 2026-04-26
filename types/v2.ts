@@ -92,7 +92,6 @@ export interface FirstUseFlags {
   studentModule: boolean;
   eventCreation: boolean;
   enrollment: boolean;
-  payslips: boolean;
 }
 
 /** Section 05 — ImportRowResult (embedded in ImportSession) */

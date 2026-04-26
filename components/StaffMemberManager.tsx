@@ -309,7 +309,7 @@ export const StaffMemberManager: React.FC<Props> = ({
 
   const DEFAULT_FIRST_USE_FLAGS: FirstUseFlags = {
     activityHub: false, staffModule: false, studentModule: false,
-    eventCreation: false, enrollment: false, payslips: false,
+    eventCreation: false, enrollment: false,
   };
 
   const handleStaffImportComplete = useCallback((rows: Record<string, string>[]) => {
@@ -449,7 +449,7 @@ export const StaffMemberManager: React.FC<Props> = ({
         isFirstAdmin: false, onboardingDismissed: false,
         firstUseFlags: {
           activityHub: false, staffModule: false, studentModule: false,
-          eventCreation: false, enrollment: false, payslips: false,
+          eventCreation: false, enrollment: false,
         },
         documents: [],
       };

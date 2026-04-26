@@ -44,7 +44,6 @@ test('#70 no JavaScript console errors while navigating all major views', async 
   // Navigate through all major views and let each settle briefly
   const views = [
     'CALENDAR',
-    'FINANCIAL',
     'STAFF_MEMBERS',
     'STUDENTS',
     'MANAGE',
@@ -129,33 +128,4 @@ test('#72 sidebar nav and main content buttons are not obscured by invisible ove
     ).toBe(true);
   }
 
-  // ── Check 3: FINANCIAL view — tab buttons are reachable ──────────────────────
-
-  await gotoView(page, 'FINANCIAL');
-  await page.waitForTimeout(300);
-
-  const analysisButton = page.getByRole('button', { name: 'Analysis' });
-  await expect(analysisButton).toBeVisible({ timeout: 8_000 });
-  const analysisBox = await analysisButton.boundingBox();
-
-  if (analysisBox) {
-    const cx = analysisBox.x + analysisBox.width / 2;
-    const cy = analysisBox.y + analysisBox.height / 2;
-
-    const analysisReachable = await page.evaluate(({ x, y }) => {
-      const el = document.elementFromPoint(x, y);
-      if (!el) return false;
-      let curr: Element | null = el;
-      while (curr) {
-        if (curr.tagName === 'BUTTON') return true;
-        curr = curr.parentElement;
-      }
-      return false;
-    }, { x: cx, y: cy });
-
-    expect(
-      analysisReachable,
-      `Analysis tab button at (${cx}, ${cy}) is obscured by an overlay`
-    ).toBe(true);
-  }
 });

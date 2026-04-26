@@ -184,7 +184,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
                 onboardingDismissed: true,
                 firstUseFlags: {
                   activityHub: true, staffModule: true, studentModule: true,
-                  eventCreation: true, enrollment: true, payslips: true,
+                  eventCreation: true, enrollment: true,
                 },
                 startDate: null,
                 documents: [],

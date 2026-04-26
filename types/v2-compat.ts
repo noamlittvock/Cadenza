@@ -25,7 +25,6 @@ const DEFAULT_FIRST_USE_FLAGS: FirstUseFlags = {
   studentModule: false,
   eventCreation: false,
   enrollment: false,
-  payslips: false,
 };
 
 const DEFAULT_MODULES: ModulesConfig = {

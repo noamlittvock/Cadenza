@@ -544,7 +544,7 @@ export const generateDevInbox = (teachers: Teacher[], students: Student[]): Admi
     {
       id: uid(), orgId: '', type: 'TASK', status: 'OPEN',
       title: `Review hours report — ${teachers[0]?.fullName ?? 'Teacher 1'}`,
-      message: 'Monthly hours report has been submitted and requires admin review before payroll closes.',
+      message: 'Monthly hours report has been submitted and requires admin review.',
       relatedEntityType: 'TEACHER', relatedEntityIds: [teachers[0]?.id ?? 'T1'],
       createdAt: addDays(now, -5).toISOString(),
     },

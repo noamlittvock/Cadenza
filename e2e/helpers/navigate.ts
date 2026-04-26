@@ -6,7 +6,6 @@ export const BASE_URL = `http://localhost:3000/${TEST_ORG}`;
 /** Map of ViewState → English nav label as rendered by the app */
 const NAV_LABELS: Record<string, string> = {
   CALENDAR: 'Smart Calendar',
-  FINANCIAL: 'Financial',
   STAFF_MEMBERS: 'Staff Members',
   STUDENTS: 'Students',
   MANAGE: 'Manage',
@@ -14,7 +13,6 @@ const NAV_LABELS: Record<string, string> = {
   SETTINGS: 'Settings',
   SUPER_ADMIN: 'Super Admin',
   DOCUMENTS: 'Documents',
-  PAYSLIPS: 'Payslip Generator',
 };
 
 /**

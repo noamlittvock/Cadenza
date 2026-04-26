@@ -10,7 +10,6 @@ test.describe('Navigation — routing, sidebar, dark mode, mobile', () => {
   test('#11 all nav items are visible', async ({ page }) => {
     const labels = [
       'Smart Calendar',
-      'Financial',
       'Staff Members',
       'Students',
       'Manage',
@@ -18,7 +17,6 @@ test.describe('Navigation — routing, sidebar, dark mode, mobile', () => {
       'Settings',
       'Super Admin',
       'Documents',
-      'Payslip Generator',
     ];
     for (const label of labels) {
       await expect(page.getByRole('button', { name: label })).toBeVisible();
@@ -28,14 +26,12 @@ test.describe('Navigation — routing, sidebar, dark mode, mobile', () => {
   // #12 — Clicking nav items switches views without crashing
   test('#12 clicking nav items switches views', async ({ page }) => {
     const views = [
-      'FINANCIAL',
       'STAFF_MEMBERS',
       'STUDENTS',
       'MANAGE',
       'ADMIN_INBOX',
       'SETTINGS',
       'DOCUMENTS',
-      'PAYSLIPS',
       'SUPER_ADMIN',
       'CALENDAR',
     ] as const;

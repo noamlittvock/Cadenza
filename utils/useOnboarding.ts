@@ -5,7 +5,7 @@
  *   userProfiles/{uid}_{orgId}  — per-user flags (isFirstAdmin, onboardingDismissed, firstUseFlags)
  *   onboardingState/{orgId}     — per-org milestone flags (activitiesCreated, setupGateCleared, …)
  *
- * Gate rule: isFirstAdmin && !setupGateCleared → hard gate (blocks CALENDAR/STUDENTS/PAYSLIPS).
+ * Gate rule: isFirstAdmin && !setupGateCleared → hard gate (blocks CALENDAR/STUDENTS).
  * SuperAdmin bypasses all gates.
  */
 
@@ -22,7 +22,6 @@ export interface FirstUseFlags {
   studentModule: boolean;
   eventCreation: boolean;
   enrollment: boolean;
-  payslips: boolean;
 }
 
 export interface OrgOnboardingState {
@@ -58,7 +57,6 @@ const DEFAULT_FLAGS: FirstUseFlags = {
   studentModule: false,
   eventCreation: false,
   enrollment: false,
-  payslips: false,
 };
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────

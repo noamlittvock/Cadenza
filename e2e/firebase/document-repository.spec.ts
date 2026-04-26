@@ -7,15 +7,15 @@
  * the Claude-Overhaul branch but was NOT ported to cadenza-v2.
  *
  * The cadenza-v2 DOCUMENTS view is `DocumentTemplates` — an HTML template
- * generator with 3 selector cards (hourly self-report, financial summary,
- * student report card), an iframe preview, and a Copy HTML button.
+ * generator with selector cards (hourly self-report, student report card),
+ * an iframe preview, and a Copy HTML button.
  *
  * Decision (2026-03-12): Replace #33-36 stubs with tests for what
  * DocumentTemplates actually does. Items #33-36 are marked n/a for cadenza-v2.
  * ─────────────────────────────────────────────────────────────────────────────
  *
  * Tests:
- *   - DOCUMENTS view loads with all 3 template selector cards
+ *   - DOCUMENTS view loads with template selector cards
  *   - Clicking a different card updates the active selection (border-emerald-500)
  *   - Copy HTML button is visible in the preview area
  */
@@ -27,9 +27,7 @@ test('Documents view loads with template selector cards', async ({ page }) => {
   await loadApp(page);
   await gotoView(page, 'DOCUMENTS');
 
-  // All 3 template cards visible
   await expect(page.getByRole('button', { name: /Hourly Self-Report/i })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Financial Summary/i })).toBeVisible();
   await expect(page.getByRole('button', { name: /Student Report Card/i })).toBeVisible();
 });
 
@@ -42,10 +40,10 @@ test('Clicking a template card activates it (emerald border)', async ({ page }) 
   await expect(hourlyBtn).toBeVisible();
   await expect(hourlyBtn).toHaveClass(/border-emerald-500/);
 
-  // Click Financial Summary — it should become active
-  const financialBtn = page.getByRole('button', { name: /Financial Summary/i });
-  await financialBtn.click();
-  await expect(financialBtn).toHaveClass(/border-emerald-500/);
+  // Click Student Report Card — it should become active
+  const reportBtn = page.getByRole('button', { name: /Student Report Card/i });
+  await reportBtn.click();
+  await expect(reportBtn).toHaveClass(/border-emerald-500/);
 
   // Hourly Self-Report is no longer active
   await expect(hourlyBtn).not.toHaveClass(/border-emerald-500/);

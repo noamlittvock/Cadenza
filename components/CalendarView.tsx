@@ -177,7 +177,7 @@ export const CalendarView: React.FC<Props> = ({
         durationMinutes: Math.max(0, durationMinutes),
         isRecurring: false, recurringGroupId: null,
         status: 'SCHEDULED' as const,
-        revenueItems: null, notes: null,
+        notes: null,
         createdAt: now, updatedAt: now,
       };
     });
@@ -2372,7 +2372,6 @@ export const CalendarView: React.FC<Props> = ({
             location: '',
             roomId: editingEvent.roomId || '',
             isCanceled: editingEvent.isCanceled || false,
-            cancellationPayStatus: editingEvent.cancellationPayStatus,
             recurrenceRule: editingEvent.recurrenceRule,
             notes: '',
           } : undefined}
