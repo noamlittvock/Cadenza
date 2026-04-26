@@ -27,13 +27,12 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
     const [searchQuery, setSearchQuery] = useState('');
     const [autoTranslateLoading, setAutoTranslateLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
-    const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set(['Operations', 'Admin', 'Analytics', 'System', 'Other']));
+    const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set(['Operations', 'Admin', 'System', 'Other']));
 
     // Navigation hierarchy
     const NAV_HIERARCHY: Record<string, string[]> = {
         Operations: ['CalendarView', 'GanttManager', 'PowerTools'],
         Admin: ['TeacherManager', 'ManageHub', 'RoomManager', 'ManageLists', 'SuperAdmin', 'TranslationManager'],
-        Analytics: ['FinancialDashboard', 'FinancialAnalysis', 'ChartBuilderModal', 'ChartRenderer'],
         System: ['App', 'AuthContext', 'Layout', 'Modal', 'Settings'],
     };
 
