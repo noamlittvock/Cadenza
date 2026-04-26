@@ -3,7 +3,6 @@ import {
   validateEventForm,
   isStudentEnrolled,
   detectOverlappingAssignments,
-  hasBillingModuleConflict,
   EventFormInput,
   ActivityModules,
   EnrollmentRecord,
@@ -276,32 +275,3 @@ describe('detectOverlappingAssignments', () => {
   });
 });
 
-// ─── Section 15: Billing Module Conflict ────────────────────────────────────
-
-describe('hasBillingModuleConflict', () => {
-  it('returns true when both staffBilling and orgRoleBilling enabled', () => {
-    expect(hasBillingModuleConflict({
-      ...baseModules,
-      staffBilling: true,
-      orgRoleBilling: true,
-    })).toBe(true);
-  });
-
-  it('returns false when only staffBilling enabled', () => {
-    expect(hasBillingModuleConflict({
-      ...baseModules,
-      staffBilling: true,
-    })).toBe(false);
-  });
-
-  it('returns false when only orgRoleBilling enabled', () => {
-    expect(hasBillingModuleConflict({
-      ...baseModules,
-      orgRoleBilling: true,
-    })).toBe(false);
-  });
-
-  it('returns false when neither enabled', () => {
-    expect(hasBillingModuleConflict(baseModules)).toBe(false);
-  });
-});

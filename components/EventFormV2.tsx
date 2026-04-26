@@ -266,7 +266,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
 
   // Staff with active teaching assignments for this activity + L2
   const eligibleStaff = useMemo(() => {
-    if (!modules.staffBilling) return [];
+    if (template === 'ADMINISTRATIVE') return [];
     return staffMembers.filter(sm => {
       if (sm.isArchived) return false;
       return teachingAssignments.some(ta =>
@@ -278,7 +278,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
         (!ta.endDate || ta.endDate >= form.date)
       );
     });
-  }, [staffMembers, teachingAssignments, form.activityId, form.l2Id, form.date, modules.staffBilling]);
+  }, [staffMembers, teachingAssignments, form.activityId, form.l2Id, form.date, template]);
 
   // Org roles for selected staff (administrative template)
   const getActiveOrgRoles = useCallback((staffMemberId: string) => {
@@ -361,14 +361,14 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
     }
 
     // Staff required for DISCIPLINE/PROGRAM
-    if (modules.staffBilling && (template === 'DISCIPLINE' || template === 'PROGRAM')) {
+    if (template === 'DISCIPLINE' || template === 'PROGRAM') {
       if (form.staffParticipants.length === 0) {
         errs.staff = t('event.v2.err_staff_required');
       }
     }
 
     // Org role required for ADMINISTRATIVE
-    if (modules.orgRoleBilling && template === 'ADMINISTRATIVE') {
+    if (template === 'ADMINISTRATIVE') {
       if (form.staffParticipants.length === 0) {
         errs.staff = t('event.v2.err_role_required');
       }
@@ -389,7 +389,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
     }
 
     // Assignment date range check: staff added for one date may be out of range if date changed
-    if (modules.staffBilling && !errs.staff) {
+    if (template !== 'ADMINISTRATIVE' && !errs.staff) {
       for (const sp of form.staffParticipants) {
         if (sp.assignmentType !== 'TEACHING') continue;
         const active = resolveAssignment(sp.staffMemberId);
@@ -818,8 +818,8 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
             </div>
           )}
 
-          {/* ── Staff Billing Module ── */}
-          {modules.staffBilling && (
+          {/* ── Staff (non-ADMINISTRATIVE templates) ── */}
+          {template !== 'ADMINISTRATIVE' && (
             <div>
               <label className={labelCls}>
                 {t('event.v2.staff')}
@@ -859,8 +859,8 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
             </div>
           )}
 
-          {/* ── Org Role Billing Module (Administrative) ── */}
-          {modules.orgRoleBilling && (
+          {/* ── Org Role (Administrative templates) ── */}
+          {template === 'ADMINISTRATIVE' && (
             <div>
               <label className={labelCls}>
                 {t('event.v2.org_role')} <span className="text-red-500">*</span>

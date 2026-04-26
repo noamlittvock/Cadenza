@@ -80,14 +80,14 @@ export function validateEventForm(input: EventFormInput): ValidationError[] {
   }
 
   // Staff required for DISCIPLINE/PROGRAM
-  if (input.modules.staffBilling && (input.template === 'DISCIPLINE' || input.template === 'PROGRAM')) {
+  if (input.template === 'DISCIPLINE' || input.template === 'PROGRAM') {
     if (input.staffParticipantCount === 0) {
       errors.push({ field: 'staff', messageKey: 'event.v2.err_staff_required' });
     }
   }
 
   // Org role required for ADMINISTRATIVE
-  if (input.modules.orgRoleBilling && input.template === 'ADMINISTRATIVE') {
+  if (input.template === 'ADMINISTRATIVE') {
     if (input.staffParticipantCount === 0) {
       errors.push({ field: 'staff', messageKey: 'event.v2.err_role_required' });
     }
@@ -175,13 +175,3 @@ export function detectOverlappingAssignments(
  * Section 15: Two TeachingAssignments for same (staffMemberId, activityId) but different l2Ids — Allow.
  * This is explicitly checked by the caller: overlap detection only matches same l2Id.
  */
-
-// ─── Billing Module Conflict Detection ──────────────────────────────────────
-
-/**
- * Section 15: "Activity has both staffBilling and orgRoleBilling modules enabled"
- * Treat as configuration conflict. Block activity save.
- */
-export function hasBillingModuleConflict(modules: ActivityModules): boolean {
-  return modules.staffBilling && modules.orgRoleBilling;
-}
