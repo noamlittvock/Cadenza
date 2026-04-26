@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { ChevronRight, ChevronLeft, X } from 'lucide-react';
 import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState, Student, CalendarSubscription, HoursReport, AdminInboxItem } from './types';
 import type { ActivityV2 } from './types/v2';
-import { ChartConfiguration } from './types/chartBuilder';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, TRANSLATIONS, migrateTeacher, generateId } from './constants';
 
 const t = (key: string) => {
@@ -120,7 +119,6 @@ function AppContent() {
   const [adminInboxItems, setAdminInboxItems] = useFirestoreSync<AdminInboxItem>('adminInboxItems', []);
   const [settings, setSettings] = useFirestoreSettings<AppSettings>('settings', INITIAL_SETTINGS);
   const [lists, setLists] = useFirestoreSettings<ListsState>('lists', INITIAL_LISTS);
-  const [savedCharts, setSavedCharts] = useFirestoreSettings<ChartConfiguration[]>('customCharts', []);
 
   // QA Scenario State
   const [activeScenario, setActiveScenario] = useState<import('./utils/testTemplates').QAScenario | null>(null);
@@ -517,12 +515,9 @@ function AppContent() {
                 setStudents([]);
                 setActivities([]);
                 setAdminInboxItems([]);
-                setSavedCharts([]);
                 setHoursReports([]);
                 setCalendarSubscriptions([]);
                 setLists(INITIAL_LISTS);
-                localStorage.removeItem('financial-analysis-custom-insights');
-                localStorage.removeItem('financial-analysis-visible-insights');
 
                 // 2. Delete Firestore documents so listeners don't re-populate state
                 if (orgId) {
@@ -552,9 +547,8 @@ function AppContent() {
                       wipeCol(V2_COLLECTIONS.activities),
                       wipeCol(V2_COLLECTIONS.l1Subcategories),
                       wipeCol(V2_COLLECTIONS.l2Subcategories),
-                      // system_configs single-doc settings (lists, customCharts)
+                      // system_configs single-doc settings
                       deleteDoc(doc(db, 'system_configs', `${orgId}_lists`)),
-                      deleteDoc(doc(db, 'system_configs', `${orgId}_customCharts`)),
                     ]);
                   } catch (err) {
                     console.warn('[onWipeData] Firestore wipe error (non-fatal):', err);
@@ -562,7 +556,6 @@ function AppContent() {
                 }
             }}
             setTeachers={setTeachers}
-            setSavedCharts={setSavedCharts}
             setHoursReports={setHoursReports}
             setRooms={setRooms}
             setGanttBlocks={setGanttBlocks}

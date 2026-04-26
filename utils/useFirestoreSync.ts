@@ -3,7 +3,6 @@ import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, writeBatc
 import { db } from './firebase';
 import { useAuth } from '../context/AuthContext';
 import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, ListsState } from '../types';
-import { ChartConfiguration } from '../types/chartBuilder';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS } from '../constants';
 
 // ─── Shared listener registry ────────────────────────────────────────────────

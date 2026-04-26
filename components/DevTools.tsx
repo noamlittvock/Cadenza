@@ -25,7 +25,6 @@ interface DevToolsProps {
   students: Student[];
   rooms: Room[];
   setTeachers?: (data: any[]) => void;
-  setSavedCharts?: (data: any[]) => void;
   setHoursReports?: (data: any[]) => void;
   setRooms?: (data: any[]) => void;
   setGanttBlocks?: (data: any[]) => void;
@@ -41,7 +40,7 @@ interface DevToolsProps {
 
 export const DevTools: React.FC<DevToolsProps> = ({
   settings, events, setEvents, activities, teachers, students, rooms,
-  setTeachers, setSavedCharts, setHoursReports, setRooms, setGanttBlocks,
+  setTeachers, setHoursReports, setRooms, setGanttBlocks,
   setActivities, setStudents, setAdminInboxItems, lists, setLists, onWipeData,
   onNavigateToView, onActivateScenario,
 }) => {
@@ -95,7 +94,6 @@ export const DevTools: React.FC<DevToolsProps> = ({
       setActivities?.([]);
       setStudents?.([]);
       setAdminInboxItems?.([]);
-      setSavedCharts?.([]);
       setHoursReports?.([]);
       setLists?.({ positions: [], tags: [], employmentTypes: [], absenceReasons: [] });
 
@@ -122,7 +120,6 @@ export const DevTools: React.FC<DevToolsProps> = ({
             wipeV2Col(V2_COLLECTIONS.l1Subcategories),
             wipeV2Col(V2_COLLECTIONS.l2Subcategories),
             // system_configs single-doc settings
-            deleteDoc(doc(db, 'system_configs', `${orgId}_customCharts`)),
             deleteDoc(doc(db, 'system_configs', `${orgId}_lists`)),
           ]);
         } catch (firestoreErr) {
@@ -152,7 +149,6 @@ export const DevTools: React.FC<DevToolsProps> = ({
       setActivities?.(data.activities);
       setStudents?.(data.students);
       setAdminInboxItems?.(data.adminInboxItems);
-      setSavedCharts?.(data.savedCharts);
       setHoursReports?.(data.hoursReports);
 
       // Populate ManageLists from generated data

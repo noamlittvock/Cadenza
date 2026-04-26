@@ -4,7 +4,6 @@ import { Page } from '@playwright/test';
 export const TEMPLATE_IDS = {
   CALENDAR_HAPPY_PATH: 'calendar-happy-path',
   ROOM_CONFLICTS: 'room-conflicts',
-  FINANCIAL_DASHBOARD: 'financial-dashboard',
   STUDENT_MANAGER: 'student-manager',
   STAFF_MANAGER: 'staff-manager',
   ADMIN_INBOX: 'admin-inbox',

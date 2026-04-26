@@ -153,23 +153,6 @@ export default async function globalSetup(): Promise<void> {
       isArchived: false,
     });
 
-    // ── Saved charts ──────────────────────────────────────────────────────────
-
-    // Pre-seeded chart for financial persistence test (#23).
-    // Stored using useFirestoreSettings array pattern: { _items: [...], orgId }.
-    await seedDoc('system_configs', `${TEST_ORG}_customCharts`, {
-      orgId: TEST_ORG,
-      _items: [{
-        id: 'chart-seed-1',
-        title: 'Seeded Chart',
-        dataSource: 'financial-dashboard',
-        dimension: 'teacher',
-        metrics: [{ metricId: 'totalHours', aggregation: 'SUM' }],
-        visualization: 'bar',
-        filterMode: 'live',
-      }],
-    });
-
     console.log('[global-setup] Emulator seeded successfully.');
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

@@ -9,7 +9,6 @@
  * Live tests:
  *   #37/#38 — Calendar Happy Path: template wipes + navigates to CALENDAR
  *   #39     — Room Conflicts: amber ring on conflicting event blocks
- *   #40     — Financial Dashboard: FINANCIAL view with charts section
  *   #41     — Student Manager: ≥10 student avatars after student-manager template
  *   #42     — Staff Manager: ≥20 staff cards after staff-manager template
  *   #43     — Admin Inbox: inbox view has items after template
@@ -49,23 +48,6 @@ test('#39 Room Conflicts: amber conflict ring visible on conflicting calendar ev
   //   ring-2 ring-amber-500 ring-offset-1 on the event block container div
   const conflictBlock = page.locator('[class*="ring-amber-500"]').first();
   await expect(conflictBlock).toBeVisible({ timeout: 8_000 });
-});
-
-// ── #40 — Financial Dashboard ────────────────────────────────────────────────
-
-test('#40 Financial Dashboard: navigates to FINANCIAL with charts section', async ({ page }) => {
-  await loadApp(page);
-  await applyTestTemplate(page, TEMPLATE_IDS.FINANCIAL_DASHBOARD, 5_000);
-
-  // Template navigates to FINANCIAL — switch to Analysis tab to verify chart data
-  await gotoView(page, 'FINANCIAL');
-  await page.getByRole('button', { name: 'Analysis' }).click();
-
-  // Charts section should be visible (either a seeded chart or "Create your first chart" empty state)
-  // Financial dashboard was seeded with savedCharts — expect at least one chart heading
-  await expect(
-    page.locator('h4').first()
-  ).toBeVisible({ timeout: 10_000 });
 });
 
 // ── #41 — Student Manager ─────────────────────────────────────────────────────

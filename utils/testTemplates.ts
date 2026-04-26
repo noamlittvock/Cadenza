@@ -20,7 +20,6 @@ export type DataModule =
   | 'students'
   | 'ganttBlocks'
   | 'hoursReports'
-  | 'savedCharts'
   | 'adminInboxItems'
   | 'subscriptions';
 
@@ -103,9 +102,9 @@ export const TEST_TEMPLATES: TestTemplate[] = [
   {
     id: 'full-stress-test',
     label: 'Full Stress Test',
-    description: '25 teachers · 7 activities · ~300 events (recurring, conflicts, blackouts) · 12 students · 15 Gantt blocks · inbox · charts. Maximum coverage across all views.',
+    description: '25 teachers · 7 activities · ~300 events (recurring, conflicts, blackouts) · 12 students · 15 Gantt blocks · inbox. Maximum coverage across all views.',
     targetView: 'CALENDAR',
-    modules: ['teachers', 'rooms', 'activities', 'events', 'students', 'ganttBlocks', 'hoursReports', 'savedCharts', 'adminInboxItems', 'subscriptions'],
+    modules: ['teachers', 'rooms', 'activities', 'events', 'students', 'ganttBlocks', 'hoursReports', 'adminInboxItems', 'subscriptions'],
     color: 'green',
   },
 ];
@@ -242,7 +241,6 @@ import {
   generateDevGantts,
   generateDevInbox,
   generateDevHoursReports,
-  generateDevCharts,
   generateDevSubscriptions,
   applyBlackoutHiding,
   linkTeachersToActivities,
@@ -253,7 +251,6 @@ import {
   AdminInboxItem, HoursReport, CalendarSubscription,
 } from '../types';
 import type { ActivityV2 } from '../types/v2';
-import { ChartConfiguration } from '../types/chartBuilder';
 
 export interface TemplateData {
   teachers: Teacher[];
@@ -263,7 +260,6 @@ export interface TemplateData {
   students: Student[];
   ganttBlocks: GanttBlock[];
   hoursReports: HoursReport[];
-  savedCharts: ChartConfiguration[];
   adminInboxItems: AdminInboxItem[];
   subscriptions: CalendarSubscription[];
 }
@@ -299,13 +295,12 @@ export function generateTemplateData(
   }
 
   const hoursReports = mods.has('hoursReports') ? generateDevHoursReports(teachers) : [];
-  const savedCharts = mods.has('savedCharts') ? generateDevCharts() : [];
   const adminInboxItems = mods.has('adminInboxItems') ? generateDevInbox(teachers, students) : [];
   const subscriptions = mods.has('subscriptions') ? generateDevSubscriptions() : [];
 
   return {
     teachers, events, rooms, activities, students,
-    ganttBlocks, hoursReports, savedCharts, adminInboxItems, subscriptions,
+    ganttBlocks, hoursReports, adminInboxItems, subscriptions,
   };
 }
 

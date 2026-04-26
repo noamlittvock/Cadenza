@@ -39,7 +39,6 @@ interface SuperAdminProps {
     students?: Student[];
     rooms?: Room[];
     setTeachers?: (data: any[]) => void;
-    setSavedCharts?: (data: any[]) => void;
     setHoursReports?: (data: any[]) => void;
     setRooms?: (data: any[]) => void;
     setGanttBlocks?: (data: any[]) => void;
@@ -53,7 +52,7 @@ interface SuperAdminProps {
 export const SuperAdmin: React.FC<SuperAdminProps> = ({
     onWipeData, onNavigateToView, onActivateScenario, settings, events = [], setEvents, activities = [],
     teachers = [], students = [], rooms = [],
-    setTeachers, setSavedCharts, setHoursReports, setRooms, setGanttBlocks, setActivities, setStudents, setAdminInboxItems,
+    setTeachers, setHoursReports, setRooms, setGanttBlocks, setActivities, setStudents, setAdminInboxItems,
     lists, setLists
 }) => {
     const { currentUser, isSuperAdmin } = useAuth();
@@ -747,7 +746,6 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
                                 students={students}
                                 rooms={rooms}
                                 setTeachers={setTeachers}
-                                setSavedCharts={setSavedCharts}
                                 setHoursReports={setHoursReports}
                                 setRooms={setRooms}
                                 setGanttBlocks={setGanttBlocks}

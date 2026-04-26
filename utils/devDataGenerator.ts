@@ -21,7 +21,6 @@ import {
 import type { ActivityV2, ActivityTemplate, ActivityTypeV2 } from '../types/v2';
 import { deriveActivityType } from '../types/v2-compat';
 import { COLORS } from '../constants';
-import { ChartConfiguration } from '../types/chartBuilder';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -664,66 +663,7 @@ export const generateDevHoursReports = (teachers: Teacher[]): HoursReport[] => {
   return reports;
 };
 
-// ─── 9. Saved Charts ─────────────────────────────────────────────────────────
-
-export const generateDevCharts = (): ChartConfiguration[] => {
-  const ts = new Date().toISOString();
-  return [
-    {
-      id: uid(), title: 'Cost by Teacher (Top 10)',
-      dataSource: 'financial-dashboard',
-      dimension: 'teacher',
-      metrics: [{ metricId: 'totalCost', aggregation: 'SUM' }],
-      visualization: 'bar',
-      sort: { by: 'totalCost', direction: 'desc' },
-      limit: { topN: 10, otherLabel: 'Other' },
-      filterMode: 'live',
-      createdAt: ts, updatedAt: ts,
-    },
-    {
-      id: uid(), title: 'Hours by Month — Current Year',
-      dataSource: 'financial-dashboard',
-      dimension: 'month',
-      metrics: [{ metricId: 'totalHours', aggregation: 'SUM' }],
-      visualization: 'line',
-      filterMode: 'live',
-      createdAt: ts, updatedAt: ts,
-    },
-    {
-      id: uid(), title: 'Events by Activity',
-      dataSource: 'financial-dashboard',
-      dimension: 'activity',
-      metrics: [{ metricId: 'eventCount', aggregation: 'SUM' }],
-      visualization: 'pie',
-      filterMode: 'live',
-      createdAt: ts, updatedAt: ts,
-    },
-    {
-      id: uid(), title: 'Active vs Canceled Hours by Teacher',
-      dataSource: 'financial-dashboard',
-      dimension: 'teacher',
-      metrics: [
-        { metricId: 'activeHours', aggregation: 'SUM' },
-        { metricId: 'canceledHours', aggregation: 'SUM' },
-      ],
-      visualization: 'stacked-bar',
-      filterMode: 'live',
-      createdAt: ts, updatedAt: ts,
-    },
-    {
-      id: uid(), title: 'Average Rate by Position',
-      dataSource: 'financial-dashboard',
-      dimension: 'position',
-      metrics: [{ metricId: 'avgRate', aggregation: 'AVG' }],
-      visualization: 'bar',
-      sort: { by: 'avgRate', direction: 'desc' },
-      filterMode: 'live',
-      createdAt: ts, updatedAt: ts,
-    },
-  ];
-};
-
-// ─── 10. Calendar Subscriptions ───────────────────────────────────────────────
+// ─── 9. Calendar Subscriptions ───────────────────────────────────────────────
 
 export const generateDevSubscriptions = (): CalendarSubscription[] => [
   {
@@ -773,8 +713,7 @@ export const generateFullDevData = (currencySymbol = '₪', referenceDate?: Date
   const students = generateDevStudents(teachers, activities);
   const adminInboxItems = generateDevInbox(teachers, students);
   const hoursReports = generateDevHoursReports(teachers);
-  const savedCharts = generateDevCharts();
   const subscriptions = generateDevSubscriptions();
 
-  return { teachers, rooms, activities, events, ganttBlocks, students, adminInboxItems, hoursReports, savedCharts, subscriptions };
+  return { teachers, rooms, activities, events, ganttBlocks, students, adminInboxItems, hoursReports, subscriptions };
 };
