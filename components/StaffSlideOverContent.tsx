@@ -3,25 +3,11 @@ import {
   Edit2, Archive, RotateCcw, Plus, GraduationCap, Briefcase, ChevronRight,
 } from 'lucide-react';
 import type {
-  StaffMemberV2, TeachingAssignmentV2, OrgRoleV2, RateTypeV2, StaffRole, ActivityV2, DocumentEntry,
+  StaffMemberV2, TeachingAssignmentV2, OrgRoleV2, StaffRole, ActivityV2, DocumentEntry,
 } from '../types/v2';
 import type { AppSettings } from '../types';
 import { ImportExportDropdown } from './ImportExportDropdown';
 import { DocumentSection } from './DocumentSection';
-
-// ─── Rate pill styling (matches Financial Dashboard) ────────────────────────
-
-const RATE_PILL_CLASSES: Record<RateTypeV2, string> = {
-  HOURLY: 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-  PER_EVENT: 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-  MONTHLY_FLAT: 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
-};
-
-const RATE_UNIT: Record<RateTypeV2, string> = {
-  HOURLY: 'hr',
-  PER_EVENT: 'event',
-  MONTHLY_FLAT: 'mo',
-};
 
 // ─── Role badge ─────────────────────────────────────────────────────────────
 
@@ -44,7 +30,6 @@ interface Props {
   t: (key: string) => string;
   activityName: (id: string) => string;
   l2Name: (id: string) => string;
-  rateLabel: (rt: RateTypeV2) => string;
   onEdit: (staff: StaffMemberV2) => void;
   onArchive: (staffId: string) => void;
   onRestore: (staffId: string) => void;
@@ -75,7 +60,6 @@ export const StaffSlideOverContent: React.FC<Props> = ({
   t,
   activityName,
   l2Name,
-  rateLabel,
   onEdit,
   onArchive,
   onRestore,
@@ -98,19 +82,11 @@ export const StaffSlideOverContent: React.FC<Props> = ({
     ? Math.max(0, Math.floor((Date.now() - new Date(staff.startDate!).getTime()) / (365.25 * 24 * 60 * 60 * 1000)))
     : null;
 
-  const currency = settings.currency || '₪';
-
   const InfoRow: React.FC<{ label: string; value: string | null | undefined }> = ({ label, value }) => (
     <div>
       <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
       <p className="text-sm font-medium text-slate-900 dark:text-white">{value || '—'}</p>
     </div>
-  );
-
-  const RatePill: React.FC<{ rateType: RateTypeV2; rateValue: number }> = ({ rateType, rateValue }) => (
-    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${RATE_PILL_CLASSES[rateType]}`}>
-      {currency}{rateValue}/{RATE_UNIT[rateType]}
-    </span>
   );
 
   return (
@@ -190,9 +166,6 @@ export const StaffSlideOverContent: React.FC<Props> = ({
                   <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
                     {activityName(a.activityId)} <ChevronRight size={12} className="inline text-slate-400" /> {l2Name(a.l2Id)}
                   </p>
-                  <div>
-                    <RatePill rateType={a.rateType} rateValue={a.rateValue} />
-                  </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {a.startDate}{a.endDate ? ` → ${a.endDate}` : ''}
                   </p>
@@ -243,9 +216,6 @@ export const StaffSlideOverContent: React.FC<Props> = ({
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1 space-y-1">
                   <p className="text-sm font-medium text-slate-900 dark:text-white">{r.roleTitle}</p>
-                  <div>
-                    <RatePill rateType={r.rateType} rateValue={r.rateValue} />
-                  </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {r.startDate}{r.endDate ? ` → ${r.endDate}` : ''}
                   </p>

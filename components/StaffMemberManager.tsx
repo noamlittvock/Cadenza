@@ -4,7 +4,7 @@ import { Teacher, ListsState, AppSettings, HoursReport, Student, AdminInboxItem 
 import { buildActivityMap, getActivityName } from '../utils/activityLookup';
 import type {
   ActivityV2, StaffMemberV2, TeachingAssignmentV2, OrgRoleV2,
-  StaffRole, RateTypeV2, L2Subcategory,
+  StaffRole, L2Subcategory,
   EventV2, EventParticipant, FirstUseFlags,
 } from '../types/v2';
 import { ImportExportDropdown } from './ImportExportDropdown';
@@ -26,12 +26,10 @@ import { StaffSlideOverContent } from './StaffSlideOverContent';
 import { useColumnFilters, type ColumnFilterConfig } from '../utils/useColumnFilters';
 import { ColumnFilterDropdown } from './ColumnFilterDropdown';
 import { FilterPills } from './FilterPills';
-import { RateConfigFields } from './RateConfigFields';
 import { DocumentSection } from './DocumentSection';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const RATE_TYPES: RateTypeV2[] = ['HOURLY', 'PER_EVENT', 'MONTHLY_FLAT'];
 const STAFF_ROLES: StaffRole[] = ['SUPER_ADMIN', 'ADMIN', 'STAFF'];
 
 const ROLE_CONFIG: Record<StaffRole, { icon: React.ElementType; color: string }> = {
@@ -45,10 +43,10 @@ const ROLE_CONFIG: Record<StaffRole, { icon: React.ElementType; color: string }>
 const PREFILL_KEY = 'cadenza_staff_prefill';
 const WALKTHROUGH_KEY = 'cadenza_staff_walkthrough_done';
 
-function savePrefill(uid: string, data: { role: StaffRole; rateType: RateTypeV2; rateValue: number }) {
+function savePrefill(uid: string, data: { role: StaffRole }) {
   try { localStorage.setItem(`${PREFILL_KEY}_${uid}`, JSON.stringify(data)); } catch { /* noop */ }
 }
-function loadPrefill(uid: string): { role: StaffRole; rateType: RateTypeV2; rateValue: number } | null {
+function loadPrefill(uid: string): { role: StaffRole } | null {
   try {
     const raw = localStorage.getItem(`${PREFILL_KEY}_${uid}`);
     return raw ? JSON.parse(raw) : null;
@@ -145,8 +143,6 @@ export const StaffMemberManager: React.FC<Props> = ({
   const [editingAssignmentId, setEditingAssignmentId] = useState<string | null>(null);
   const [aFormActivityId, setAFormActivityId] = useState('');
   const [aFormL2Id, setAFormL2Id] = useState('');
-  const [aFormRateType, setAFormRateType] = useState<RateTypeV2>('HOURLY');
-  const [aFormRateValue, setAFormRateValue] = useState(0);
   const [aFormStartDate, setAFormStartDate] = useState('');
   const [aFormEndDate, setAFormEndDate] = useState('');
   const [assignmentError, setAssignmentError] = useState('');
@@ -155,8 +151,6 @@ export const StaffMemberManager: React.FC<Props> = ({
   const [isOrgRoleModalOpen, setIsOrgRoleModalOpen] = useState(false);
   const [editingOrgRoleId, setEditingOrgRoleId] = useState<string | null>(null);
   const [orFormTitle, setOrFormTitle] = useState('');
-  const [orFormRateType, setOrFormRateType] = useState<RateTypeV2>('MONTHLY_FLAT');
-  const [orFormRateValue, setOrFormRateValue] = useState(0);
   const [orFormStartDate, setOrFormStartDate] = useState('');
   const [orFormEndDate, setOrFormEndDate] = useState('');
   const [orgRoleError, setOrgRoleError] = useState('');
@@ -168,8 +162,6 @@ export const StaffMemberManager: React.FC<Props> = ({
     setEditingAssignmentId(null);
     setAFormActivityId('');
     setAFormL2Id('');
-    setAFormRateType('HOURLY');
-    setAFormRateValue(0);
     setAFormStartDate(new Date().toISOString().slice(0, 10));
     setAFormEndDate('');
   }, []);
@@ -177,8 +169,6 @@ export const StaffMemberManager: React.FC<Props> = ({
   const resetOrgRoleForm = useCallback(() => {
     setOrgRoleError('');
     setOrFormTitle('');
-    setOrFormRateType('MONTHLY_FLAT');
-    setOrFormRateValue(0);
     setOrFormStartDate(new Date().toISOString().slice(0, 10));
     setOrFormEndDate('');
   }, []);
@@ -294,8 +284,6 @@ export const StaffMemberManager: React.FC<Props> = ({
     staffEmail: staffMembers.find(s => s.id === a.staffMemberId)?.email || '',
     activityName: getActivityName(activityMap, a.activityId, ''),
     l2Name: l2Subcategories.find(l => l.id === a.l2Id)?.name || '',
-    rateType: a.rateType || '',
-    rateValue: String(a.rateValue || ''),
     startDate: a.startDate || '',
   })), [assignments, staffMembers, activities, l2Subcategories]);
 
@@ -351,8 +339,6 @@ export const StaffMemberManager: React.FC<Props> = ({
       staffMemberId: csvStaffByEmail[row['staffEmail']?.trim().toLowerCase() || ''] || selectedStaffId || '',
       activityId: csvActivityByName[row['activityName']?.trim().toLowerCase() || ''] || '',
       l2Id: csvL2ByName[row['l2Name']?.trim().toLowerCase() || ''] || '',
-      rateType: (row['rateType'] as RateTypeV2) || 'HOURLY',
-      rateValue: parseFloat(row['rateValue']) || 0,
       startDate: row['startDate'] || '',
       endDate: null,
       isArchived: false,
@@ -362,14 +348,6 @@ export const StaffMemberManager: React.FC<Props> = ({
   }, [orgId, setAssignments, csvStaffByEmail, csvActivityByName, csvL2ByName, selectedStaffId]);
 
   // ─── Helpers ────────────────────────────────────────────────────────────
-
-  const rateLabel = useCallback((rt: RateTypeV2) => {
-    switch (rt) {
-      case 'HOURLY': return t('staff.v2.rate_hourly');
-      case 'PER_EVENT': return t('staff.v2.rate_per_event');
-      case 'MONTHLY_FLAT': return t('staff.v2.rate_monthly_flat');
-    }
-  }, [settings.language]);
 
   const roleLabel = useCallback((r: StaffRole) => {
     switch (r) {
@@ -480,7 +458,7 @@ export const StaffMemberManager: React.FC<Props> = ({
 
       // Save prefill
       if (currentUser) {
-        savePrefill(currentUser.uid, { role: formRole, rateType: 'HOURLY', rateValue: 0 });
+        savePrefill(currentUser.uid, { role: formRole });
         markWalkthroughDone(currentUser.uid);
       }
 
@@ -544,8 +522,6 @@ export const StaffMemberManager: React.FC<Props> = ({
     setAssignmentError('');
     setAFormActivityId(a.activityId);
     setAFormL2Id(a.l2Id);
-    setAFormRateType(a.rateType);
-    setAFormRateValue(a.rateValue);
     setAFormStartDate(a.startDate);
     setAFormEndDate(a.endDate || '');
     setIsAssignmentModalOpen(true);
@@ -574,14 +550,12 @@ export const StaffMemberManager: React.FC<Props> = ({
     if (editingAssignmentId) {
       setAssignments(prev => prev.map(a => a.id === editingAssignmentId ? {
         ...a, activityId: aFormActivityId, l2Id: aFormL2Id,
-        rateType: aFormRateType, rateValue: aFormRateValue,
         startDate: aFormStartDate, endDate: aFormEndDate || null, updatedAt: now,
       } : a));
     } else {
       const newAssignment: TeachingAssignmentV2 = {
         id: generateId(), orgId, staffMemberId: selectedStaffId,
         activityId: aFormActivityId, l2Id: aFormL2Id,
-        rateType: aFormRateType, rateValue: aFormRateValue,
         startDate: aFormStartDate, endDate: aFormEndDate || null,
         isArchived: false, createdAt: now, updatedAt: now,
       };
@@ -590,7 +564,7 @@ export const StaffMemberManager: React.FC<Props> = ({
 
     setIsAssignmentModalOpen(false);
     return undefined;
-  }, [canWrite, orgId, selectedStaffId, aFormActivityId, aFormL2Id, aFormRateType, aFormRateValue, aFormStartDate, aFormEndDate, editingAssignmentId, assignments, setAssignments, t]);
+  }, [canWrite, orgId, selectedStaffId, aFormActivityId, aFormL2Id, aFormStartDate, aFormEndDate, editingAssignmentId, assignments, setAssignments, t]);
 
   const toggleAssignmentArchive = useCallback((id: string, archive: boolean) => {
     if (!canWrite) return;
@@ -612,8 +586,6 @@ export const StaffMemberManager: React.FC<Props> = ({
     setEditingOrgRoleId(r.id);
     setOrgRoleError('');
     setOrFormTitle(r.roleTitle);
-    setOrFormRateType(r.rateType);
-    setOrFormRateValue(r.rateValue);
     setOrFormStartDate(r.startDate);
     setOrFormEndDate(r.endDate || '');
     setIsOrgRoleModalOpen(true);
@@ -628,15 +600,13 @@ export const StaffMemberManager: React.FC<Props> = ({
 
     if (editingOrgRoleId) {
       setOrgRoles(prev => prev.map(r => r.id === editingOrgRoleId ? {
-        ...r, roleTitle: orFormTitle.trim(), rateType: orFormRateType,
-        rateValue: orFormRateValue, startDate: orFormStartDate,
+        ...r, roleTitle: orFormTitle.trim(), startDate: orFormStartDate,
         endDate: orFormEndDate || null, updatedAt: now,
       } : r));
     } else {
       const newRole: OrgRoleV2 = {
         id: generateId(), orgId, staffMemberId: selectedStaffId,
-        roleTitle: orFormTitle.trim(), rateType: orFormRateType,
-        rateValue: orFormRateValue, startDate: orFormStartDate,
+        roleTitle: orFormTitle.trim(), startDate: orFormStartDate,
         endDate: orFormEndDate || null, isArchived: false,
         createdAt: now, updatedAt: now,
       };
@@ -645,7 +615,7 @@ export const StaffMemberManager: React.FC<Props> = ({
 
     setIsOrgRoleModalOpen(false);
     return undefined;
-  }, [canWrite, orgId, selectedStaffId, orFormTitle, orFormRateType, orFormRateValue, orFormStartDate, orFormEndDate, editingOrgRoleId, setOrgRoles, t]);
+  }, [canWrite, orgId, selectedStaffId, orFormTitle, orFormStartDate, orFormEndDate, editingOrgRoleId, setOrgRoles, t]);
 
   const toggleOrgRoleArchive = useCallback((id: string, archive: boolean) => {
     if (!canWrite) return;
@@ -690,13 +660,12 @@ export const StaffMemberManager: React.FC<Props> = ({
     const newAssignment: TeachingAssignmentV2 = {
       id: generateId(), orgId, staffMemberId: selectedStaffId,
       activityId: aFormActivityId, l2Id: aFormL2Id,
-      rateType: aFormRateType, rateValue: aFormRateValue,
       startDate: aFormStartDate, endDate: aFormEndDate || null,
       isArchived: false, createdAt: now, updatedAt: now,
     };
     setAssignments(prev => [...prev, newAssignment]);
     resetAssignmentForm();
-  }, [canWrite, orgId, selectedStaffId, aFormActivityId, aFormL2Id, aFormRateType, aFormRateValue, aFormStartDate, aFormEndDate, wizardAssignments, setAssignments, t, resetAssignmentForm]);
+  }, [canWrite, orgId, selectedStaffId, aFormActivityId, aFormL2Id, aFormStartDate, aFormEndDate, wizardAssignments, setAssignments, t, resetAssignmentForm]);
 
   const handleWizardOrgRoleAdd = useCallback(() => {
     if (!canWrite || !orgId || !selectedStaffId) return;
@@ -706,14 +675,13 @@ export const StaffMemberManager: React.FC<Props> = ({
     const now = Timestamp.now();
     const newRole: OrgRoleV2 = {
       id: generateId(), orgId, staffMemberId: selectedStaffId,
-      roleTitle: orFormTitle.trim(), rateType: orFormRateType,
-      rateValue: orFormRateValue, startDate: orFormStartDate,
+      roleTitle: orFormTitle.trim(), startDate: orFormStartDate,
       endDate: orFormEndDate || null, isArchived: false,
       createdAt: now, updatedAt: now,
     };
     setOrgRoles(prev => [...prev, newRole]);
     resetOrgRoleForm();
-  }, [canWrite, orgId, selectedStaffId, orFormTitle, orFormRateType, orFormRateValue, orFormStartDate, orFormEndDate, setOrgRoles, t, resetOrgRoleForm]);
+  }, [canWrite, orgId, selectedStaffId, orFormTitle, orFormStartDate, orFormEndDate, setOrgRoles, t, resetOrgRoleForm]);
 
   const handleWizardClose = useCallback(() => {
     setIsStaffModalOpen(false);
@@ -752,8 +720,6 @@ export const StaffMemberManager: React.FC<Props> = ({
       </span>
     );
   };
-
-  // RateConfigFields extracted to ./RateConfigFields.tsx
 
   // ═══════════════════════════════════════════════════════════════════════════
   // RENDER
@@ -1253,7 +1219,6 @@ export const StaffMemberManager: React.FC<Props> = ({
                     <div key={a.id} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
                       <div className="text-sm text-slate-700 dark:text-slate-300">
                         {activityName(a.activityId)} — {l2Name(a.l2Id)}
-                        <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">{rateLabel(a.rateType)} {a.rateValue}</span>
                       </div>
                       <button onClick={() => toggleAssignmentArchive(a.id, true)} className="text-slate-400 hover:text-red-500 transition-colors">
                         <Trash2 size={14} />
@@ -1294,13 +1259,18 @@ export const StaffMemberManager: React.FC<Props> = ({
                   </select>
                 </div>
               )}
-              <RateConfigFields
-                rateType={aFormRateType} setRateType={setAFormRateType}
-                rateValue={aFormRateValue} setRateValue={setAFormRateValue}
-                startDate={aFormStartDate} setStartDate={setAFormStartDate}
-                endDate={aFormEndDate} setEndDate={setAFormEndDate}
-                t={t} rateLabel={rateLabel}
-              />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.start_date')}</label>
+                  <input type="date" value={aFormStartDate} onChange={e => setAFormStartDate(e.target.value)}
+                    className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.end_date_optional')}</label>
+                  <input type="date" value={aFormEndDate} onChange={e => setAFormEndDate(e.target.value)}
+                    className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
+                </div>
+              </div>
             </>
           )}
 
@@ -1317,7 +1287,6 @@ export const StaffMemberManager: React.FC<Props> = ({
                     <div key={r.id} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
                       <div className="text-sm text-slate-700 dark:text-slate-300">
                         {r.roleTitle}
-                        <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">{rateLabel(r.rateType)} {r.rateValue}</span>
                       </div>
                       <button onClick={() => toggleOrgRoleArchive(r.id, true)} className="text-slate-400 hover:text-red-500 transition-colors">
                         <Trash2 size={14} />
@@ -1342,13 +1311,18 @@ export const StaffMemberManager: React.FC<Props> = ({
                   placeholder={t('staff.v2.role_title_placeholder')}
                   className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
               </div>
-              <RateConfigFields
-                rateType={orFormRateType} setRateType={setOrFormRateType}
-                rateValue={orFormRateValue} setRateValue={setOrFormRateValue}
-                startDate={orFormStartDate} setStartDate={setOrFormStartDate}
-                endDate={orFormEndDate} setEndDate={setOrFormEndDate}
-                t={t} rateLabel={rateLabel}
-              />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.start_date')}</label>
+                  <input type="date" value={orFormStartDate} onChange={e => setOrFormStartDate(e.target.value)}
+                    className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.end_date_optional')}</label>
+                  <input type="date" value={orFormEndDate} onChange={e => setOrFormEndDate(e.target.value)}
+                    className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
+                </div>
+              </div>
             </>
           )}
 
@@ -1415,7 +1389,6 @@ export const StaffMemberManager: React.FC<Props> = ({
             t={t}
             activityName={activityName}
             l2Name={l2Name}
-            rateLabel={rateLabel}
             onEdit={openEditStaff}
             onArchive={handleArchiveStaff}
             onRestore={handleRestoreStaff}
@@ -1468,13 +1441,18 @@ export const StaffMemberManager: React.FC<Props> = ({
               </select>
             </div>
           )}
-          <RateConfigFields
-            rateType={aFormRateType} setRateType={setAFormRateType}
-            rateValue={aFormRateValue} setRateValue={setAFormRateValue}
-            startDate={aFormStartDate} setStartDate={setAFormStartDate}
-            endDate={aFormEndDate} setEndDate={setAFormEndDate}
-            t={t} rateLabel={rateLabel}
-          />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.start_date')}</label>
+              <input type="date" value={aFormStartDate} onChange={e => setAFormStartDate(e.target.value)}
+                className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.end_date_optional')}</label>
+              <input type="date" value={aFormEndDate} onChange={e => setAFormEndDate(e.target.value)}
+                className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
+            </div>
+          </div>
         </div>
       </Modal>
 
@@ -1493,13 +1471,18 @@ export const StaffMemberManager: React.FC<Props> = ({
               placeholder={t('staff.v2.role_title_placeholder')}
               className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
           </div>
-          <RateConfigFields
-            rateType={orFormRateType} setRateType={setOrFormRateType}
-            rateValue={orFormRateValue} setRateValue={setOrFormRateValue}
-            startDate={orFormStartDate} setStartDate={setOrFormStartDate}
-            endDate={orFormEndDate} setEndDate={setOrFormEndDate}
-            t={t} rateLabel={rateLabel}
-          />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.start_date')}</label>
+              <input type="date" value={orFormStartDate} onChange={e => setOrFormStartDate(e.target.value)}
+                className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.end_date_optional')}</label>
+              <input type="date" value={orFormEndDate} onChange={e => setOrFormEndDate(e.target.value)}
+                className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
+            </div>
+          </div>
         </div>
       </Modal>
     </>

@@ -212,8 +212,6 @@ export interface TeachingAssignmentV2 {
   staffMemberId: string;
   activityId: string;
   l2Id: string;
-  rateType: RateTypeV2;
-  rateValue: number;
   startDate: string; // ISO date
   endDate: string | null;
   isArchived: boolean;
@@ -227,8 +225,6 @@ export interface OrgRoleV2 {
   orgId: string;
   staffMemberId: string;
   roleTitle: string;
-  rateType: RateTypeV2;
-  rateValue: number;
   startDate: string;
   endDate: string | null;
   isArchived: boolean;

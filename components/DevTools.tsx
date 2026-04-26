@@ -303,15 +303,8 @@ export const DevTools: React.FC<DevToolsProps> = ({
 
           // Seed v2 teachingAssignments from teacher.teachingAssignments[]
           if (data.teachers.length > 0) {
-            const rateMap: Record<string, 'HOURLY' | 'PER_EVENT' | 'MONTHLY_FLAT'> = {
-              HOURLY: 'HOURLY',
-              PER_EVENT: 'PER_EVENT',
-              GLOBAL_MONTHLY: 'MONTHLY_FLAT',
-              ONE_OFF: 'HOURLY',
-            };
             const batch = writeBatch(db);
             data.teachers.forEach(t => {
-              const primaryPos = t.positionAssignments?.[0];
               (t.teachingAssignments || []).forEach(ta => {
                 const taDoc: TeachingAssignmentV2 = {
                   id: ta.id,
@@ -319,8 +312,6 @@ export const DevTools: React.FC<DevToolsProps> = ({
                   staffMemberId: t.id,
                   activityId: ta.activityId,
                   l2Id: ta.subcategoryId,
-                  rateType: rateMap[primaryPos?.rateType ?? ''] ?? 'HOURLY',
-                  rateValue: primaryPos?.rateValue ?? 0,
                   startDate: ta.startDate,
                   endDate: null,
                   isArchived: ta.isArchived,
