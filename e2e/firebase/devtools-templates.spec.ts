@@ -1,7 +1,7 @@
 /**
  * DevTools — Test Templates (Firebase tier)
  *
- * QA checklist items #37–47.
+ * QA checklist items #37–46.
  *
  * Dependency: DevTools.tsx template cards now carry `data-template-id` attributes
  * so the `applyTestTemplate` helper can locate and click them.
@@ -9,13 +9,11 @@
  * Live tests:
  *   #37/#38 — Calendar Happy Path: template wipes + navigates to CALENDAR
  *   #39     — Room Conflicts: amber ring on conflicting event blocks
- *   #41     — Student Manager: ≥10 student avatars after student-manager template
  *   #42     — Staff Manager: ≥20 staff cards after staff-manager template
  *   #43     — Admin Inbox: inbox view has items after template
  *   #44     — Gantt View: Gantt sidebar visible with blackout toggle
  *   #45     — First Admin Onboarding: checklist appears, setup gate active
  *   #46     — Full Stress Test: CALENDAR loads with full data
- *   #47     — Wipe assertion: student-manager → calendar-happy-path → 0 students
  */
 
 import { test, expect } from '@playwright/test';
@@ -48,22 +46,6 @@ test('#39 Room Conflicts: amber conflict ring visible on conflicting calendar ev
   //   ring-2 ring-amber-500 ring-offset-1 on the event block container div
   const conflictBlock = page.locator('[class*="ring-amber-500"]').first();
   await expect(conflictBlock).toBeVisible({ timeout: 8_000 });
-});
-
-// ── #41 — Student Manager ─────────────────────────────────────────────────────
-
-test('#41 Student Manager: at least 10 students appear after student-manager template', async ({ page }) => {
-  await loadApp(page);
-  await applyTestTemplate(page, TEMPLATE_IDS.STUDENT_MANAGER, 5_000);
-
-  // Template navigates to STUDENTS view
-  await page.waitForTimeout(1_000);
-
-  // StudentManager list rows have emerald avatar circles: bg-emerald-100 rounded-full
-  // Template description: 12 students with full profiles
-  const studentAvatars = page.locator('[class*="bg-emerald-100"]');
-  const count = await studentAvatars.count();
-  expect(count, `Expected at least 10 student avatars, got ${count}`).toBeGreaterThanOrEqual(10);
 });
 
 // ── #42 — Staff Manager ───────────────────────────────────────────────────────
@@ -147,23 +129,3 @@ test('#46 Full Stress Test: calendar loads with all data modules populated', asy
   await expect(page.getByRole('button', { name: 'DAY' })).toBeVisible({ timeout: 15_000 });
 });
 
-// ── #47 — Wipe assertion ──────────────────────────────────────────────────────
-
-test('#47 Applying a new template wipes previous Firestore data before seeding', async ({ page }) => {
-  await loadApp(page);
-
-  // Seed 12 students via student-manager template
-  await applyTestTemplate(page, TEMPLATE_IDS.STUDENT_MANAGER, 5_000);
-  await page.waitForTimeout(500);
-  const avatarsBefore = page.locator('[class*="bg-emerald-100"]');
-  expect(await avatarsBefore.count(), 'Should have students after student-manager template').toBeGreaterThanOrEqual(10);
-
-  // Apply calendar-happy-path — students module NOT in its modules list → students wiped
-  await applyTestTemplate(page, TEMPLATE_IDS.CALENDAR_HAPPY_PATH, 5_000);
-
-  // Navigate to STUDENTS — list should now be empty (wipe was effective)
-  await gotoView(page, 'STUDENTS');
-  await page.waitForTimeout(1_000);
-  const avatarsAfter = page.locator('[class*="bg-emerald-100"]');
-  expect(await avatarsAfter.count(), 'Students should be wiped after calendar-happy-path template').toBe(0);
-});

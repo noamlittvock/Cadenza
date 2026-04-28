@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { writeBatch, doc, getDocs, deleteDoc, collection, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../utils/firebase';
+import { LOCAL_MODE, writeCollection } from '../utils/localStore';
+import { buildV2SeedDocs } from '../utils/v2DocBuilders';
 import { useAuth } from '../context/AuthContext';
 import { useDevSimulation, ROLE_PRESETS } from '../context/DevSimulationContext';
 import { AppSettings, CalendarEvent, Teacher, Room, Student, ListsState } from '../types';
-import { StaffMemberV2, StudentV2, ActivityV2, L1Subcategory, L2Subcategory, TeachingAssignmentV2, EnrollmentV2, V2_COLLECTIONS } from '../types/v2';
+import { ActivityV2, V2_COLLECTIONS } from '../types/v2';
 import {
   Wrench, AlertTriangle, Loader2,
   Calendar, UserCog, CalendarDays, RefreshCw, ClipboardList,
@@ -15,6 +17,31 @@ import {
   TEST_TEMPLATES, QA_SCENARIOS, generateTemplateData, resolveTemplateDate, resolveTemplateRole,
 } from '../utils/testTemplates';
 import type { GeneratedActivity } from '../utils/devDataGenerator';
+
+// Tailwind classnames are JIT-detected as literal strings, so the full per-color
+// strings need to live in source. Hoisted to module scope so they aren't
+// re-allocated inside every TEST_TEMPLATES/QA_SCENARIOS render row.
+const CARD_COLOR_MAP: Record<string, string> = {
+  blue:   'border-blue-200   dark:border-blue-700/50   bg-blue-50   dark:bg-blue-900/20   hover:bg-blue-100   dark:hover:bg-blue-900/30',
+  green:  'border-green-200  dark:border-green-700/50  bg-green-50  dark:bg-green-900/20  hover:bg-green-100  dark:hover:bg-green-900/30',
+  violet: 'border-violet-200 dark:border-violet-700/50 bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/30',
+  amber:  'border-amber-200  dark:border-amber-700/50  bg-amber-50  dark:bg-amber-900/20  hover:bg-amber-100  dark:hover:bg-amber-900/30',
+  rose:   'border-rose-200   dark:border-rose-700/50   bg-rose-50   dark:bg-rose-900/20   hover:bg-rose-100   dark:hover:bg-rose-900/30',
+  teal:   'border-teal-200   dark:border-teal-700/50   bg-teal-50   dark:bg-teal-900/20   hover:bg-teal-100   dark:hover:bg-teal-900/30',
+  indigo: 'border-indigo-200 dark:border-indigo-700/50 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30',
+  slate:  'border-slate-200  dark:border-slate-700/50  bg-slate-50  dark:bg-slate-800     hover:bg-slate-100  dark:hover:bg-slate-700/50',
+};
+
+const BADGE_COLOR_MAP: Record<string, string> = {
+  blue:   'bg-blue-100   dark:bg-blue-900/40   text-blue-700   dark:text-blue-400',
+  green:  'bg-green-100  dark:bg-green-900/40  text-green-700  dark:text-green-400',
+  violet: 'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400',
+  amber:  'bg-amber-100  dark:bg-amber-900/40  text-amber-700  dark:text-amber-400',
+  rose:   'bg-rose-100   dark:bg-rose-900/40   text-rose-700   dark:text-rose-400',
+  teal:   'bg-teal-100   dark:bg-teal-900/40   text-teal-700   dark:text-teal-400',
+  indigo: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400',
+  slate:  'bg-slate-200  dark:bg-slate-700     text-slate-700  dark:text-slate-300',
+};
 
 interface DevToolsProps {
   settings: AppSettings;
@@ -99,9 +126,10 @@ export const DevTools: React.FC<DevToolsProps> = ({
 
       setTemplateProgress({ pct: 20, label: 'Clearing Firestore collections…' });
 
-      // 1b. Wipe v2 Firestore collections so StaffMemberManager / StudentManager show fresh data
+      // 1b. Wipe v2 Firestore collections so StaffMemberManager shows fresh data
       // Wrapped in its own try/catch — Firestore errors here are non-fatal
-      if (orgId) {
+      // Skipped in LOCAL_MODE: no Firestore project, the writeBatch would hang.
+      if (orgId && !LOCAL_MODE) {
         try {
           const wipeV2Col = async (colName: string) => {
             const snap = await getDocs(query(collection(db, colName), where('orgId', '==', orgId)));
@@ -160,192 +188,48 @@ export const DevTools: React.FC<DevToolsProps> = ({
 
       setTemplateProgress({ pct: 80, label: 'Seeding staff & student records…' });
 
-      // 3b. Seed v2 Firestore so StaffMemberManager / StudentManager display template data
-      // Also wrapped in its own try/catch — non-fatal if Firestore rules reject
+      // 3b. Seed V2 collections. Build doc shapes once, then commit through the
+      // appropriate transport: writeBatch in Firestore mode (with merge:true via
+      // the SDK's batch.set), writeCollection in LOCAL_MODE. Both branches use
+      // the same builder so the shapes can't drift.
       if (orgId) {
-        try {
-          const now = Timestamp.now();
+        const seedDocs = buildV2SeedDocs(
+          { teachers: data.teachers, students: data.students, activities: data.activities as GeneratedActivity[] },
+          orgId,
+          LOCAL_MODE ? Date.now() : Timestamp.now(),
+        );
 
-          if (data.teachers.length > 0) {
+        if (LOCAL_MODE) {
+          writeCollection(orgId, V2_COLLECTIONS.staffMembers, seedDocs.staffMembers);
+          writeCollection(orgId, V2_COLLECTIONS.students, seedDocs.students);
+          writeCollection(orgId, V2_COLLECTIONS.activities, seedDocs.activities);
+          writeCollection(orgId, V2_COLLECTIONS.l1Subcategories, seedDocs.l1Subcategories);
+          writeCollection(orgId, V2_COLLECTIONS.l2Subcategories, seedDocs.l2Subcategories);
+          writeCollection(orgId, V2_COLLECTIONS.teachingAssignments, seedDocs.teachingAssignments);
+          writeCollection(orgId, V2_COLLECTIONS.enrollments, seedDocs.enrollments);
+        } else {
+          // Non-fatal if Firestore rules reject — wrap each commit independently
+          // so a partial failure doesn't strand the whole template.
+          const commitBatch = async (
+            collectionName: string,
+            docs: { id: string }[],
+          ) => {
+            if (docs.length === 0) return;
             const batch = writeBatch(db);
-            data.teachers.forEach(t => {
-              const staffDoc: StaffMemberV2 = {
-                id: t.id,
-                orgId,
-                uid: t.id,       // placeholder uid — fine for test data
-                role: 'STAFF',
-                fullName: t.fullName,
-                email: t.email,
-                phone: t.phone || null,
-                isArchived: t.isArchived ?? false,
-                createdAt: now,
-                updatedAt: now,
-                isFirstAdmin: false,
-                onboardingDismissed: true,
-                firstUseFlags: {
-                  activityHub: true, staffModule: true, studentModule: true,
-                  eventCreation: true, enrollment: true,
-                },
-                startDate: null,
-                documents: [],
-              };
-              batch.set(doc(db, V2_COLLECTIONS.staffMembers, t.id), staffDoc);
-            });
+            docs.forEach(d => batch.set(doc(db, collectionName, d.id), d as any));
             await batch.commit();
+          };
+          try {
+            await commitBatch(V2_COLLECTIONS.staffMembers, seedDocs.staffMembers);
+            await commitBatch(V2_COLLECTIONS.students, seedDocs.students);
+            await commitBatch(V2_COLLECTIONS.activities, seedDocs.activities);
+            await commitBatch(V2_COLLECTIONS.l1Subcategories, seedDocs.l1Subcategories);
+            await commitBatch(V2_COLLECTIONS.l2Subcategories, seedDocs.l2Subcategories);
+            await commitBatch(V2_COLLECTIONS.teachingAssignments, seedDocs.teachingAssignments);
+            await commitBatch(V2_COLLECTIONS.enrollments, seedDocs.enrollments);
+          } catch (firestoreErr) {
+            console.warn('v2 Firestore seed failed (non-fatal):', firestoreErr);
           }
-
-          if (data.students.length > 0) {
-            const batch = writeBatch(db);
-            data.students.forEach(s => {
-              const studentDoc: StudentV2 = {
-                id: s.id,
-                orgId,
-                fullName: s.fullName,
-                dateOfBirth: s.dateOfBirth || null,
-                parentName: s.guardians?.[0]?.fullName || null,
-                parentPhone: s.guardians?.[0]?.phone || null,
-                grade: null,
-                startDate: null,
-                level: null,
-                tags: [],
-                phone2: null,
-                email: null,
-                address: null,
-                isArchived: s.profileStatus === 'ARCHIVED',
-                documents: [],
-                createdAt: now,
-                updatedAt: now,
-              };
-              batch.set(doc(db, V2_COLLECTIONS.students, s.id), studentDoc);
-            });
-            await batch.commit();
-          }
-
-          // Seed v2 activities with proper template + L1/L2 hierarchy
-          if (data.activities.length > 0) {
-            const batch = writeBatch(db);
-            const genActivities = data.activities as GeneratedActivity[];
-
-            genActivities.forEach(act => {
-              const template = act.template || (act.type === 'OPERATIONAL' ? 'ADMINISTRATIVE' : 'DISCIPLINE');
-              const isAdmin = template === 'ADMINISTRATIVE' || template === 'EXTERNAL';
-
-              const activityDoc: ActivityV2 = {
-                id: act.id,
-                orgId,
-                name: act.name,
-                template,
-                activityType: isAdmin ? 'ADMINISTRATIVE' : 'ACADEMIC',
-                modules: {
-                  curriculum: template === 'DISCIPLINE' || template === 'PROGRAM',
-                  externalParticipants: template === 'EXTERNAL',
-                },
-                location: null,
-                eventNameMode: 'AUTO',
-                isArchived: act.isArchived,
-                createdAt: now,
-                updatedAt: now,
-              };
-              batch.set(doc(db, V2_COLLECTIONS.activities, act.id), activityDoc);
-
-              // DISCIPLINE: L1 departments → L2 specialties under each
-              if (template === 'DISCIPLINE' && act.l1Groups) {
-                act.l1Groups.forEach(group => {
-                  const l1Id = `L1_${act.id}_${group.l1Name.replace(/\s+/g, '_')}`;
-                  const l1Doc: L1Subcategory = {
-                    id: l1Id, orgId, activityId: act.id, name: group.l1Name,
-                    isArchived: false, createdAt: now, updatedAt: now,
-                  };
-                  batch.set(doc(db, V2_COLLECTIONS.l1Subcategories, l1Id), l1Doc);
-
-                  group.l2Names.forEach(l2Name => {
-                    const l2Id = `L2_${act.id}_${l2Name.replace(/\s+/g, '_')}`;
-                    const l2Doc: L2Subcategory = {
-                      id: l2Id, orgId, activityId: act.id, l1Id,
-                      name: l2Name, defaultRate: null,
-                      isArchived: false, createdAt: now, updatedAt: now,
-                    };
-                    batch.set(doc(db, V2_COLLECTIONS.l2Subcategories, l2Id), l2Doc);
-                  });
-                });
-              }
-
-              // PROGRAM: L2 only (l1Id = null), sourced from subcategories[]
-              if (template === 'PROGRAM') {
-                (act.subcategories || []).forEach(sub => {
-                  const l2Doc: L2Subcategory = {
-                    id: sub.id, orgId, activityId: act.id, l1Id: null,
-                    name: sub.name, defaultRate: null,
-                    isArchived: sub.isArchived, createdAt: now, updatedAt: now,
-                  };
-                  batch.set(doc(db, V2_COLLECTIONS.l2Subcategories, sub.id), l2Doc);
-                });
-              }
-
-              // ENSEMBLE / EXTERNAL: create a single default L2 so assignments can link to it
-              if (template === 'ENSEMBLE' || template === 'EXTERNAL') {
-                const l2Id = `L2_${act.id}_default`;
-                const l2Doc: L2Subcategory = {
-                  id: l2Id, orgId, activityId: act.id, l1Id: null,
-                  name: act.name, defaultRate: null,
-                  isArchived: false, createdAt: now, updatedAt: now,
-                };
-                batch.set(doc(db, V2_COLLECTIONS.l2Subcategories, l2Id), l2Doc);
-              }
-
-              // ADMINISTRATIVE: no subcategory docs (l2Required: false)
-            });
-            await batch.commit();
-          }
-
-          // Seed v2 teachingAssignments from teacher.teachingAssignments[]
-          if (data.teachers.length > 0) {
-            const batch = writeBatch(db);
-            data.teachers.forEach(t => {
-              (t.teachingAssignments || []).forEach(ta => {
-                const taDoc: TeachingAssignmentV2 = {
-                  id: ta.id,
-                  orgId,
-                  staffMemberId: t.id,
-                  activityId: ta.activityId,
-                  l2Id: ta.subcategoryId,
-                  startDate: ta.startDate,
-                  endDate: null,
-                  isArchived: ta.isArchived,
-                  createdAt: now,
-                  updatedAt: now,
-                };
-                batch.set(doc(db, V2_COLLECTIONS.teachingAssignments, ta.id), taDoc);
-              });
-            });
-            await batch.commit();
-          }
-
-          // Seed v2 enrollments from student.assignments[]
-          if (data.students.length > 0) {
-            const batch = writeBatch(db);
-            data.students.forEach(s => {
-              (s.assignments || []).forEach(asgn => {
-                const enrollId = `EN_${asgn.id}`;
-                const enrollDoc: EnrollmentV2 = {
-                  id: enrollId,
-                  orgId,
-                  studentId: s.id,
-                  activityId: asgn.activityId,
-                  l2Id: asgn.subcategoryId,
-                  startDate: asgn.startDate,
-                  endDate: null,
-                  status: asgn.status === 'ARCHIVED' ? 'ARCHIVED' : 'ACTIVE',
-                  createdAt: now,
-                  updatedAt: now,
-                };
-                batch.set(doc(db, V2_COLLECTIONS.enrollments, enrollId), enrollDoc);
-              });
-            });
-            await batch.commit();
-          }
-        } catch (firestoreErr) {
-          console.warn('v2 Firestore seed failed (non-fatal):', firestoreErr);
         }
       }
 
@@ -466,27 +350,6 @@ export const DevTools: React.FC<DevToolsProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {TEST_TEMPLATES.map(template => {
-              const colorMap: Record<string, string> = {
-                blue:   'border-blue-200   dark:border-blue-700/50   bg-blue-50   dark:bg-blue-900/20   hover:bg-blue-100   dark:hover:bg-blue-900/30',
-                green:  'border-green-200  dark:border-green-700/50  bg-green-50  dark:bg-green-900/20  hover:bg-green-100  dark:hover:bg-green-900/30',
-                violet: 'border-violet-200 dark:border-violet-700/50 bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/30',
-                amber:  'border-amber-200  dark:border-amber-700/50  bg-amber-50  dark:bg-amber-900/20  hover:bg-amber-100  dark:hover:bg-amber-900/30',
-                rose:   'border-rose-200   dark:border-rose-700/50   bg-rose-50   dark:bg-rose-900/20   hover:bg-rose-100   dark:hover:bg-rose-900/30',
-                teal:   'border-teal-200   dark:border-teal-700/50   bg-teal-50   dark:bg-teal-900/20   hover:bg-teal-100   dark:hover:bg-teal-900/30',
-                indigo: 'border-indigo-200 dark:border-indigo-700/50 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30',
-                slate:  'border-slate-200  dark:border-slate-700/50  bg-slate-50  dark:bg-slate-800     hover:bg-slate-100  dark:hover:bg-slate-700/50',
-              };
-              const badgeColorMap: Record<string, string> = {
-                blue:   'bg-blue-100   dark:bg-blue-900/40   text-blue-700   dark:text-blue-400',
-                green:  'bg-green-100  dark:bg-green-900/40  text-green-700  dark:text-green-400',
-                violet: 'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400',
-                amber:  'bg-amber-100  dark:bg-amber-900/40  text-amber-700  dark:text-amber-400',
-                rose:   'bg-rose-100   dark:bg-rose-900/40   text-rose-700   dark:text-rose-400',
-                teal:   'bg-teal-100   dark:bg-teal-900/40   text-teal-700   dark:text-teal-400',
-                indigo: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400',
-                slate:  'bg-slate-200  dark:bg-slate-700     text-slate-700  dark:text-slate-300',
-              };
-
               const isLoading = templateLoading === template.id;
 
               return (
@@ -495,7 +358,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
                   data-template-id={template.id}
                   onClick={() => applyTemplate(template.id)}
                   disabled={!!templateLoading}
-                  className={`text-start p-3 rounded-lg border transition-colors ${colorMap[template.color]} ${!!templateLoading && !isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`text-start p-3 rounded-lg border transition-colors ${CARD_COLOR_MAP[template.color]} ${!!templateLoading && !isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <span className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
@@ -506,7 +369,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
                         </span>
                       ) : template.label}
                     </span>
-                    <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${badgeColorMap[template.color]}`}>
+                    <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${BADGE_COLOR_MAP[template.color]}`}>
                       {template.targetView.replace('_', ' ')}
                     </span>
                   </div>
@@ -545,21 +408,6 @@ export const DevTools: React.FC<DevToolsProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {QA_SCENARIOS.map(scenario => {
-              const colorMap: Record<string, string> = {
-                teal:   'border-teal-200   dark:border-teal-700/50   bg-teal-50   dark:bg-teal-900/20   hover:bg-teal-100   dark:hover:bg-teal-900/30',
-                green:  'border-green-200  dark:border-green-700/50  bg-green-50  dark:bg-green-900/20  hover:bg-green-100  dark:hover:bg-green-900/30',
-                blue:   'border-blue-200   dark:border-blue-700/50   bg-blue-50   dark:bg-blue-900/20   hover:bg-blue-100   dark:hover:bg-blue-900/30',
-                amber:  'border-amber-200  dark:border-amber-700/50  bg-amber-50  dark:bg-amber-900/20  hover:bg-amber-100  dark:hover:bg-amber-900/30',
-                violet: 'border-violet-200 dark:border-violet-700/50 bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/30',
-              };
-              const badgeColorMap: Record<string, string> = {
-                teal:   'bg-teal-100   dark:bg-teal-900/40   text-teal-700   dark:text-teal-400',
-                green:  'bg-green-100  dark:bg-green-900/40  text-green-700  dark:text-green-400',
-                blue:   'bg-blue-100   dark:bg-blue-900/40   text-blue-700   dark:text-blue-400',
-                amber:  'bg-amber-100  dark:bg-amber-900/40  text-amber-700  dark:text-amber-400',
-                violet: 'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400',
-              };
-
               return (
                 <button
                   key={scenario.id}
@@ -570,13 +418,13 @@ export const DevTools: React.FC<DevToolsProps> = ({
                     });
                   }}
                   disabled={!!templateLoading}
-                  className={`text-start p-3 rounded-lg border transition-colors ${colorMap[scenario.color]} ${!!templateLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`text-start p-3 rounded-lg border transition-colors ${CARD_COLOR_MAP[scenario.color]} ${!!templateLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <span className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
                       {scenario.label}
                     </span>
-                    <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${badgeColorMap[scenario.color]}`}>
+                    <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${BADGE_COLOR_MAP[scenario.color]}`}>
                       {scenario.steps.length} steps
                     </span>
                   </div>

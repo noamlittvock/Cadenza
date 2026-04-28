@@ -10,6 +10,7 @@ const t = (key: string) => {
 };
 import { writeBatch, getDocs, collection, query, where, doc, deleteDoc } from 'firebase/firestore';
 import { db } from './utils/firebase';
+import { LOCAL_MODE, clearOrgLocalData } from './utils/localStore';
 import { V2_COLLECTIONS } from './types/v2';
 import { useFirestoreSync, useFirestoreSettings } from './utils/useFirestoreSync';
 import { useOnboarding } from './utils/useOnboarding';
@@ -22,10 +23,8 @@ import { PowerTools } from './components/PowerTools';
 import { Settings } from './components/Settings';
 import { ManageHub } from './components/ManageHub';
 import { StaffMemberManager } from './components/StaffMemberManager';
-import { StudentManager } from './components/StudentManager';
 import { SuperAdmin } from './components/SuperAdmin';
 import { AdminInbox } from './components/AdminInbox';
-import { DocumentTemplates } from './components/DocumentRepository';
 import { OnboardingChecklist } from './components/OnboardingChecklist';
 
 import { TeacherHoursForm } from './components/TeacherHoursForm';
@@ -217,10 +216,9 @@ function AppContent() {
     onboarding.syncOrgMilestones({
       activities: activities.length,
       teachers: teachers.length,
-      students: students.length,
       events: events.length,
     });
-  }, [activities.length, teachers.length, students.length, events.length]);
+  }, [activities.length, teachers.length, events.length]);
 
   // ── Onboarding: update firstUseFlags on first successful data addition ────────
   useEffect(() => {
@@ -229,9 +227,6 @@ function AppContent() {
   useEffect(() => {
     if (teachers.length > 0) onboarding.updateFirstUseFlag('staffModule');
   }, [teachers.length]);
-  useEffect(() => {
-    if (students.length > 0) onboarding.updateFirstUseFlag('studentModule');
-  }, [students.length]);
   useEffect(() => {
     if (events.length > 0) onboarding.updateFirstUseFlag('eventCreation');
   }, [events.length]);
@@ -253,13 +248,6 @@ function AppContent() {
   const handleNavigateToStaff = (staffId: string) => {
     setNavigateToStaffId(staffId);
     setCurrentView('STAFF_MEMBERS');
-  };
-
-  // Navigate to student from inbox
-  const [navigateToStudentId, setNavigateToStudentId] = useState<string | null>(null);
-  const handleNavigateToStudent = (studentId: string) => {
-    setNavigateToStudentId(studentId);
-    setCurrentView('STUDENTS');
   };
 
   // Import events from Google Calendar
@@ -287,7 +275,7 @@ function AppContent() {
   };
 
   // Onboarding gate: first admin is blocked from these views until setupGateCleared
-  const GATED_VIEWS: ViewState[] = ['CALENDAR', 'GANTT', 'POWER_TOOLS', 'STUDENTS'];
+  const GATED_VIEWS: ViewState[] = ['CALENDAR', 'GANTT', 'POWER_TOOLS'];
   const isHardGated =
     !isSuperAdmin &&
     onboarding.isFirstAdmin &&
@@ -462,22 +450,6 @@ function AppContent() {
             onNavigateHandled={() => setNavigateToStaffId(null)}
           />
         );
-      case 'STUDENTS':
-        return (
-          <StudentManager
-            students={students}
-            setStudents={setStudents}
-            teachers={teachers}
-            setTeachers={setTeachers}
-            activities={activities}
-            setActivities={setActivities}
-            events={events}
-            settings={settings}
-            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
-            navigateToId={navigateToStudentId}
-            onNavigateHandled={() => setNavigateToStudentId(null)}
-          />
-        );
       case 'MANAGE':
         return (
           <ManageHub
@@ -519,8 +491,10 @@ function AppContent() {
                 setCalendarSubscriptions([]);
                 setLists(INITIAL_LISTS);
 
-                // 2. Delete Firestore documents so listeners don't re-populate state
-                if (orgId) {
+                // 2. Delete persisted data so listeners don't re-populate state.
+                if (LOCAL_MODE && orgId) {
+                  clearOrgLocalData(orgId);
+                } else if (orgId) {
                   const wipeCol = async (colName: string) => {
                     const snap = await getDocs(query(collection(db, colName), where('orgId', '==', orgId)));
                     if (snap.empty) return;
@@ -585,7 +559,6 @@ function AppContent() {
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
             onNavigateToEvent={handleNavigateToConflict}
             onNavigateToStaff={handleNavigateToStaff}
-            onNavigateToStudent={handleNavigateToStudent}
           />
         );
       case 'SETTINGS':
@@ -595,14 +568,6 @@ function AppContent() {
             setSettings={setSettings}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
             onImportGoogleEvents={handleImportGoogleEvents}
-          />
-        );
-      case 'DOCUMENTS':
-        return (
-          <DocumentTemplates
-            settings={settings}
-            teachers={teachers}
-            students={students}
           />
         );
       default:
@@ -625,7 +590,7 @@ function AppContent() {
       settings={settings}
       isMobileMenuOpen={isMobileMenuOpen}
       setIsMobileMenuOpen={setIsMobileMenuOpen}
-      inboxOpenCount={adminInboxItems.filter(i => i.type === 'TASK' && i.status === 'OPEN').length}
+      inboxOpenCount={adminInboxItems.filter(i => i.type === 'NOTIFICATION' && i.status === 'OPEN').length}
       isGated={isHardGated}
     >
       <div className="relative w-full h-full flex flex-col overflow-hidden">

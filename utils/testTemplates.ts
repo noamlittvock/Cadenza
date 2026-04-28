@@ -59,14 +59,6 @@ export const TEST_TEMPLATES: TestTemplate[] = [
     color: 'rose',
   },
   {
-    id: 'student-manager',
-    label: 'Student Manager',
-    description: '12 students with full profiles (guardians, assignments, pedagogical records). Tests enrollment status, assignment date ranges, and document uploads.',
-    targetView: 'STUDENTS',
-    modules: ['teachers', 'activities', 'students'],
-    color: 'teal',
-  },
-  {
     id: 'staff-manager',
     label: 'Staff Manager',
     description: '25 teachers across all rate types (HOURLY, GLOBAL_MONTHLY, PER_EVENT, ONE_OFF) including one archived teacher. Tests rate display, filtering, and archiving.',
@@ -130,39 +122,6 @@ export interface QAScenario {
 
 export const QA_SCENARIOS: QAScenario[] = [
   {
-    id: 'enrollment-chain',
-    label: 'Full Enrollment Chain',
-    description: 'Trace a student from activity creation → teacher assignment → enrollment → calendar event.',
-    templateId: 'student-manager',
-    color: 'teal',
-    steps: [
-      {
-        id: 'ec-1',
-        label: 'Activity exists in Manage Hub',
-        targetView: 'MANAGE',
-        hint: 'Open Manage → Activities tab. Confirm at least one activity is listed.',
-      },
-      {
-        id: 'ec-2',
-        label: 'Teacher is assigned to that activity',
-        targetView: 'STAFF_MEMBERS',
-        hint: 'Open Staff Hub → click any teacher → Teaching Assignments section should list the same activity.',
-      },
-      {
-        id: 'ec-3',
-        label: 'Student is enrolled in the activity',
-        targetView: 'STUDENTS',
-        hint: 'Open Student Hub → click any student → Assignments section should list the activity with a valid teacher name.',
-      },
-      {
-        id: 'ec-4',
-        label: 'Calendar shows events for that activity',
-        targetView: 'CALENDAR',
-        hint: 'Navigate to Calendar. Events should appear with matching activity label and teacher name.',
-      },
-    ],
-  },
-  {
     id: 'staff-cascade',
     label: 'Staff Assignment Cascade',
     description: 'Confirm that adding a teacher to an activity makes them appear in the event staff picker.',
@@ -192,39 +151,6 @@ export const QA_SCENARIOS: QAScenario[] = [
         label: 'Staff picker filters by activity',
         targetView: 'CALENDAR',
         hint: 'Open any event on Calendar → Edit → Staff picker. Only teachers assigned to that activity should appear.',
-      },
-    ],
-  },
-  {
-    id: 'student-integrity',
-    label: 'Student Record Integrity',
-    description: 'Check that student profiles are complete with guardians, enrollments, and correct activity counts.',
-    templateId: 'student-manager',
-    color: 'amber',
-    steps: [
-      {
-        id: 'si-1',
-        label: 'Student list loads with names',
-        targetView: 'STUDENTS',
-        hint: 'Open Student Hub. All 12 students should be listed. One should show as Archived.',
-      },
-      {
-        id: 'si-2',
-        label: 'Minor student has guardian info',
-        targetView: 'STUDENTS',
-        hint: 'Click a minor student → Guardian section should show parent name and phone.',
-      },
-      {
-        id: 'si-3',
-        label: 'Enrollments list activities',
-        targetView: 'STUDENTS',
-        hint: 'In student detail → Assignments/Enrollments section should list activity name, teacher, and start date.',
-      },
-      {
-        id: 'si-4',
-        label: 'Enrollment count badge is correct',
-        targetView: 'STUDENTS',
-        hint: 'Back in the student list — each row\'s enrollment count badge should match the number of activities in their detail view.',
       },
     ],
   },

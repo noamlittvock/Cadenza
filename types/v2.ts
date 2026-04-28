@@ -89,7 +89,6 @@ export interface ModulesConfig {
 export interface FirstUseFlags {
   activityHub: boolean;
   staffModule: boolean;
-  studentModule: boolean;
   eventCreation: boolean;
   enrollment: boolean;
 }
@@ -153,7 +152,6 @@ export interface L2Subcategory {
   activityId: string;
   l1Id: string | null;
   name: string;
-  defaultRate: null;
   isArchived: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -313,7 +311,6 @@ export interface OnboardingState {
   orgId: string;
   activitiesCreated: boolean;
   staffAdded: boolean;
-  studentsAdded: boolean;
   firstEventCreated: boolean;
   setupGateCleared: boolean;
 }

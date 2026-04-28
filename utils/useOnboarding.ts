@@ -5,7 +5,7 @@
  *   userProfiles/{uid}_{orgId}  — per-user flags (isFirstAdmin, onboardingDismissed, firstUseFlags)
  *   onboardingState/{orgId}     — per-org milestone flags (activitiesCreated, setupGateCleared, …)
  *
- * Gate rule: isFirstAdmin && !setupGateCleared → hard gate (blocks CALENDAR/STUDENTS).
+ * Gate rule: isFirstAdmin && !setupGateCleared → hard gate (blocks CALENDAR).
  * SuperAdmin bypasses all gates.
  */
 
@@ -13,22 +13,16 @@ import { useState, useEffect, useRef } from 'react';
 import { doc, onSnapshot, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from './firebase';
 import { useAuth } from '../context/AuthContext';
+import type { FirstUseFlags } from '../types/v2';
+
+export type { FirstUseFlags };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface FirstUseFlags {
-  activityHub: boolean;
-  staffModule: boolean;
-  studentModule: boolean;
-  eventCreation: boolean;
-  enrollment: boolean;
-}
 
 export interface OrgOnboardingState {
   orgId: string;
   activitiesCreated: boolean;
   staffAdded: boolean;
-  studentsAdded: boolean;
   firstEventCreated: boolean;
   setupGateCleared: boolean;
 }
@@ -44,7 +38,6 @@ export interface UseOnboardingResult {
   syncOrgMilestones: (counts: {
     activities: number;
     teachers: number;
-    students: number;
     events: number;
   }) => Promise<void>;
 }
@@ -54,7 +47,6 @@ export interface UseOnboardingResult {
 const DEFAULT_FLAGS: FirstUseFlags = {
   activityHub: false,
   staffModule: false,
-  studentModule: false,
   eventCreation: false,
   enrollment: false,
 };
@@ -168,14 +160,12 @@ export function useOnboarding(): UseOnboardingResult {
   const syncOrgMilestones = async (counts: {
     activities: number;
     teachers: number;
-    students: number;
     events: number;
   }) => {
     if (!orgId) return;
 
     const activitiesCreated = counts.activities > 0;
     const staffAdded = counts.teachers > 0;
-    const studentsAdded = counts.students > 0;
     const firstEventCreated = counts.events > 0;
     const setupGateCleared = activitiesCreated && staffAdded;
 
@@ -183,7 +173,6 @@ export function useOnboarding(): UseOnboardingResult {
     const unchanged =
       cur?.activitiesCreated === activitiesCreated &&
       cur?.staffAdded === staffAdded &&
-      cur?.studentsAdded === studentsAdded &&
       cur?.firstEventCreated === firstEventCreated &&
       cur?.setupGateCleared === setupGateCleared;
 
@@ -195,7 +184,6 @@ export function useOnboarding(): UseOnboardingResult {
         orgId,
         activitiesCreated,
         staffAdded,
-        studentsAdded,
         firstEventCreated,
         setupGateCleared,
       },

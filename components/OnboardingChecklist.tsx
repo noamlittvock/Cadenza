@@ -2,7 +2,7 @@
  * OnboardingChecklist — Phase 11
  *
  * Two roles:
- *  1. "Hard gate" screen — shown instead of locked views (CALENDAR/STUDENTS)
+ *  1. "Hard gate" screen — shown instead of locked views (CALENDAR)
  *     when isFirstAdmin && !setupGateCleared.
  *  2. "Gate cleared" celebration — shown once setup is complete with a dismiss CTA.
  *
@@ -51,12 +51,6 @@ export const OnboardingChecklist: React.FC<Props> = ({
       done: st?.staffAdded ?? false,
       cta: t('onboarding.step_add_staff'),
       view: 'STAFF_MEMBERS' as ViewState,
-    },
-    {
-      label: t('onboarding.step_3'),
-      done: st?.studentsAdded ?? false,
-      cta: null, // Unlocked after gate clears
-      view: 'STUDENTS' as ViewState,
     },
     {
       label: t('onboarding.step_4'),

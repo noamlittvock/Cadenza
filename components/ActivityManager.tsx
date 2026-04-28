@@ -580,7 +580,7 @@ export const ActivityManager: React.FC<Props> = ({
         l2ByKey.set(l2Key, {} as L2Subcategory);
         l2Additions.push({
           id: generateId(), orgId: '', activityId, l1Id,
-          name: l3Name, defaultRate: null,
+          name: l3Name,
           isArchived: false, createdAt: now, updatedAt: now,
         });
       }
@@ -614,7 +614,7 @@ export const ActivityManager: React.FC<Props> = ({
     const now = Timestamp.now();
     const newL2: L2Subcategory = {
       id: generateId(), orgId: '', activityId: detailActivityId,
-      l1Id, name: input.trim(), defaultRate: null,
+      l1Id, name: input.trim(),
       isArchived: false, createdAt: now, updatedAt: now,
     };
     setL2Subs(prev => [...prev, newL2]);

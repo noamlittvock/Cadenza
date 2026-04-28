@@ -28,6 +28,11 @@ import { ColumnFilterDropdown } from './ColumnFilterDropdown';
 import { FilterPills } from './FilterPills';
 import { DocumentSection } from './DocumentSection';
 
+const DEFAULT_FIRST_USE_FLAGS: FirstUseFlags = {
+  activityHub: false, staffModule: false,
+  eventCreation: false, enrollment: false,
+};
+
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const STAFF_ROLES: StaffRole[] = ['SUPER_ADMIN', 'ADMIN', 'STAFF'];
@@ -307,11 +312,6 @@ export const StaffMemberManager: React.FC<Props> = ({
     [l2Subcategories],
   );
 
-  const DEFAULT_FIRST_USE_FLAGS: FirstUseFlags = {
-    activityHub: false, staffModule: false, studentModule: false,
-    eventCreation: false, enrollment: false,
-  };
-
   const handleStaffImportComplete = useCallback((rows: Record<string, string>[]) => {
     const now = Timestamp.now();
     const newStaff: StaffMemberV2[] = rows.map(row => ({
@@ -448,7 +448,7 @@ export const StaffMemberManager: React.FC<Props> = ({
         createdAt: now, updatedAt: now,
         isFirstAdmin: false, onboardingDismissed: false,
         firstUseFlags: {
-          activityHub: false, staffModule: false, studentModule: false,
+          activityHub: false, staffModule: false,
           eventCreation: false, enrollment: false,
         },
         documents: [],
@@ -725,8 +725,6 @@ export const StaffMemberManager: React.FC<Props> = ({
   // RENDER
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // Detail view removed — replaced by SlideOver below
-
   // ─── Inline SortHeader for table view ───────────────────────────────────
   const SortHeader: React.FC<{
     sortKey_: StaffSortKey; sortDir: 'asc' | 'desc'; column: StaffSortKey;
@@ -850,7 +848,7 @@ export const StaffMemberManager: React.FC<Props> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {staffColumnFilteredData.map(s => (
             <button key={s.id} onClick={() => openDetail(s.id)}
-              className="text-left p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
+              className="text-start p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
               <div className="font-medium text-slate-800 dark:text-slate-200 truncate">{s.fullName}</div>
               <div className="text-sm text-slate-500 dark:text-slate-400 truncate mt-0.5">{s.email}</div>
               <div className="mt-2"><RoleBadge role={s.role} /></div>
@@ -868,10 +866,10 @@ export const StaffMemberManager: React.FC<Props> = ({
           <div className="md:hidden space-y-1">
             {sortedStaff.map(s => (
               <button key={s.id} onClick={() => openDetail(s.id)}
-                className="w-full text-left flex items-center gap-4 p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
+                className="w-full text-start flex items-center gap-4 p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
                 <div className="flex-1 min-w-0">
                   <span className="font-medium text-slate-800 dark:text-slate-200">{s.fullName}</span>
-                  <span className="text-sm text-slate-500 dark:text-slate-400 ml-2">{s.email}</span>
+                  <span className="text-sm text-slate-500 dark:text-slate-400 ms-2">{s.email}</span>
                 </div>
                 <RoleBadge role={s.role} />
                 <ChevronRight size={16} className="text-slate-400 shrink-0" />
@@ -924,7 +922,7 @@ export const StaffMemberManager: React.FC<Props> = ({
                       <td className="py-2 px-3 text-start font-medium text-slate-800 dark:text-slate-200">
                         {s.fullName}
                         {s.isArchived && (
-                          <span className="ml-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded">
+                          <span className="ms-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded">
                             {t('staff.archived_badge')}
                           </span>
                         )}
@@ -935,7 +933,7 @@ export const StaffMemberManager: React.FC<Props> = ({
                         {shown.length > 0 ? (
                           <>
                             {shown.join(', ')}
-                            {extra > 0 && <span className="text-slate-400 dark:text-slate-500 ml-1">+{extra} more</span>}
+                            {extra > 0 && <span className="text-slate-400 dark:text-slate-500 ms-1">+{extra} more</span>}
                           </>
                         ) : '—'}
                       </td>
@@ -952,10 +950,10 @@ export const StaffMemberManager: React.FC<Props> = ({
         <div className="space-y-1">
           {staffColumnFilteredData.map(s => (
             <button key={s.id} onClick={() => openDetail(s.id)}
-              className="w-full text-left flex items-center gap-4 p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
+              className="w-full text-start flex items-center gap-4 p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
               <div className="flex-1 min-w-0">
                 <span className="font-medium text-slate-800 dark:text-slate-200">{s.fullName}</span>
-                <span className="text-sm text-slate-500 dark:text-slate-400 ml-2">{s.email}</span>
+                <span className="text-sm text-slate-500 dark:text-slate-400 ms-2">{s.email}</span>
               </div>
               <RoleBadge role={s.role} />
               {s.isArchived && (
@@ -978,7 +976,7 @@ export const StaffMemberManager: React.FC<Props> = ({
               <div>
                 <span>{editingStaffId ? t('staff.edit') : t('staff.add_new')}</span>
                 {!editingStaffId && wizardStep === 1 && (
-                  <button onClick={openGuideMe} className="ml-3 text-xs text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
+                  <button onClick={openGuideMe} className="ms-3 text-xs text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
                     <Sparkles size={12} /> {t('staff.v2.guide_me')}
                   </button>
                 )}

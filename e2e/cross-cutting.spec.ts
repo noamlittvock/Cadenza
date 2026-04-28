@@ -45,11 +45,9 @@ test('#70 no JavaScript console errors while navigating all major views', async 
   const views = [
     'CALENDAR',
     'STAFF_MEMBERS',
-    'STUDENTS',
     'MANAGE',
     'ADMIN_INBOX',
     'SETTINGS',
-    'DOCUMENTS',
   ];
 
   for (const view of views) {

@@ -327,7 +327,7 @@ export interface HoursReport {
 
 // --- Admin Inbox (Phase 8) ---
 
-export type AdminInboxItemType = 'TASK' | 'NOTIFICATION';
+export type AdminInboxItemType = 'NOTIFICATION';
 export type AdminInboxItemStatus = 'OPEN' | 'DONE';
 
 export interface AdminInboxItem {
@@ -345,7 +345,7 @@ export interface AdminInboxItem {
   autoResolvedReason?: 'CONFLICT_CLEARED';
 }
 
-export type ViewState = 'CALENDAR' | 'GANTT' | 'MANAGE' | 'SETTINGS' | 'POWER_TOOLS' | 'SUPER_ADMIN' | 'STAFF_MEMBERS' | 'STUDENTS' | 'ADMIN_INBOX' | 'DOCUMENTS';
+export type ViewState = 'CALENDAR' | 'GANTT' | 'MANAGE' | 'SETTINGS' | 'POWER_TOOLS' | 'SUPER_ADMIN' | 'STAFF_MEMBERS' | 'ADMIN_INBOX';
 
 // ─── v2.0 Type Re-exports ────────────────────────────────────────────────────
 // Canonical v2.0 types from the Cadenza v2.0 Final spec (Section 05).

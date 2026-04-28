@@ -5062,5 +5062,13 @@
   {
     "key": "itinerary",
     "screen_group": "RoomManager"
+  },
+  {
+    "key": "Translation deploy is disabled in local mode (no Firestore project).",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "event.v2.err_summary_title",
+    "screen_group": "EventFormV2"
   }
 ]

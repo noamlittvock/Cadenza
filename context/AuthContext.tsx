@@ -66,7 +66,11 @@ const E2EAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  if (import.meta.env.VITE_E2E_AUTH_BYPASS === 'true' || import.meta.env.VITE_E2E_FIREBASE_BYPASS === 'true') {
+  if (
+    import.meta.env.VITE_E2E_AUTH_BYPASS === 'true' ||
+    import.meta.env.VITE_E2E_FIREBASE_BYPASS === 'true' ||
+    import.meta.env.VITE_LOCAL_MODE === 'true'
+  ) {
     return <E2EAuthProvider>{children}</E2EAuthProvider>;
   }
   return <RealAuthProvider>{children}</RealAuthProvider>;

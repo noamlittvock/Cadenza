@@ -8,6 +8,7 @@
 import React, { useState, useRef } from 'react';
 import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../utils/firebase';
+import { LOCAL_MODE } from '../utils/localStore';
 import { useAuth } from '../context/AuthContext';
 import { AppSettings } from '../types';
 import type { ImportEntityType, ImportRowResult, DuplicateAction } from '../types/v2';
@@ -187,35 +188,42 @@ export const CsvImportModal: React.FC<Props> = ({
       autoCreated: r.missingDeps.length > 0 ? r.missingDeps : null,
     }));
 
-    try {
-      const sessionRef = await addDoc(collection(db, V2_COLLECTIONS.importSessions), {
-        orgId,
-        createdBy: currentUser?.uid || '',
-        entityType,
-        status: 'IMPORTING',
-        fileName,
-        totalRows: reviewRows.length,
-        importedRows: 0,
-        skippedRows: 0,
-        rowResults: [],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+    const imported = rowsToImport.length;
+    const skipped = reviewRows.length - imported;
+    const errors = errorCount;
 
-      // Deliver to parent for Firestore entity writes
+    try {
+      // LOCAL_MODE skips the Firestore audit trail (importSessions) because
+      // addDoc/updateDoc hang forever without a Firestore project. Rows still
+      // flow through onImportComplete and persist via useFirestoreSync.
+      const sessionRef = LOCAL_MODE ? null : await addDoc(
+        collection(db, V2_COLLECTIONS.importSessions),
+        {
+          orgId,
+          createdBy: currentUser?.uid || '',
+          entityType,
+          status: 'IMPORTING',
+          fileName,
+          totalRows: reviewRows.length,
+          importedRows: 0,
+          skippedRows: 0,
+          rowResults: [],
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+      );
+
       onImportComplete(rowsToImport.map(r => r.mapped));
 
-      const imported = rowsToImport.length;
-      const skipped = reviewRows.length - imported;
-      const errors = errorCount;
-
-      await updateDoc(doc(db, V2_COLLECTIONS.importSessions, sessionRef.id), {
-        status: errors > 0 ? 'COMPLETED_WITH_ERRORS' : 'COMPLETED',
-        importedRows: imported,
-        skippedRows: skipped,
-        rowResults,
-        updatedAt: serverTimestamp(),
-      });
+      if (sessionRef) {
+        await updateDoc(doc(db, V2_COLLECTIONS.importSessions, sessionRef.id), {
+          status: errors > 0 ? 'COMPLETED_WITH_ERRORS' : 'COMPLETED',
+          importedRows: imported,
+          skippedRows: skipped,
+          rowResults,
+          updatedAt: serverTimestamp(),
+        });
+      }
 
       setResults({ imported, skipped, errors });
       setErrorRows(reviewRows.filter(r => r.status === 'ERROR'));

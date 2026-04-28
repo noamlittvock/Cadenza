@@ -1,26 +1,14 @@
-/**
- * EventFormV2 — Three-Zone Event Creation/Editing Form
- *
- * Phase 5 deliverable: replaces the v1.3 event form modal content.
- * Zone 1: Always visible (activity, L1/L2, date, time, name, location)
- * Zone 2: Module-driven (curriculum, staff billing, org role billing, revenue)
- * Zone 3: Exceptions (rate override, external participants)
- *
- * Includes walkthrough (4 steps), Guide Me link, and pre-fill from last event.
- */
-
 import React, { useState, useMemo, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { CalendarEvent, RecurrenceRule, DayOfWeek, Room, AppSettings } from '../types';
 import {
   ActivityV2, L1Subcategory, L2Subcategory, StaffMemberV2,
-  TeachingAssignmentV2, OrgRoleV2, StudentV2, EnrollmentV2,
-  EnsembleRosterMember, EventParticipant,
+  TeachingAssignmentV2, OrgRoleV2, EventParticipant,
   EventNameMode,
 } from '../types/v2';
 import { generateId } from '../constants';
 import { useAuth } from '../context/AuthContext';
 import { DatePicker } from './DatePicker';
-import { Plus, Trash2, ChevronDown, ChevronUp, Repeat, Users, HelpCircle, X } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, Repeat, HelpCircle, X } from 'lucide-react';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -56,8 +44,6 @@ export interface EventFormState {
   location: string;
   roomId: string;
   // Zone 2
-  selectedStudentIds: string[];
-  lessonMode: 'INDIVIDUAL' | 'GROUP';
   staffParticipants: StaffParticipantDraft[];
   // Zone 3
   externalParticipants: ExternalParticipantDraft[];
@@ -81,9 +67,6 @@ export interface EventFormV2Props {
   staffMembers: StaffMemberV2[];
   teachingAssignments: TeachingAssignmentV2[];
   orgRoles: OrgRoleV2[];
-  students: StudentV2[];
-  enrollments: EnrollmentV2[];
-  ensembleRoster: EnsembleRosterMember[];
   // v1.3 compat
   rooms: Room[];
   settings: AppSettings;
@@ -123,7 +106,7 @@ function formatDateDisplay(date: string): string {
 
 export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
   activitiesV2, l1Subcategories, l2Subcategories, staffMembers,
-  teachingAssignments, orgRoles, students, enrollments, ensembleRoster,
+  teachingAssignments, orgRoles,
   rooms, settings,
   editingEventId, existingFormState, existingParticipants,
   isExceptionEdit, initialStart, initialEnd,
@@ -173,7 +156,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
     if (existingFormState) {
       return {
         activityId: '', l1Id: '', l2Id: '', name: '', date: '', startTime: '', endTime: '',
-        location: '', roomId: '', selectedStudentIds: [], lessonMode: 'INDIVIDUAL' as const,
+        location: '', roomId: '',
         staffParticipants: [], externalParticipants: [],
         isCanceled: false, notes: '',
         ...existingFormState,
@@ -189,8 +172,6 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       endTime: initialEnd ? isoToTime(initialEnd) : '10:00',
       location: '',
       roomId: '',
-      selectedStudentIds: [],
-      lessonMode: 'INDIVIDUAL',
       staffParticipants: [],
       externalParticipants: [],
       isCanceled: false,
@@ -235,33 +216,6 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
     }),
     [l2Subcategories, form.activityId, form.l1Id]
   );
-
-  // Students enrolled in this activity + L2
-  const enrolledStudents = useMemo(() => {
-    if (!modules.curriculum || template === 'ENSEMBLE' || template === 'EXTERNAL' || template === 'ADMINISTRATIVE') return [];
-    return students.filter(s => {
-      if (s.isArchived) return false;
-      return enrollments.some(e =>
-        e.studentId === s.id &&
-        e.activityId === form.activityId &&
-        (!form.l2Id || e.l2Id === form.l2Id) &&
-        e.status === 'ACTIVE' &&
-        e.startDate <= form.date &&
-        (!e.endDate || e.endDate >= form.date)
-      );
-    });
-  }, [students, enrollments, form.activityId, form.l2Id, form.date, modules.curriculum, template]);
-
-  // Ensemble roster members (read-only)
-  const activeRoster = useMemo(() => {
-    if (template !== 'ENSEMBLE') return [];
-    return ensembleRoster.filter(r =>
-      r.activityId === form.activityId &&
-      !r.isArchived &&
-      r.startDate <= form.date &&
-      (!r.endDate || r.endDate >= form.date)
-    );
-  }, [ensembleRoster, form.activityId, form.date, template]);
 
   // Staff with active teaching assignments for this activity + L2
   const eligibleStaff = useMemo(() => {
@@ -311,7 +265,6 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       l2Id: '',
       name: '',
       location: act?.location || '',
-      selectedStudentIds: [],
       staffParticipants: [],
       externalParticipants: [],
     }));
@@ -349,16 +302,6 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       errs.name = t('event.v2.name_placeholder');
     }
 
-    // Curriculum validation
-    if (modules.curriculum && template !== 'ENSEMBLE') {
-      if (template === 'DISCIPLINE' && form.lessonMode === 'INDIVIDUAL' && form.selectedStudentIds.length > 1) {
-        errs.students = t('event.v2.err_individual_max');
-      }
-      if ((template === 'DISCIPLINE' || template === 'PROGRAM') && form.selectedStudentIds.length === 0) {
-        errs.students = t('event.v2.err_students_required');
-      }
-    }
-
     // Staff required for DISCIPLINE/PROGRAM
     if (template === 'DISCIPLINE' || template === 'PROGRAM') {
       if (form.staffParticipants.length === 0) {
@@ -376,15 +319,6 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
     // Timezone must be configured
     if (!settings.timeZone) {
       errs.timezone = t('event.v2.err_no_timezone');
-    }
-
-    // Enrollment check: selected students must still be enrolled for the current event date
-    if (modules.curriculum && form.selectedStudentIds.length > 0 && template !== 'ENSEMBLE') {
-      const enrolledIds = new Set(enrolledStudents.map(s => s.id));
-      const hasUnenrolled = form.selectedStudentIds.some(id => !enrolledIds.has(id));
-      if (hasUnenrolled) {
-        errs.students = t('event.v2.err_not_enrolled');
-      }
     }
 
     // Assignment date range check: staff added for one date may be out of range if date changed
@@ -568,6 +502,20 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
         </div>
       )}
 
+      {/* Validation summary — surfaced at top so failures aren't missed */}
+      {Object.keys(errors).length > 0 && (
+        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <p className="text-sm font-medium text-red-700 dark:text-red-300 mb-1">
+            {t('event.v2.err_summary_title') || 'Please fix the following before saving:'}
+          </p>
+          <ul className="list-disc ms-5 text-xs text-red-600 dark:text-red-400 space-y-0.5">
+            {Object.values(errors).map((msg, i) => (
+              <li key={i}>{msg}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* ═══ ZONE 1: Always Visible ═══ */}
 
       {/* Activity picker */}
@@ -601,7 +549,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       {form.activityId && showL2Field && l2Options.length > 0 && (
         <div>
           <label className={labelCls}>{t('event.v2.select_l2')}</label>
-          <select className={selectCls} value={form.l2Id} onChange={e => setForm(prev => ({ ...prev, l2Id: e.target.value, selectedStudentIds: [], staffParticipants: [] }))}>
+          <select className={selectCls} value={form.l2Id} onChange={e => setForm(prev => ({ ...prev, l2Id: e.target.value, staffParticipants: [] }))}>
             <option value="">{t('event.v2.select_l2')}</option>
             {l2Options.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
@@ -723,99 +671,6 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       {selectedActivity && (
         <div className="border-t border-slate-200 dark:border-slate-700 pt-4 space-y-4">
           <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{t('event.v2.zone2_title')}</h4>
-
-          {/* ── Curriculum Module: Student Picker ── */}
-          {modules.curriculum && template !== 'EXTERNAL' && template !== 'ADMINISTRATIVE' && (
-            <div>
-              {template === 'ENSEMBLE' ? (
-                /* Ensemble: read-only roster */
-                <div>
-                  <label className={labelCls}>
-                    <Users size={14} className="inline me-1" />
-                    {t('event.v2.ensemble_roster')}
-                  </label>
-                  <p className="text-xs text-slate-400 mb-2">{t('event.v2.ensemble_roster_desc')}</p>
-                  {activeRoster.length > 0 ? (
-                    <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-2 space-y-1">
-                      {activeRoster.map(r => {
-                        const student = students.find(s => s.id === r.studentId);
-                        return (
-                          <div key={r.id} className="text-sm text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                            <span className="w-2 h-2 bg-green-500 rounded-full" />
-                            {student?.fullName || r.studentId}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-400 italic">{t('event.v2.ensemble_empty')}</p>
-                  )}
-                </div>
-              ) : (
-                /* Discipline/Program: student picker */
-                <div>
-                  <label className={labelCls}>
-                    {t('event.v2.students')} <span className="text-red-500">*</span>
-                  </label>
-
-                  {/* Lesson mode toggle (Discipline only) */}
-                  {template === 'DISCIPLINE' && (
-                    <div className="flex gap-2 mb-2">
-                      {(['INDIVIDUAL', 'GROUP'] as const).map(mode => (
-                        <button
-                          key={mode}
-                          type="button"
-                          onClick={() => {
-                            setForm(prev => ({
-                              ...prev,
-                              lessonMode: mode,
-                              selectedStudentIds: mode === 'INDIVIDUAL' ? prev.selectedStudentIds.slice(0, 1) : prev.selectedStudentIds,
-                            }));
-                          }}
-                          className={`px-3 py-1 text-xs rounded-full border transition-colors ${form.lessonMode === mode
-                            ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700'
-                            : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600'
-                          }`}
-                        >
-                          {mode === 'INDIVIDUAL' ? t('event.v2.individual') : t('event.v2.group')}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {enrolledStudents.length > 0 ? (
-                    <div className="space-y-1 max-h-40 overflow-y-auto bg-slate-50 dark:bg-slate-800 rounded-lg p-2">
-                      {enrolledStudents.map(s => (
-                        <label key={s.id} className="flex items-center gap-2 text-sm cursor-pointer text-slate-700 dark:text-slate-300">
-                          <input
-                            type="checkbox"
-                            checked={form.selectedStudentIds.includes(s.id)}
-                            onChange={e => {
-                              if (template === 'DISCIPLINE' && form.lessonMode === 'INDIVIDUAL') {
-                                setForm(prev => ({ ...prev, selectedStudentIds: e.target.checked ? [s.id] : [] }));
-                              } else {
-                                setForm(prev => ({
-                                  ...prev,
-                                  selectedStudentIds: e.target.checked
-                                    ? [...prev.selectedStudentIds, s.id]
-                                    : prev.selectedStudentIds.filter(id => id !== s.id),
-                                }));
-                              }
-                            }}
-                            className="rounded text-blue-600 focus:ring-blue-500"
-                          />
-                          {s.fullName}
-                        </label>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-400 italic">{t('event.v2.no_enrolled')}</p>
-                  )}
-                  {errors.students && <p className={errorCls}>{errors.students}</p>}
-                </div>
-              )}
-            </div>
-          )}
 
           {/* ── Staff (non-ADMINISTRATIVE templates) ── */}
           {template !== 'ADMINISTRATIVE' && (

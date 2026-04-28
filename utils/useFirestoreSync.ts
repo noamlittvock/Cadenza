@@ -4,6 +4,16 @@ import { db } from './firebase';
 import { useAuth } from '../context/AuthContext';
 import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, ListsState } from '../types';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS } from '../constants';
+import {
+    LOCAL_MODE,
+    readCollection,
+    writeCollection,
+    collectionSubKey,
+    readSettings,
+    writeSettings,
+    settingsSubKey,
+    subscribeKey,
+} from './localStore';
 
 // ─── Shared listener registry ────────────────────────────────────────────────
 // One Firestore onSnapshot per (orgId, collectionName) pair, shared across all
@@ -87,19 +97,24 @@ export function useFirestoreSync<T extends { id: string }>(
 
     // Keep a ref to the latest data so updateData's delete-diff is never stale
     const dataRef = useRef(data);
-    useEffect(() => { dataRef.current = data; }, [data]);
+    dataRef.current = data;
 
     useEffect(() => {
-        // E2E auth bypass — skip Firestore entirely, use empty initial state
-        if (import.meta.env.VITE_E2E_AUTH_BYPASS === 'true') {
-            setLoading(false);
-            return;
-        }
-
         if (!orgId) {
             setData(initialData);
             setLoading(false);
             return;
+        }
+
+        // ─── Local-mode branch ─────────────────────────────────────────────
+        if (LOCAL_MODE) {
+            const load = () => {
+                const stored = readCollection<T>(orgId, collectionName);
+                setData(stored ?? initialData);
+                setLoading(false);
+            };
+            load();
+            return subscribeKey(collectionSubKey(orgId, collectionName), load);
         }
 
         const notify: NotifyFn = (items, loaded) => {
@@ -121,13 +136,32 @@ export function useFirestoreSync<T extends { id: string }>(
 
         if (!orgId) return;
 
+        // ─── Local-mode write ─────────────────────────────────────────────
+        // Mirror Firestore's `merge: true` semantics: multiple hooks can write
+        // disjoint field sets to the same collection (e.g. v1 `events` writes
+        // start/end/teacherId, V2 `events` writes date/startTime/endTime — same
+        // collection name, different shapes). Read existing items from local
+        // storage and merge per-id so neither hook clobbers the other's fields.
+        // Items absent from `resolvedData` but present in `currentData` are
+        // treated as deletes; items absent from both are left untouched.
+        if (LOCAL_MODE) {
+            const stored = readCollection<T>(orgId, collectionName) ?? [];
+            const deletedIds = new Set<string>(
+                currentData.filter(c => !resolvedData.some(r => r.id === c.id)).map(c => c.id)
+            );
+            const storedById = new Map<string, T>(stored.map(s => [s.id, s] as [string, T]));
+            resolvedData.forEach(item => {
+                const existing = storedById.get(item.id) as Record<string, unknown> | undefined;
+                storedById.set(item.id, (existing ? { ...existing, ...item } : item) as T);
+            });
+            deletedIds.forEach(id => storedById.delete(id));
+            writeCollection(orgId, collectionName, Array.from(storedById.values()));
+            return;
+        }
+
         // 3. Sync to Firestore
         try {
             const batch = writeBatch(db);
-
-            // We need to figure out what was added/updated and what was deleted.
-            // In a robust app, we'd only write the specific changed doc. Because the current app 
-            // passes whole arrays to `setTeachers` etc., we will batch write them.
 
             resolvedData.forEach(item => {
                 const docRef = doc(db, collectionName, item.id);
@@ -167,10 +201,22 @@ export function useFirestoreSettings<T>(docId: string, initialData: T) {
             return;
         }
 
-        // E2E auth bypass — skip Firestore entirely, use empty initial state
-        if (import.meta.env.VITE_E2E_AUTH_BYPASS === 'true') {
-            setLoading(false);
-            return;
+        // ─── Local-mode branch ─────────────────────────────────────────────
+        if (LOCAL_MODE) {
+            const load = () => {
+                const stored = readSettings<T>(orgId, docId);
+                if (stored === null) {
+                    setData(initialData);
+                } else if (isArrayType) {
+                    setData(Array.isArray(stored) ? (stored as T) : initialData);
+                } else {
+                    // Merge with defaults so newly-added settings fields stay defined
+                    setData({ ...(initialData as any), ...(stored as any) } as T);
+                }
+                setLoading(false);
+            };
+            load();
+            return subscribeKey(settingsSubKey(orgId, docId), load);
         }
 
         const docRef = doc(db, 'system_configs', `${orgId}_${docId}`);
@@ -214,6 +260,12 @@ export function useFirestoreSettings<T>(docId: string, initialData: T) {
         setData(resolvedData);
 
         if (!orgId) return;
+
+        // ─── Local-mode write ─────────────────────────────────────────────
+        if (LOCAL_MODE) {
+            writeSettings(orgId, docId, resolvedData);
+            return;
+        }
 
         try {
             const docRef = doc(db, 'system_configs', `${orgId}_${docId}`);

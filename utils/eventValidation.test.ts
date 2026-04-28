@@ -1,11 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   validateEventForm,
-  isStudentEnrolled,
   detectOverlappingAssignments,
   EventFormInput,
   ActivityModules,
-  EnrollmentRecord,
   TeachingAssignmentRecord,
 } from './eventValidation';
 
@@ -25,8 +23,6 @@ const validBase: EventFormInput = {
   eventNameMode: 'PROMPTED',
   template: 'DISCIPLINE',
   modules: { ...baseModules, curriculum: true },
-  lessonMode: 'INDIVIDUAL',
-  selectedStudentIds: ['s1'],
   staffParticipantCount: 1,
   externalParticipantCount: 0,
 };
@@ -84,43 +80,6 @@ describe('validateEventForm', () => {
     expect(fieldKeys(errors)).not.toContain('name');
   });
 
-  // Section 15: DISCIPLINE individual — more than one student
-  it('blocks DISCIPLINE INDIVIDUAL with >1 student', () => {
-    const errors = validateEventForm({
-      ...validBase,
-      lessonMode: 'INDIVIDUAL',
-      selectedStudentIds: ['s1', 's2'],
-    });
-    expect(errors.some(e => e.messageKey === 'event.v2.err_individual_max')).toBe(true);
-  });
-
-  it('allows DISCIPLINE GROUP with multiple students', () => {
-    const errors = validateEventForm({
-      ...validBase,
-      lessonMode: 'GROUP',
-      selectedStudentIds: ['s1', 's2', 's3'],
-    });
-    expect(errors.some(e => e.messageKey === 'event.v2.err_individual_max')).toBe(false);
-  });
-
-  // Section 15: DISCIPLINE/PROGRAM zero students
-  it('blocks DISCIPLINE with zero students', () => {
-    const errors = validateEventForm({
-      ...validBase,
-      selectedStudentIds: [],
-    });
-    expect(errors.some(e => e.messageKey === 'event.v2.err_students_required')).toBe(true);
-  });
-
-  it('blocks PROGRAM with zero students', () => {
-    const errors = validateEventForm({
-      ...validBase,
-      template: 'PROGRAM',
-      selectedStudentIds: [],
-    });
-    expect(errors.some(e => e.messageKey === 'event.v2.err_students_required')).toBe(true);
-  });
-
   // Section 15: DISCIPLINE/PROGRAM zero staff
   it('blocks DISCIPLINE with zero staff', () => {
     const errors = validateEventForm({
@@ -135,7 +94,6 @@ describe('validateEventForm', () => {
       ...validBase,
       template: 'PROGRAM',
       modules: { ...baseModules, curriculum: true },
-      selectedStudentIds: ['s1'],
       staffParticipantCount: 0,
     });
     expect(errors.some(e => e.messageKey === 'event.v2.err_staff_required')).toBe(true);
@@ -147,7 +105,6 @@ describe('validateEventForm', () => {
       ...validBase,
       template: 'ADMINISTRATIVE',
       modules: { ...baseModules },
-      selectedStudentIds: [],
       staffParticipantCount: 0,
     });
     expect(errors.some(e => e.messageKey === 'event.v2.err_role_required')).toBe(true);
@@ -159,59 +116,10 @@ describe('validateEventForm', () => {
       ...validBase,
       template: 'EXTERNAL',
       modules: baseModules,
-      selectedStudentIds: [],
       staffParticipantCount: 0,
     });
     expect(errors.some(e => e.messageKey === 'event.v2.err_staff_required')).toBe(false);
     expect(errors.some(e => e.messageKey === 'event.v2.err_role_required')).toBe(false);
-  });
-
-  // Section 15: External participant on DISCIPLINE/PROGRAM/ADMINISTRATIVE — blocked
-  // (This is enforced in UI by hiding Zone 3 external controls, not in validation)
-});
-
-// ─── Section 15: Enrollment Enforcement ─────────────────────────────────────
-
-describe('isStudentEnrolled', () => {
-  const enrollments: EnrollmentRecord[] = [
-    { studentId: 's1', activityId: 'act1', l2Id: 'l2a', status: 'ACTIVE', startDate: '2026-01-01', endDate: '2026-06-30' },
-    { studentId: 's2', activityId: 'act1', l2Id: 'l2a', status: 'ACTIVE', startDate: '2026-04-01' }, // open-ended
-    { studentId: 's3', activityId: 'act1', l2Id: 'l2a', status: 'SUSPENDED', startDate: '2026-01-01', endDate: '2026-12-31' },
-    { studentId: 's4', activityId: 'act2', l2Id: 'l2a', status: 'ACTIVE', startDate: '2026-01-01', endDate: '2026-12-31' },
-  ];
-
-  it('returns true for enrolled student on valid date', () => {
-    expect(isStudentEnrolled('s1', 'act1', 'l2a', '2026-03-15', enrollments)).toBe(true);
-  });
-
-  it('returns false for student not enrolled in this activity', () => {
-    // s4 is enrolled in act2, not act1
-    expect(isStudentEnrolled('s4', 'act1', 'l2a', '2026-03-15', enrollments)).toBe(false);
-  });
-
-  it('returns false for enrollment that has not started', () => {
-    // s2 enrollment starts April 1
-    expect(isStudentEnrolled('s2', 'act1', 'l2a', '2026-03-15', enrollments)).toBe(false);
-  });
-
-  it('returns true for enrollment that has started', () => {
-    expect(isStudentEnrolled('s2', 'act1', 'l2a', '2026-05-15', enrollments)).toBe(true);
-  });
-
-  it('returns false for enrollment that has ended', () => {
-    expect(isStudentEnrolled('s1', 'act1', 'l2a', '2026-07-15', enrollments)).toBe(false);
-  });
-
-  it('returns false for suspended enrollment', () => {
-    expect(isStudentEnrolled('s3', 'act1', 'l2a', '2026-03-15', enrollments)).toBe(false);
-  });
-
-  it('ignores l2Id when not provided (matches any l2)', () => {
-    expect(isStudentEnrolled('s1', 'act1', undefined, '2026-03-15', enrollments)).toBe(true);
-  });
-
-  it('returns false for unknown student', () => {
-    expect(isStudentEnrolled('s999', 'act1', 'l2a', '2026-03-15', enrollments)).toBe(false);
   });
 });
 

@@ -538,37 +538,9 @@ export const generateDevStudents = (teachers: Teacher[], activities: GeneratedAc
 
 // ─── 7. Admin Inbox ───────────────────────────────────────────────────────────
 
-export const generateDevInbox = (teachers: Teacher[], students: Student[]): AdminInboxItem[] => {
+export const generateDevInbox = (teachers: Teacher[], _students: Student[]): AdminInboxItem[] => {
   const now = new Date();
   return [
-    {
-      id: uid(), orgId: '', type: 'TASK', status: 'OPEN',
-      title: `Review hours report — ${teachers[0]?.fullName ?? 'Teacher 1'}`,
-      message: 'Monthly hours report has been submitted and requires admin review.',
-      relatedEntityType: 'TEACHER', relatedEntityIds: [teachers[0]?.id ?? 'T1'],
-      createdAt: addDays(now, -5).toISOString(),
-    },
-    {
-      id: uid(), orgId: '', type: 'TASK', status: 'OPEN',
-      title: `Missing enrollment form — ${students[2]?.fullName ?? 'Student 3'}`,
-      message: 'Student enrolled 30 days ago but physical enrollment form has not been received.',
-      relatedEntityType: 'STUDENT', relatedEntityIds: [students[2]?.id ?? 'S3'],
-      createdAt: addDays(now, -3).toISOString(),
-    },
-    {
-      id: uid(), orgId: '', type: 'TASK', status: 'OPEN',
-      title: `Contract renewal due — ${teachers[4]?.fullName ?? 'Teacher 5'}`,
-      message: 'Teaching contract expires in 14 days. Initiate renewal process.',
-      relatedEntityType: 'TEACHER', relatedEntityIds: [teachers[4]?.id ?? 'T5'],
-      createdAt: addDays(now, -1).toISOString(),
-    },
-    {
-      id: uid(), orgId: '', type: 'TASK', status: 'DONE',
-      title: 'Updated rate schedule — Piano Program',
-      message: 'Rate adjustments applied for new semester. Verified against activity settings.',
-      relatedEntityType: 'TEACHER', relatedEntityIds: [],
-      createdAt: addDays(now, -14).toISOString(),
-    },
     {
       id: uid(), orgId: '', type: 'NOTIFICATION', status: 'OPEN',
       title: 'Archived teacher has future events',

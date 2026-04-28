@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc, writeBatch, getDoc, where } from 'firebase/firestore';
+import { LOCAL_MODE } from '../utils/localStore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../utils/firebase';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
 import { AppSettings, CalendarEvent, Teacher, Room, Student, ListsState } from '../types';
 import type { ActivityV2 } from '../types/v2';
-import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus, Wrench, Edit2, Save, X, Globe, ChevronDown, ChevronUp, FileText } from 'lucide-react';
+import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus, Wrench, Edit2, Save, X, Globe, ChevronDown, ChevronUp } from 'lucide-react';
 import { TranslationManager } from './TranslationManager';
-import { DocumentTemplates } from './DocumentRepository';
 import { Modal } from './Modal';
 import { DevTools } from './DevTools';
 
@@ -57,7 +57,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
 }) => {
     const { currentUser, isSuperAdmin } = useAuth();
     const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
-    const [activeTab, setActiveTab] = useState<'ORGS' | 'USERS' | 'DEV_TOOLS' | 'TEMPLATES' | 'TRANSLATIONS'>('ORGS');
+    const [activeTab, setActiveTab] = useState<'ORGS' | 'USERS' | 'DEV_TOOLS' | 'TRANSLATIONS'>('ORGS');
     const [loading, setLoading] = useState(true);
     // Data State
     const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -95,10 +95,29 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
         );
     }
 
+    // In LOCAL_MODE there's no Firestore project. Org/user/role/translation
+    // mutations all hit Firestore directly (no useFirestoreSync), so the only
+    // sensible behaviour is to short-circuit them with a clear message.
+    const guardLocalMode = (action: string): boolean => {
+        if (LOCAL_MODE) {
+            setErrorMsg(`${action} is disabled in local mode.`);
+            return true;
+        }
+        return false;
+    };
+
     // Fetch Data
     const loadData = async () => {
         setLoading(true);
         setErrorMsg(null);
+        // LOCAL_MODE has no Firestore project — orgs/access_control aren't
+        // editable here. Show an empty list so the tabs stay responsive.
+        if (LOCAL_MODE) {
+            setOrganizations([]);
+            setAccessRecords([]);
+            setLoading(false);
+            return;
+        }
         try {
             const orgsSnap = await getDocs(collection(db, 'organizations'));
             const orgsData = orgsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Organization));
@@ -122,6 +141,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
     const handleCreateOrg = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newOrgSlug.trim() || !newOrgName.trim()) return;
+        if (guardLocalMode('Org management')) return;
 
         // Simple validation for slug (no spaces, lowercase)
         const safeSlug = newOrgSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
@@ -141,6 +161,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
 
     const handleDeleteOrg = async (slug: string, name: string) => {
         if (!window.confirm(t('sa.confirm_delete_org').replace('{name}', name))) return;
+        if (guardLocalMode('Org management')) return;
         try {
             await deleteDoc(doc(db, 'organizations', slug));
             loadData();
@@ -151,6 +172,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
 
     const handleEditOrgSave = async (oldSlug: string) => {
         if (!editOrgName.trim() || !editOrgSlug.trim()) return;
+        if (guardLocalMode('Org management')) return;
         const newSlug = editOrgSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
 
         if (oldSlug === newSlug) {
@@ -240,6 +262,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
             setErrorMsg(t('sa.err_upload_image'));
             return;
         }
+        if (guardLocalMode('Logo upload')) return;
 
         setUploadingOrgId(orgId);
         setErrorMsg(null);
@@ -273,6 +296,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
 
     const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (guardLocalMode('User access management')) return;
         const normalizedEmail = newUserEmail.toLowerCase().trim();
         const compositeId = `${normalizedEmail}_${newUserOrgId}`;
 
@@ -293,6 +317,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
 
     const handleBulkAdd = async () => {
         if (!bulkCsvData.trim()) return;
+        if (guardLocalMode('Bulk user upload')) return;
         const lines = bulkCsvData.split('\n');
         setLoading(true);
 
@@ -330,6 +355,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
 
     const handleDeleteUser = async (recordId: string, email: string) => {
         if (!window.confirm(t('sa.confirm_revoke').replace('{email}', email))) return;
+        if (guardLocalMode('User access management')) return;
         try {
             await deleteDoc(doc(db, 'access_control', recordId));
             loadData();
@@ -339,6 +365,7 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
     };
 
     const handleUpdateRole = async (recordId: string, newRole: 'ADMIN' | 'VIEWER') => {
+        if (guardLocalMode('Role updates')) return;
         try {
             await updateDoc(doc(db, 'access_control', recordId), { role: newRole });
 
@@ -404,16 +431,6 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
                         <div className="flex items-center space-x-2 rtl:space-x-reverse">
                             <Wrench size={18} />
                             <span>{t('sa.tab_dev')}</span>
-                        </div>
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('TEMPLATES')}
-                        className={`pb-4 px-2 font-medium transition-colors border-b-2 ${activeTab === 'TEMPLATES' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
-                            }`}
-                    >
-                        <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                            <FileText size={18} />
-                            <span>{t('sa.tab_templates') || 'Templates'}</span>
                         </div>
                     </button>
                     <button
@@ -760,10 +777,6 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
                             />
                         )}
                     </div>
-                )}
-
-                {activeTab === 'TEMPLATES' && (
-                    <DocumentTemplates settings={settings} teachers={teachers} students={students} />
                 )}
 
                 {activeTab === 'TRANSLATIONS' && (

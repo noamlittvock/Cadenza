@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, writeBatch, doc } from 'firebase/firestore';
 import { db } from '../utils/firebase';
+import { LOCAL_MODE } from '../utils/localStore';
 import { TRANSLATIONS } from '../constants';
 import { TranslationRecord } from '../types/translations';
 import extractedDataRaw from '../translations_extracted.json';
@@ -51,14 +52,19 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
             setErrorMsg(null);
 
             const dbRecords: Record<string, TranslationRecord> = {};
-            try {
-                const snapshot = await getDocs(collection(db, 'translations'));
-                snapshot.forEach(doc => {
-                    dbRecords[doc.id] = doc.data() as TranslationRecord;
-                });
-            } catch (error) {
-                console.error("Failed to load translations from DB", error);
-                setErrorMsg("Connecting to Firestore failed. Loading locally extracted strings only. Deploys will fail until permissions are resolved.");
+            if (LOCAL_MODE) {
+                // No Firestore in local mode — fall through with extracted strings only.
+                setErrorMsg('Local mode: showing extracted strings only. Deploys are disabled.');
+            } else {
+                try {
+                    const snapshot = await getDocs(collection(db, 'translations'));
+                    snapshot.forEach(doc => {
+                        dbRecords[doc.id] = doc.data() as TranslationRecord;
+                    });
+                } catch (error) {
+                    console.error("Failed to load translations from DB", error);
+                    setErrorMsg("Connecting to Firestore failed. Loading locally extracted strings only. Deploys will fail until permissions are resolved.");
+                }
             }
 
             try {
@@ -150,6 +156,10 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
     }, [liveData, searchQuery]);
 
     const handleDeploy = async () => {
+        if (LOCAL_MODE) {
+            alert('Translation deploy is disabled in local mode (no Firestore project).');
+            return;
+        }
         setDeploying(true);
         try {
             const batch = writeBatch(db);

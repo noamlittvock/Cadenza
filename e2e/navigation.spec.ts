@@ -27,11 +27,9 @@ test.describe('Navigation — routing, sidebar, dark mode, mobile', () => {
   test('#12 clicking nav items switches views', async ({ page }) => {
     const views = [
       'STAFF_MEMBERS',
-      'STUDENTS',
       'MANAGE',
       'ADMIN_INBOX',
       'SETTINGS',
-      'DOCUMENTS',
       'SUPER_ADMIN',
       'CALENDAR',
     ] as const;
@@ -111,14 +109,4 @@ test.describe('Navigation — routing, sidebar, dark mode, mobile', () => {
     await expect(sidebar).not.toBeVisible({ timeout: 3_000 });
   });
 
-  // #16 — Documents navigates to document repository view
-  test('#16 Documents nav item opens document repository', async ({ page }) => {
-    await gotoView(page, 'DOCUMENTS');
-    // The documents repository renders — check for tab/heading unique to that view
-    await expect(page.getByRole('button', { name: 'Documents' })).toBeVisible();
-    // Document repository has tab-like filters; verify the page loaded (not calendar)
-    await expect(page.getByRole('button', { name: 'Smart Calendar' })).toBeVisible(); // nav still there
-    // No React error boundary text
-    await expect(page.getByText('Something went wrong')).not.toBeVisible();
-  });
 });

@@ -8,11 +8,11 @@ import { useFirestoreSync } from '../utils/useFirestoreSync';
 import { buildUpdatedCalendarEvent, applyEventUpdate } from '../utils/saveEventV2';
 import {
   ActivityV2, L1Subcategory, L2Subcategory, StaffMemberV2,
-  TeachingAssignmentV2, OrgRoleV2, StudentV2, EnrollmentV2,
-  EnsembleRosterMember, EventParticipant, V2_COLLECTIONS,
+  TeachingAssignmentV2, OrgRoleV2,
+  EventParticipant, V2_COLLECTIONS,
 } from '../types/v2';
 import {
-  Menu, Inbox, CheckCircle2, Bell, ClipboardList, ChevronDown, ChevronUp,
+  Menu, Inbox, CheckCircle2, Bell, ChevronDown, ChevronUp,
   Clock, Users, Eye, EyeOff, Calendar, HelpCircle, AlertTriangle, GraduationCap,
   ExternalLink, Mail, Phone, XCircle, ShieldCheck
 } from 'lucide-react';
@@ -29,30 +29,15 @@ interface Props {
   onMobileMenuOpen: () => void;
   onNavigateToEvent?: (eventIds: string[]) => void;
   onNavigateToStaff?: (staffId: string) => void;
-  onNavigateToStudent?: (studentId: string) => void;
 }
 
-type InboxTab = 'tasks' | 'notifications';
-
 export const AdminInbox: React.FC<Props> = ({
-  inboxItems, setInboxItems, teachers, students, events, setEvents, rooms, settings, onMobileMenuOpen, onNavigateToEvent, onNavigateToStaff, onNavigateToStudent
+  inboxItems, setInboxItems, teachers, students, events, setEvents, rooms, settings, onMobileMenuOpen, onNavigateToEvent, onNavigateToStaff
 }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
-  const [activeTab, setActiveTab] = useState<InboxTab>('tasks');
-  const [showCompleted, setShowCompleted] = useState(false);
   const [showResolvedNotifs, setShowResolvedNotifs] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [viewStudentId, setViewStudentId] = useState<string | null>(null);
-
-  const tasks = useMemo(() => {
-    const items = inboxItems.filter(i => i.type === 'TASK');
-    if (!showCompleted) return items.filter(i => i.status === 'OPEN');
-    return items.sort((a, b) => {
-      if (a.status === 'OPEN' && b.status !== 'OPEN') return -1;
-      if (a.status !== 'OPEN' && b.status === 'OPEN') return 1;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-  }, [inboxItems, showCompleted]);
 
   const notifications = useMemo(() => {
     const items = inboxItems.filter(i => i.type === 'NOTIFICATION');
@@ -75,11 +60,6 @@ export const AdminInbox: React.FC<Props> = ({
     const resolved = all.filter(i => i.status === 'DONE').length;
     return { total: all.length, resolved };
   }, [inboxItems]);
-
-  const openTaskCount = useMemo(() =>
-    inboxItems.filter(i => i.type === 'TASK' && i.status === 'OPEN').length,
-    [inboxItems]
-  );
 
   const [rescheduleEvent, setRescheduleEvent] = useState<CalendarEvent | null>(null);
 
@@ -176,9 +156,6 @@ export const AdminInbox: React.FC<Props> = ({
   const [staffMembersV2] = useFirestoreSync<StaffMemberV2>(V2_COLLECTIONS.staffMembers, []);
   const [teachingAssignmentsV2] = useFirestoreSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
   const [orgRolesV2] = useFirestoreSync<OrgRoleV2>(V2_COLLECTIONS.orgRoles, []);
-  const [studentsV2] = useFirestoreSync<StudentV2>(V2_COLLECTIONS.students, []);
-  const [enrollmentsV2] = useFirestoreSync<EnrollmentV2>(V2_COLLECTIONS.enrollments, []);
-  const [ensembleRosterV2] = useFirestoreSync<EnsembleRosterMember>(V2_COLLECTIONS.ensembleRosterMembers, []);
   const [eventParticipantsV2] = useFirestoreSync<EventParticipant>(V2_COLLECTIONS.eventParticipants, []);
 
   const rescheduleFormRef = useRef<EventFormV2Handle>(null);
@@ -214,53 +191,15 @@ export const AdminInbox: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-2 mb-6">
-          <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
-            <button
-              onClick={() => setActiveTab('tasks')}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'tasks' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
-            >
-              <ClipboardList size={15} />
-              {t('inbox.tab_tasks')}
-              {openTaskCount > 0 && (
-                <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                  {openTaskCount}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('notifications')}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'notifications' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
-            >
-              <Bell size={15} />
-              {t('inbox.tab_notifications')}
-              {openNotifCount > 0 && (
-                <span className="bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                  {openNotifCount}
-                </span>
-              )}
-            </button>
-          </div>
-
-          {activeTab === 'tasks' && (
-            <button
-              onClick={() => setShowCompleted(!showCompleted)}
-              className="ms-auto flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
-            >
-              {showCompleted ? <EyeOff size={13} /> : <Eye size={13} />}
-              {showCompleted ? t('inbox.hide_completed') : t('inbox.show_completed')}
-            </button>
-          )}
-          {activeTab === 'notifications' && (
-            <button
-              onClick={() => setShowResolvedNotifs(!showResolvedNotifs)}
-              className="ms-auto flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
-            >
-              {showResolvedNotifs ? <EyeOff size={13} /> : <Eye size={13} />}
-              {showResolvedNotifs ? t('inbox.hide_resolved') || 'Hide resolved' : t('inbox.show_resolved') || 'Show resolved'}
-            </button>
-          )}
+        {/* Notifications header — resolved toggle */}
+        <div className="flex items-center justify-end mb-6">
+          <button
+            onClick={() => setShowResolvedNotifs(!showResolvedNotifs)}
+            className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+          >
+            {showResolvedNotifs ? <EyeOff size={13} /> : <Eye size={13} />}
+            {showResolvedNotifs ? t('inbox.hide_resolved') || 'Hide resolved' : t('inbox.show_resolved') || 'Show resolved'}
+          </button>
         </div>
 
         {/* Help Panel */}
@@ -276,150 +215,13 @@ export const AdminInbox: React.FC<Props> = ({
           {showHelp && (
             <div className="mt-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-xs text-slate-500 dark:text-slate-400 space-y-1.5 border border-slate-200 dark:border-slate-700">
               <p><strong className="text-slate-600 dark:text-slate-300">{t('inbox.help_room_conflicts')}</strong></p>
-              <p><strong className="text-slate-600 dark:text-slate-300">{t('inbox.help_manual_tasks')}</strong></p>
               <p><strong className="text-slate-600 dark:text-slate-300">{t('inbox.help_system_events')}</strong></p>
             </div>
           )}
         </div>
 
-        {/* Tasks Tab */}
-        {activeTab === 'tasks' && (
-          <div className="space-y-3">
-            {tasks.length === 0 ? (
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-12 text-center">
-                <CheckCircle2 size={40} className="mx-auto text-green-400 mb-3" />
-                <p className="text-slate-500 dark:text-slate-400 font-medium">{t('inbox.no_tasks')}</p>
-              </div>
-            ) : (
-              tasks.map(task => {
-                const isDone = task.status === 'DONE';
-                const isExpanded = expandedItems.has(task.id);
-                const studentNames = resolveStudentNames(task.relatedEntityIds);
-
-                return (
-                  <div
-                    key={task.id}
-                    className={`bg-white dark:bg-slate-900 rounded-xl border shadow-sm transition-all ${isDone ? 'border-slate-200 dark:border-slate-800 opacity-60' : 'border-amber-200 dark:border-amber-800/50 border-s-4 border-s-amber-400'}`}
-                  >
-                    <div className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className={`mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isDone ? 'bg-green-100 dark:bg-green-900/30' : 'bg-amber-100 dark:bg-amber-900/30'}`}>
-                          {isDone ? <CheckCircle2 size={16} className="text-green-600 dark:text-green-400" /> : <ClipboardList size={16} className="text-amber-600 dark:text-amber-400" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className={`font-semibold text-sm ${isDone ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-800 dark:text-white'}`}>
-                              {task.title}
-                            </h4>
-                            {isDone && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
-                                {t('inbox.task_done')}
-                              </span>
-                            )}
-                          </div>
-                          <p className={`text-sm ${isDone ? 'text-slate-400 dark:text-slate-500' : 'text-slate-600 dark:text-slate-300'}`}>
-                            {task.message}
-                          </p>
-
-                          {/* Expandable entity list — type-aware */}
-                          {task.relatedEntityType === 'STUDENT' && studentNames.length > 0 && (
-                            <button
-                              onClick={() => toggleExpand(task.id)}
-                              className="mt-2 flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-                            >
-                              <GraduationCap size={12} />
-                              {studentNames.length} {t('inbox.students_count')}
-                              {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                            </button>
-                          )}
-                          {isExpanded && task.relatedEntityType === 'STUDENT' && studentNames.length > 0 && (
-                            <ul className="mt-2 ps-4 space-y-1">
-                              {studentNames.map((name, i) => (
-                                <li key={i} className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0" />
-                                  <span className="flex-1">{name}</span>
-                                  {task.relatedEntityIds?.[i] && (
-                                    <button
-                                      onClick={() => setViewStudentId(task.relatedEntityIds![i])}
-                                      className="flex items-center gap-0.5 text-[10px] font-medium text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex-shrink-0"
-                                    >
-                                      <Eye size={10} />
-                                      {t('inbox.view')}
-                                    </button>
-                                  )}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                          {task.relatedEntityType === 'TEACHER' && task.relatedEntityIds && task.relatedEntityIds.length > 0 && (() => {
-                            const teacherNames = resolveTeacherNames(task.relatedEntityIds);
-                            return teacherNames.length > 0 ? (
-                              <>
-                                <button
-                                  onClick={() => toggleExpand(task.id)}
-                                  className="mt-2 flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-                                >
-                                  <Users size={12} />
-                                  {teacherNames.length} {t('inbox.staff_count')}
-                                  {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                                </button>
-                                {isExpanded && (
-                                  <ul className="mt-2 ps-4 space-y-1">
-                                    {teacherNames.map((name, i) => (
-                                      <li key={i} className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
-                                        <span className="flex-1">{name}</span>
-                                        {task.relatedEntityIds?.[i] && (
-                                          <button
-                                            onClick={() => setViewTeacherId(task.relatedEntityIds![i])}
-                                            className="flex items-center gap-0.5 text-[10px] font-medium text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex-shrink-0"
-                                          >
-                                            <Eye size={10} />
-                                            {t('inbox.view')}
-                                          </button>
-                                        )}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                )}
-                              </>
-                            ) : null;
-                          })()}
-
-                          <div className="flex items-center gap-3 mt-3 flex-wrap">
-                            <span className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
-                              <Clock size={11} />
-                              {formatDate(task.createdAt)}
-                            </span>
-                            {isDone && task.markedDoneAt && (
-                              <span className="text-[11px] text-slate-400 dark:text-slate-500">
-                                {t('inbox.marked_done_by')}: {formatDate(task.markedDoneAt)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {!isDone && (
-                          <button
-                            onClick={() => handleMarkDone(task.id)}
-                            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors"
-                          >
-                            <CheckCircle2 size={13} />
-                            {t('inbox.mark_done')}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        )}
-
-        {/* Notifications Tab */}
-        {activeTab === 'notifications' && (
-          <div className="space-y-3">
+        {/* Notifications */}
+        <div className="space-y-3">
             {/* Conflict Progress Indicator */}
             {conflictStats.total > 0 && (
               <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-3 flex items-center gap-3">
@@ -576,8 +378,7 @@ export const AdminInbox: React.FC<Props> = ({
                 );
               }))
             }
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Teacher Detail Modal */}
@@ -672,13 +473,6 @@ export const AdminInbox: React.FC<Props> = ({
                   className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sm">
                   {t('btn.close') || 'Close'}
                 </button>
-                {onNavigateToStudent && (
-                  <button onClick={() => { const id = viewStudentId; setViewStudentId(null); onNavigateToStudent(id); }}
-                    className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium flex items-center gap-1.5">
-                    <ExternalLink size={14} />
-                    {t('inbox.go_to_full_profile')}
-                  </button>
-                )}
               </div>
             }
           >
@@ -748,9 +542,6 @@ export const AdminInbox: React.FC<Props> = ({
             staffMembers={staffMembersV2}
             teachingAssignments={teachingAssignmentsV2}
             orgRoles={orgRolesV2}
-            students={studentsV2}
-            enrollments={enrollmentsV2}
-            ensembleRoster={ensembleRosterV2}
             rooms={rooms}
             settings={settings}
             editingEventId={rescheduleEvent.id}

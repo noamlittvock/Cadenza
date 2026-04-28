@@ -8,7 +8,6 @@
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export type ActivityTemplate = 'DISCIPLINE' | 'PROGRAM' | 'ENSEMBLE' | 'ADMINISTRATIVE' | 'EXTERNAL';
-export type LessonMode = 'INDIVIDUAL' | 'GROUP';
 
 export interface ActivityModules {
   curriculum: boolean;
@@ -24,8 +23,6 @@ export interface EventFormInput {
   eventNameMode: 'AUTO' | 'PROMPTED';
   template: ActivityTemplate;
   modules: ActivityModules;
-  lessonMode: LessonMode;
-  selectedStudentIds: string[];
   staffParticipantCount: number;
   externalParticipantCount: number;
 }
@@ -52,29 +49,16 @@ export function validateEventForm(input: EventFormInput): ValidationError[] {
 
   // Time validation
   if (input.startTime && input.endTime) {
-    if (input.endTime <= input.startTime) {
-      errors.push({ field: 'endTime', messageKey: 'event.v2.err_end_before_start' });
-    }
     if (input.endTime === input.startTime) {
       errors.push({ field: 'endTime', messageKey: 'event.v2.err_zero_duration' });
+    } else if (input.endTime < input.startTime) {
+      errors.push({ field: 'endTime', messageKey: 'event.v2.err_end_before_start' });
     }
   }
 
   // PROMPTED name required
   if (input.eventNameMode === 'PROMPTED' && !input.name.trim()) {
     errors.push({ field: 'name', messageKey: 'event.v2.name_placeholder' });
-  }
-
-  // Curriculum validation (not for ENSEMBLE/EXTERNAL/ADMINISTRATIVE)
-  if (input.modules.curriculum && input.template !== 'ENSEMBLE') {
-    // DISCIPLINE individual: max 1 student
-    if (input.template === 'DISCIPLINE' && input.lessonMode === 'INDIVIDUAL' && input.selectedStudentIds.length > 1) {
-      errors.push({ field: 'students', messageKey: 'event.v2.err_individual_max' });
-    }
-    // DISCIPLINE/PROGRAM: at least 1 student required
-    if ((input.template === 'DISCIPLINE' || input.template === 'PROGRAM') && input.selectedStudentIds.length === 0) {
-      errors.push({ field: 'students', messageKey: 'event.v2.err_students_required' });
-    }
   }
 
   // Staff required for DISCIPLINE/PROGRAM
@@ -92,38 +76,6 @@ export function validateEventForm(input: EventFormInput): ValidationError[] {
   }
 
   return errors;
-}
-
-// ─── Enrollment Check ───────────────────────────────────────────────────────
-
-export interface EnrollmentRecord {
-  studentId: string;
-  activityId: string;
-  l2Id?: string;
-  status: string;
-  startDate: string;
-  endDate?: string;
-}
-
-/**
- * Check if a student is enrolled in an activity on a given date.
- * Section 15: "Block event creation. Show error: This student is not enrolled in this activity."
- */
-export function isStudentEnrolled(
-  studentId: string,
-  activityId: string,
-  l2Id: string | undefined,
-  eventDate: string,
-  enrollments: EnrollmentRecord[],
-): boolean {
-  return enrollments.some(e =>
-    e.studentId === studentId &&
-    e.activityId === activityId &&
-    (!l2Id || e.l2Id === l2Id) &&
-    e.status === 'ACTIVE' &&
-    e.startDate <= eventDate &&
-    (!e.endDate || e.endDate >= eventDate)
-  );
 }
 
 // ─── Teaching Assignment Overlap Detection ──────────────────────────────────

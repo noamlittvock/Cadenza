@@ -7,12 +7,10 @@ export const BASE_URL = `http://localhost:3000/${TEST_ORG}`;
 const NAV_LABELS: Record<string, string> = {
   CALENDAR: 'Smart Calendar',
   STAFF_MEMBERS: 'Staff Members',
-  STUDENTS: 'Students',
   MANAGE: 'Manage',
   ADMIN_INBOX: 'Inbox',
   SETTINGS: 'Settings',
   SUPER_ADMIN: 'Super Admin',
-  DOCUMENTS: 'Documents',
 };
 
 /**

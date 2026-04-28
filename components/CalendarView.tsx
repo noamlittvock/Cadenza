@@ -15,8 +15,7 @@ import { ImportExportDropdown } from './ImportExportDropdown';
 import { useFirestoreSync } from '../utils/useFirestoreSync';
 import {
   ActivityV2, L1Subcategory, L2Subcategory, StaffMemberV2,
-  TeachingAssignmentV2, OrgRoleV2, StudentV2, EnrollmentV2,
-  EnsembleRosterMember, EventV2, EventParticipant, V2_COLLECTIONS,
+  TeachingAssignmentV2, OrgRoleV2, EventV2, EventParticipant, V2_COLLECTIONS,
 } from '../types/v2';
 interface Props {
   events: CalendarEvent[];
@@ -123,9 +122,6 @@ export const CalendarView: React.FC<Props> = ({
   const [staffMembersV2] = useFirestoreSync<StaffMemberV2>(V2_COLLECTIONS.staffMembers, []);
   const [teachingAssignmentsV2] = useFirestoreSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
   const [orgRolesV2] = useFirestoreSync<OrgRoleV2>(V2_COLLECTIONS.orgRoles, []);
-  const [studentsV2] = useFirestoreSync<StudentV2>(V2_COLLECTIONS.students, []);
-  const [enrollmentsV2] = useFirestoreSync<EnrollmentV2>(V2_COLLECTIONS.enrollments, []);
-  const [ensembleRosterV2] = useFirestoreSync<EnsembleRosterMember>(V2_COLLECTIONS.ensembleRosterMembers, []);
   const [eventsV2, setEventsV2] = useFirestoreSync<EventV2>(V2_COLLECTIONS.events, []);
   const [eventParticipantsV2, setEventParticipantsV2] = useFirestoreSync<EventParticipant>(V2_COLLECTIONS.eventParticipants, []);
 
@@ -793,22 +789,50 @@ export const CalendarView: React.FC<Props> = ({
     setDetailItem(null);
   };
 
-  const handleSlotClick = (date: Date, hour: number, e?: React.MouseEvent) => {
-    // Only Admin+ can create events
+  // Open the create-event modal for a click anywhere inside a day column. The
+  // column is exactly (END_HOUR - START_HOUR + 1) * 60 px tall, so 1 px == 1 min.
+  // Snap to the nearest 15-minute boundary (Google-Calendar style) and create a
+  // 1-hour event. A single column-level handler avoids React's per-cell offsetY
+  // quirks that broke the previous slot-by-slot implementation.
+  const handleColumnClick = (date: Date, e: React.MouseEvent) => {
     if (!isAdmin) return;
-    // In MARQUEE mode, don't open the create-event modal when clicking empty space
+    if (selectionMode === 'MARQUEE') return;
+
+    const cell = e.currentTarget.getBoundingClientRect();
+    const offsetY = Math.max(0, e.clientY - cell.top);
+    const totalMinutes = Math.round(offsetY / 15) * 15; // snap to 15-min boundary
+    const startMinutesSinceStart = Math.min(totalMinutes, (END_HOUR - START_HOUR + 1) * 60 - 15);
+
+    const snappedHour = START_HOUR + Math.floor(startMinutesSinceStart / 60);
+    const snappedMinute = startMinutesSinceStart % 60;
+
+    const start = new Date(date);
+    start.setHours(snappedHour, snappedMinute, 0, 0);
+    const end = new Date(start);
+    end.setMinutes(start.getMinutes() + settings.defaultEventDuration);
+
+    openModal({
+      start: start.toISOString(),
+      end: end.toISOString(),
+      roomId: rooms[0]?.id,
+    }, null);
+  };
+
+  // Month-view "+" button: opens the create-event modal at a fixed time on the
+  // clicked day. No fine-grained snap because there's no minute-level resolution
+  // in the month grid.
+  const handleSlotClick = (date: Date, hour: number) => {
+    if (!isAdmin) return;
     if (selectionMode === 'MARQUEE') return;
     const start = new Date(date);
     start.setHours(hour, 0, 0, 0);
     const end = new Date(start);
     end.setMinutes(start.getMinutes() + settings.defaultEventDuration);
-
-    const anchor = e ? { x: e.clientX, y: e.clientY } : null;
     openModal({
       start: start.toISOString(),
       end: end.toISOString(),
-      roomId: rooms[0]?.id
-    }, anchor);
+      roomId: rooms[0]?.id,
+    }, null);
   };
 
   const handleGoogleSync = async (eventToSync: CalendarEvent, isUpdate: boolean = false) => {
@@ -1503,7 +1527,7 @@ export const CalendarView: React.FC<Props> = ({
           e.stopPropagation();
           setContextMenu({ x: e.clientX, y: e.clientY, event: evt });
         }}
-        className={`absolute rounded-xl border shadow-sm transition-shadow select-none overflow-hidden group animate-cadenza-arrive ${selectedEventIds.has(evt.id) ? 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${isConflicting && !evt.isCanceled ? 'ring-2 ring-amber-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
+        className={`pointer-events-auto absolute rounded-xl border shadow-sm transition-shadow select-none overflow-hidden group animate-cadenza-arrive ${selectedEventIds.has(evt.id) ? 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${isConflicting && !evt.isCanceled ? 'ring-2 ring-amber-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
           ? 'canceled-stripe border-slate-300 text-slate-400 dark:border-slate-600 dark:text-slate-500 bg-slate-50 dark:bg-slate-800'
           : isDragging
             ? 'z-50 opacity-90 shadow-cadenza-deep cursor-grabbing'
@@ -1616,14 +1640,16 @@ export const CalendarView: React.FC<Props> = ({
                 ))}
               </div>
               {days.map((day, i) => (
-                <div key={i} className="border-e border-slate-100 dark:border-slate-800 h-full relative group">
-                  <div className="absolute inset-0 bg-blue-50/0 group-hover:bg-blue-50/5 pointer-events-none transition-colors" />
-                  {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i).map(h => (
+                <div
+                  key={i}
+                  className="border-e border-slate-100 dark:border-slate-800 h-full relative"
+                  onClick={(e) => handleColumnClick(day, e)}
+                >
+                  {/* Hour gridlines (visual only) */}
+                  {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, j) => START_HOUR + j).map(h => (
                     <div
                       key={h}
-                      className="h-[60px] border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-cell"
-                      onClick={(e) => handleSlotClick(day, h, e)}
-                      title={t('cal.click_add')}
+                      className="h-[60px] border-b border-slate-100 dark:border-slate-800 pointer-events-none"
                     />
                   ))}
                 </div>
@@ -1640,7 +1666,7 @@ export const CalendarView: React.FC<Props> = ({
                 });
                 const layout = getDailyLayout(dayEvents);
                 return (
-                  <div key={day.toISOString()} className="relative h-full pointer-events-auto overflow-hidden">
+                  <div key={day.toISOString()} className="relative h-full pointer-events-none overflow-hidden">
                     {dayEvents.map(evt => renderEvent(evt, layout[evt.id] || { left: 0, width: 100, zIndex: 1 }))}
                   </div>
                 );
@@ -1919,7 +1945,7 @@ export const CalendarView: React.FC<Props> = ({
                           </div>
                         </div>
 
-                        <button onClick={(e) => { e.stopPropagation(); handleSlotClick(day, 10, e); }} className="text-slate-300 hover:text-blue-500 opacity-0 group-hover/cell:opacity-100 transition-opacity relative z-30">
+                        <button onClick={(e) => { e.stopPropagation(); handleSlotClick(day, 10); }} className="text-slate-300 hover:text-blue-500 opacity-0 group-hover/cell:opacity-100 transition-opacity relative z-30">
                           <Plus size={14} />
                         </button>
                       </div>
@@ -2022,9 +2048,9 @@ export const CalendarView: React.FC<Props> = ({
               value={eventSearchQuery}
               onChange={(e) => setEventSearchQuery(e.target.value)}
               placeholder={t('cal.search_placeholder') || 'Search events…'}
-              className="pl-7 pr-2 py-1.5 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none w-36 transition-all focus:w-48"
+              className="ps-7 pe-6 py-1.5 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none w-36 transition-all focus:w-48"
             />
-            <Search size={11} className="absolute start-2 text-slate-400 pointer-events-none" />
+            <Search size={12} className="absolute start-2 text-slate-400 pointer-events-none" />
             {eventSearchQuery && (
               <button onClick={() => setEventSearchQuery('')} className="absolute end-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 <X size={12} />
@@ -2355,9 +2381,6 @@ export const CalendarView: React.FC<Props> = ({
           staffMembers={staffMembersV2}
           teachingAssignments={teachingAssignmentsV2}
           orgRoles={orgRolesV2}
-          students={studentsV2}
-          enrollments={enrollmentsV2}
-          ensembleRoster={ensembleRosterV2}
           rooms={rooms}
           settings={settings}
           editingEventId={editingEvent.id || null}
