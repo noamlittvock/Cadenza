@@ -8,9 +8,16 @@ set -u  # NOT -e — we want to capture failures and halt explicitly with contex
 PROJECT_ROOT="/Users/noamlitt/Building/apps/cadenza-v3"
 cd "$PROJECT_ROOT" || { echo "Cannot cd to $PROJECT_ROOT"; exit 2; }
 
-# Strip env that breaks claude -p subprocess (per project_cli_subprocess_env_bug memory)
+# Strip env that breaks claude -p subprocess. Required:
+#   - CLAUDECODE, CLAUDE_CODE_ENTRYPOINT (per project_cli_subprocess_env_bug memory)
+#   - CLAUDE_CODE_EXECPATH, CLAUDE_PLUGIN_DATA (Claude Code harness leakage)
+#   - ANTHROPIC_API_KEY (forces external-API-key auth path; Pro/Max subscription
+#     login must take over — invalid/stale keys cause "Invalid API key" exit 1)
 unset CLAUDECODE
 unset CLAUDE_CODE_ENTRYPOINT
+unset CLAUDE_CODE_EXECPATH
+unset CLAUDE_PLUGIN_DATA
+unset ANTHROPIC_API_KEY
 
 LOG="$PROJECT_ROOT/ui-overhaul.log"
 PROMPTS_DIR="$PROJECT_ROOT/scripts/ui-overhaul/prompts"
