@@ -1,0 +1,119 @@
+> AUTONOMOUS BYPASS
+> Same hard rules as phase-1 (no interactive cmds, no prompts to user, no git ops, no Firebase, no deps, scope-bounded, dark+RTL parity preserved).
+
+# Project context
+
+Cadenza v3 at `/Users/noamlitt/Building/apps/cadenza-v3`. Phases 1, 2, 3 merged. Established patterns are now in: `index.html`, `Layout.tsx`, `Modal.tsx`, `SlideOver.tsx`, `CalendarView.tsx`, `StaffMemberManager.tsx`, `EventFormV2.tsx`.
+
+Required reading: `PRODUCT.md`, `DESIGN.md`, `index.html`, then any 2 of the previously-styled files to anchor the visual grammar.
+
+# Phase 4 — Manage Hub + Activities + Rooms + Subscriptions + Gantt
+
+Restyle the operational management surfaces. These screens are how the admin defines the rules that the calendar enforces.
+
+## Files in scope
+
+- `components/ManageHub.tsx` — primary
+- `components/ManageLists.tsx`
+- `components/ActivityManager.tsx` — including activity → subcategory hierarchy
+- `components/RoomManager.tsx`
+- `components/CalendarSubscriptionManager.tsx`
+- `components/GanttManager.tsx`
+- `components/PowerTools.tsx`
+- `components/InlineSubcategoryCreator.tsx`
+- `components/CsvImportModal.tsx`
+- `components/ExportScopeModal.tsx`
+- `components/ImportExportDropdown.tsx`
+- `components/ColumnFilterDropdown.tsx`
+- `components/DatePicker.tsx`
+- `components/TagInput.tsx`
+
+## Required changes
+
+### ManageHub (the entry surface)
+- Tab navigation between Activities / Rooms / Subscriptions / Lists: segmented control like the Calendar view switcher (active bone-50 + shadow-low + bone-900 text; inactive transparent + bone-500).
+- Module heading per tab: Inter Display 28/36 600 bone-900.
+- Subhead / description: bone-500 14/20 max 75ch.
+
+### ActivityManager — hierarchy tree
+- Tree nodes: indented rows; expand chevron bone-500 → bone-700 hover; rotation 90° with cadenza ease 180ms.
+- Node row: 32px height; bone-100 surface on hover; lacquer-100 + bone-900 text on selected.
+- L1 / L2 subcategory levels: indent only (4px / 12px). Do NOT use color to encode hierarchy depth — use indent + chevron + font weight.
+- Action icons (edit / delete / add child): bone-500 default, lacquer-500 / danger-500 on hover. Icons appear on row hover only (cleaner default state).
+- Drag-handle (if reorderable): bone-300 6-dot grip on row hover.
+- "Archived" indicator: bone-500 italic + small archive icon. NOT struck-through.
+- Billing rules display (if shown inline): tabular nums, bone-700 number, bone-500 label.
+
+### RoomManager
+- List view (preferred over cards for rooms — typically <30 rooms). If kept as cards, max 4 per row, denser than staff cards.
+- Room name: Inter 500 bone-900. Capacity: tabular nums bone-500. Status indicator: small dot + label (NOT color-only).
+- Conflict-overlap UI (if RoomManager surfaces conflicts): danger-500 with `AlertCircle` icon.
+
+### CalendarSubscriptionManager
+- Token display: JetBrains Mono 12/16 in a bone-100 inline code surface; copy button bone-500 → lacquer-500 hover.
+- Filter chips for teacher/room/activity (per token): same FilterPills pattern from Phase 1.
+- Active vs revoked: revoked = bone-500 italic, NOT struck-through; small lock icon.
+- "Generate new" CTA: lacquer-500 primary.
+
+### GanttManager
+- Gantt strip: timeline header bone-900 600 + tabular nums; bone-50 strip background; bone-200 vertical hour/day rules.
+- Block: 24px tall; assignment blocks bone-100 + 4px left lacquer-100 strip + 1px bone-300 border; blackout blocks bone-200 + diagonal stripe pattern + danger-500 alert icon top-left.
+- Hover: shadow-low on block; selected: shadow-mid + 2px lacquer-500 border.
+
+### PowerTools (bulk operations on calendar events)
+- Mode banner inside the right-sidebar (Phase 1 already restyled the outer chrome): action buttons grouped by section (Move / Cancel / Apply template / Export). Group heading bone-700 12px 600 uppercase tracking-wide.
+- Action buttons: ghost bone-700 default, hover bone-200, destructive ones (Delete) lacquer-100 surface + danger-500 text.
+
+### InlineSubcategoryCreator
+- Inline-editable input row: bone-50 surface, lacquer-500 focus, save/cancel chips inline.
+
+### CsvImportModal / ExportScopeModal
+- Use the standard Modal chrome (Phase 1).
+- Step indicator (if multi-step): bone-300 connector lines, lacquer-500 active step circle, bone-500 future-step circle.
+- File drop zone: same drag-and-drop pattern from Phase 3 documents section.
+
+### ImportExportDropdown
+- Dropdown surface: bg-bone-50 dark:bg-graphite-900 + shadow-high + rounded-lg + texture-paper.
+- Items: bone-700 default, bone-200 hover. Section dividers bone-200.
+
+### ColumnFilterDropdown
+- Same dropdown surface pattern.
+- Filter checkboxes: bone-300 border default, lacquer-500 checked.
+
+### DatePicker
+- Bone-50 surface, lacquer-500 dot on today, lacquer-100 + bone-900 on selected, bone-200 hover.
+- Hebrew calendar (@hebcal/core) dates render below Gregorian — bone-500 11px secondary.
+- Year/month nav arrows: bone-500 → bone-700 hover; mirror-flip in RTL via existing logic.
+
+### TagInput
+- bone-50 input surface; tags inside: bone-100 surface bone-700 text + small × (bone-500 → danger-500 hover); add-on-Enter behavior unchanged.
+
+## Constraints
+
+- Do NOT change list/sub/room/activity data structures.
+- Do NOT modify recurrence engine (rrule), gantt block business rules, power-tools mutation logic.
+- Preserve `data-testid` attributes (Playwright).
+- Hebrew calendar integration intact.
+- Verify both modes / directions.
+
+## Files OUT OF SCOPE
+
+CalendarView, StaffMemberManager, StaffSlideOverContent, EventFormV2 (already done), HoursComparisonView, AdminInbox, Settings, SuperAdmin, DevTools, OnboardingChecklist, TeacherHoursForm, TranslationManager, GuideMeButton, DocumentSection (will be done if it's referenced and trivial; otherwise note it as residue).
+
+## Verification (mandatory)
+
+1. `npx tsc --noEmit` — zero errors.
+2. `npm run build` — must succeed.
+3. Output:
+
+```
+PHASE 4 REPORT
+files_modified: <list>
+tsc_errors: <int>
+build_status: <ok | failed>
+indigo_residue_in_scope: <yes/no>
+risks_for_next_phase: <bullets>
+notes: <bullets>
+```
+
+Do NOT commit. Begin.

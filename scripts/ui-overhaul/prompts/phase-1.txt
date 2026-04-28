@@ -1,0 +1,127 @@
+> AUTONOMOUS BYPASS
+> You are running unattended inside an autonomous batch (`scripts/ui-overhaul/run.sh`).
+> The following human-gated preflight checks are PRE-CONFIRMED for this session:
+>   - PRODUCT.md exists at project root and is approved.
+>   - DESIGN.md exists at project root and is approved (bone-and-lacquer).
+>   - Shape brief was approved by the user before dispatch.
+>   - Image gate is skipped.
+>
+> Hard rules:
+>   - Do NOT invoke `/impeccable shape`, `/impeccable craft`, `/impeccable teach`, or any other interactive command.
+>   - Do NOT prompt the user. Make reasonable judgment calls.
+>   - Do NOT `git commit`, `git push`, `git checkout`, or branch ops. The harness commits.
+>   - Do NOT touch Firebase rules, Firestore data, env files, or backend.
+>   - Do NOT add npm dependencies — Tailwind is CDN.
+>   - Do NOT modify files outside the per-phase scope. Out-of-scope files are listed.
+>   - Preserve dark-mode parity (`class="dark"` on `<html>`) and RTL parity throughout.
+
+# Project context
+
+Cadenza v3 — calendar-first conservatory admin platform at `/Users/noamlitt/Building/apps/cadenza-v3`. React 19 + TS + Vite + Tailwind CDN + Firebase. Hebrew RTL + English LTR.
+
+Required reading first (in order): `PRODUCT.md`, `DESIGN.md`, `index.html`. DESIGN.md is the source of truth for every color, font, shadow, radius, motion decision.
+
+# Phase 1 — Foundation: tokens + shared chrome
+
+Replace the indigo `cadenza-` design system with the bone-and-lacquer system across **shared chrome only**. Do NOT redesign per-screen layouts.
+
+## Files in scope
+
+### 1. `index.html` — Tailwind config + inline CSS
+
+In the inline `<script>tailwind.config = ...` block:
+- **Remove**: `cadenza` color tokens (`light`, `dark`), `blue` palette overrides (50–950), `cadenza-gradient` backgroundImage, `cadenza-soft/deep/pressed` boxShadows.
+- **Add to `theme.extend.colors`**: named scales for `bone` (50/100/200/300/400/500/700/900), `graphite` (100/300/500/700/800/900/950), `lacquer` (100/400/500/600), `ok` (500), `warn` (500), `danger` (500), `info` (500). Use exact OKLCH values from DESIGN.md as Tailwind color values (Tailwind CDN supports `oklch()` strings).
+- **Add to `theme.extend.boxShadow`**: `low`, `mid`, `high`, `pressed` using the warm OKLCH values from DESIGN.md.
+- **Add to `theme.extend.borderRadius`**: `sm` (4), `md` (6), `lg` (10), `xl` (16) per DESIGN.md.
+- **Keep**: `transitionTimingFunction.cadenza`, `transitionDuration.cadenza`, font family.
+- **Update `fontFamily`**: `sans: ['Inter', 'Heebo', 'sans-serif']`, `display: ['Inter Display', 'Inter', 'Heebo', 'sans-serif']`, `mono: ['JetBrains Mono', 'monospace']`.
+
+In the `@layer components` / `@layer utilities` block:
+- **Remove**: `animate-cadenza-pulse` utility, `@keyframes cadenza-pulse`.
+- **Keep**: `btn-cadenza` (update press shadow to `shadow-pressed`), `animate-cadenza-arrive`, `@keyframes cadenza-arrive`, `animate-page-turn`, `@keyframes page-turn`.
+- **Replace** `.texture-cadenza` with `.texture-paper`:
+  - Light mode: `::after` opacity 0.04, fractal-noise SVG (keep current SVG, change opacity).
+  - Dark mode (`.dark .texture-paper::after`): opacity 0.025.
+
+In the second `<style>` block (Google Fonts import + inline CSS):
+- **Update Google Fonts import** in `<link href="...">`: `Inter:wght@400;500;600;700` (keep) + add `Heebo:wght@400;500;600;700` + add `JetBrains+Mono:wght@400;500`. Use a single `<link>` URL combining all families with `&family=`.
+- **Update scrollbars**: change `rgba(148, 163, 184, ...)` (slate) to bone tints in light, graphite tints in dark. Use OKLCH or hex-equivalents from DESIGN.md.
+- **Update `.canceled-stripe`**: keep diagonal pattern; recolor — light `bg` to `oklch(93% 0.009 70)` (bone-200), pattern stripe to `oklch(54% 0.20 28 / 0.25)` (danger tint), text to `oklch(54% 0.015 70)` (bone-500). Dark mode equivalents using graphite + danger.
+- **Update `.filter-select-uniform`**: bone-100 surface, bone-300 border, bone-500 text, lacquer-500 focus border + 2px lacquer-500/30 ring. Dark mode: graphite-800 surface, graphite-700 border, graphite-300 text, lacquer-400 focus.
+
+### 2. `components/Layout.tsx`
+
+- **Sidebar widths**: collapsed 80px, expanded 256px (was `min(25vw, 300px)` — replace).
+- **Active nav item state**: bg `lacquer-100`, text `bone-900`, no indigo. Inactive: text `bone-500`, hover bg `bone-200`.
+- **Sidebar surface**: `bg-bone-100 dark:bg-graphite-900` + `texture-paper` class (low opacity overlay).
+- **Sidebar border**: `border-bone-200 dark:border-graphite-700`.
+- **Logo/header area inside sidebar**: bone-100 background. No `bg-cadenza-gradient`.
+- **Mobile menu trigger and any chevron toggles**: keep existing Lucide icons; recolor to bone-500 default, bone-700 hover. RTL chevrons keep current mirror logic.
+- **Inbox count badge**: lacquer-500 bg, white text (white = bone-50 here, NOT pure white).
+- **Top-bar dark-mode toggle**: keep position; recolor to bone tones.
+
+### 3. `components/Modal.tsx`
+
+- Backdrop: `bg-bone-900/40 dark:bg-graphite-950/60` (was likely slate or black).
+- Modal surface: `bg-bone-50 dark:bg-graphite-900` + `shadow-high` + `rounded-lg` + `texture-paper` on a wrapping chrome layer (NOT on the content layer — overlay must be `pointer-events-none` so clicks pass through; `texture-paper` `::after` already does this).
+- Header border: `border-bone-200 dark:border-graphite-700`.
+- Close button: bone-500 default, bone-700 hover; size unchanged.
+
+### 4. `components/SlideOver.tsx`
+
+- Drawer width: keep current (typically 384px or `inline-end`).
+- Surface: `bg-bone-50 dark:bg-graphite-900` + `texture-paper` + `shadow-high`.
+- Border on inline-start: `border-bone-200 dark:border-graphite-700`.
+- Verify drawer slides in from `inline-end` (RTL parity intact). If using `right: 0`, replace with `inset-inline-end: 0` or `end-0` Tailwind logical-property.
+
+### 5. `components/FilterPills.tsx`
+
+- Default state: `bg-bone-100 dark:bg-graphite-800` + `text-bone-700 dark:text-graphite-300` + `border-bone-200 dark:border-graphite-700`.
+- Hover: `bg-bone-200 dark:bg-graphite-700`.
+- Active state: `bg-lacquer-100 dark:bg-lacquer-500/15` + `text-bone-900 dark:text-graphite-100` + `border-lacquer-500/40`.
+- No multi-color category pills. If existing code colors pills by entity type, collapse to a single accent.
+
+### 6. `components/DevSimulationBanner.tsx`
+
+- Replace violet/indigo with: surface `bg-lacquer-100 dark:bg-lacquer-500/15`, text `text-bone-900 dark:text-graphite-100`, border-bottom `border-lacquer-500/30`.
+- Keep banner height and z-index.
+- Add a Lucide `AlertCircle` or `Beaker` icon (whatever is currently there — keep it) recolored to `text-lacquer-600`.
+
+### 7. `components/ScenarioBanner.tsx`
+
+- Apply identical recolor pattern as DevSimulationBanner.
+- If banner uses an info color (blue) currently — switch to lacquer surface; this is intentional brand consolidation.
+
+### 8. `App.tsx` — soft-tour banner block (around lines 610–622)
+
+- Find the `<div className="shrink-0 flex items-center gap-3 px-4 py-2.5 bg-cadenza-gradient texture-cadenza text-white text-sm shadow-cadenza-soft z-10">` block.
+- Replace classes with: `shrink-0 flex items-center gap-3 px-4 py-2.5 bg-bone-100 dark:bg-graphite-800 texture-paper text-bone-900 dark:text-graphite-100 text-sm shadow-low border-b border-lacquer-500/30 z-10`.
+- Dismiss button text color updated to bone-500 hover bone-700.
+
+## Files explicitly OUT OF SCOPE for Phase 1
+
+`components/CalendarView.tsx`, `components/StaffMemberManager.tsx`, `components/StaffSlideOverContent.tsx`, `components/EventFormV2.tsx`, `components/ActivityManager.tsx`, `components/RoomManager.tsx`, `components/ManageHub.tsx`, `components/ManageLists.tsx`, `components/HoursComparisonView.tsx`, `components/AdminInbox.tsx`, `components/Settings.tsx`, `components/SuperAdmin.tsx`, `components/DevTools.tsx`, `components/OnboardingChecklist.tsx`, `components/GanttManager.tsx`, `components/PowerTools.tsx`, `components/CalendarSubscriptionManager.tsx`, `components/CsvImportModal.tsx`, `components/DocumentSection.tsx`, `components/ConflictResolutionPanel.tsx`, `components/ColumnFilterDropdown.tsx`, `components/DatePicker.tsx`, `components/ImportExportDropdown.tsx`, `components/InlineSubcategoryCreator.tsx`, `components/ExportScopeModal.tsx`, `components/TagInput.tsx`, `components/TeacherHoursForm.tsx`, `components/TranslationManager.tsx`, `components/GuideMeButton.tsx`.
+
+If you find an indigo or `cadenza-` reference in an out-of-scope file, leave it. Note it in `risks_for_next_phase`.
+
+## Verification (mandatory)
+
+1. `npx tsc --noEmit` — must pass with zero errors.
+2. `npm run build` — must succeed (Vite build).
+3. Output a structured plain-text report at the very end of your turn:
+
+```
+PHASE 1 REPORT
+files_modified: <comma-separated list>
+tsc_errors: <integer>
+build_status: <ok | failed>
+indigo_residue_in_scope: <yes/no — anything bone-and-lacquer should have replaced>
+out_of_scope_residue_count: <integer>
+risks_for_next_phase: <bullet list>
+notes: <bullet list>
+```
+
+Do NOT commit. Do NOT push. The harness commits this phase as `Phase 1 — UI overhaul foundation (autonomous batch)`.
+
+Begin.

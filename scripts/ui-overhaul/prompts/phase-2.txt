@@ -1,0 +1,88 @@
+> AUTONOMOUS BYPASS
+> Same hard rules as phase-1 (no interactive cmds, no prompts to user, no git commits/branch/push, no Firebase, no deps, scope-bounded, dark+RTL parity preserved).
+
+# Project context
+
+Cadenza v3 at `/Users/noamlitt/Building/apps/cadenza-v3`. React 19 + TS + Vite + Tailwind CDN. Phase 1 (foundation tokens + chrome) is already merged. Bone, graphite, lacquer color scales and `texture-paper` are now Tailwind utilities.
+
+Required reading first: `PRODUCT.md`, `DESIGN.md`, `index.html` (verify Phase 1 tokens), `components/Layout.tsx` (verify Phase 1 shell).
+
+# Phase 2 — Calendar redesign
+
+The calendar is "the score" (per PRODUCT.md design principle 1). Every spacing decision should derive from week-grid logic. This phase is the most important — get it right.
+
+## Files in scope
+
+- `components/CalendarView.tsx` — primary
+- Any sub-components imported only by CalendarView (event chips, day/week/month grids, calendar header/toolbar, mini-month picker, time gutter, marquee selection layer, speed dial, context menu)
+
+## Required changes
+
+### Calendar grid structure
+- Use true CSS Grid (display: grid + grid-template-columns / rows + grid-line numbers) for week and day views. If currently stacked divs with absolute positioning, refactor only the grid scaffolding — keep event positioning logic intact.
+- Hairline grid lines: `0.5px solid var(--bone-300)` (light) / `0.5px solid var(--graphite-700)` (dark) — these are the only 0.5px borders allowed in the app.
+- Hour rows: 48px tall default; hour boundary border slightly stronger than half-hour boundary.
+- Today's column: subtle bone-100 tint (light) / graphite-800 tint (dark) on the column background; current-time line as 1px lacquer-500 horizontal rule with a 6px lacquer-500 dot at the start.
+
+### Calendar header (toolbar above grid)
+- View switcher (Day / Week / Month): segmented control. Active segment `bg-bone-50 dark:bg-graphite-900` + `text-bone-900` + `shadow-low`; inactive transparent + bone-500.
+- Date navigator (back / today / forward + current range): use Inter Display 600 weight for the date range string; use tabular nums.
+- "Add event" / speed-dial button: lacquer-500 primary, bone-50 text, `shadow-mid`, `radius-md`.
+
+### Event chip
+- Default: `bg-bone-100 dark:bg-graphite-800` + 1px `border-bone-300 dark:border-graphite-700` + 4px left/start accent strip in the activity's category color (this is fine — accent strip <= 4px is allowed; categorical color encoding helps the operator).
+- Selected: `bg-lacquer-100 dark:bg-lacquer-500/20` + `border-lacquer-500/40` + slightly heavier weight on title.
+- Canceled: `.canceled-stripe` (already updated in Phase 1).
+- Hidden: opacity 0.5, border dashed.
+- Conflict: `outline: 2px dashed var(--danger-500)` + small ⚠ icon top-right.
+- Event title: 13px Inter 500, ellipsis at 1 line. Time: 12px Inter 400 tabular nums, bone-500.
+- Padding: 4px / 6px micro-grid.
+
+### Mini-month picker (if present)
+- Bone-50 surface, lacquer-500 dot on today, lacquer-100 highlight on selected day, bone-200 hover.
+- Hebrew calendar dates render below Gregorian if `@hebcal/core` is wired in current code — keep that integration; restyle the secondary-date typography to bone-500 11px.
+
+### Marquee selection layer
+- Selection rectangle: `bg-lacquer-500/10` + `border-2 border-lacquer-500 border-dashed`.
+- Selection-mode banner indicator (if shown): use lacquer-100 strip, NOT a separate color.
+
+### Speed dial / floating action
+- Lacquer-500 primary, white-ish text (bone-50), `shadow-high`, radius-md or radius-lg.
+- Animation: keep `cadenza-arrive`. NO bounce / elastic.
+
+### Context menu (right-click)
+- Surface: `bg-bone-50 dark:bg-graphite-900` + `shadow-high` + `rounded-lg` + `texture-paper` (chrome).
+- Items: bone-700 default, bone-200 hover, lacquer-500 destructive (Delete) text + lacquer-100 hover.
+- Keyboard shortcuts (right-aligned): bone-500 + JetBrains Mono 11px.
+
+## Constraints
+
+- Do NOT change calendar business logic (recurrence, conflicts, drag/resize, marquee math, event creation flow).
+- Do NOT modify EventFormV2 (Phase 3+).
+- Preserve all current `data-testid` attributes — Playwright suite depends on them.
+- Verify both light + dark, both LTR + RTL render. Hebrew week starts Sunday — keep current logic.
+
+## Files OUT OF SCOPE
+
+Everything not in CalendarView's import tree. Specifically: StaffMemberManager, EventFormV2, ManageHub, financial views, AdminInbox, Settings, SuperAdmin, OnboardingChecklist.
+
+## Verification (mandatory)
+
+1. `npx tsc --noEmit` — zero errors.
+2. `npm run build` — must succeed.
+3. Output:
+
+```
+PHASE 2 REPORT
+files_modified: <list>
+tsc_errors: <int>
+build_status: <ok | failed>
+calendar_subcomponents_touched: <list>
+indigo_residue_in_scope: <yes/no>
+risks_for_next_phase: <bullets>
+notes: <bullets>
+```
+
+Do NOT commit. The harness commits.
+
+Begin.
