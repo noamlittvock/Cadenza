@@ -8,6 +8,7 @@ import type {
   EventV2, EventParticipant, FirstUseFlags,
 } from '../types/v2';
 import { findOverlapConflict, migrateLegacyAssignment } from '../utils/assignmentScope';
+import { TEMPLATE_RULES } from '../utils/activityTemplateRules';
 import { ImportExportDropdown } from './ImportExportDropdown';
 import { V2_COLLECTIONS } from '../types/v2';
 import { generateId, TRANSLATIONS } from '../constants';
@@ -643,16 +644,42 @@ export const StaffMemberManager: React.FC<Props> = ({
     if (!canWrite || !orgId || !selectedStaffId) return false;
 
     if (!aFormActivityId) { setAssignmentError(t('staff.v2.select_activity')); return false; }
-    if (aFormScope === 'L1' && !aFormL1Id) { setAssignmentError(t('staff.v2.select_l1')); return false; }
-    if (aFormScope === 'L2' && !aFormL2Id) { setAssignmentError(t('staff.v2.select_l2')); return false; }
     if (!aFormStartDate) { setAssignmentError(t('staff.v2.date_start_required')); return false; }
+
+    const act = activities.find(a => a.id === aFormActivityId);
+    const rules = act ? TEMPLATE_RULES[act.template] : null;
+
+    // Derive scope from template + which fields are populated
+    let derivedScope: AssignmentScope;
+    let derivedL1Id: string | null = null;
+    let derivedL2Id: string | null = null;
+
+    if (!rules || !rules.hasHierarchy) {
+      // ADMINISTRATIVE or unknown template: bind to activity
+      derivedScope = 'ACTIVITY';
+    } else if (rules.l1Required) {
+      if (!aFormL1Id) { setAssignmentError(t('staff.v2.select_l1')); return false; }
+      derivedL1Id = aFormL1Id;
+      if (aFormL2Id) {
+        derivedScope = 'L2';
+        derivedL2Id = aFormL2Id;
+        derivedL1Id = null; // L2-scope encodes l1Id implicitly via l2Subcategories
+      } else {
+        derivedScope = 'L1';
+      }
+    } else {
+      // ENSEMBLE / EXTERNAL: subcategory required
+      if (!aFormL2Id) { setAssignmentError(t('staff.v2.select_l2')); return false; }
+      derivedScope = 'L2';
+      derivedL2Id = aFormL2Id;
+    }
 
     const candidate = {
       staffMemberId: selectedStaffId,
-      scope: aFormScope,
+      scope: derivedScope,
       activityId: aFormActivityId,
-      l1Id: aFormScope === 'L1' ? aFormL1Id : null,
-      l2Id: aFormScope === 'L2' ? aFormL2Id : null,
+      l1Id: derivedL1Id,
+      l2Id: derivedL2Id,
       startDate: aFormStartDate,
       endDate: aFormEndDate || null,
     };
@@ -691,7 +718,7 @@ export const StaffMemberManager: React.FC<Props> = ({
 
     setIsAssignmentModalOpen(false);
     return undefined;
-  }, [canWrite, orgId, selectedStaffId, aFormScope, aFormActivityId, aFormL1Id, aFormL2Id, aFormStartDate, aFormEndDate, editingAssignmentId, assignments, l2Subcategories, setAssignments, t]);
+  }, [canWrite, orgId, selectedStaffId, aFormActivityId, aFormL1Id, aFormL2Id, aFormStartDate, aFormEndDate, editingAssignmentId, assignments, activities, l2Subcategories, setAssignments, t, formatOverlapError]);
 
   const toggleAssignmentArchive = useCallback((id: string, archive: boolean) => {
     if (!canWrite) return;
@@ -773,16 +800,38 @@ export const StaffMemberManager: React.FC<Props> = ({
   const handleWizardAssignmentAdd = useCallback(() => {
     if (!canWrite || !orgId || !selectedStaffId) return;
     if (!aFormActivityId) { setAssignmentError(t('staff.v2.select_activity')); return; }
-    if (aFormScope === 'L1' && !aFormL1Id) { setAssignmentError(t('staff.v2.select_l1')); return; }
-    if (aFormScope === 'L2' && !aFormL2Id) { setAssignmentError(t('staff.v2.select_l2')); return; }
     if (!aFormStartDate) { setAssignmentError(t('staff.v2.date_start_required')); return; }
+
+    const act = activities.find(a => a.id === aFormActivityId);
+    const rules = act ? TEMPLATE_RULES[act.template] : null;
+
+    let derivedScope: AssignmentScope;
+    let derivedL1Id: string | null = null;
+    let derivedL2Id: string | null = null;
+
+    if (!rules || !rules.hasHierarchy) {
+      derivedScope = 'ACTIVITY';
+    } else if (rules.l1Required) {
+      if (!aFormL1Id) { setAssignmentError(t('staff.v2.select_l1')); return; }
+      if (aFormL2Id) {
+        derivedScope = 'L2';
+        derivedL2Id = aFormL2Id;
+      } else {
+        derivedScope = 'L1';
+        derivedL1Id = aFormL1Id;
+      }
+    } else {
+      if (!aFormL2Id) { setAssignmentError(t('staff.v2.select_l2')); return; }
+      derivedScope = 'L2';
+      derivedL2Id = aFormL2Id;
+    }
 
     const candidate = {
       staffMemberId: selectedStaffId,
-      scope: aFormScope,
+      scope: derivedScope,
       activityId: aFormActivityId,
-      l1Id: aFormScope === 'L1' ? aFormL1Id : null,
-      l2Id: aFormScope === 'L2' ? aFormL2Id : null,
+      l1Id: derivedL1Id,
+      l2Id: derivedL2Id,
       startDate: aFormStartDate,
       endDate: aFormEndDate || null,
     };
@@ -802,7 +851,7 @@ export const StaffMemberManager: React.FC<Props> = ({
     };
     setAssignments(prev => [...prev, newAssignment]);
     resetAssignmentForm();
-  }, [canWrite, orgId, selectedStaffId, aFormScope, aFormActivityId, aFormL1Id, aFormL2Id, aFormStartDate, aFormEndDate, wizardAssignments, l2Subcategories, setAssignments, t, resetAssignmentForm, formatOverlapError]);
+  }, [canWrite, orgId, selectedStaffId, aFormActivityId, aFormL1Id, aFormL2Id, aFormStartDate, aFormEndDate, wizardAssignments, activities, l2Subcategories, setAssignments, t, resetAssignmentForm, formatOverlapError]);
 
   const handleWizardOrgRoleAdd = useCallback(() => {
     if (!canWrite || !orgId || !selectedStaffId) return;
@@ -1376,7 +1425,7 @@ export const StaffMemberManager: React.FC<Props> = ({
               )}
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.select_activity')}</label>
-                <select value={aFormActivityId} onChange={e => { setAFormActivityId(e.target.value); setAFormL2Id(''); }}
+                <select value={aFormActivityId} onChange={e => { setAFormActivityId(e.target.value); setAFormL1Id(''); setAFormL2Id(''); }}
                   className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
                   <option value="">{t('staff.v2.select_activity')}</option>
                   {activities.filter(a => !a.isArchived).map(a => (
@@ -1384,18 +1433,59 @@ export const StaffMemberManager: React.FC<Props> = ({
                   ))}
                 </select>
               </div>
-              {aFormActivityId && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.select_l2')}</label>
-                  <select value={aFormL2Id} onChange={e => setAFormL2Id(e.target.value)}
-                    className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
-                    <option value="">{t('staff.v2.select_l2')}</option>
-                    {l2sForActivity.map(l => (
-                      <option key={l.id} value={l.id}>{l.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              {aFormActivityId && (() => {
+                const act = activities.find(a => a.id === aFormActivityId);
+                const rules = act ? TEMPLATE_RULES[act.template] : null;
+                if (!rules || !rules.hasHierarchy) return null;
+                if (rules.l1Required && l1sForActivity.length === 0) {
+                  return (
+                    <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-700 dark:text-amber-400 text-sm">
+                      {t('staff.v2.no_l1s')}
+                    </div>
+                  );
+                }
+                if (!rules.l1Required && l2sForActivity.length === 0) {
+                  return (
+                    <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-700 dark:text-amber-400 text-sm">
+                      {t('staff.v2.no_l2s')}
+                    </div>
+                  );
+                }
+                return (
+                  <>
+                    {rules.l1Required && (
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.select_l1')}</label>
+                        <select value={aFormL1Id}
+                          onChange={e => { setAFormL1Id(e.target.value); setAFormL2Id(''); }}
+                          className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                          <option value="">{t('staff.v2.select_l1')}</option>
+                          {l1sForActivity.map(l => (
+                            <option key={l.id} value={l.id}>{l.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {((rules.l1Required && aFormL1Id) || !rules.l1Required) && (
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                          {rules.l1Required
+                            ? `${t('staff.v2.select_l2')} (${t('label.optional') || 'optional'})`
+                            : t('staff.v2.select_l2')}
+                        </label>
+                        <select value={aFormL2Id}
+                          onChange={e => setAFormL2Id(e.target.value)}
+                          className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                          <option value="">{rules.l1Required ? `(${t('staff.v2.scope_l1')})` : t('staff.v2.select_l2')}</option>
+                          {l2sForScope.map(l => (
+                            <option key={l.id} value={l.id}>{l.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.start_date')}</label>
@@ -1579,52 +1669,67 @@ export const StaffMemberManager: React.FC<Props> = ({
               ))}
             </select>
           </div>
-          {aFormActivityId && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.scope')}</label>
-              <div className="flex gap-2">
-                {(['ACTIVITY', 'L1', 'L2'] as AssignmentScope[]).map(sc => {
-                  const disabled = (sc === 'L1' && l1sForActivity.length === 0) || (sc === 'L2' && l2sForActivity.length === 0);
-                  return (
-                    <button key={sc} type="button"
-                      disabled={disabled}
-                      onClick={() => { setAFormScope(sc); if (sc !== 'L1') setAFormL1Id(''); if (sc !== 'L2') setAFormL2Id(''); }}
-                      className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${aFormScope === sc
-                        ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
-                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                      } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}>
-                      {sc === 'ACTIVITY' ? t('staff.v2.scope_activity') : sc === 'L1' ? t('staff.v2.scope_l1') : t('staff.v2.scope_l2')}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('staff.v2.scope_help')}</p>
-            </div>
-          )}
-          {aFormActivityId && (aFormScope === 'L1' || aFormScope === 'L2') && l1sForActivity.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.select_l1')}</label>
-              <select value={aFormL1Id} onChange={e => { setAFormL1Id(e.target.value); setAFormL2Id(''); }}
-                className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
-                <option value="">{aFormScope === 'L2' ? `(${t('staff.v2.scope_l1')})` : t('staff.v2.select_l1')}</option>
-                {l1sForActivity.map(l => (
-                  <option key={l.id} value={l.id}>{l.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
-          {aFormActivityId && aFormScope === 'L2' && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.select_l2')}</label>
-              <select value={aFormL2Id} onChange={e => setAFormL2Id(e.target.value)}
-                className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
-                <option value="">{t('staff.v2.select_l2')}</option>
-                {l2sForScope.map(l => (
-                  <option key={l.id} value={l.id}>{l.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
+          {aFormActivityId && (() => {
+            const act = activities.find(a => a.id === aFormActivityId);
+            const rules = act ? TEMPLATE_RULES[act.template] : null;
+            if (!rules || !rules.hasHierarchy) return null;
+
+            // Hierarchy-bearing template: must drill at least to Category
+            // (or Subcategory directly if l1Required is false).
+            if (rules.l1Required && l1sForActivity.length === 0) {
+              return (
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-700 dark:text-amber-400 text-sm">
+                  {t('staff.v2.no_l1s')}
+                </div>
+              );
+            }
+            if (!rules.l1Required && l2sForActivity.length === 0) {
+              return (
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-700 dark:text-amber-400 text-sm">
+                  {t('staff.v2.no_l2s')}
+                </div>
+              );
+            }
+
+            return (
+              <>
+                {rules.l1Required && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.select_l1')}</label>
+                    <select value={aFormL1Id}
+                      onChange={e => { setAFormL1Id(e.target.value); setAFormL2Id(''); setAFormScope('L1'); }}
+                      className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                      <option value="">{t('staff.v2.select_l1')}</option>
+                      {l1sForActivity.map(l => (
+                        <option key={l.id} value={l.id}>{l.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {/* Subcategory selector (optional drill-down) */}
+                {((rules.l1Required && aFormL1Id) || !rules.l1Required) && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                      {rules.l1Required
+                        ? `${t('staff.v2.select_l2')} (${t('label.optional') || 'optional'})`
+                        : t('staff.v2.select_l2')}
+                    </label>
+                    <select value={aFormL2Id}
+                      onChange={e => { setAFormL2Id(e.target.value); setAFormScope(e.target.value ? 'L2' : (rules.l1Required ? 'L1' : 'L2')); }}
+                      className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                      <option value="">{rules.l1Required ? `(${t('staff.v2.scope_l1')})` : t('staff.v2.select_l2')}</option>
+                      {l2sForScope.map(l => (
+                        <option key={l.id} value={l.id}>{l.name}</option>
+                      ))}
+                    </select>
+                    {rules.l1Required && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('staff.v2.scope_help_category')}</p>
+                    )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.start_date')}</label>
