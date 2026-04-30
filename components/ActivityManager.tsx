@@ -1081,7 +1081,7 @@ export const ActivityManager: React.FC<Props> = ({
         {(detailTab === 'hierarchy' || !isEnsemble) && Config.hasHierarchy && (
           <div className="space-y-8">
 
-            {/* Tree view: L1 (Subcategories) with nested L2 (Sections) — for templates with l1Required */}
+            {/* Tree view: L1 (Categories) with nested L2 (Subcategories) — for templates with l1Required */}
             {Config.l1Required && (
               <div>
                 <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3 flex items-center gap-2">
@@ -1149,7 +1149,7 @@ export const ActivityManager: React.FC<Props> = ({
                               ))}
                             </div>
                           )}
-                          {/* Per-L1 "Add Section" input */}
+                          {/* Per-Category "Add Subcategory" input */}
                           {isSuperAdmin && (
                             <div className="flex gap-2 mt-1.5 ml-3">
                               <input
