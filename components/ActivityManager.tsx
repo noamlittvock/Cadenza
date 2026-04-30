@@ -5,6 +5,7 @@ import type {
   ActivityV2, L1Subcategory, L2Subcategory, EnsembleRosterMember,
   ActivityTemplate, ModulesConfig, EventNameMode,
   EventV2, EnrollmentV2, EventStatus, EnrollmentStatus,
+  TeachingAssignmentV2, ActivityTypeV2,
 } from '../types/v2';
 import { V2_COLLECTIONS } from '../types/v2';
 import { deriveActivityType } from '../types/v2-compat';
@@ -100,6 +101,239 @@ function templateBorder(color: string) {
   return `border-${color}-400 dark:border-${color}-500`;
 }
 
+// ─── 4-level Tree View ──────────────────────────────────────────────────────
+
+const ACTIVITY_TYPE_ORDER: ActivityTypeV2[] = ['ACADEMIC', 'PERFORMANCES', 'SPECIAL_EVENTS', 'ADMINISTRATIVE'];
+
+interface TreeProps {
+  activities: ActivityV2[];
+  l1Subs: L1Subcategory[];
+  l2Subs: L2Subcategory[];
+  showArchived: boolean;
+  isSuperAdmin: boolean;
+  treeExpanded: Set<string>;
+  onToggleExpand: (id: string) => void;
+  l1InputsByActivity: Record<string, string>;
+  setL1InputForActivity: (activityId: string, value: string) => void;
+  l2InputsByL1: Record<string, string>;
+  setL2InputForL1: (l1Id: string, value: string) => void;
+  onAddL1: (activityId: string) => void;
+  onAddL2: (l1Id: string | null, activityId: string) => void;
+  onArchiveL1: (id: string) => void;
+  onRestoreL1: (id: string) => void;
+  onArchiveL2: (id: string) => void;
+  onRestoreL2: (id: string) => void;
+  onArchiveActivity: (a: ActivityV2) => void;
+  onRestoreActivity: (id: string) => void;
+  onEditActivity: (a: ActivityV2) => void;
+  getActivityConfig: (a: ActivityV2) => TemplateConfig;
+  t: (key: string) => string;
+}
+
+const ActivityTreeView: React.FC<TreeProps> = ({
+  activities, l1Subs, l2Subs, showArchived, isSuperAdmin,
+  treeExpanded, onToggleExpand,
+  l1InputsByActivity, setL1InputForActivity,
+  l2InputsByL1, setL2InputForL1,
+  onAddL1, onAddL2,
+  onArchiveL1, onRestoreL1, onArchiveL2, onRestoreL2,
+  onArchiveActivity, onRestoreActivity, onEditActivity,
+  getActivityConfig, t,
+}) => {
+  const byType = useMemo(() => {
+    const m = new Map<ActivityTypeV2, ActivityV2[]>();
+    for (const tp of ACTIVITY_TYPE_ORDER) m.set(tp, []);
+    for (const a of activities) {
+      const arr = m.get(a.activityType) ?? [];
+      arr.push(a);
+      m.set(a.activityType, arr);
+    }
+    for (const tp of ACTIVITY_TYPE_ORDER) {
+      m.get(tp)!.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return m;
+  }, [activities]);
+
+  return (
+    <div className="space-y-6">
+      {ACTIVITY_TYPE_ORDER.map(type => {
+        const acts = byType.get(type) ?? [];
+        if (acts.length === 0) return null;
+        return (
+          <section key={type} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <header className="px-4 py-2.5 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                {t(`activities.type_${type.toLowerCase()}`) || type}
+              </h3>
+            </header>
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {acts.map(activity => {
+                const config = getActivityConfig(activity);
+                const Icon = config.icon;
+                const expanded = treeExpanded.has(activity.id);
+                const activityL1s = l1Subs.filter(l => l.activityId === activity.id && (showArchived || !l.isArchived));
+                const directL2s = l2Subs.filter(l => l.activityId === activity.id && l.l1Id == null && (showArchived || !l.isArchived));
+                return (
+                  <li key={activity.id} className={activity.isArchived ? 'opacity-60' : ''}>
+                    {/* Activity row */}
+                    <div className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <button onClick={() => onToggleExpand(activity.id)}
+                        className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                        <ChevronRight size={14} className={`transition-transform ${expanded ? 'rotate-90' : ''}`} />
+                      </button>
+                      <div className={`p-1.5 rounded bg-${config.color}-100 dark:bg-${config.color}-900/40 text-${config.color}-600 dark:text-${config.color}-300`}>
+                        <Icon size={14} />
+                      </div>
+                      <span className="font-medium text-slate-800 dark:text-slate-200 flex-1 truncate">
+                        {activity.name}
+                        {activity.isArchived && <span className="ms-2 text-xs text-amber-600 dark:text-amber-400 line-through">({t('activities.archived')})</span>}
+                      </span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500">
+                        {activityL1s.length > 0 ? `${activityL1s.length} L1` : `${directL2s.length} L2`}
+                      </span>
+                      {isSuperAdmin && !activity.isArchived && (
+                        <>
+                          <button onClick={() => onEditActivity(activity)} className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400">
+                            <Edit2 size={14} />
+                          </button>
+                          <button onClick={() => onArchiveActivity(activity)} className="p-1 text-slate-400 hover:text-amber-500">
+                            <Archive size={14} />
+                          </button>
+                        </>
+                      )}
+                      {isSuperAdmin && activity.isArchived && (
+                        <button onClick={() => onRestoreActivity(activity.id)} className="p-1 text-amber-400 hover:text-green-500">
+                          <RotateCcw size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Expanded children */}
+                    {expanded && config.hasHierarchy && !activity.isArchived && (
+                      <div className="ps-10 pe-3 pb-3 space-y-2 bg-slate-50/50 dark:bg-slate-900/40">
+                        {/* Add L1 row (when template supports L1) */}
+                        {isSuperAdmin && config.l1Required !== false && (
+                          <div className="flex gap-2 pt-2">
+                            <input type="text"
+                              value={l1InputsByActivity[activity.id] ?? ''}
+                              onChange={e => setL1InputForActivity(activity.id, e.target.value)}
+                              onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), onAddL1(activity.id))}
+                              placeholder={t('activities.l1_placeholder')}
+                              className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-lg px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            />
+                            <button type="button" onClick={() => onAddL1(activity.id)}
+                              disabled={!(l1InputsByActivity[activity.id] ?? '').trim()}
+                              className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 px-2.5 py-1.5 rounded-lg">
+                              <Plus size={14} />
+                            </button>
+                          </div>
+                        )}
+
+                        {/* L1 nodes with nested L2s */}
+                        {activityL1s.map(l1 => {
+                          const l2Children = l2Subs.filter(l => l.l1Id === l1.id && (showArchived || !l.isArchived));
+                          const l2Input = l2InputsByL1[l1.id] ?? '';
+                          return (
+                            <div key={l1.id} className={`border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden ${l1.isArchived ? 'opacity-60' : ''}`}>
+                              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 group">
+                                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex-1">
+                                  {l1.name}
+                                  {l1.isArchived && <span className="ms-2 text-xs text-amber-600 dark:text-amber-400 line-through">({t('activities.archived')})</span>}
+                                </span>
+                                {isSuperAdmin && !l1.isArchived && (
+                                  <button onClick={() => onArchiveL1(l1.id)} className="p-1 text-slate-400 hover:text-amber-500">
+                                    <Archive size={12} />
+                                  </button>
+                                )}
+                                {isSuperAdmin && l1.isArchived && (
+                                  <button onClick={() => onRestoreL1(l1.id)} className="p-1 text-amber-400 hover:text-green-500">
+                                    <RotateCcw size={12} />
+                                  </button>
+                                )}
+                              </div>
+                              {!l1.isArchived && (
+                                <div className="px-3 py-1.5 space-y-1">
+                                  {l2Children.map(l2 => (
+                                    <div key={l2.id} className={`flex items-center gap-2 px-2.5 py-1 rounded bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 group ${l2.isArchived ? 'opacity-60' : ''}`}>
+                                      <span className="text-sm text-slate-600 dark:text-slate-300 flex-1">
+                                        {l2.name}
+                                        {l2.isArchived && <span className="ms-2 text-xs text-amber-600 dark:text-amber-400 line-through">({t('activities.archived')})</span>}
+                                      </span>
+                                      {isSuperAdmin && !l2.isArchived && (
+                                        <button onClick={() => onArchiveL2(l2.id)} className="p-1 text-slate-400 hover:text-amber-500 opacity-0 group-hover:opacity-100">
+                                          <Archive size={12} />
+                                        </button>
+                                      )}
+                                      {isSuperAdmin && l2.isArchived && (
+                                        <button onClick={() => onRestoreL2(l2.id)} className="p-1 text-amber-400 hover:text-green-500">
+                                          <RotateCcw size={12} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  ))}
+                                  {isSuperAdmin && (
+                                    <div className="flex gap-2 pt-1">
+                                      <input type="text"
+                                        value={l2Input}
+                                        onChange={e => setL2InputForL1(l1.id, e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), onAddL2(l1.id, activity.id))}
+                                        placeholder={t('activities.l2_placeholder')}
+                                        className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500 text-xs"
+                                      />
+                                      <button type="button" onClick={() => onAddL2(l1.id, activity.id)}
+                                        disabled={!l2Input.trim()}
+                                        className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white disabled:opacity-50 px-2 py-1 rounded">
+                                        <Plus size={12} />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {/* Direct-to-Activity L2s (when template doesn't require L1) */}
+                        {(directL2s.length > 0 || (isSuperAdmin && !config.l1Required)) && (
+                          <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-2 space-y-1">
+                            {directL2s.map(l2 => (
+                              <div key={l2.id} className={`flex items-center gap-2 px-2.5 py-1 rounded bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 ${l2.isArchived ? 'opacity-60' : ''}`}>
+                                <span className="text-sm text-slate-600 dark:text-slate-300 flex-1">
+                                  {l2.name}
+                                  {l2.isArchived && <span className="ms-2 text-xs text-amber-600 dark:text-amber-400 line-through">({t('activities.archived')})</span>}
+                                </span>
+                                {isSuperAdmin && !l2.isArchived && (
+                                  <button onClick={() => onArchiveL2(l2.id)} className="p-1 text-slate-400 hover:text-amber-500">
+                                    <Archive size={12} />
+                                  </button>
+                                )}
+                                {isSuperAdmin && l2.isArchived && (
+                                  <button onClick={() => onRestoreL2(l2.id)} className="p-1 text-amber-400 hover:text-green-500">
+                                    <RotateCcw size={12} />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            {isSuperAdmin && !config.l1Required && (
+                              <p className="text-xs text-slate-400 dark:text-slate-500 italic px-1">
+                                {t('activities.add_direct_l2_hint')}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
+  );
+};
+
 // ─── Props ───────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -128,9 +362,12 @@ export const ActivityManager: React.FC<Props> = ({
   const [rosterMembers, setRosterMembers] = useFirestoreSync<EnsembleRosterMember>(V2_COLLECTIONS.ensembleRosterMembers, []);
   const [eventsV2, setEventsV2] = useFirestoreSync<EventV2>(V2_COLLECTIONS.events, []);
   const [enrollmentsV2, setEnrollmentsV2] = useFirestoreSync<EnrollmentV2>(V2_COLLECTIONS.enrollments, []);
+  const [teachingAssignments, setTeachingAssignments] = useFirestoreSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
 
   // ─── UI State ────────────────────────────────────────────────────────────
-  const [viewMode, setViewMode] = useListStyle(['grid', 'list']);
+  const [viewMode, setViewMode] = useListStyle(['tree', 'grid', 'list']);
+  const [treeExpanded, setTreeExpanded] = useState<Set<string>>(new Set()); // ids of expanded activity rows
+  const [l1InputsByActivity, setL1InputsByActivity] = useState<Record<string, string>>({});
   const [showArchived, setShowArchived] = useState(false);
   const { sortDirection, toggleSort } = useSortState<'name'>('name');
   const [selectMode, setSelectMode] = useState(false);
@@ -146,7 +383,12 @@ export const ActivityManager: React.FC<Props> = ({
   const [walkthroughStep, setWalkthroughStep] = useState(0);
 
   // ─── Archive cascade modal ──────────────────────────────────────────────
-  const [archiveCascade, setArchiveCascade] = useState<{ activityId: string; name: string; futureEventCount: number } | null>(null);
+  const [archiveCascade, setArchiveCascade] = useState<{
+    activityId: string; name: string;
+    futureEventCount: number;
+    l1Count: number; l2Count: number;
+    assignmentCount: number;
+  } | null>(null);
 
   // ─── Form state ──────────────────────────────────────────────────────────
   const [formName, setFormName] = useState('');
@@ -260,9 +502,6 @@ export const ActivityManager: React.FC<Props> = ({
     setIsModalOpen(true);
   }, []);
 
-  const toggleModule = useCallback((key: keyof ModulesConfig) => {
-    setFormModules(prev => ({ ...prev, [key]: !prev[key] }));
-  }, []);
 
   // ─── Submit ──────────────────────────────────────────────────────────────
 
@@ -324,12 +563,16 @@ export const ActivityManager: React.FC<Props> = ({
     const futureEvents = eventsV2.filter(e =>
       e.activityId === activity.id && e.status === 'SCHEDULED' && e.date >= today
     );
+    const l1Count = l1Subs.filter(l => l.activityId === activity.id && !l.isArchived).length;
+    const l2Count = l2Subs.filter(l => l.activityId === activity.id && !l.isArchived).length;
+    const assignmentCount = teachingAssignments.filter(a => a.activityId === activity.id && !a.isArchived).length;
     setArchiveCascade({
       activityId: activity.id,
       name: activity.name,
       futureEventCount: futureEvents.length,
+      l1Count, l2Count, assignmentCount,
     });
-  }, [eventsV2, isSuperAdmin]);
+  }, [eventsV2, l1Subs, l2Subs, teachingAssignments, isSuperAdmin]);
 
   const confirmArchive = useCallback(() => {
     if (!archiveCascade || !isSuperAdmin) return;
@@ -337,28 +580,44 @@ export const ActivityManager: React.FC<Props> = ({
     const tsNow = Timestamp.now();
     const today = new Date().toISOString().slice(0, 10);
 
-    // Archive the activity
     setActivities(prev => prev.map(a =>
       a.id === activityId ? { ...a, isArchived: true, updatedAt: tsNow } : a
     ));
 
-    // Cascade: archive ensemble roster members
-    const actRoster = rosterMembers.filter(r => r.activityId === activityId);
-    if (actRoster.length > 0) {
-      setRosterMembers(prev => prev.map(r =>
-        r.activityId === activityId ? { ...r, isArchived: true, updatedAt: tsNow } : r
-      ));
-    }
+    // Cascade: descendant L1s and L2s
+    setL1Subs(prev => prev.map(l =>
+      l.activityId === activityId && !l.isArchived ? { ...l, isArchived: true, updatedAt: tsNow } : l
+    ));
+    setL2Subs(prev => prev.map(l =>
+      l.activityId === activityId && !l.isArchived ? { ...l, isArchived: true, updatedAt: tsNow } : l
+    ));
 
-    // Cascade: archive future events with this activityId (Section 10)
+    // Cascade: ensemble roster members
+    setRosterMembers(prev => prev.map(r =>
+      r.activityId === activityId && !r.isArchived ? { ...r, isArchived: true, updatedAt: tsNow } : r
+    ));
+
+    // Cascade: future events
     setEventsV2(prev => prev.map(e =>
       e.activityId === activityId && e.status === 'SCHEDULED' && e.date >= today
         ? { ...e, status: 'ARCHIVED' as EventStatus, updatedAt: tsNow }
         : e
     ));
 
+    // Cascade: enrollments
+    setEnrollmentsV2(prev => prev.map(e =>
+      e.activityId === activityId && e.status === 'ACTIVE'
+        ? { ...e, status: 'ARCHIVED' as EnrollmentStatus, updatedAt: tsNow }
+        : e
+    ));
+
+    // Cascade: teaching assignments
+    setTeachingAssignments(prev => prev.map(a =>
+      a.activityId === activityId && !a.isArchived ? { ...a, isArchived: true, updatedAt: tsNow } : a
+    ));
+
     setArchiveCascade(null);
-  }, [archiveCascade, isSuperAdmin, rosterMembers, setActivities, setRosterMembers, setEventsV2]);
+  }, [archiveCascade, isSuperAdmin, setActivities, setL1Subs, setL2Subs, setRosterMembers, setEventsV2, setEnrollmentsV2, setTeachingAssignments]);
 
   const handleRestore = useCallback((id: string) => {
     if (!isSuperAdmin) return;
@@ -593,28 +852,41 @@ export const ActivityManager: React.FC<Props> = ({
 
   // ─── L1 / L2 CRUD ───────────────────────────────────────────────────────
 
-  const addL1 = useCallback(() => {
-    if (!l1Input.trim() || !detailActivityId || !isSuperAdmin) return;
-    const exists = activityL1s.some(l => l.name.toLowerCase() === l1Input.trim().toLowerCase());
+  const addL1 = useCallback((activityIdArg?: string) => {
+    const activityId = activityIdArg ?? detailActivityId;
+    if (!activityId || !isSuperAdmin) return;
+    const value = (activityIdArg ? (l1InputsByActivity[activityId] ?? '') : l1Input).trim();
+    if (!value) return;
+    const exists = l1Subs.some(l => l.activityId === activityId && !l.isArchived && l.name.toLowerCase() === value.toLowerCase());
     if (exists) return;
     const now = Timestamp.now();
     const newL1: L1Subcategory = {
-      id: generateId(), orgId: '', activityId: detailActivityId,
-      name: l1Input.trim(), isArchived: false, createdAt: now, updatedAt: now,
+      id: generateId(), orgId: '', activityId,
+      name: value, isArchived: false, createdAt: now, updatedAt: now,
     };
     setL1Subs(prev => [...prev, newL1]);
-    setL1Input('');
-  }, [l1Input, detailActivityId, isSuperAdmin, activityL1s, setL1Subs]);
+    if (activityIdArg) {
+      setL1InputsByActivity(prev => ({ ...prev, [activityId]: '' }));
+    } else {
+      setL1Input('');
+    }
+  }, [l1Input, l1InputsByActivity, detailActivityId, isSuperAdmin, l1Subs, setL1Subs]);
 
-  const addL2 = useCallback((l1Id: string | null) => {
-    const input = l1Id ? (l2InputsByL1[l1Id] ?? '') : l2Input;
-    if (!input.trim() || !detailActivityId || !isSuperAdmin) return;
-    const exists = activityL2s.some(l => l.name.toLowerCase() === input.trim().toLowerCase());
+  const addL2 = useCallback((l1Id: string | null, activityIdArg?: string) => {
+    const activityId = activityIdArg ?? detailActivityId;
+    if (!activityId || !isSuperAdmin) return;
+    const input = (l1Id ? (l2InputsByL1[l1Id] ?? '') : l2Input).trim();
+    if (!input) return;
+    // Uniqueness scoped to (activityId, l1Id) per Q9 decisions
+    const exists = l2Subs.some(l =>
+      l.activityId === activityId && l.l1Id === l1Id && !l.isArchived &&
+      l.name.toLowerCase() === input.toLowerCase()
+    );
     if (exists) return;
     const now = Timestamp.now();
     const newL2: L2Subcategory = {
-      id: generateId(), orgId: '', activityId: detailActivityId,
-      l1Id, name: input.trim(),
+      id: generateId(), orgId: '', activityId,
+      l1Id, name: input,
       isArchived: false, createdAt: now, updatedAt: now,
     };
     setL2Subs(prev => [...prev, newL2]);
@@ -623,20 +895,44 @@ export const ActivityManager: React.FC<Props> = ({
     } else {
       setL2Input('');
     }
-  }, [l2Input, l2InputsByL1, detailActivityId, isSuperAdmin, activityL2s, setL2Subs]);
+  }, [l2Input, l2InputsByL1, detailActivityId, isSuperAdmin, l2Subs, setL2Subs]);
 
   const archiveL1 = useCallback((id: string) => {
     if (!isSuperAdmin) return;
     const today = new Date().toISOString().slice(0, 10);
     const tsNow = Timestamp.now();
     setL1Subs(prev => prev.map(l => l.id === id ? { ...l, isArchived: true, updatedAt: tsNow } : l));
-    // Cascade: archive future events with this l1Id (Section 10)
+    // Cascade: descendant L2s under this L1
+    setL2Subs(prev => prev.map(l =>
+      l.l1Id === id && !l.isArchived ? { ...l, isArchived: true, updatedAt: tsNow } : l
+    ));
+    // Cascade: future events tagged with this l1Id
     setEventsV2(prev => prev.map(e =>
       e.l1Id === id && e.status === 'SCHEDULED' && e.date >= today
         ? { ...e, status: 'ARCHIVED' as EventStatus, updatedAt: tsNow }
         : e
     ));
-  }, [isSuperAdmin, setL1Subs, setEventsV2]);
+    // Cascade: L1-scope teaching assignments and any L2-scope assignments under this L1
+    setTeachingAssignments(prev => prev.map(a => {
+      if (a.isArchived) return a;
+      const isL1Scope = a.scope === 'L1' && a.l1Id === id;
+      const isL2Under = a.scope === 'L2' && a.l2Id != null && (
+        // Resolve L2's l1Id from current L2 list
+        false
+      );
+      if (isL1Scope) return { ...a, isArchived: true, updatedAt: tsNow };
+      return a;
+    }));
+    // Separate pass for L2-under-L1 (needs l2Subs lookup)
+    const l2sUnderL1 = l2Subs.filter(l => l.l1Id === id).map(l => l.id);
+    if (l2sUnderL1.length > 0) {
+      setTeachingAssignments(prev => prev.map(a =>
+        !a.isArchived && a.scope === 'L2' && a.l2Id && l2sUnderL1.includes(a.l2Id)
+          ? { ...a, isArchived: true, updatedAt: tsNow }
+          : a
+      ));
+    }
+  }, [isSuperAdmin, setL1Subs, setL2Subs, setEventsV2, setTeachingAssignments, l2Subs]);
 
   const restoreL1 = useCallback((id: string) => {
     if (!isSuperAdmin) return;
@@ -648,19 +944,23 @@ export const ActivityManager: React.FC<Props> = ({
     const today = new Date().toISOString().slice(0, 10);
     const tsNow = Timestamp.now();
     setL2Subs(prev => prev.map(l => l.id === id ? { ...l, isArchived: true, updatedAt: tsNow } : l));
-    // Cascade: archive future events with this l2Id (Section 10)
     setEventsV2(prev => prev.map(e =>
       e.l2Id === id && e.status === 'SCHEDULED' && e.date >= today
         ? { ...e, status: 'ARCHIVED' as EventStatus, updatedAt: tsNow }
         : e
     ));
-    // Cascade: archive active enrollments with this l2Id (Section 10)
     setEnrollmentsV2(prev => prev.map(e =>
       e.l2Id === id && e.status === 'ACTIVE'
         ? { ...e, status: 'ARCHIVED' as EnrollmentStatus, updatedAt: tsNow }
         : e
     ));
-  }, [isSuperAdmin, setL2Subs, setEventsV2, setEnrollmentsV2]);
+    // Cascade: L2-scope teaching assignments tied to this L2
+    setTeachingAssignments(prev => prev.map(a =>
+      !a.isArchived && a.scope === 'L2' && a.l2Id === id
+        ? { ...a, isArchived: true, updatedAt: tsNow }
+        : a
+    ));
+  }, [isSuperAdmin, setL2Subs, setEventsV2, setEnrollmentsV2, setTeachingAssignments]);
 
   const restoreL2 = useCallback((id: string) => {
     if (!isSuperAdmin) return;
@@ -756,16 +1056,6 @@ export const ActivityManager: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Module badges */}
-        {detailActivity.modules && (
-          <div className="flex flex-wrap gap-2 mb-6">
-            {Object.entries(detailActivity.modules).filter(([, v]) => v).map(([k]) => (
-              <span key={k} className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                {t(`activities.module_${k}`)}
-              </span>
-            ))}
-          </div>
-        )}
 
         {/* Tabs for Ensemble */}
         {isEnsemble && (
@@ -1051,6 +1341,10 @@ export const ActivityManager: React.FC<Props> = ({
             <span className="text-xs font-medium">{sortDirection === 'asc' ? 'A→Z' : 'Z→A'}</span>
           </button>
           <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+            <button onClick={() => setViewMode('tree')} title={t('activities.view_tree')}
+              className={`p-2 transition-colors ${viewMode === 'tree' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+              <Layers size={16} />
+            </button>
             <button onClick={() => setViewMode('grid')} className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
               <LayoutGrid size={16} />
             </button>
@@ -1160,11 +1454,44 @@ export const ActivityManager: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Activity Grid / List */}
+      {/* Activity Tree / Grid / List */}
       {visibleActivities.length === 0 ? (
         <div className="py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
           {t('activities.empty_state')}
         </div>
+      ) : viewMode === 'tree' ? (
+        <ActivityTreeView
+          activities={visibleActivities}
+          l1Subs={l1Subs}
+          l2Subs={l2Subs}
+          showArchived={showArchived}
+          isSuperAdmin={isSuperAdmin}
+          treeExpanded={treeExpanded}
+          onToggleExpand={(id) => setTreeExpanded(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+          })}
+          l1InputsByActivity={l1InputsByActivity}
+          setL1InputForActivity={(activityId, value) =>
+            setL1InputsByActivity(prev => ({ ...prev, [activityId]: value }))
+          }
+          l2InputsByL1={l2InputsByL1}
+          setL2InputForL1={(l1Id, value) =>
+            setL2InputsByL1(prev => ({ ...prev, [l1Id]: value }))
+          }
+          onAddL1={(activityId) => addL1(activityId)}
+          onAddL2={(l1Id, activityId) => addL2(l1Id, activityId)}
+          onArchiveL1={archiveL1}
+          onRestoreL1={restoreL1}
+          onArchiveL2={archiveL2}
+          onRestoreL2={restoreL2}
+          onArchiveActivity={initiateArchive}
+          onRestoreActivity={handleRestore}
+          onEditActivity={openEditModal}
+          getActivityConfig={getActivityConfig}
+          t={t}
+        />
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {visibleActivities.map(activity => {
@@ -1365,12 +1692,25 @@ export const ActivityManager: React.FC<Props> = ({
           <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setArchiveCascade(null)} />
           <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-3">{t('activities.archive_cascade_title')}</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">
               {archiveCascade.futureEventCount > 0
                 ? t('activities.archive_cascade_message').replace('{name}', archiveCascade.name).replace('{eventCount}', String(archiveCascade.futureEventCount))
                 : t('activities.archive_cascade_no_events').replace('{name}', archiveCascade.name)
               }
             </p>
+            {(archiveCascade.l1Count + archiveCascade.l2Count + archiveCascade.assignmentCount) > 0 && (
+              <ul className="text-xs text-slate-500 dark:text-slate-400 mb-6 space-y-1 ps-4 list-disc">
+                {archiveCascade.l1Count > 0 && (
+                  <li>{t('activities.cascade_l1_count').replace('{count}', String(archiveCascade.l1Count))}</li>
+                )}
+                {archiveCascade.l2Count > 0 && (
+                  <li>{t('activities.cascade_l2_count').replace('{count}', String(archiveCascade.l2Count))}</li>
+                )}
+                {archiveCascade.assignmentCount > 0 && (
+                  <li>{t('activities.cascade_assignment_count').replace('{count}', String(archiveCascade.assignmentCount))}</li>
+                )}
+              </ul>
+            )}
             <div className="flex justify-end gap-3">
               <button onClick={() => setArchiveCascade(null)}
                 className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
@@ -1522,25 +1862,6 @@ export const ActivityManager: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Modules Configuration */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              {t('activities.modules')}
-            </label>
-            <div className="space-y-2">
-              {(Object.keys(formModules) as (keyof ModulesConfig)[]).map(key => (
-                <label key={key} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={formModules[key]}
-                    onChange={() => toggleModule(key)}
-                    className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-slate-700 dark:text-slate-300">{t(`activities.module_${key}`)}</span>
-                </label>
-              ))}
-            </div>
-          </div>
 
         </form>
       </Modal>
