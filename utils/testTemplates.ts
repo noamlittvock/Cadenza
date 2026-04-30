@@ -61,7 +61,7 @@ export const TEST_TEMPLATES: TestTemplate[] = [
   {
     id: 'staff-manager',
     label: 'Staff Manager',
-    description: '25 teachers across all rate types (HOURLY, GLOBAL_MONTHLY, PER_EVENT, ONE_OFF) including one archived teacher. Tests rate display, filtering, and archiving.',
+    description: '25 staff members with assignments across activities, including one archived. Tests staff list, filtering, and archiving.',
     targetView: 'STAFF_MEMBERS',
     modules: ['teachers', 'activities'],
     color: 'indigo',

@@ -4,9 +4,10 @@ import { Teacher, ListsState, AppSettings, HoursReport, Student, AdminInboxItem 
 import { buildActivityMap, getActivityName } from '../utils/activityLookup';
 import type {
   ActivityV2, StaffMemberV2, TeachingAssignmentV2, OrgRoleV2,
-  StaffRole, L2Subcategory,
+  StaffRole, L1Subcategory, L2Subcategory, AssignmentScope,
   EventV2, EventParticipant, FirstUseFlags,
 } from '../types/v2';
+import { findOverlapConflict, migrateLegacyAssignment } from '../utils/assignmentScope';
 import { ImportExportDropdown } from './ImportExportDropdown';
 import { V2_COLLECTIONS } from '../types/v2';
 import { generateId, TRANSLATIONS } from '../constants';
@@ -104,13 +105,81 @@ export const StaffMemberManager: React.FC<Props> = ({
 
   // ─── v2.0 Internal collections ──────────────────────────────────────────
   const [staffMembers, setStaffMembers] = useFirestoreSync<StaffMemberV2>(V2_COLLECTIONS.staffMembers, []);
-  const [assignments, setAssignments] = useFirestoreSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
+  const [rawAssignments, setAssignments] = useFirestoreSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
+  const assignments = useMemo(() => rawAssignments.map(migrateLegacyAssignment), [rawAssignments]);
   const [orgRoles, setOrgRoles] = useFirestoreSync<OrgRoleV2>(V2_COLLECTIONS.orgRoles, []);
+  const [l1Subcategories] = useFirestoreSync<L1Subcategory>(V2_COLLECTIONS.l1Subcategories, []);
   const [l2Subcategories] = useFirestoreSync<L2Subcategory>(V2_COLLECTIONS.l2Subcategories, []);
   const [eventsV2] = useFirestoreSync<EventV2>(V2_COLLECTIONS.events, []);
   const [eventParticipantsV2, setEventParticipantsV2] = useFirestoreSync<EventParticipant>(V2_COLLECTIONS.eventParticipants, []);
 
   const activityMap = useMemo(() => buildActivityMap(activities), [activities]);
+
+  const scopeLabel = useCallback((scope: AssignmentScope, l1Id: string | null, l2Id: string | null): string => {
+    if (scope === 'ACTIVITY') return t('staff.v2.scope_activity');
+    if (scope === 'L1') {
+      const name = l1Subcategories.find(l => l.id === l1Id)?.name || '';
+      return name ? `${t('staff.v2.scope_l1')}: ${name}` : t('staff.v2.scope_l1');
+    }
+    const name = l2Subcategories.find(l => l.id === l2Id)?.name || '';
+    return name ? `${t('staff.v2.scope_l2')}: ${name}` : t('staff.v2.scope_l2');
+  }, [l1Subcategories, l2Subcategories, t]);
+
+  const formatOverlapError = useCallback((conflicting: TeachingAssignmentV2): string => {
+    const activityName = getActivityName(activityMap, conflicting.activityId, conflicting.activityId);
+    const scopeText = scopeLabel(conflicting.scope, conflicting.l1Id, conflicting.l2Id);
+    const dateRange = `${conflicting.startDate} – ${conflicting.endDate ?? '∞'}`;
+    return t('staff.v2.overlap_error_specific')
+      .replace('{activity}', activityName)
+      .replace('{scope}', scopeText)
+      .replace('{dates}', dateRange);
+  }, [activityMap, scopeLabel, t]);
+
+  const roleLabel = useCallback((r: StaffRole) => {
+    switch (r) {
+      case 'SUPER_ADMIN': return t('staff.role.super_admin');
+      case 'ADMIN': return t('staff.role.admin');
+      case 'STAFF': return t('staff.role.staff');
+    }
+  }, [settings.language]);
+
+  const distilledRole = useCallback((s: StaffMemberV2): string => {
+    if (s.role === 'SUPER_ADMIN') return t('staff.role.super_admin');
+
+    const active = assignments.filter(a => a.staffMemberId === s.id && !a.isArchived);
+    const activityIds: string[] = Array.from(new Set(active.map(a => a.activityId)));
+    const acts = activityIds
+      .map(id => activities.find(act => act.id === id))
+      .filter((a): a is ActivityV2 => !!a);
+
+    const templates = new Set(acts.map(a => a.template));
+    const distinctNames = Array.from(new Set(
+      acts.map(a => a.name).filter(Boolean)
+    ));
+
+    if (acts.length > 0 && templates.size === 1) {
+      const tmpl = acts[0].template;
+      if (tmpl === 'DISCIPLINE') {
+        if (distinctNames.length === 1) {
+          return t('staff.role.activity_teacher_one').replace('{name}', distinctNames[0]);
+        }
+        return t('staff.role.teacher_generic');
+      }
+      if (tmpl === 'ENSEMBLE') return t('staff.role.band_leader');
+      if (tmpl === 'PROGRAM') return t('staff.role.program_lead');
+      if (tmpl === 'EXTERNAL') return t('staff.role.external_instructor');
+    } else if (acts.length > 0 && templates.size > 1) {
+      return t('staff.role.teacher_generic');
+    }
+
+    if (s.role === 'ADMIN') return t('staff.role.admin');
+
+    const orgRoleTitle = orgRoles
+      .find(r => r.staffMemberId === s.id && !r.isArchived)?.roleTitle.trim();
+    if (orgRoleTitle) return orgRoleTitle;
+
+    return roleLabel(s.role);
+  }, [assignments, activities, orgRoles, t, roleLabel]);
 
   // ─── View state ─────────────────────────────────────────────────────────
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
@@ -146,7 +215,9 @@ export const StaffMemberManager: React.FC<Props> = ({
   // ─── Assignment modal ───────────────────────────────────────────────────
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
   const [editingAssignmentId, setEditingAssignmentId] = useState<string | null>(null);
+  const [aFormScope, setAFormScope] = useState<AssignmentScope>('L2');
   const [aFormActivityId, setAFormActivityId] = useState('');
+  const [aFormL1Id, setAFormL1Id] = useState('');
   const [aFormL2Id, setAFormL2Id] = useState('');
   const [aFormStartDate, setAFormStartDate] = useState('');
   const [aFormEndDate, setAFormEndDate] = useState('');
@@ -165,7 +236,9 @@ export const StaffMemberManager: React.FC<Props> = ({
   const resetAssignmentForm = useCallback(() => {
     setAssignmentError('');
     setEditingAssignmentId(null);
+    setAFormScope('L2');
     setAFormActivityId('');
+    setAFormL1Id('');
     setAFormL2Id('');
     setAFormStartDate(new Date().toISOString().slice(0, 10));
     setAFormEndDate('');
@@ -202,13 +275,13 @@ export const StaffMemberManager: React.FC<Props> = ({
   // ─── Column filters ─────────────────────────────────────────────────────
   const staffColumnConfigs: ColumnFilterConfig<StaffMemberV2>[] = useMemo(() => [
     { key: 'fullName', type: 'text' as const, label: t('staff.table.name'), getValue: s => s.fullName },
-    { key: 'role', type: 'checkbox' as const, label: t('staff.table.role'), getValue: s => s.role },
+    { key: 'role', type: 'checkbox' as const, label: t('staff.table.role'), getValue: s => distilledRole(s) },
     { key: 'email', type: 'text' as const, label: t('staff.table.email'), getValue: s => s.email ?? '' },
     { key: 'activities', type: 'checkbox' as const, label: t('staff.table.activities'), getValue: (s: StaffMemberV2) => {
       const active = assignments.filter(a => a.staffMemberId === s.id && !a.isArchived);
       return active.map(a => getActivityName(activityMap, a.activityId)).filter(Boolean);
     }},
-  ], [t, assignments, activityMap]);
+  ], [t, assignments, activityMap, distilledRole]);
 
   const {
     filters: staffColumnFilters,
@@ -240,7 +313,7 @@ export const StaffMemberManager: React.FC<Props> = ({
       let cmp = 0;
       switch (sortKey) {
         case 'fullName': cmp = a.fullName.localeCompare(b.fullName); break;
-        case 'role': cmp = (a.role || '').localeCompare(b.role || ''); break;
+        case 'role': cmp = distilledRole(a).localeCompare(distilledRole(b)); break;
         case 'email': cmp = (a.email || '').localeCompare(b.email || ''); break;
         case 'assignmentCount': {
           const ac = staffActivitySummary.get(a.id)?.count ?? 0;
@@ -252,7 +325,7 @@ export const StaffMemberManager: React.FC<Props> = ({
       return sortDirection === 'desc' ? -cmp : cmp;
     });
     return sorted;
-  }, [staffColumnFilteredData, listStyle, sortKey, sortDirection, staffActivitySummary]);
+  }, [staffColumnFilteredData, listStyle, sortKey, sortDirection, staffActivitySummary, distilledRole]);
 
   const staffAssignments = useMemo(
     () => selectedStaffId ? assignments.filter(a => a.staffMemberId === selectedStaffId) : [],
@@ -264,10 +337,23 @@ export const StaffMemberManager: React.FC<Props> = ({
     [orgRoles, selectedStaffId],
   );
 
+  const l1sForActivity = useMemo(
+    () => aFormActivityId ? l1Subcategories.filter(l => l.activityId === aFormActivityId && !l.isArchived) : [],
+    [l1Subcategories, aFormActivityId],
+  );
+
   const l2sForActivity = useMemo(
     () => aFormActivityId ? l2Subcategories.filter(l => l.activityId === aFormActivityId && !l.isArchived) : [],
     [l2Subcategories, aFormActivityId],
   );
+
+  const l2sForScope = useMemo(() => {
+    if (!aFormActivityId) return [];
+    return l2Subcategories.filter(l =>
+      l.activityId === aFormActivityId && !l.isArchived &&
+      (aFormL1Id ? l.l1Id === aFormL1Id : true)
+    );
+  }, [l2Subcategories, aFormActivityId, aFormL1Id]);
 
   const canWrite = isSuperAdmin || isAdmin;
 
@@ -288,16 +374,18 @@ export const StaffMemberManager: React.FC<Props> = ({
   const assignmentExportData = useMemo(() => assignments.map(a => ({
     staffEmail: staffMembers.find(s => s.id === a.staffMemberId)?.email || '',
     activityName: getActivityName(activityMap, a.activityId, ''),
-    l2Name: l2Subcategories.find(l => l.id === a.l2Id)?.name || '',
+    l1Name: a.l1Id ? (l1Subcategories.find(l => l.id === a.l1Id)?.name || '') : '',
+    l2Name: a.l2Id ? (l2Subcategories.find(l => l.id === a.l2Id)?.name || '') : '',
     startDate: a.startDate || '',
-  })), [assignments, staffMembers, activities, l2Subcategories]);
+  })), [assignments, staffMembers, activityMap, l1Subcategories, l2Subcategories]);
 
   const assignmentDupKeys = useMemo(() => new Set(assignments.map(a => {
     const email = staffMembers.find(s => s.id === a.staffMemberId)?.email || '';
     const aName = getActivityName(activityMap, a.activityId, '');
-    const lName = l2Subcategories.find(l => l.id === a.l2Id)?.name || '';
-    return `${email}|${aName}|${lName}`.toLowerCase();
-  })), [assignments, staffMembers, activities, l2Subcategories]);
+    const l1Name = a.l1Id ? (l1Subcategories.find(l => l.id === a.l1Id)?.name || '') : '';
+    const l2Name = a.l2Id ? (l2Subcategories.find(l => l.id === a.l2Id)?.name || '') : '';
+    return `${email}|${aName}|${l1Name}|${l2Name}|${a.scope}`.toLowerCase();
+  })), [assignments, staffMembers, activityMap, l1Subcategories, l2Subcategories]);
 
   const csvStaffByEmail = useMemo(
     () => Object.fromEntries(staffMembers.map(s => [(s.email || '').toLowerCase(), s.id])),
@@ -311,6 +399,20 @@ export const StaffMemberManager: React.FC<Props> = ({
     () => Object.fromEntries(l2Subcategories.map(l => [l.name.toLowerCase(), l.id])),
     [l2Subcategories],
   );
+  const csvL1ByActivityName = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const l1 of l1Subcategories) {
+      m[`${l1.activityId}|${l1.name.toLowerCase()}`] = l1.id;
+    }
+    return m;
+  }, [l1Subcategories]);
+  const csvL2ByActivityL1Name = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const l2 of l2Subcategories) {
+      m[`${l2.activityId}|${l2.l1Id ?? ''}|${l2.name.toLowerCase()}`] = l2.id;
+    }
+    return m;
+  }, [l2Subcategories]);
 
   const handleStaffImportComplete = useCallback((rows: Record<string, string>[]) => {
     const now = Timestamp.now();
@@ -334,28 +436,36 @@ export const StaffMemberManager: React.FC<Props> = ({
 
   const handleAssignmentImportComplete = useCallback((rows: Record<string, string>[]) => {
     const now = Timestamp.now();
-    const newAssignments: TeachingAssignmentV2[] = rows.map(row => ({
-      id: generateId(), orgId: orgId || '',
-      staffMemberId: csvStaffByEmail[row['staffEmail']?.trim().toLowerCase() || ''] || selectedStaffId || '',
-      activityId: csvActivityByName[row['activityName']?.trim().toLowerCase() || ''] || '',
-      l2Id: csvL2ByName[row['l2Name']?.trim().toLowerCase() || ''] || '',
-      startDate: row['startDate'] || '',
-      endDate: null,
-      isArchived: false,
-      createdAt: now, updatedAt: now,
-    }));
+    const newAssignments: TeachingAssignmentV2[] = rows.map(row => {
+      const activityId = csvActivityByName[row['activityName']?.trim().toLowerCase() || ''] || '';
+      const l1Raw = row['l1Name']?.trim();
+      const l2Raw = row['l2Name']?.trim();
+      const l1Id = l1Raw ? (csvL1ByActivityName[`${activityId}|${l1Raw.toLowerCase()}`] || '') : '';
+      const l2Id = l2Raw
+        ? (csvL2ByActivityL1Name[`${activityId}|${l1Id}|${l2Raw.toLowerCase()}`] || '')
+        : '';
+
+      let scope: AssignmentScope = 'ACTIVITY';
+      if (l2Id) scope = 'L2';
+      else if (l1Id) scope = 'L1';
+
+      return {
+        id: generateId(), orgId: orgId || '',
+        staffMemberId: csvStaffByEmail[row['staffEmail']?.trim().toLowerCase() || ''] || selectedStaffId || '',
+        scope,
+        activityId,
+        l1Id: scope === 'L1' ? l1Id : null,
+        l2Id: scope === 'L2' ? l2Id : null,
+        startDate: row['startDate'] || '',
+        endDate: null,
+        isArchived: false,
+        createdAt: now, updatedAt: now,
+      };
+    });
     setAssignments(prev => [...prev, ...newAssignments]);
-  }, [orgId, setAssignments, csvStaffByEmail, csvActivityByName, csvL2ByName, selectedStaffId]);
+  }, [orgId, setAssignments, csvStaffByEmail, csvActivityByName, csvL1ByActivityName, csvL2ByActivityL1Name, selectedStaffId]);
 
   // ─── Helpers ────────────────────────────────────────────────────────────
-
-  const roleLabel = useCallback((r: StaffRole) => {
-    switch (r) {
-      case 'SUPER_ADMIN': return t('staff.role.super_admin');
-      case 'ADMIN': return t('staff.role.admin');
-      case 'STAFF': return t('staff.role.staff');
-    }
-  }, [settings.language]);
 
   const activityName = useCallback((id: string) => {
     return getActivityName(activityMap, id, id);
@@ -520,8 +630,10 @@ export const StaffMemberManager: React.FC<Props> = ({
     if (!canWrite) return;
     setEditingAssignmentId(a.id);
     setAssignmentError('');
+    setAFormScope(a.scope);
     setAFormActivityId(a.activityId);
-    setAFormL2Id(a.l2Id);
+    setAFormL1Id(a.l1Id ?? '');
+    setAFormL2Id(a.l2Id ?? '');
     setAFormStartDate(a.startDate);
     setAFormEndDate(a.endDate || '');
     setIsAssignmentModalOpen(true);
@@ -531,31 +643,46 @@ export const StaffMemberManager: React.FC<Props> = ({
     if (!canWrite || !orgId || !selectedStaffId) return false;
 
     if (!aFormActivityId) { setAssignmentError(t('staff.v2.select_activity')); return false; }
-    if (!aFormL2Id) { setAssignmentError(t('staff.v2.select_l2')); return false; }
+    if (aFormScope === 'L1' && !aFormL1Id) { setAssignmentError(t('staff.v2.select_l1')); return false; }
+    if (aFormScope === 'L2' && !aFormL2Id) { setAssignmentError(t('staff.v2.select_l2')); return false; }
     if (!aFormStartDate) { setAssignmentError(t('staff.v2.date_start_required')); return false; }
 
-    // Overlap check
-    const overlapping = assignments.find(a =>
-      a.id !== editingAssignmentId &&
-      a.staffMemberId === selectedStaffId &&
-      a.activityId === aFormActivityId &&
-      a.l2Id === aFormL2Id &&
-      !a.isArchived &&
-      datesOverlap(a.startDate, a.endDate, aFormStartDate, aFormEndDate || null)
-    );
-    if (overlapping) { setAssignmentError(t('staff.v2.overlap_error')); return false; }
+    const candidate = {
+      staffMemberId: selectedStaffId,
+      scope: aFormScope,
+      activityId: aFormActivityId,
+      l1Id: aFormScope === 'L1' ? aFormL1Id : null,
+      l2Id: aFormScope === 'L2' ? aFormL2Id : null,
+      startDate: aFormStartDate,
+      endDate: aFormEndDate || null,
+    };
+
+    const conflict = findOverlapConflict(candidate, assignments, l2Subcategories, editingAssignmentId ?? undefined);
+    if (conflict) {
+      setAssignmentError(formatOverlapError(conflict.conflicting));
+      return false;
+    }
 
     const now = Timestamp.now();
 
     if (editingAssignmentId) {
       setAssignments(prev => prev.map(a => a.id === editingAssignmentId ? {
-        ...a, activityId: aFormActivityId, l2Id: aFormL2Id,
-        startDate: aFormStartDate, endDate: aFormEndDate || null, updatedAt: now,
+        ...a,
+        scope: candidate.scope,
+        activityId: candidate.activityId,
+        l1Id: candidate.l1Id,
+        l2Id: candidate.l2Id,
+        startDate: aFormStartDate,
+        endDate: aFormEndDate || null,
+        updatedAt: now,
       } : a));
     } else {
       const newAssignment: TeachingAssignmentV2 = {
         id: generateId(), orgId, staffMemberId: selectedStaffId,
-        activityId: aFormActivityId, l2Id: aFormL2Id,
+        scope: candidate.scope,
+        activityId: candidate.activityId,
+        l1Id: candidate.l1Id,
+        l2Id: candidate.l2Id,
         startDate: aFormStartDate, endDate: aFormEndDate || null,
         isArchived: false, createdAt: now, updatedAt: now,
       };
@@ -564,7 +691,7 @@ export const StaffMemberManager: React.FC<Props> = ({
 
     setIsAssignmentModalOpen(false);
     return undefined;
-  }, [canWrite, orgId, selectedStaffId, aFormActivityId, aFormL2Id, aFormStartDate, aFormEndDate, editingAssignmentId, assignments, setAssignments, t]);
+  }, [canWrite, orgId, selectedStaffId, aFormScope, aFormActivityId, aFormL1Id, aFormL2Id, aFormStartDate, aFormEndDate, editingAssignmentId, assignments, l2Subcategories, setAssignments, t]);
 
   const toggleAssignmentArchive = useCallback((id: string, archive: boolean) => {
     if (!canWrite) return;
@@ -646,26 +773,36 @@ export const StaffMemberManager: React.FC<Props> = ({
   const handleWizardAssignmentAdd = useCallback(() => {
     if (!canWrite || !orgId || !selectedStaffId) return;
     if (!aFormActivityId) { setAssignmentError(t('staff.v2.select_activity')); return; }
-    if (!aFormL2Id) { setAssignmentError(t('staff.v2.select_l2')); return; }
+    if (aFormScope === 'L1' && !aFormL1Id) { setAssignmentError(t('staff.v2.select_l1')); return; }
+    if (aFormScope === 'L2' && !aFormL2Id) { setAssignmentError(t('staff.v2.select_l2')); return; }
     if (!aFormStartDate) { setAssignmentError(t('staff.v2.date_start_required')); return; }
 
-    const overlapping = wizardAssignments.find(a =>
-      a.activityId === aFormActivityId &&
-      a.l2Id === aFormL2Id &&
-      datesOverlap(a.startDate, a.endDate, aFormStartDate, aFormEndDate || null)
-    );
-    if (overlapping) { setAssignmentError(t('staff.v2.overlap_error')); return; }
+    const candidate = {
+      staffMemberId: selectedStaffId,
+      scope: aFormScope,
+      activityId: aFormActivityId,
+      l1Id: aFormScope === 'L1' ? aFormL1Id : null,
+      l2Id: aFormScope === 'L2' ? aFormL2Id : null,
+      startDate: aFormStartDate,
+      endDate: aFormEndDate || null,
+    };
+
+    const conflict = findOverlapConflict(candidate, wizardAssignments, l2Subcategories);
+    if (conflict) { setAssignmentError(formatOverlapError(conflict.conflicting)); return; }
 
     const now = Timestamp.now();
     const newAssignment: TeachingAssignmentV2 = {
       id: generateId(), orgId, staffMemberId: selectedStaffId,
-      activityId: aFormActivityId, l2Id: aFormL2Id,
+      scope: candidate.scope,
+      activityId: candidate.activityId,
+      l1Id: candidate.l1Id,
+      l2Id: candidate.l2Id,
       startDate: aFormStartDate, endDate: aFormEndDate || null,
       isArchived: false, createdAt: now, updatedAt: now,
     };
     setAssignments(prev => [...prev, newAssignment]);
     resetAssignmentForm();
-  }, [canWrite, orgId, selectedStaffId, aFormActivityId, aFormL2Id, aFormStartDate, aFormEndDate, wizardAssignments, setAssignments, t, resetAssignmentForm]);
+  }, [canWrite, orgId, selectedStaffId, aFormScope, aFormActivityId, aFormL1Id, aFormL2Id, aFormStartDate, aFormEndDate, wizardAssignments, l2Subcategories, setAssignments, t, resetAssignmentForm, formatOverlapError]);
 
   const handleWizardOrgRoleAdd = useCallback(() => {
     if (!canWrite || !orgId || !selectedStaffId) return;
@@ -711,12 +848,12 @@ export const StaffMemberManager: React.FC<Props> = ({
 
   // ─── Render: Role badge ─────────────────────────────────────────────────
 
-  const RoleBadge: React.FC<{ role: StaffRole }> = ({ role }) => {
-    const cfg = ROLE_CONFIG[role];
+  const RoleBadge: React.FC<{ staff: StaffMemberV2 }> = ({ staff }) => {
+    const cfg = ROLE_CONFIG[staff.role];
     const Icon = cfg.icon;
     return (
       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-${cfg.color}-100 text-${cfg.color}-700 dark:bg-${cfg.color}-900/30 dark:text-${cfg.color}-400`}>
-        <Icon size={12} /> {roleLabel(role)}
+        <Icon size={12} /> {distilledRole(staff)}
       </span>
     );
   };
@@ -762,9 +899,9 @@ export const StaffMemberManager: React.FC<Props> = ({
   return (
     <>
     <div className="h-full flex">
-    <div className="flex-1 min-w-0 overflow-y-auto p-6">
+    <div className="flex-1 min-w-0 flex flex-col overflow-hidden p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 shrink-0">
         <div className="flex items-center gap-3">
           <button onClick={onMobileMenuOpen} className="lg:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
             <Menu size={20} className="text-slate-600 dark:text-slate-400" />
@@ -809,13 +946,13 @@ export const StaffMemberManager: React.FC<Props> = ({
       </div>
 
       {!canWrite && (
-        <div className="mb-4 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-700 dark:text-amber-400 text-sm">
+        <div className="mb-4 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-700 dark:text-amber-400 text-sm shrink-0">
           {t('activities.readonly_notice') || 'Read-only access. Contact a Super Admin for edit permissions.'}
         </div>
       )}
 
       {/* Search + filter bar */}
-      <div className="flex gap-3 mb-4">
+      <div className="flex gap-3 mb-4 shrink-0">
         <div className="flex-1 relative">
           <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
@@ -831,12 +968,14 @@ export const StaffMemberManager: React.FC<Props> = ({
 
       {/* Filter pills */}
       {hasStaffActiveFilters && (
-        <FilterPills
-          pills={staffActiveFilterSummary}
-          onRemove={clearStaffColumnFilter}
-          onClearAll={clearAllStaffColumnFilters}
-          t={t}
-        />
+        <div className="shrink-0">
+          <FilterPills
+            pills={staffActiveFilterSummary}
+            onRemove={clearStaffColumnFilter}
+            onClearAll={clearAllStaffColumnFilters}
+            t={t}
+          />
+        </div>
       )}
 
       {/* Staff List */}
@@ -845,13 +984,13 @@ export const StaffMemberManager: React.FC<Props> = ({
           {search ? t('staff.no_results') : t('staff.empty_state')}
         </p>
       ) : listStyle === 'grid' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto auto-rows-min flex-1 min-h-0">
           {staffColumnFilteredData.map(s => (
             <button key={s.id} onClick={() => openDetail(s.id)}
               className="text-start p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
               <div className="font-medium text-slate-800 dark:text-slate-200 truncate">{s.fullName}</div>
               <div className="text-sm text-slate-500 dark:text-slate-400 truncate mt-0.5">{s.email}</div>
-              <div className="mt-2"><RoleBadge role={s.role} /></div>
+              <div className="mt-2"><RoleBadge staff={s} /></div>
               {s.isArchived && (
                 <span className="inline-block mt-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded">
                   {t('staff.archived_badge')}
@@ -861,9 +1000,9 @@ export const StaffMemberManager: React.FC<Props> = ({
           ))}
         </div>
       ) : listStyle === 'table' ? (
-        <>
+        <div className="flex-1 min-h-0 flex flex-col">
           {/* Mobile fallback — list cards */}
-          <div className="md:hidden space-y-1">
+          <div className="md:hidden space-y-1 overflow-y-auto flex-1 min-h-0">
             {sortedStaff.map(s => (
               <button key={s.id} onClick={() => openDetail(s.id)}
                 className="w-full text-start flex items-center gap-4 p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
@@ -871,13 +1010,13 @@ export const StaffMemberManager: React.FC<Props> = ({
                   <span className="font-medium text-slate-800 dark:text-slate-200">{s.fullName}</span>
                   <span className="text-sm text-slate-500 dark:text-slate-400 ms-2">{s.email}</span>
                 </div>
-                <RoleBadge role={s.role} />
+                <RoleBadge staff={s} />
                 <ChevronRight size={16} className="text-slate-400 shrink-0" />
               </button>
             ))}
           </div>
           {/* Desktop table */}
-          <div className="hidden md:block overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+          <div className="hidden md:block overflow-auto rounded-lg border border-slate-200 dark:border-slate-700 flex-1 min-h-0">
             <table className="w-full text-sm">
               <thead>
                 <tr className="sticky top-0 bg-slate-50 dark:bg-slate-900 z-10 border-b border-slate-200 dark:border-slate-700">
@@ -927,7 +1066,7 @@ export const StaffMemberManager: React.FC<Props> = ({
                           </span>
                         )}
                       </td>
-                      <td className="py-2 px-3 text-start"><RoleBadge role={s.role} /></td>
+                      <td className="py-2 px-3 text-start"><RoleBadge staff={s} /></td>
                       <td className="py-2 px-3 text-start text-slate-600 dark:text-slate-400">{s.email || '—'}</td>
                       <td className="py-2 px-3 text-start text-slate-600 dark:text-slate-400">
                         {shown.length > 0 ? (
@@ -945,9 +1084,9 @@ export const StaffMemberManager: React.FC<Props> = ({
               </tbody>
             </table>
           </div>
-        </>
+        </div>
       ) : (
-        <div className="space-y-1">
+        <div className="space-y-1 overflow-y-auto flex-1 min-h-0">
           {staffColumnFilteredData.map(s => (
             <button key={s.id} onClick={() => openDetail(s.id)}
               className="w-full text-start flex items-center gap-4 p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
@@ -955,7 +1094,7 @@ export const StaffMemberManager: React.FC<Props> = ({
                 <span className="font-medium text-slate-800 dark:text-slate-200">{s.fullName}</span>
                 <span className="text-sm text-slate-500 dark:text-slate-400 ms-2">{s.email}</span>
               </div>
-              <RoleBadge role={s.role} />
+              <RoleBadge staff={s} />
               {s.isArchived && (
                 <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded">
                   {t('staff.archived_badge')}
@@ -1216,7 +1355,7 @@ export const StaffMemberManager: React.FC<Props> = ({
                   {wizardAssignments.map(a => (
                     <div key={a.id} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
                       <div className="text-sm text-slate-700 dark:text-slate-300">
-                        {activityName(a.activityId)} — {l2Name(a.l2Id)}
+                        {activityName(a.activityId)} — {scopeLabel(a.scope, a.l1Id, a.l2Id)}
                       </div>
                       <button onClick={() => toggleAssignmentArchive(a.id, true)} className="text-slate-400 hover:text-red-500 transition-colors">
                         <Trash2 size={14} />
@@ -1387,6 +1526,7 @@ export const StaffMemberManager: React.FC<Props> = ({
             t={t}
             activityName={activityName}
             l2Name={l2Name}
+            scopeLabel={scopeLabel}
             onEdit={openEditStaff}
             onArchive={handleArchiveStaff}
             onRestore={handleRestoreStaff}
@@ -1411,15 +1551,27 @@ export const StaffMemberManager: React.FC<Props> = ({
       {/* ─── Assignment Modal ─────────────────────────────────────────── */}
       <Modal isOpen={isAssignmentModalOpen} onClose={() => setIsAssignmentModalOpen(false)}
         title={editingAssignmentId ? t('staff.v2.edit_teaching_assignment') : t('staff.v2.add_teaching_assignment')}
-        isDirty={!!aFormActivityId || !!aFormL2Id}
-        onSave={handleAssignmentSubmit}>
+        isDirty={!!aFormActivityId || !!aFormL2Id || !!aFormL1Id}
+        onSave={handleAssignmentSubmit}
+        footerContent={
+          <div className="flex justify-end space-x-3 rtl:space-x-reverse w-full">
+            <button type="button" onClick={() => setIsAssignmentModalOpen(false)}
+              className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+              {t('btn.cancel')}
+            </button>
+            <button type="button" onClick={() => handleAssignmentSubmit()}
+              className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg">
+              {t('btn.save')}
+            </button>
+          </div>
+        }>
         <div className="space-y-4">
           {assignmentError && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">{assignmentError}</div>
           )}
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.select_activity')}</label>
-            <select value={aFormActivityId} onChange={e => { setAFormActivityId(e.target.value); setAFormL2Id(''); }}
+            <select value={aFormActivityId} onChange={e => { setAFormActivityId(e.target.value); setAFormL1Id(''); setAFormL2Id(''); }}
               className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
               <option value="">{t('staff.v2.select_activity')}</option>
               {activities.filter(a => !a.isArchived).map(a => (
@@ -1429,11 +1581,45 @@ export const StaffMemberManager: React.FC<Props> = ({
           </div>
           {aFormActivityId && (
             <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.scope')}</label>
+              <div className="flex gap-2">
+                {(['ACTIVITY', 'L1', 'L2'] as AssignmentScope[]).map(sc => {
+                  const disabled = (sc === 'L1' && l1sForActivity.length === 0) || (sc === 'L2' && l2sForActivity.length === 0);
+                  return (
+                    <button key={sc} type="button"
+                      disabled={disabled}
+                      onClick={() => { setAFormScope(sc); if (sc !== 'L1') setAFormL1Id(''); if (sc !== 'L2') setAFormL2Id(''); }}
+                      className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${aFormScope === sc
+                        ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                      {sc === 'ACTIVITY' ? t('staff.v2.scope_activity') : sc === 'L1' ? t('staff.v2.scope_l1') : t('staff.v2.scope_l2')}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('staff.v2.scope_help')}</p>
+            </div>
+          )}
+          {aFormActivityId && (aFormScope === 'L1' || aFormScope === 'L2') && l1sForActivity.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.select_l1')}</label>
+              <select value={aFormL1Id} onChange={e => { setAFormL1Id(e.target.value); setAFormL2Id(''); }}
+                className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                <option value="">{aFormScope === 'L2' ? `(${t('staff.v2.scope_l1')})` : t('staff.v2.select_l1')}</option>
+                {l1sForActivity.map(l => (
+                  <option key={l.id} value={l.id}>{l.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {aFormActivityId && aFormScope === 'L2' && (
+            <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.select_l2')}</label>
               <select value={aFormL2Id} onChange={e => setAFormL2Id(e.target.value)}
                 className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
                 <option value="">{t('staff.v2.select_l2')}</option>
-                {l2sForActivity.map(l => (
+                {l2sForScope.map(l => (
                   <option key={l.id} value={l.id}>{l.name}</option>
                 ))}
               </select>
@@ -1458,7 +1644,19 @@ export const StaffMemberManager: React.FC<Props> = ({
       <Modal isOpen={isOrgRoleModalOpen} onClose={() => setIsOrgRoleModalOpen(false)}
         title={editingOrgRoleId ? t('staff.v2.edit_org_role') : t('staff.v2.add_org_role')}
         isDirty={!!orFormTitle}
-        onSave={handleOrgRoleSubmit}>
+        onSave={handleOrgRoleSubmit}
+        footerContent={
+          <div className="flex justify-end space-x-3 rtl:space-x-reverse w-full">
+            <button type="button" onClick={() => setIsOrgRoleModalOpen(false)}
+              className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+              {t('btn.cancel')}
+            </button>
+            <button type="button" onClick={() => handleOrgRoleSubmit()}
+              className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg">
+              {t('btn.save')}
+            </button>
+          </div>
+        }>
         <div className="space-y-4">
           {orgRoleError && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">{orgRoleError}</div>

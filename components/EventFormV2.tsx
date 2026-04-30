@@ -6,6 +6,7 @@ import {
   EventNameMode,
 } from '../types/v2';
 import { generateId } from '../constants';
+import { migrateLegacyAssignment } from '../utils/assignmentScope';
 import { useAuth } from '../context/AuthContext';
 import { DatePicker } from './DatePicker';
 import { Plus, Trash2, ChevronDown, ChevronUp, Repeat, HelpCircle, X } from 'lucide-react';
@@ -106,7 +107,7 @@ function formatDateDisplay(date: string): string {
 
 export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
   activitiesV2, l1Subcategories, l2Subcategories, staffMembers,
-  teachingAssignments, orgRoles,
+  teachingAssignments: rawTeachingAssignments, orgRoles,
   rooms, settings,
   editingEventId, existingFormState, existingParticipants,
   isExceptionEdit, initialStart, initialEnd,
@@ -217,7 +218,21 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
     [l2Subcategories, form.activityId, form.l1Id]
   );
 
-  // Staff with active teaching assignments for this activity + L2
+  const teachingAssignments = useMemo(
+    () => rawTeachingAssignments.map(migrateLegacyAssignment),
+    [rawTeachingAssignments],
+  );
+
+  // Ancestor-chain match: assignment grants eligibility if its scope is at or
+  // above the event's tag in the activity hierarchy.
+  const coversEvent = useCallback((ta: TeachingAssignmentV2, evtL1Id: string | null, evtL2Id: string | null): boolean => {
+    if (ta.scope === 'ACTIVITY') return true;
+    const evtL1 = evtL1Id ?? (evtL2Id ? (l2Subcategories.find(l => l.id === evtL2Id)?.l1Id ?? null) : null);
+    if (ta.scope === 'L1') return ta.l1Id != null && ta.l1Id === evtL1;
+    return ta.l2Id != null && ta.l2Id === evtL2Id;
+  }, [l2Subcategories]);
+
+  // Staff with active teaching assignments covering this event via ancestor chain
   const eligibleStaff = useMemo(() => {
     if (template === 'ADMINISTRATIVE') return [];
     return staffMembers.filter(sm => {
@@ -225,13 +240,13 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       return teachingAssignments.some(ta =>
         ta.staffMemberId === sm.id &&
         ta.activityId === form.activityId &&
-        (!form.l2Id || ta.l2Id === form.l2Id) &&
         !ta.isArchived &&
         ta.startDate <= form.date &&
-        (!ta.endDate || ta.endDate >= form.date)
+        (!ta.endDate || ta.endDate >= form.date) &&
+        coversEvent(ta, form.l1Id ?? null, form.l2Id ?? null)
       );
     });
-  }, [staffMembers, teachingAssignments, form.activityId, form.l2Id, form.date, template]);
+  }, [staffMembers, teachingAssignments, form.activityId, form.l1Id, form.l2Id, form.date, template]);
 
   // Org roles for selected staff (administrative template)
   const getActiveOrgRoles = useCallback((staffMemberId: string) => {
@@ -243,17 +258,17 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
     );
   }, [orgRoles, form.date]);
 
-  // Resolve teaching assignment rate for a staff+activity+l2
+  // Resolve teaching assignment for a staff member that covers this event
   const resolveAssignment = useCallback((staffMemberId: string) => {
     return teachingAssignments.find(ta =>
       ta.staffMemberId === staffMemberId &&
       ta.activityId === form.activityId &&
-      (!form.l2Id || ta.l2Id === form.l2Id) &&
       !ta.isArchived &&
       ta.startDate <= form.date &&
-      (!ta.endDate || ta.endDate >= form.date)
+      (!ta.endDate || ta.endDate >= form.date) &&
+      coversEvent(ta, form.l1Id ?? null, form.l2Id ?? null)
     ) || null;
-  }, [teachingAssignments, form.activityId, form.l2Id, form.date]);
+  }, [teachingAssignments, form.activityId, form.l1Id, form.l2Id, form.date]);
 
   // ─── Activity change → reset dependent fields ────────────────────────────
   const handleActivityChange = (actId: string) => {
@@ -331,8 +346,8 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
           const anyTA = teachingAssignments.find(ta =>
             ta.staffMemberId === sp.staffMemberId &&
             ta.activityId === form.activityId &&
-            (!form.l2Id || ta.l2Id === form.l2Id) &&
-            !ta.isArchived,
+            !ta.isArchived &&
+            coversEvent(ta, form.l1Id ?? null, form.l2Id ?? null),
           );
           if (anyTA) {
             if (form.date && anyTA.startDate > form.date) {

@@ -374,6 +374,7 @@ export type {
   L2Subcategory,
   StaffMemberV2,
   TeachingAssignmentV2,
+  AssignmentScope,
   OrgRoleV2,
   StudentV2,
   EnrollmentV2,

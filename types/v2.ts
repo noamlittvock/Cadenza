@@ -177,13 +177,18 @@ export interface StaffMemberV2 {
   documents: DocumentEntry[];
 }
 
+/** Scope at which a teaching assignment binds in the activity hierarchy */
+export type AssignmentScope = 'ACTIVITY' | 'L1' | 'L2';
+
 /** Section 05 — teachingAssignments/{assignmentId} */
 export interface TeachingAssignmentV2 {
   id: string;
   orgId: string;
   staffMemberId: string;
+  scope: AssignmentScope;
   activityId: string;
-  l2Id: string;
+  l1Id: string | null;
+  l2Id: string | null;
   startDate: string; // ISO date
   endDate: string | null;
   isArchived: boolean;

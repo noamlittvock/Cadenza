@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import type {
   StaffMemberV2, TeachingAssignmentV2, OrgRoleV2, StaffRole, ActivityV2, DocumentEntry,
+  AssignmentScope,
 } from '../types/v2';
 import type { AppSettings } from '../types';
 import { ImportExportDropdown } from './ImportExportDropdown';
@@ -30,6 +31,7 @@ interface Props {
   t: (key: string) => string;
   activityName: (id: string) => string;
   l2Name: (id: string) => string;
+  scopeLabel: (scope: AssignmentScope, l1Id: string | null, l2Id: string | null) => string;
   onEdit: (staff: StaffMemberV2) => void;
   onArchive: (staffId: string) => void;
   onRestore: (staffId: string) => void;
@@ -60,6 +62,7 @@ export const StaffSlideOverContent: React.FC<Props> = ({
   t,
   activityName,
   l2Name,
+  scopeLabel,
   onEdit,
   onArchive,
   onRestore,
@@ -163,9 +166,18 @@ export const StaffSlideOverContent: React.FC<Props> = ({
             <div key={a.id} className={`p-3 rounded-lg border ${a.isArchived ? 'border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}`}>
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1 space-y-1">
-                  <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
-                    {activityName(a.activityId)} <ChevronRight size={12} className="inline text-slate-400" /> {l2Name(a.l2Id)}
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
+                      {activityName(a.activityId)}
+                    </p>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                      a.scope === 'ACTIVITY' ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' :
+                      a.scope === 'L1' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                      'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                    }`}>
+                      {scopeLabel(a.scope, a.l1Id, a.l2Id)}
+                    </span>
+                  </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {a.startDate}{a.endDate ? ` → ${a.endDate}` : ''}
                   </p>
