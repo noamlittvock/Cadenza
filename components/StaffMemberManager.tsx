@@ -917,7 +917,7 @@ export const StaffMemberManager: React.FC<Props> = ({
     onToggle: (k: StaffSortKey) => void; align: 'start' | 'end'; children: React.ReactNode;
     filterKey?: string;
   }> = ({ sortKey_: sk, sortDir, column, onToggle, align, children, filterKey }) => (
-    <th className={`py-2 px-3 text-${align} text-slate-500 dark:text-slate-400 font-medium select-none relative`}>
+    <th className={`sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 shadow-sm py-2 px-3 text-${align} text-slate-500 dark:text-slate-400 font-medium select-none`}>
       <span className="inline-flex items-center gap-1">
         <span className="cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors" onClick={() => onToggle(column)}>
           {children}
@@ -1068,11 +1068,11 @@ export const StaffMemberManager: React.FC<Props> = ({
           <div className="hidden md:block overflow-auto rounded-lg border border-slate-200 dark:border-slate-700 flex-1 min-h-0">
             <table className="w-full text-sm">
               <thead>
-                <tr className="sticky top-0 bg-slate-50 dark:bg-slate-900 z-10 border-b border-slate-200 dark:border-slate-700">
+                <tr className="border-b border-slate-200 dark:border-slate-700">
                   <SortHeader sortKey_={sortKey} sortDir={sortDirection} column="fullName" onToggle={toggleSort} align="start">{t('staff.table.name')}</SortHeader>
                   <SortHeader sortKey_={sortKey} sortDir={sortDirection} column="role" onToggle={toggleSort} align="start" filterKey="role">{t('staff.table.role')}</SortHeader>
                   <SortHeader sortKey_={sortKey} sortDir={sortDirection} column="email" onToggle={toggleSort} align="start">{t('staff.table.email')}</SortHeader>
-                  <th className="py-2 px-3 text-start text-slate-500 dark:text-slate-400 font-medium relative">
+                  <th className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 shadow-sm py-2 px-3 text-start text-slate-500 dark:text-slate-400 font-medium">
                     <span className="inline-flex items-center gap-1">
                       {t('staff.table.activities')}
                       {staffDistinctValues['activities'] && (
@@ -1095,7 +1095,7 @@ export const StaffMemberManager: React.FC<Props> = ({
                     )}
                   </th>
                   <SortHeader sortKey_={sortKey} sortDir={sortDirection} column="assignmentCount" onToggle={toggleSort} align="end">{t('staff.table.assignments')}</SortHeader>
-                  <th className="py-2 px-3 text-start text-slate-500 dark:text-slate-400 font-medium">{t('staff.table.phone')}</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 shadow-sm py-2 px-3 text-start text-slate-500 dark:text-slate-400 font-medium">{t('staff.table.phone')}</th>
                 </tr>
               </thead>
               <tbody>

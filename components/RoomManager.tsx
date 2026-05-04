@@ -270,23 +270,23 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
           ))}
         </div>
       ) : (
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-clip">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">
+              <tr className="border-b border-slate-200 dark:border-slate-700">
+                <th className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800/50 shadow-sm text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">
                   <button onClick={() => toggleSort('name')} className="inline-flex items-center gap-1 hover:text-slate-900 dark:hover:text-white">
                     {t('label.room_name')}
                     {sortKey === 'name' && (sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
                   </button>
                 </th>
-                <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hidden md:table-cell">
+                <th className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800/50 shadow-sm text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hidden md:table-cell">
                   <button onClick={() => toggleSort('itinerary')} className="inline-flex items-center gap-1 hover:text-slate-900 dark:hover:text-white">
                     {t('room.itinerary_equipment')}
                     {sortKey === 'itinerary' && (sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
                   </button>
                 </th>
-                <th className="text-end px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">{t('btn.edit')}</th>
+                <th className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800/50 shadow-sm text-end px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">{t('btn.edit')}</th>
               </tr>
             </thead>
             <tbody>
