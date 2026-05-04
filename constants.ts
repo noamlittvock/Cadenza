@@ -1557,6 +1557,47 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'onboarding.tour_msg': 'Your workspace is ready. Take a quick look around or dive right in.',
     'onboarding.tour_dismiss': 'Skip',
     'guide_me': 'Guide me',
+
+    // ── Branch Lab bl01 (pre-staged keys) ─────────────────────────────────
+    // Worker A — Command palette (Cmd+K)
+    'bl01_palette.placeholder': 'Search commands, staff, students, events…',
+    'bl01_palette.empty': 'No matches',
+    'bl01_palette.section.navigate': 'Navigate',
+    'bl01_palette.section.staff': 'Staff',
+    'bl01_palette.section.students': 'Students',
+    'bl01_palette.section.events': 'Events',
+    'bl01_palette.action.calendar': 'Go to Calendar',
+    'bl01_palette.action.gantt': 'Go to Gantt & Blackout',
+    'bl01_palette.action.manage': 'Go to Manage',
+    'bl01_palette.action.admin_inbox': 'Go to Admin Inbox',
+    'bl01_palette.action.settings': 'Open Settings',
+    'bl01_palette.action.power_tools': 'Open Power Tools',
+    'bl01_palette.action.super_admin': 'Open Super Admin',
+    'bl01_palette.action.staff_members': 'Go to Staff Members',
+    'bl01_palette.shortcut_label': '⌘K',
+    'bl01_palette.aria_open': 'Open command palette',
+    'bl01_palette.aria_close': 'Close command palette',
+    'bl01_palette.kbd_select': '↵ select',
+    'bl01_palette.kbd_navigate': '↑↓ navigate',
+    'bl01_palette.kbd_close': 'esc close',
+
+    // Worker B — Calendar operator overhaul (filters + conflict badge + focus)
+    'bl01_calendar.filter.clear_all': 'Clear filters',
+    'bl01_calendar.filter.active_label': 'Active filters',
+    'bl01_calendar.filter.pill_remove': 'Remove filter',
+    'bl01_calendar.conflicts_badge.label': 'Conflicts',
+    'bl01_calendar.conflicts_badge.aria': 'View {count} unresolved room conflicts',
+    'bl01_calendar.conflicts_badge.none': 'No conflicts',
+    'bl01_calendar.event.aria_focused': 'Event focused. Press Enter to open.',
+    'bl01_calendar.focus.skip_link': 'Skip to events',
+
+    // Worker D — Activity archive confirmation
+    'bl01_activity.archive.title': 'Archive activity?',
+    'bl01_activity.archive.body_with_events': '{name} has {count} upcoming event(s). They will remain on the calendar but stop appearing in the activity picker.',
+    'bl01_activity.archive.body_no_events': '{name} will no longer appear in the activity picker. You can restore it later.',
+    'bl01_activity.archive.confirm': 'Archive activity',
+    'bl01_activity.archive.cancel': 'Cancel',
+    // ── End Branch Lab bl01 ───────────────────────────────────────────────
   },
   'he-IL': {
     'app.title': 'מרכז המוזיקה אלפרט',
@@ -3028,6 +3069,47 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'onboarding.tour_msg': 'סביבת העבודה שלך מוכנה. קח סיור קצר או קפוץ ישר פנימה.',
     'onboarding.tour_dismiss': 'דלג',
     'guide_me': 'הדרך אותי',
+
+    // ── Branch Lab bl01 (pre-staged keys, Hebrew) ─────────────────────────
+    // Worker A — Command palette (Cmd+K)
+    'bl01_palette.placeholder': 'חיפוש פקודות, צוות, תלמידים, אירועים…',
+    'bl01_palette.empty': 'אין התאמות',
+    'bl01_palette.section.navigate': 'ניווט',
+    'bl01_palette.section.staff': 'צוות',
+    'bl01_palette.section.students': 'תלמידים',
+    'bl01_palette.section.events': 'אירועים',
+    'bl01_palette.action.calendar': 'מעבר ללוח שנה',
+    'bl01_palette.action.gantt': 'מעבר לגאנט וחסימות',
+    'bl01_palette.action.manage': 'מעבר לניהול',
+    'bl01_palette.action.admin_inbox': 'מעבר לתיבת המנהל',
+    'bl01_palette.action.settings': 'פתח הגדרות',
+    'bl01_palette.action.power_tools': 'פתח כלי כוח',
+    'bl01_palette.action.super_admin': 'פתח סופר אדמין',
+    'bl01_palette.action.staff_members': 'מעבר לצוות',
+    'bl01_palette.shortcut_label': '⌘K',
+    'bl01_palette.aria_open': 'פתח פלטת פקודות',
+    'bl01_palette.aria_close': 'סגור פלטת פקודות',
+    'bl01_palette.kbd_select': '↵ בחר',
+    'bl01_palette.kbd_navigate': '↑↓ נווט',
+    'bl01_palette.kbd_close': 'esc סגור',
+
+    // Worker B — Calendar operator overhaul (filters + conflict badge + focus)
+    'bl01_calendar.filter.clear_all': 'נקה סינונים',
+    'bl01_calendar.filter.active_label': 'סינונים פעילים',
+    'bl01_calendar.filter.pill_remove': 'הסר סינון',
+    'bl01_calendar.conflicts_badge.label': 'התנגשויות',
+    'bl01_calendar.conflicts_badge.aria': 'הצג {count} התנגשויות חדרים לא פתורות',
+    'bl01_calendar.conflicts_badge.none': 'אין התנגשויות',
+    'bl01_calendar.event.aria_focused': 'אירוע במיקוד. לחץ Enter לפתיחה.',
+    'bl01_calendar.focus.skip_link': 'דלג לאירועים',
+
+    // Worker D — Activity archive confirmation
+    'bl01_activity.archive.title': 'לאחסן פעילות?',
+    'bl01_activity.archive.body_with_events': 'ל־{name} יש {count} אירועים עתידיים. הם יישארו ביומן אך יפסיקו להופיע בבוחר הפעילויות.',
+    'bl01_activity.archive.body_no_events': '{name} לא יופיע יותר בבוחר הפעילויות. ניתן לשחזר מאוחר יותר.',
+    'bl01_activity.archive.confirm': 'אחסן פעילות',
+    'bl01_activity.archive.cancel': 'ביטול',
+    // ── End Branch Lab bl01 ───────────────────────────────────────────────
   }
 };
 
