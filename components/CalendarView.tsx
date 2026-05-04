@@ -533,6 +533,65 @@ export const CalendarView: React.FC<Props> = ({
     return getConflictingEventIds(conflicts);
   }, [filteredEvents]);
 
+  // BL01: Total unresolved room-conflict count across all (unfiltered) expanded events.
+  // Distinct from conflictingIds (which is scoped to the current filtered view) — the badge
+  // represents conflicts in the system, not within the current filter window.
+  const unresolvedConflictCount = useMemo(() => {
+    return detectRoomConflicts(expandedEvents).length;
+  }, [expandedEvents]);
+
+  // BL01: Active filter pill descriptors. One entry per active select-style filter.
+  const activeFilterPills = useMemo(() => {
+    const pills: Array<{ key: string; label: string; clear: () => void }> = [];
+    if (filterTeacher !== 'ALL') {
+      const teacher = teachers.find(x => x.id === filterTeacher);
+      pills.push({
+        key: 'teacher',
+        label: `${t('cal.filter.teacher_all').replace(/^[A-Za-zא-ת ]+: ?/, '').replace(/All /i, '')}: ${teacher?.fullName ?? filterTeacher}`,
+        clear: () => setFilterTeacher('ALL'),
+      });
+    }
+    if (filterRoom !== 'ALL') {
+      const room = rooms.find(x => x.id === filterRoom);
+      pills.push({
+        key: 'room',
+        label: `${t('cal.filter.room_all').replace(/^All /i, '')}: ${room?.name ?? filterRoom}`,
+        clear: () => setFilterRoom('ALL'),
+      });
+    }
+    if (filterClass !== 'ALL') {
+      const activity = activities.find(x => x.id === filterClass);
+      pills.push({
+        key: 'class',
+        label: `${t('cal.filter.activity_all').replace(/^All /i, '')}: ${activity?.name ?? filterClass}`,
+        clear: () => setFilterClass('ALL'),
+      });
+    }
+    if (filterPosition !== 'ALL') {
+      pills.push({
+        key: 'position',
+        label: `${t('cal.filter.position_all').replace(/^All /i, '')}: ${filterPosition}`,
+        clear: () => setFilterPosition('ALL'),
+      });
+    }
+    if (filterTag !== 'ALL') {
+      pills.push({
+        key: 'tag',
+        label: `${t('cal.filter.tag_all').replace(/^All /i, '')}: ${filterTag}`,
+        clear: () => setFilterTag('ALL'),
+      });
+    }
+    return pills;
+  }, [filterTeacher, filterRoom, filterClass, filterPosition, filterTag, teachers, rooms, activities, t]);
+
+  const clearAllFilters = useCallback(() => {
+    setFilterTeacher('ALL');
+    setFilterRoom('ALL');
+    setFilterClass('ALL');
+    setFilterPosition('ALL');
+    setFilterTag('ALL');
+  }, []);
+
   const displayEvents = useMemo(() => {
     if (tempEvent) {
       return filteredEvents.map(e => e.id === tempEvent.id ? tempEvent : e);
@@ -1484,6 +1543,15 @@ export const CalendarView: React.FC<Props> = ({
       <div
         key={evt.id}
         data-event-id={evt.id}
+        tabIndex={0}
+        role="button"
+        aria-label={`${evt.name} — ${t('bl01_calendar.event.aria_focused')}`}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setDetailItem({ type: 'EVENT', data: evt });
+          }
+        }}
         onMouseDown={(e) => handleMouseDown(e, evt, 'MOVE')}
         onClick={(e) => {
           e.stopPropagation();
@@ -1503,7 +1571,7 @@ export const CalendarView: React.FC<Props> = ({
           e.stopPropagation();
           setContextMenu({ x: e.clientX, y: e.clientY, event: evt });
         }}
-        className={`pointer-events-auto absolute rounded-xl border shadow-sm transition-shadow select-none overflow-hidden group animate-cadenza-arrive ${selectedEventIds.has(evt.id) ? 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${isConflicting && !evt.isCanceled ? 'ring-2 ring-amber-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
+        className={`pointer-events-auto absolute rounded-xl border shadow-sm transition-shadow select-none overflow-hidden group animate-cadenza-arrive focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-700 ${selectedEventIds.has(evt.id) ? 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${isConflicting && !evt.isCanceled ? 'ring-2 ring-amber-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
           ? 'canceled-stripe border-slate-300 text-slate-400 dark:border-slate-600 dark:text-slate-500 bg-slate-50 dark:bg-slate-800'
           : isDragging
             ? 'z-50 opacity-90 shadow-cadenza-deep cursor-grabbing'
@@ -1866,6 +1934,15 @@ export const CalendarView: React.FC<Props> = ({
                                       <div
                                         key={evt.id}
                                         data-event-id={evt.id}
+                                        tabIndex={0}
+                                        role="button"
+                                        aria-label={`${evt.name} — ${t('bl01_calendar.event.aria_focused')}`}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            setDetailItem({ type: 'EVENT', data: evt });
+                                          }
+                                        }}
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           if (selectionMode === 'MARQUEE') {
@@ -1883,7 +1960,7 @@ export const CalendarView: React.FC<Props> = ({
                                           e.stopPropagation();
                                           setContextMenu({ x: e.clientX, y: e.clientY, event: evt });
                                         }}
-                                        className={`text-[10px] text-start px-1.5 py-1 rounded cursor-pointer border-s-2 animate-cadenza-arrive ${selectedEventIds.has(evt.id) ? 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
+                                        className={`text-[10px] text-start px-1.5 py-1 rounded cursor-pointer border-s-2 animate-cadenza-arrive focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-700 ${selectedEventIds.has(evt.id) ? 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
                                           ? 'bg-slate-100 text-slate-400 line-through dark:bg-slate-800 dark:text-slate-600 border-slate-400'
                                           : 'hover:opacity-90 hover:shadow-cadenza-soft transition-all'
                                           }`}
@@ -1985,6 +2062,21 @@ export const CalendarView: React.FC<Props> = ({
                 <button key={m} onClick={() => setViewMode(m as ViewMode)} className={`px-3 py-1.5 rounded transition-all ${viewMode === m ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>{t('cal.' + m.toLowerCase())}</button>
               ))}
             </div>
+
+            {/* BL01: Unresolved room-conflict count badge.
+                Click navigates to ADMIN_INBOX via the existing onNavigate prop. */}
+            {unresolvedConflictCount > 0 && (
+              <button
+                type="button"
+                onClick={() => onNavigate('ADMIN_INBOX')}
+                aria-label={t('bl01_calendar.conflicts_badge.aria').replace('{count}', String(unresolvedConflictCount))}
+                title={t('bl01_calendar.conflicts_badge.aria').replace('{count}', String(unresolvedConflictCount))}
+                className="inline-flex items-center gap-1 ps-2 pe-2.5 py-1 rounded-md text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800/60 dark:hover:bg-red-900/50 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-700"
+              >
+                <AlertOctagon size={12} aria-hidden="true" />
+                <span>{t('bl01_calendar.conflicts_badge.label')}: {unresolvedConflictCount}</span>
+              </button>
+            )}
 
             {/* Jump to Date — icon-only trigger that opens a native date picker */}
             <label
@@ -2130,6 +2222,45 @@ export const CalendarView: React.FC<Props> = ({
           </button>
         </div>
       </div>
+
+      {/* BL01: Active filter pills row — visible only when at least one select-style filter is active. */}
+      {activeFilterPills.length > 0 && (
+        <div
+          className="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 px-4 py-2"
+          role="region"
+          aria-label={t('bl01_calendar.filter.active_label')}
+        >
+          <div className="flex items-center flex-wrap gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 me-1">
+              {t('bl01_calendar.filter.active_label')}
+            </span>
+            {activeFilterPills.map(pill => (
+              <span
+                key={pill.key}
+                className="inline-flex items-center gap-1 ps-2.5 pe-1 py-0.5 rounded-full text-[11px] font-medium bg-stone-100 text-stone-800 border border-stone-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700"
+              >
+                <span className="truncate max-w-[180px]">{pill.label}</span>
+                <button
+                  type="button"
+                  onClick={pill.clear}
+                  aria-label={`${t('bl01_calendar.filter.pill_remove')}: ${pill.label}`}
+                  title={t('bl01_calendar.filter.pill_remove')}
+                  className="inline-flex items-center justify-center w-4 h-4 rounded-full text-stone-500 hover:text-stone-900 hover:bg-stone-200 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-700"
+                >
+                  <X size={10} aria-hidden="true" />
+                </button>
+              </span>
+            ))}
+            <button
+              type="button"
+              onClick={clearAllFilters}
+              className="ms-auto text-[11px] font-medium text-red-700 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-700 rounded-sm"
+            >
+              {t('bl01_calendar.filter.clear_all')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {showHelp && (
         <div className="mx-4 mt-2 mb-1 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-xs text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
