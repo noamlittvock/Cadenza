@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script type="module">import { injectIntoGlobalHook } from "/@react-refresh";
+injectIntoGlobalHook(window);
+window.$RefreshReg$ = () => {};
+window.$RefreshSig$ = () => (type) => type;</script>
+
+  <script type="module" src="/@vite/client"></script>
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cadenza</title>
+  <link rel="icon" type="image/png" href="/logo.png?v=2" />
+  <link rel="apple-touch-icon" href="/logo.png?v=2" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            blue: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              200: '#c7d2fe',
+              300: '#a5b4fc',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5', // cadenza-light
+              700: '#4338ca',
+              800: '#3730a3',
+              900: '#312e81',
+              950: '#1e1b4b', // cadenza-dark
+            },
+            cadenza: {
+              light: '#584be3', // vibrant indigo matching logo
+              dark: '#362a9c', // deep navy matching logo
+            }
+          },
+          backgroundImage: {
+            'cadenza-gradient': 'radial-gradient(circle at 65% 25%, #5c44c8 0%, #3f299b 100%)',
+          },
+          transitionTimingFunction: {
+            'cadenza': 'cubic-bezier(0.33, 1, 0.68, 1)',
+          },
+          transitionDuration: {
+            'cadenza': '160ms',
+          },
+          boxShadow: {
+            'cadenza-soft': '0 4px 20px -2px rgba(30, 27, 75, 0.1)',
+            'cadenza-deep': '0 10px 30px -5px rgba(30, 27, 75, 0.25)',
+            'cadenza-pressed': 'inset 0 4px 6px -1px rgba(0, 0, 0, 0.1), inset 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
+          }
+        }
+      }
+    }
+  </script>
+  <style type="text/tailwindcss">
+    @layer base {
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+    }
+    @layer components {
+      .btn-cadenza {
+        @apply transition-all duration-cadenza ease-cadenza;
+      }
+      .btn-cadenza:active {
+        @apply scale-95 shadow-cadenza-pressed;
+      }
+    }
+    @layer utilities {
+      .animate-cadenza-arrive {
+        animation: cadenza-arrive 0.3s cubic-bezier(0.33, 1, 0.68, 1) forwards;
+      }
+      .animate-cadenza-pulse {
+        animation: cadenza-pulse 1.5s cubic-bezier(0.33, 1, 0.68, 1) ease-out;
+      }
+      .animate-page-turn {
+        animation: page-turn 0.4s cubic-bezier(0.33, 1, 0.68, 1) forwards;
+        transform-origin: center center;
+      }
+      @keyframes cadenza-arrive {
+        from {
+          opacity: 0;
+          transform: translateY(6px) scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      @keyframes cadenza-pulse {
+        0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
+        70% { box-shadow: 0 0 0 6px rgba(79, 70, 229, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); }
+      }
+      
+      /* Logo grain texture overlay */
+      .texture-cadenza {
+        position: relative;
+        overflow: hidden;
+      }
+      .texture-cadenza::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        pointer-events: none;
+        opacity: 0.15;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+      }
+
+      @keyframes page-turn {
+        0% {
+          opacity: 0;
+          transform: scale(0.98) rotateX(1deg);
+        }
+        100% {
+          opacity: 1;
+          transform: scale(1) rotateX(0);
+        }
+      }
+    }
+  </style>
+  <!-- Blocking script to apply dark mode and disable initial transitions -->
+  <script>
+      (function () {
+        // Apply dark mode immediately
+        if (localStorage.getItem('darkMode') === 'true') {
+          document.documentElement.classList.add('dark');
+        }
+        // Disable all transitions initially to prevent mount flash
+        document.documentElement.classList.add('no-transitions');
+        // Re-enable transitions after React has finished mounting (500ms delay)
+        setTimeout(function () {
+          document.documentElement.classList.remove('no-transitions');
+        }, 500);
+      })();
+  </script>
+  <style>
+    /* Sleek custom scrollbars — visible on hover, thin profile */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+      /* Firefox */
+    }
+
+    *:hover {
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    }
+
+    .dark * {
+      scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
+    }
+
+    .dark *:hover {
+      scrollbar-color: rgba(100, 116, 139, 0.5) transparent;
+    }
+
+    /* Webkit (Chrome/Safari/Edge) */
+    *::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    *::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    *::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.3);
+      border-radius: 3px;
+    }
+
+    *::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.55);
+    }
+
+    .dark *::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.3);
+    }
+
+    .dark *::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.55);
+    }
+
+    .canceled-stripe {
+      background-image: repeating-linear-gradient(45deg,
+          rgba(255, 255, 255, 0.5),
+          rgba(255, 255, 255, 0.5) 10px,
+          rgba(148, 163, 184, 0.2) 10px,
+          /* slate-400 equivalent */
+          rgba(148, 163, 184, 0.2) 20px);
+      background-color: #e2e8f0 !important;
+      /* slate-200 */
+      opacity: 0.8;
+      color: #64748b !important;
+      /* slate-500 text */
+    }
+
+    .dark .canceled-stripe {
+      background-image: repeating-linear-gradient(45deg,
+          rgba(30, 41, 59, 0.5),
+          rgba(30, 41, 59, 0.5) 10px,
+          rgba(51, 65, 85, 0.4) 10px,
+          rgba(51, 65, 85, 0.4) 20px);
+      background-color: #1e293b !important;
+      opacity: 0.8;
+      color: #94a3b8 !important;
+    }
+
+    /* Fix native UI elements like inputs, selects, and arrows in dark mode */
+    .dark {
+      color-scheme: dark;
+    }
+
+    /* Disable ALL transitions during initial page load to prevent flash */
+    .no-transitions,
+    .no-transitions *,
+    .no-transitions *::before,
+    .no-transitions *::after {
+      transition: none !important;
+    }
+
+    /* Global Dark Mode Transitions - Synchronized interpolation for ALL elements */
+    /* Using !important to ensure this overrides any Tailwind utilities */
+    /* Only apply when NOT in no-transitions mode */
+    html:not(.no-transitions) *:not(.no-theme-transition):not([class*="animate-"]):not(.sidebar-transition) {
+      transition: background-color 350ms cubic-bezier(0.4, 0, 0.2, 1), border-color 350ms cubic-bezier(0.4, 0, 0.2, 1), color 350ms cubic-bezier(0.4, 0, 0.2, 1), fill 350ms cubic-bezier(0.4, 0, 0.2, 1), stroke 350ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 350ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    /* Allow sidebar elements to use their own custom transitions */
+    .sidebar-transition {
+      transition: inherit;
+      /* Allow inline styles to control transition - not overridden by global rule */
+    }
+
+    /* Allow transform/opacity to still work for UI interactions */
+    html:not(.no-transitions) [class*="transition-transform"]:not(.sidebar-transition),
+    html:not(.no-transitions) [class*="transition-opacity"]:not(.sidebar-transition),
+    html:not(.no-transitions) [class*="translate-"]:not(.sidebar-transition),
+    html:not(.no-transitions) [class*="scale-"]:not(.sidebar-transition),
+    html:not(.no-transitions) [class*="rotate-"]:not(.sidebar-transition) {
+      transition: transform 300ms ease-in-out, opacity 300ms ease-in-out, background-color 300ms ease-in-out, border-color 300ms ease-in-out, color 300ms ease-in-out !important;
+    }
+
+    /* Ensure dividers (common sources of white flash) have neutral borders */
+    .divide-slate-100>*+*,
+    .divide-slate-200>*+*,
+    .divide-slate-800>*+* {
+      border-color: rgba(148, 163, 184, 0.2) !important;
+    }
+
+    /* Calendar grid cells — GPU-accelerate border/bg transitions to prevent choppy dark mode toggle */
+    .cursor-cell,
+    [class*="border-slate-100"],
+    [class*="border-slate-200"],
+    [class*="border-slate-700"],
+    [class*="border-slate-800"] {
+      will-change: background-color, border-color;
+    }
+
+    /* Status Toggle Switch */
+    .status-toggle-track {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      transition: background-color 200ms ease !important;
+      flex-shrink: 0;
+    }
+
+    .status-toggle-thumb {
+      display: block;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      transition: transform 200ms ease !important;
+    }
+
+    .dark .status-toggle-track {
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Uniform Filter Select Boxes */
+    .filter-select-uniform {
+      appearance: none;
+      -webkit-appearance: none;
+      background-color: #f8fafc;
+      font-size: 12px;
+      font-weight: 500;
+      color: #334155;
+      border-radius: 8px;
+      padding: 6px 28px 6px 12px;
+      outline: none;
+      cursor: pointer;
+      border: 1px solid #e2e8f0;
+      width: 150px;
+      min-width: 150px;
+      max-width: 150px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      transition: border-color 200ms ease, box-shadow 200ms ease !important;
+    }
+
+    .filter-select-uniform:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+    }
+
+    .filter-select-uniform:hover {
+      border-color: #94a3b8;
+    }
+
+    .dark .filter-select-uniform {
+      background-color: #1e293b;
+      color: #e2e8f0;
+      border-color: #334155;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+
+    }
+
+    .dark .filter-select-uniform:hover {
+      border-color: #475569;
+    }
+
+    .dark .filter-select-uniform:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/index.tsx?t=1777898285526"></script>
+</body>
+
+</html>
