@@ -34,6 +34,7 @@ import { TranslationProvider, useTranslation } from './context/TranslationContex
 import { DevSimulationProvider, useEffectiveAuth, useEffectiveOnboarding, useDevSimulation } from './context/DevSimulationContext';
 import { DevSimulationBanner } from './components/DevSimulationBanner';
 import { ScenarioBanner } from './components/ScenarioBanner';
+import { CommandPalette } from './components/CommandPalette';
 
 
 interface ErrorBoundaryProps {
@@ -122,6 +123,9 @@ function AppContent() {
   const [activeScenario, setActiveScenario] = useState<import('./utils/testTemplates').QAScenario | null>(null);
   const [scenarioCheckedSteps, setScenarioCheckedSteps] = useState<string[]>([]);
 
+  // Branch-Lab BL01: Command Palette (⌘K / Ctrl+K)
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
   // Marquee Selection State (Lifted)
   const [selectionMode, setSelectionMode] = useState<'NORMAL' | 'MARQUEE'>('NORMAL');
   const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
@@ -134,6 +138,18 @@ function AppContent() {
   useEffect(() => {
     if (simulatedDate) setCurrentDate(simulatedDate);
   }, [simulatedDate]);
+
+  // Branch-Lab BL01: register ⌘K / Ctrl+K to toggle the command palette
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setPaletteOpen(o => !o);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const isRtl = settings.language === 'he-IL';
   const local_t = (key: string) => (settings.language === 'he-IL' && liveTranslations[key]) || TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
@@ -585,6 +601,16 @@ function AppContent() {
     >
       <div className="relative w-full h-full flex flex-col overflow-hidden">
         <DevSimulationBanner />
+        <CommandPalette
+          open={paletteOpen}
+          onClose={() => setPaletteOpen(false)}
+          setCurrentView={setCurrentView}
+          teachers={teachers}
+          students={students}
+          events={events}
+          t={local_t}
+          isRtl={isRtl}
+        />
         {activeScenario && (
           <ScenarioBanner
             scenario={activeScenario}
