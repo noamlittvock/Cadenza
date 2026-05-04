@@ -22,7 +22,6 @@ import { GanttManager } from './components/GanttManager';
 import { PowerTools } from './components/PowerTools';
 import { Settings } from './components/Settings';
 import { ManageHub } from './components/ManageHub';
-import { StaffMemberManager } from './components/StaffMemberManager';
 import { SuperAdmin } from './components/SuperAdmin';
 import { AdminInbox } from './components/AdminInbox';
 import { OnboardingChecklist } from './components/OnboardingChecklist';
@@ -139,10 +138,11 @@ function AppContent() {
   const isRtl = settings.language === 'he-IL';
   const local_t = (key: string) => (settings.language === 'he-IL' && liveTranslations[key]) || TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
 
-  // Sync Language to DOM
+  // Sync Language to DOM + persist to localStorage to prevent flash on next load
   useEffect(() => {
     document.documentElement.lang = settings.language;
     document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+    localStorage.setItem('language', settings.language);
   }, [settings.language, isRtl]);
 
   // Dark Mode Effect - persist to localStorage and apply class
@@ -432,24 +432,6 @@ function AppContent() {
     switch (currentView) {
       // CALENDAR handled above
       case 'STAFF_MEMBERS':
-        return (
-          <StaffMemberManager
-            teachers={teachers}
-            setTeachers={setTeachers}
-            lists={lists}
-            setLists={setLists}
-            activities={activities}
-            settings={settings}
-            hoursReports={hoursReports}
-            setHoursReports={setHoursReports}
-            students={students}
-            adminInboxItems={adminInboxItems}
-            setAdminInboxItems={setAdminInboxItems}
-            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
-            navigateToId={navigateToStaffId}
-            onNavigateHandled={() => setNavigateToStaffId(null)}
-          />
-        );
       case 'MANAGE':
         return (
           <ManageHub
@@ -463,9 +445,17 @@ function AppContent() {
             subscriptions={calendarSubscriptions}
             setSubscriptions={setCalendarSubscriptions}
             teachers={teachers}
+            setTeachers={setTeachers}
             events={events}
             students={students}
+            hoursReports={hoursReports}
+            setHoursReports={setHoursReports}
+            adminInboxItems={adminInboxItems}
+            setAdminInboxItems={setAdminInboxItems}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+            initialTab="staff"
+            navigateToStaffId={navigateToStaffId}
+            onStaffNavigateHandled={() => setNavigateToStaffId(null)}
           />
         );
       case 'SUPER_ADMIN':

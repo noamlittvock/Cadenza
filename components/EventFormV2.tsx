@@ -2,14 +2,13 @@ import React, { useState, useMemo, useEffect, useCallback, forwardRef, useImpera
 import { CalendarEvent, RecurrenceRule, DayOfWeek, Room, AppSettings } from '../types';
 import {
   ActivityV2, L1Subcategory, L2Subcategory, StaffMemberV2,
-  TeachingAssignmentV2, OrgRoleV2, EventParticipant,
+  TeachingAssignmentV2, OrgRoleV2,
   EventNameMode,
 } from '../types/v2';
-import { generateId } from '../constants';
 import { migrateLegacyAssignment } from '../utils/assignmentScope';
 import { useAuth } from '../context/AuthContext';
 import { DatePicker } from './DatePicker';
-import { Plus, Trash2, ChevronDown, ChevronUp, Repeat, HelpCircle, X } from 'lucide-react';
+import { Repeat, HelpCircle, X } from 'lucide-react';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -27,12 +26,6 @@ interface StaffParticipantDraft {
   orgRoleId?: string;
 }
 
-interface ExternalParticipantDraft {
-  id: string;
-  externalName: string;
-  notes: string;
-}
-
 export interface EventFormState {
   // Zone 1
   activityId: string;
@@ -46,8 +39,6 @@ export interface EventFormState {
   roomId: string;
   // Zone 2
   staffParticipants: StaffParticipantDraft[];
-  // Zone 3
-  externalParticipants: ExternalParticipantDraft[];
   // Recurrence (passthrough from v1.3)
   recurrenceRule?: RecurrenceRule;
   // Status
@@ -74,7 +65,6 @@ export interface EventFormV2Props {
   // Form lifecycle
   editingEventId: string | null;
   existingFormState?: Partial<EventFormState>;
-  existingParticipants?: EventParticipant[];
   // Recurrence passthrough
   isExceptionEdit?: boolean;
   initialStart?: string; // ISO string from slot click
@@ -109,7 +99,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
   activitiesV2, l1Subcategories, l2Subcategories, staffMembers,
   teachingAssignments: rawTeachingAssignments, orgRoles,
   rooms, settings,
-  editingEventId, existingFormState, existingParticipants,
+  editingEventId, existingFormState,
   isExceptionEdit, initialStart, initialEnd,
   onSave,
   t,
@@ -158,7 +148,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       return {
         activityId: '', l1Id: '', l2Id: '', name: '', date: '', startTime: '', endTime: '',
         location: '', roomId: '',
-        staffParticipants: [], externalParticipants: [],
+        staffParticipants: [],
         isCanceled: false, notes: '',
         ...existingFormState,
       };
@@ -174,14 +164,12 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       location: '',
       roomId: '',
       staffParticipants: [],
-      externalParticipants: [],
       isCanceled: false,
       notes: '',
     };
   }, [existingFormState, prefill, initialStart, initialEnd]);
 
   const [form, setForm] = useState<EventFormState>(buildInitialState);
-  const [zone3Open, setZone3Open] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [showPrefillNotice, setShowPrefillNotice] = useState(!!prefill?.activityId && !editingEventId);
@@ -194,7 +182,6 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
 
   const modules = selectedActivity?.modules || {
     curriculum: false,
-    externalParticipants: false,
   };
 
   const template = selectedActivity?.template || null;
@@ -235,7 +222,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
   // Staff with active teaching assignments covering this event via ancestor chain
   const eligibleStaff = useMemo(() => {
     if (template === 'ADMINISTRATIVE') return [];
-    return staffMembers.filter(sm => {
+    const result = staffMembers.filter(sm => {
       if (sm.isArchived) return false;
       return teachingAssignments.some(ta =>
         ta.staffMemberId === sm.id &&
@@ -243,10 +230,11 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
         !ta.isArchived &&
         ta.startDate <= form.date &&
         (!ta.endDate || ta.endDate >= form.date) &&
-        coversEvent(ta, form.l1Id ?? null, form.l2Id ?? null)
+        coversEvent(ta, form.l1Id || null, form.l2Id || null)
       );
     });
-  }, [staffMembers, teachingAssignments, form.activityId, form.l1Id, form.l2Id, form.date, template]);
+    return result;
+  }, [staffMembers, teachingAssignments, form.activityId, form.l1Id, form.l2Id, form.date, template, coversEvent]);
 
   // Org roles for selected staff (administrative template)
   const getActiveOrgRoles = useCallback((staffMemberId: string) => {
@@ -266,7 +254,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       !ta.isArchived &&
       ta.startDate <= form.date &&
       (!ta.endDate || ta.endDate >= form.date) &&
-      coversEvent(ta, form.l1Id ?? null, form.l2Id ?? null)
+      coversEvent(ta, form.l1Id || null, form.l2Id || null)
     ) || null;
   }, [teachingAssignments, form.activityId, form.l1Id, form.l2Id, form.date]);
 
@@ -281,7 +269,6 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       name: '',
       location: act?.location || '',
       staffParticipants: [],
-      externalParticipants: [],
     }));
     setErrors({});
     if (walkthroughStep === 1) setWalkthroughStep(2);
@@ -435,30 +422,6 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       staffParticipants: prev.staffParticipants.map(sp =>
         sp.staffMemberId === staffId ? { ...sp, orgRoleId: roleId } : sp
       ),
-    }));
-  };
-
-  // ─── External participant management ─────────────────────────────────────
-  const addExternalParticipant = () => {
-    setForm(prev => ({
-      ...prev,
-      externalParticipants: [...prev.externalParticipants, {
-        id: generateId(), externalName: '', notes: '',
-      }],
-    }));
-  };
-
-  const updateExternalParticipant = (id: string, updates: Partial<ExternalParticipantDraft>) => {
-    setForm(prev => ({
-      ...prev,
-      externalParticipants: prev.externalParticipants.map(ep => ep.id === id ? { ...ep, ...updates } : ep),
-    }));
-  };
-
-  const removeExternalParticipant = (id: string) => {
-    setForm(prev => ({
-      ...prev,
-      externalParticipants: prev.externalParticipants.filter(ep => ep.id !== id),
     }));
   };
 
@@ -799,49 +762,6 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
             </div>
           )}
 
-        </div>
-      )}
-
-      {/* ═══ ZONE 3: Exceptions (collapsed by default) ═══ */}
-      {selectedActivity && (form.staffParticipants.length > 0 || modules.externalParticipants) && (
-        <div className="border-t border-slate-200 dark:border-slate-700 pt-2">
-          <button
-            type="button"
-            onClick={() => setZone3Open(!zone3Open)}
-            className="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center gap-1"
-          >
-            {zone3Open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            {t('event.v2.add_exception')}
-          </button>
-
-          {zone3Open && (
-            <div className="mt-3 space-y-4">
-              {/* External participants — only ENSEMBLE/EXTERNAL templates */}
-              {modules.externalParticipants && (template === 'ENSEMBLE' || template === 'EXTERNAL') && (
-                <div>
-                  <label className={labelCls}>{t('event.v2.external')}</label>
-                  {form.externalParticipants.map(ep => (
-                    <div key={ep.id} className="grid grid-cols-[1fr_auto] gap-2 mb-2 items-end">
-                      <input
-                        className={inputCls}
-                        value={ep.externalName}
-                        onChange={e => updateExternalParticipant(ep.id, { externalName: e.target.value })}
-                        placeholder={t('event.v2.external_name')}
-                      />
-                      <button onClick={() => removeExternalParticipant(ep.id)} className="text-red-400 hover:text-red-600 pb-2"><Trash2 size={14} /></button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={addExternalParticipant}
-                    className="text-sm text-blue-500 hover:text-blue-700 flex items-center gap-1"
-                  >
-                    <Plus size={14} /> {t('event.v2.add_external')}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
 

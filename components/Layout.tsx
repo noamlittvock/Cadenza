@@ -172,18 +172,6 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
         </div>
 
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto overflow-x-hidden pt-3">
-
-
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 truncate overflow-hidden"
-            style={{
-              opacity: isCollapsed ? 0 : 1,
-              maxHeight: isCollapsed ? 0 : 24,
-              marginBottom: isCollapsed ? 0 : 4,
-              transition: 'opacity 200ms ease, max-height 400ms ease, margin-bottom 400ms ease',
-            }}>
-            {t('nav.section.operations')}
-          </div>
-
           <NavItem
             active={['CALENDAR', 'GANTT', 'POWER_TOOLS'].includes(currentView)}
             onClick={() => { setView('CALENDAR'); setIsMobileMenuOpen(false); }}
@@ -193,37 +181,11 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             locked={isGated}
           />
 
-
-
-
           {isAdmin && (
             <>
               {!isMobile && (
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 truncate overflow-hidden"
-                  style={{
-                    opacity: isCollapsed ? 0 : 1,
-                    maxHeight: isCollapsed ? 0 : 24,
-                    marginBottom: isCollapsed ? 0 : 4,
-                    marginTop: isCollapsed ? 0 : 16,
-                    transition: 'opacity 200ms ease, max-height 400ms ease, margin-bottom 400ms ease, margin-top 400ms ease',
-                  }}>
-                  {t('nav.section.admin')}
-                </div>
-              )}
-
-              {!isMobile && (
                 <NavItem
-                  active={currentView === 'STAFF_MEMBERS'}
-                  onClick={() => { setView('STAFF_MEMBERS'); setIsMobileMenuOpen(false); }}
-                  icon={Users}
-                  label={t('nav.staff_members')}
-                  collapsed={isCollapsed}
-                />
-              )}
-
-              {!isMobile && (
-                <NavItem
-                  active={currentView === 'MANAGE'}
+                  active={currentView === 'MANAGE' || currentView === 'STAFF_MEMBERS'}
                   onClick={() => { setView('MANAGE'); setIsMobileMenuOpen(false); }}
                   icon={Sliders}
                   label={t('nav.manage')}
@@ -249,21 +211,6 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 label={t('nav.settings')}
                 collapsed={isCollapsed}
               />
-
-              {/* Super Admin Area (Only visible to superadmin) */}
-              {isSuperAdmin && (
-                <>
-                  {/* Separator */}
-                  <div className="my-2 mx-3 border-t border-slate-800" />
-                  <NavItem
-                    active={currentView === 'SUPER_ADMIN'}
-                    onClick={() => { setView('SUPER_ADMIN'); setIsMobileMenuOpen(false); }}
-                    icon={AlertOctagon}
-                    label={t('nav.super_admin')}
-                    collapsed={isCollapsed}
-                  />
-                </>
-              )}
             </>
           )}
         </nav>
@@ -289,7 +236,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             style={{
               transition: 'all 500ms ease',
             }}>
-            <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3 rtl:space-x-reverse mb-3'}`}>
+            <div className={`flex items-center mb-3 ${isCollapsed ? 'justify-center' : 'space-x-3 rtl:space-x-reverse'}`}>
               <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold overflow-hidden shrink-0">
                 {currentUser?.avatar ? (
                   <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
@@ -304,6 +251,20 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 </div>
               )}
             </div>
+
+            {isSuperAdmin && (
+              <button
+                onClick={() => { setView('SUPER_ADMIN'); setIsMobileMenuOpen(false); }}
+                className={`flex items-center justify-center space-x-2 rtl:space-x-reverse py-2 w-full mb-2 rounded-xl btn-cadenza ${currentView === 'SUPER_ADMIN'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                  : 'bg-slate-800/50 hover:bg-slate-700/80 text-slate-300 border border-transparent'
+                  } ${isCollapsed ? 'p-2' : 'px-4'}`}
+                title={t('nav.super_admin')}
+              >
+                <AlertOctagon size={16} />
+                {!isCollapsed && <span className="text-sm font-medium">{t('nav.super_admin')}</span>}
+              </button>
+            )}
 
             <button
               onClick={() => logout()}
@@ -353,12 +314,12 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             </a>
           )}
 
-          <div className="text-xs text-slate-500 text-center mt-2 overflow-hidden"
+          <div className="text-xs text-slate-500 text-center overflow-hidden"
             style={{
               opacity: isCollapsed ? 0 : 1,
-              maxHeight: isCollapsed ? 0 : 24,
-              marginTop: isCollapsed ? 0 : 8,
-              transition: 'opacity 200ms ease, max-height 400ms ease, margin-top 400ms ease',
+              height: 24,
+              marginTop: 8,
+              transition: 'opacity 200ms ease',
             }}>
             {t('layout.copyright')}
           </div>

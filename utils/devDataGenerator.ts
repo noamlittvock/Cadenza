@@ -2,13 +2,15 @@
  * devDataGenerator.ts — Comprehensive stress-test data generator for DevTools.
  *
  * Produces a much larger, more varied dataset than the base generateTestData():
- * - 25 teachers (incl. PER_EVENT and ONE_OFF rates, one archived)
+ * - 25 staff members (one archived)
  * - 9 activities spanning all 5 ActivityTemplate types (DISCIPLINE / PROGRAM / ENSEMBLE / EXTERNAL / ADMINISTRATIVE)
+ * - Teaching assignments vary in scope (ACTIVITY / L1 / L2) so the
+ *   flexible-scope assignment UI is exercised
  * - 300 events: recurring series, add-on items, 6 deliberate room conflicts,
  *   events spanning ±90 days, future events for date-jump testing
  * - 12 students with assignments
  * - 15 Gantt blocks including BLACKOUT blocks
- * - Full chart, hours-report, inbox, and subscription seeds
+ * - Hours-report, inbox, and subscription seeds
  */
 
 import { Timestamp } from 'firebase/firestore';
@@ -147,6 +149,14 @@ export const generateDevTeachers = (currencySymbol = '₪'): Teacher[] => {
  * Assigns each non-archived teacher 1-2 teaching assignments linked to real
  * activities and subcategories. Must be called AFTER both teachers and
  * activities have been generated. IDs are deterministic: `TA_T{i}_ACT{j}`.
+ *
+ * Scope is varied deterministically so the flexible-scope assignment feature
+ * is exercised:
+ *   - tIdx % 7 === 0 → ACTIVITY scope (e.g. department head over a whole activity)
+ *   - tIdx % 7 === 1 → L1 scope on DISCIPLINE activities (category-wide coordinator)
+ *   - everyone else → L2 scope (single subcategory, the common case)
+ *
+ * ADMINISTRATIVE activities always use ACTIVITY scope (no hierarchy).
  */
 export const linkTeachersToActivities = (teachers: Teacher[], activities: GeneratedActivity[]): void => {
   const activeActivities = activities.filter(a => !a.isArchived);
@@ -162,27 +172,51 @@ export const linkTeachersToActivities = (teachers: Teacher[], activities: Genera
     for (let n = 0; n < count; n++) {
       const act = activeActivities[(tIdx + n) % activeActivities.length];
 
-      // Template-aware subcategoryId — must match the L2 doc IDs created by DevTools seeder
-      let subcategoryId = '';
-      if (act.l1Groups && act.l1Groups.length > 0) {
-        // DISCIPLINE: flatten all L2 names across L1 groups, rotate through them
-        const allL2s = act.l1Groups.flatMap(g => g.l2Names);
-        if (allL2s.length > 0) {
-          const l2Name = allL2s[(tIdx + n) % allL2s.length];
-          subcategoryId = `L2_${act.id}_${l2Name.replace(/\s+/g, '_')}`;
-        }
-      } else if (act.subcategories && act.subcategories.length > 0) {
-        // PROGRAM: raw uid matches DevTools seeder (no prefix)
-        subcategoryId = act.subcategories[(tIdx + n) % act.subcategories.length].id;
-      } else if (act.template === 'ENSEMBLE' || act.template === 'EXTERNAL') {
-        // ENSEMBLE / EXTERNAL: default L2 doc created by DevTools seeder
-        subcategoryId = `L2_${act.id}_default`;
+      // Decide scope. ADMINISTRATIVE has no hierarchy → ACTIVITY. Otherwise rotate.
+      const scopeRoll = (tIdx + n) % 7;
+      let scope: 'ACTIVITY' | 'L1' | 'L2';
+      if (act.template === 'ADMINISTRATIVE') {
+        scope = 'ACTIVITY';
+      } else if (scopeRoll === 0) {
+        scope = 'ACTIVITY';
+      } else if (scopeRoll === 1 && act.template === 'DISCIPLINE' && act.l1Groups && act.l1Groups.length > 0) {
+        // L1 only makes sense for DISCIPLINE (the only template with a true L1 layer)
+        scope = 'L1';
+      } else {
+        scope = 'L2';
       }
-      // ADMINISTRATIVE: stays empty (l2Required: false)
+
+      // Resolve l1Id / subcategoryId based on scope + template.
+      // Doc-id conventions must match the v2 seeder in v2DocBuilders.ts.
+      let l1Id: string | null = null;
+      let subcategoryId = '';
+
+      if (scope === 'L1' && act.l1Groups && act.l1Groups.length > 0) {
+        const grp = act.l1Groups[(tIdx + n) % act.l1Groups.length];
+        l1Id = `L1_${act.id}_${grp.l1Name.replace(/\s+/g, '_')}`;
+      } else if (scope === 'L2') {
+        if (act.l1Groups && act.l1Groups.length > 0) {
+          // DISCIPLINE: flatten all L2 names across L1 groups, rotate through them
+          const allL2s = act.l1Groups.flatMap(g => g.l2Names);
+          if (allL2s.length > 0) {
+            const l2Name = allL2s[(tIdx + n) % allL2s.length];
+            subcategoryId = `L2_${act.id}_${l2Name.replace(/\s+/g, '_')}`;
+          }
+        } else if (act.subcategories && act.subcategories.length > 0) {
+          // PROGRAM: raw uid matches DevTools seeder (no prefix)
+          subcategoryId = act.subcategories[(tIdx + n) % act.subcategories.length].id;
+        } else if (act.template === 'ENSEMBLE' || act.template === 'EXTERNAL') {
+          // ENSEMBLE / EXTERNAL: default L2 doc created by DevTools seeder
+          subcategoryId = `L2_${act.id}_default`;
+        }
+      }
+      // scope === 'ACTIVITY': both l1Id and subcategoryId stay empty/null
 
       tas.push({
         id: `TA_${teacher.id}_${act.id}`,
         activityId: act.id,
+        scope,
+        l1Id,
         subcategoryId,
         startDate: addDays(new Date(), -rng(30, 365)).toISOString().slice(0, 10),
         isEnsemble: act.type === 'INSTRUCTIONAL' && act.name.toLowerCase().includes('ensemble'),
@@ -232,7 +266,7 @@ export const generateDevActivities = (): GeneratedActivity[] => {
   ): GeneratedActivity => ({
     id, orgId: '', name, template,
     activityType: deriveActivityType(template),
-    modules: { curriculum: true, externalParticipants: false },
+    modules: { curriculum: true },
     location: null,
     eventNameMode: template === 'DISCIPLINE' || template === 'PROGRAM' ? 'AUTO' : 'PROMPTED',
     isArchived: opts.isArchived ?? false,

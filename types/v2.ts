@@ -51,9 +51,6 @@ export type ImportRowStatus =
   | 'IMPORTED'
   | 'SKIPPED';
 
-/** Section 05 — EventParticipant.participantType */
-export type ParticipantType = 'STAFF' | 'EXTERNAL';
-
 /** Section 05 — EventParticipant.assignmentType (STAFF participants only) */
 export type AssignmentType = 'TEACHING' | 'ORG_ROLE';
 
@@ -82,7 +79,6 @@ export type ImportEntityType =
 /** Section 05 — Activity.modules */
 export interface ModulesConfig {
   curriculum: boolean;
-  externalParticipants: boolean;
 }
 
 /** Section 05 — StaffMember.firstUseFlags */
@@ -265,34 +261,17 @@ export interface EventV2 {
   updatedAt: Timestamp;
 }
 
-/** Section 05 — eventParticipants/{participantId} */
+/** Section 05 — eventParticipants/{participantId} (STAFF only) */
 export interface EventParticipant {
   id: string;
   orgId: string;
   eventId: string;
-  participantType: ParticipantType;
-  // STAFF fields
-  staffMemberId?: string;
-  assignmentType?: AssignmentType;
+  staffMemberId: string;
+  assignmentType: AssignmentType;
   teachingAssignmentId?: string | null;
   orgRoleId?: string | null;
-  // EXTERNAL fields
-  externalName?: string;
   notes?: string | null;
   createdAt: Timestamp;
-}
-
-/** Section 05 — ensembleRosterMembers/{rosterId} */
-export interface EnsembleRosterMember {
-  id: string;
-  orgId: string;
-  activityId: string;
-  studentId: string;
-  startDate: string;
-  endDate: string | null;
-  isArchived: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
 }
 
 /** Section 05 — importSessions/{sessionId} */
@@ -355,7 +334,6 @@ export const V2_COLLECTIONS = {
   enrollments: 'enrollments',
   events: 'events',
   eventParticipants: 'eventParticipants',
-  ensembleRosterMembers: 'ensembleRosterMembers',
   importSessions: 'importSessions',
   onboardingState: 'onboardingState',
   orgSettings: 'orgSettings',

@@ -95,7 +95,6 @@ export function buildV2SeedDocs(
             activityType: isAdmin ? 'ADMINISTRATIVE' : 'ACADEMIC',
             modules: {
                 curriculum: template === 'DISCIPLINE' || template === 'PROGRAM',
-                externalParticipants: template === 'EXTERNAL',
             },
             location: null,
             eventNameMode: 'AUTO',
@@ -142,16 +141,37 @@ export function buildV2SeedDocs(
     });
 
     const teachingAssignments: TeachingAssignmentV2[] = [];
+    // Build a fast lookup: activityId → template
+    const activityTemplateMap = new Map(input.activities.map(a => [a.id, a.template]));
+
     input.teachers.forEach(t => {
         (t.teachingAssignments || []).forEach(ta => {
+            const template = activityTemplateMap.get(ta.activityId);
+            // Prefer explicit scope from the seed generator. Fall back to legacy
+            // inference: ADMINISTRATIVE / no subcategory → ACTIVITY, else L2.
+            let scope: 'ACTIVITY' | 'L1' | 'L2';
+            let l1Id: string | null = null;
+            let l2Id: string | null = null;
+
+            if (ta.scope) {
+                scope = ta.scope;
+                l1Id = scope === 'L1' ? (ta.l1Id ?? null) : null;
+                l2Id = scope === 'L2' ? (ta.subcategoryId || null) : null;
+            } else if (template === 'ADMINISTRATIVE' || !ta.subcategoryId) {
+                scope = 'ACTIVITY';
+            } else {
+                scope = 'L2';
+                l2Id = ta.subcategoryId;
+            }
+
             teachingAssignments.push({
                 id: ta.id,
                 orgId,
                 staffMemberId: t.id,
-                scope: 'L2',
+                scope,
                 activityId: ta.activityId,
-                l1Id: null,
-                l2Id: ta.subcategoryId,
+                l1Id,
+                l2Id,
                 startDate: ta.startDate,
                 endDate: null,
                 isArchived: ta.isArchived,

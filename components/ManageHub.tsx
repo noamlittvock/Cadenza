@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Room, ListsState, AppSettings, CalendarSubscription, Teacher, CalendarEvent, Student } from '../types';
+import { Room, ListsState, AppSettings, CalendarSubscription, Teacher, CalendarEvent, Student, HoursReport, AdminInboxItem } from '../types';
 import type { ActivityV2 } from '../types/v2';
 import { RoomManager } from './RoomManager';
 import { ManageLists } from './ManageLists';
 import { ActivityManager } from './ActivityManager';
 import { CalendarSubscriptionManager } from './CalendarSubscriptionManager';
-import { Home, List, Menu, Layers, Rss } from 'lucide-react';
+import { StaffMemberManager } from './StaffMemberManager';
+import { Home, List, Menu, Layers, Rss, Users } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
 
-type ManageTab = 'rooms' | 'lists' | 'activities' | 'subscriptions';
+type ManageTab = 'staff' | 'rooms' | 'lists' | 'activities' | 'subscriptions';
 
 interface Props {
     rooms: Room[];
@@ -21,11 +22,18 @@ interface Props {
     subscriptions: CalendarSubscription[];
     setSubscriptions: React.Dispatch<React.SetStateAction<CalendarSubscription[]>>;
     teachers: Teacher[];
+    setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>;
     events: CalendarEvent[];
     students: Student[];
+    hoursReports: HoursReport[];
+    setHoursReports: React.Dispatch<React.SetStateAction<HoursReport[]>>;
+    adminInboxItems: AdminInboxItem[];
+    setAdminInboxItems: React.Dispatch<React.SetStateAction<AdminInboxItem[]>>;
     onMobileMenuOpen: () => void;
     initialTab?: ManageTab;
     onTabChange?: (tab: ManageTab) => void;
+    navigateToStaffId?: string | null;
+    onStaffNavigateHandled?: () => void;
 }
 
 export const ManageHub: React.FC<Props> = ({
@@ -39,11 +47,18 @@ export const ManageHub: React.FC<Props> = ({
     subscriptions,
     setSubscriptions,
     teachers,
+    setTeachers,
     events,
     students,
+    hoursReports,
+    setHoursReports,
+    adminInboxItems,
+    setAdminInboxItems,
     onMobileMenuOpen,
-    initialTab = 'activities',
-    onTabChange
+    initialTab = 'staff',
+    onTabChange,
+    navigateToStaffId,
+    onStaffNavigateHandled,
 }) => {
     const [activeTab, setActiveTab] = useState<ManageTab>(initialTab);
     const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
@@ -52,7 +67,7 @@ export const ManageHub: React.FC<Props> = ({
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const tabFromUrl = params.get('tab') as ManageTab;
-        if (tabFromUrl && ['rooms', 'lists', 'activities', 'subscriptions'].includes(tabFromUrl)) {
+        if (tabFromUrl && ['staff', 'rooms', 'lists', 'activities', 'subscriptions'].includes(tabFromUrl)) {
             setActiveTab(tabFromUrl);
         }
     }, []);
@@ -67,6 +82,7 @@ export const ManageHub: React.FC<Props> = ({
     };
 
     const tabs: { id: ManageTab; label: string; icon: React.ElementType }[] = [
+        { id: 'staff', label: t('nav.staff_members'), icon: Users },
         { id: 'activities', label: t('nav.activities'), icon: Layers },
         { id: 'rooms', label: t('nav.rooms'), icon: Home },
         { id: 'lists', label: t('nav.lists'), icon: List },
@@ -120,13 +136,30 @@ export const ManageHub: React.FC<Props> = ({
 
             {/* Content Area */}
             <div className="flex-1 overflow-hidden">
+                {activeTab === 'staff' && (
+                    <StaffMemberManager
+                        teachers={teachers}
+                        setTeachers={setTeachers}
+                        lists={lists}
+                        setLists={setLists}
+                        activities={activities}
+                        settings={settings}
+                        hoursReports={hoursReports}
+                        setHoursReports={setHoursReports}
+                        students={students}
+                        adminInboxItems={adminInboxItems}
+                        setAdminInboxItems={setAdminInboxItems}
+                        onMobileMenuOpen={onMobileMenuOpen}
+                        navigateToId={navigateToStaffId}
+                        onNavigateHandled={onStaffNavigateHandled}
+                    />
+                )}
                 {activeTab === 'activities' && (
                     <ActivityManager
                         activities={activities}
                         setActivities={setActivities}
                         settings={settings}
                         events={events}
-                        students={students}
                         onMobileMenuOpen={onMobileMenuOpen}
                         embedded={true}
                     />

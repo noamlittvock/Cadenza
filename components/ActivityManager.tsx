@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { AppSettings, CalendarEvent, Student } from '../types';
+import { AppSettings, CalendarEvent } from '../types';
 import type {
-  ActivityV2, L1Subcategory, L2Subcategory, EnsembleRosterMember,
+  ActivityV2, L1Subcategory, L2Subcategory,
   ActivityTemplate, ModulesConfig, EventNameMode,
   EventV2, EnrollmentV2, EventStatus, EnrollmentStatus,
   TeachingAssignmentV2, ActivityTypeV2,
@@ -16,11 +16,14 @@ import { Modal } from './Modal';
 import {
   Plus, Edit2, Archive, RotateCcw, Layers, Trash2, Menu, LayoutGrid, List, X,
   GraduationCap, Briefcase, Music, Globe, Settings2, ArrowLeft, HelpCircle,
-  Users, UserPlus, UserMinus, ChevronRight, Sparkles, ArrowUp, ArrowDown, CheckSquare,
+  ChevronRight, Sparkles, ArrowUp, ArrowDown, CheckSquare,
+  ChevronDown, Upload, Download, FileDown,
 } from 'lucide-react';
 import { useListStyle } from '../utils/useListStyle';
 import { useSortState } from '../utils/useSortState';
-import { ImportExportDropdown } from './ImportExportDropdown';
+import { CsvImportModal } from './CsvImportModal';
+import { ExportScopeModal } from './ExportScopeModal';
+import { generateTemplate, downloadCSV } from '../utils/csvUtils';
 
 // ─── Template configuration (Section 06) ────────────────────────────────────
 
@@ -39,31 +42,31 @@ const TEMPLATE_CONFIGS: Record<ActivityTemplate, TemplateConfig> = {
   DISCIPLINE: {
     template: 'DISCIPLINE', icon: GraduationCap, color: 'blue',
     l1Required: true, l2Required: true, hasHierarchy: true,
-    defaultModules: { curriculum: true, externalParticipants: false },
+    defaultModules: { curriculum: true },
     eventNameMode: 'AUTO',
   },
   PROGRAM: {
     template: 'PROGRAM', icon: Layers, color: 'green',
     l1Required: true, l2Required: true, hasHierarchy: true,
-    defaultModules: { curriculum: true, externalParticipants: false },
+    defaultModules: { curriculum: true },
     eventNameMode: 'AUTO',
   },
   ENSEMBLE: {
     template: 'ENSEMBLE', icon: Music, color: 'purple',
     l1Required: false, l2Required: true, hasHierarchy: true,
-    defaultModules: { curriculum: true, externalParticipants: false },
+    defaultModules: { curriculum: true },
     eventNameMode: 'PROMPTED',
   },
   EXTERNAL: {
     template: 'EXTERNAL', icon: Globe, color: 'amber',
     l1Required: false, l2Required: true, hasHierarchy: true,
-    defaultModules: { curriculum: false, externalParticipants: true },
+    defaultModules: { curriculum: false },
     eventNameMode: 'PROMPTED',
   },
   ADMINISTRATIVE: {
     template: 'ADMINISTRATIVE', icon: Briefcase, color: 'slate',
     l1Required: false, l2Required: false, hasHierarchy: false,
-    defaultModules: { curriculum: false, externalParticipants: false },
+    defaultModules: { curriculum: false },
     eventNameMode: 'PROMPTED',
   },
 };
@@ -341,7 +344,6 @@ interface Props {
   setActivities: React.Dispatch<React.SetStateAction<ActivityV2[]>>;
   settings: AppSettings;
   events: CalendarEvent[];
-  students: Student[];
   onMobileMenuOpen?: () => void;
   embedded?: boolean;
 }
@@ -349,7 +351,7 @@ interface Props {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export const ActivityManager: React.FC<Props> = ({
-  activities, setActivities, settings, events, students,
+  activities, setActivities, settings, events,
   onMobileMenuOpen, embedded = false,
 }) => {
   const { currentUser, isSuperAdmin } = useAuth();
@@ -359,7 +361,6 @@ export const ActivityManager: React.FC<Props> = ({
   // ─── Internal Firestore hooks for v2.0 collections ───────────────────────
   const [l1Subs, setL1Subs] = useFirestoreSync<L1Subcategory>(V2_COLLECTIONS.l1Subcategories, []);
   const [l2Subs, setL2Subs] = useFirestoreSync<L2Subcategory>(V2_COLLECTIONS.l2Subcategories, []);
-  const [rosterMembers, setRosterMembers] = useFirestoreSync<EnsembleRosterMember>(V2_COLLECTIONS.ensembleRosterMembers, []);
   const [eventsV2, setEventsV2] = useFirestoreSync<EventV2>(V2_COLLECTIONS.events, []);
   const [enrollmentsV2, setEnrollmentsV2] = useFirestoreSync<EnrollmentV2>(V2_COLLECTIONS.enrollments, []);
   const [teachingAssignments, setTeachingAssignments] = useFirestoreSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
@@ -376,7 +377,18 @@ export const ActivityManager: React.FC<Props> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailActivityId, setDetailActivityId] = useState<string | null>(null);
-  const [detailTab, setDetailTab] = useState<'hierarchy' | 'roster'>('hierarchy');
+
+  // ─── Combined Import/Export dropdown ────────────────────────────────────
+  const [csvMenuOpen, setCsvMenuOpen] = useState(false);
+  const [csvModal, setCsvModal] = useState<{ type: 'import' | 'export' | 'template'; entity: 'ACTIVITY' | 'ACTIVITY_HIERARCHY' } | null>(null);
+  const csvMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (csvMenuRef.current && !csvMenuRef.current.contains(e.target as Node)) setCsvMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // ─── Walkthrough state ───────────────────────────────────────────────────
   const [walkthroughActive, setWalkthroughActive] = useState(false);
@@ -405,9 +417,6 @@ export const ActivityManager: React.FC<Props> = ({
   // Per-L1 section inputs (used in tree view for l1Required templates)
   const [l2InputsByL1, setL2InputsByL1] = useState<Record<string, string>>({});
 
-  // ─── Roster add ──────────────────────────────────────────────────────────
-  const [rosterStudentSearch, setRosterStudentSearch] = useState('');
-
   // ─── Derived data ────────────────────────────────────────────────────────
   const visibleActivities = useMemo(() => {
     const base = activities.filter(a => showArchived || !a.isArchived);
@@ -430,11 +439,6 @@ export const ActivityManager: React.FC<Props> = ({
     detailActivityId ? l2Subs.filter(l => l.activityId === detailActivityId) : [],
     [l2Subs, detailActivityId]
   );
-  const activityRoster = useMemo(() =>
-    detailActivityId ? rosterMembers.filter(r => r.activityId === detailActivityId && !r.isArchived) : [],
-    [rosterMembers, detailActivityId]
-  );
-
   // ─── Form helpers ────────────────────────────────────────────────────────
 
   const formSnapshot = () => JSON.stringify({ formName, formTemplate, formModules, formLocation, formEventNameMode });
@@ -592,11 +596,6 @@ export const ActivityManager: React.FC<Props> = ({
       l.activityId === activityId && !l.isArchived ? { ...l, isArchived: true, updatedAt: tsNow } : l
     ));
 
-    // Cascade: ensemble roster members
-    setRosterMembers(prev => prev.map(r =>
-      r.activityId === activityId && !r.isArchived ? { ...r, isArchived: true, updatedAt: tsNow } : r
-    ));
-
     // Cascade: future events
     setEventsV2(prev => prev.map(e =>
       e.activityId === activityId && e.status === 'SCHEDULED' && e.date >= today
@@ -617,7 +616,7 @@ export const ActivityManager: React.FC<Props> = ({
     ));
 
     setArchiveCascade(null);
-  }, [archiveCascade, isSuperAdmin, setActivities, setL1Subs, setL2Subs, setRosterMembers, setEventsV2, setEnrollmentsV2, setTeachingAssignments]);
+  }, [archiveCascade, isSuperAdmin, setActivities, setL1Subs, setL2Subs, setEventsV2, setEnrollmentsV2, setTeachingAssignments]);
 
   const handleRestore = useCallback((id: string) => {
     if (!isSuperAdmin) return;
@@ -655,14 +654,13 @@ export const ActivityManager: React.FC<Props> = ({
     const tsNow = Timestamp.now();
     const today = new Date().toISOString().slice(0, 10);
     setActivities(prev => prev.map(a => ids.has(a.id) ? { ...a, isArchived: true, updatedAt: tsNow } : a));
-    setRosterMembers(prev => prev.map(r => ids.has(r.activityId) ? { ...r, isArchived: true, updatedAt: tsNow } : r));
     setEventsV2(prev => prev.map(e =>
       ids.has(e.activityId) && e.status === 'SCHEDULED' && e.date >= today
         ? { ...e, status: 'ARCHIVED' as EventStatus, updatedAt: tsNow }
         : e
     ));
     exitSelectMode();
-  }, [isSuperAdmin, selectedIds, setActivities, setRosterMembers, setEventsV2, t, exitSelectMode]);
+  }, [isSuperAdmin, selectedIds, setActivities, setEventsV2, t, exitSelectMode]);
 
   const handleBulkPermanentDelete = useCallback(() => {
     if (!isSuperAdmin || selectedIds.size === 0) return;
@@ -967,33 +965,6 @@ export const ActivityManager: React.FC<Props> = ({
     setL2Subs(prev => prev.map(l => l.id === id ? { ...l, isArchived: false, updatedAt: Timestamp.now() } : l));
   }, [isSuperAdmin, setL2Subs]);
 
-  // ─── Ensemble Roster CRUD ────────────────────────────────────────────────
-
-  const addToRoster = useCallback((studentId: string) => {
-    if (!detailActivityId || !isSuperAdmin) return;
-    const exists = activityRoster.some(r => r.studentId === studentId);
-    if (exists) return;
-    const now = Timestamp.now();
-    const member: EnsembleRosterMember = {
-      id: generateId(), orgId: '', activityId: detailActivityId,
-      studentId, startDate: new Date().toISOString().split('T')[0],
-      endDate: null, isArchived: false, createdAt: now, updatedAt: now,
-    };
-    setRosterMembers(prev => [...prev, member]);
-    setRosterStudentSearch('');
-  }, [detailActivityId, isSuperAdmin, activityRoster, setRosterMembers]);
-
-  const removeFromRoster = useCallback((memberId: string) => {
-    if (!isSuperAdmin) return;
-    const member = rosterMembers.find(r => r.id === memberId);
-    if (!member) return;
-    const studentName = students.find(s => s.id === member.studentId)?.fullName || '';
-    if (!window.confirm(t('activities.roster_remove_confirm').replace('{name}', studentName))) return;
-    setRosterMembers(prev => prev.map(r =>
-      r.id === memberId ? { ...r, isArchived: true, updatedAt: Timestamp.now() } : r
-    ));
-  }, [isSuperAdmin, rosterMembers, students, t, setRosterMembers]);
-
   // ─── Walkthrough helpers ─────────────────────────────────────────────────
   const walkthroughSteps = [
     t('activities.walkthrough_step1'),
@@ -1012,24 +983,13 @@ export const ActivityManager: React.FC<Props> = ({
     const archivedL1s = activityL1s.filter(l => l.isArchived);
     const activeL2s = activityL2s.filter(l => !l.isArchived);
     const archivedL2s = activityL2s.filter(l => l.isArchived);
-    const isEnsemble = detailActivity.template === 'ENSEMBLE';
-
-    const rosterStudents = activityRoster.map(r => {
-      const student = students.find(s => s.id === r.studentId);
-      return { ...r, studentName: student?.fullName || r.studentId };
-    });
-    const availableStudents = students.filter(s =>
-      s.profileStatus === 'ACTIVE' && !activityRoster.some(r => r.studentId === s.id)
-    ).filter(s =>
-      !rosterStudentSearch || s.fullName.toLowerCase().includes(rosterStudentSearch.toLowerCase())
-    );
 
     return (
       <div className={`${embedded ? 'h-full overflow-auto' : ''} p-8 max-w-5xl mx-auto`}>
         {/* Back button + title */}
         <div className="flex items-center gap-3 mb-6">
           <button
-            onClick={() => { setDetailActivityId(null); setDetailTab('hierarchy'); }}
+            onClick={() => setDetailActivityId(null)}
             className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
           >
             <ArrowLeft size={20} className="text-slate-600 dark:text-slate-300" />
@@ -1057,28 +1017,8 @@ export const ActivityManager: React.FC<Props> = ({
         )}
 
 
-        {/* Tabs for Ensemble */}
-        {isEnsemble && (
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 mb-6 w-fit">
-            {(['hierarchy', 'roster'] as const).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setDetailTab(tab)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                  detailTab === tab
-                    ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-                }`}
-              >
-                {tab === 'hierarchy' ? <Layers size={16} /> : <Users size={16} />}
-                {tab === 'hierarchy' ? t('activities.l2_subcategories') : t('activities.roster')}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Hierarchy Tab (L1 / L2) */}
-        {(detailTab === 'hierarchy' || !isEnsemble) && Config.hasHierarchy && (
+        {/* Hierarchy (Category / Subcategory) */}
+        {Config.hasHierarchy && (
           <div className="space-y-8">
 
             {/* Tree view: L1 (Categories) with nested L2 (Subcategories) — for templates with l1Required */}
@@ -1244,54 +1184,6 @@ export const ActivityManager: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Ensemble Roster Tab */}
-        {detailTab === 'roster' && isEnsemble && (
-          <div>
-            {isSuperAdmin && (
-              <div className="mb-4">
-                <div className="flex gap-2 mb-2">
-                  <input
-                    type="text" value={rosterStudentSearch}
-                    onChange={e => setRosterStudentSearch(e.target.value)}
-                    placeholder={t('activities.roster_add') + '...'}
-                    className="flex-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                  />
-                </div>
-                {rosterStudentSearch && availableStudents.length > 0 && (
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg max-h-40 overflow-y-auto shadow-lg">
-                    {availableStudents.slice(0, 10).map(s => (
-                      <button key={s.id} onClick={() => addToRoster(s.id)}
-                        className="w-full text-start px-3 py-2 text-sm hover:bg-purple-50 dark:hover:bg-purple-900/20 flex items-center gap-2 transition-colors">
-                        <UserPlus size={14} className="text-purple-500" />
-                        <span className="text-slate-700 dark:text-slate-300">{s.fullName}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="space-y-1.5">
-              {rosterStudents.length === 0 ? (
-                <p className="text-sm text-slate-400 italic py-4 text-center">{t('activities.roster_empty')}</p>
-              ) : (
-                rosterStudents.map(r => (
-                  <div key={r.id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 px-3 py-2.5 rounded-lg border border-slate-100 dark:border-slate-700 group">
-                    <div className="flex items-center gap-2">
-                      <Users size={14} className="text-purple-500" />
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{r.studentName}</span>
-                    </div>
-                    {isSuperAdmin && (
-                      <button onClick={() => removeFromRoster(r.id)}
-                        className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title={t('activities.roster_remove')}>
-                        <UserMinus size={14} />
-                      </button>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -1365,27 +1257,61 @@ export const ActivityManager: React.FC<Props> = ({
             </button>
           )}
           {isSuperAdmin && (
-            <ImportExportDropdown
-              entityType="ACTIVITY"
-              label={settings.language === 'he-IL' ? 'פעילויות' : 'Activities'}
-              existingData={csvExistingData}
-              existingDuplicateKeys={csvDuplicateKeys}
+            <div className="relative" ref={csvMenuRef}>
+              <button
+                onClick={() => setCsvMenuOpen(v => !v)}
+                className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                {t('csv.dropdown_label')}
+                <ChevronDown size={14} className={`transition-transform ${csvMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {csvMenuOpen && (
+                <div className="absolute end-0 top-full mt-1 w-52 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-30 overflow-hidden">
+                  <p className="px-4 pt-2.5 pb-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+                    {settings.language === 'he-IL' ? 'פעילויות' : 'Activities'}
+                  </p>
+                  <button onClick={() => { setCsvMenuOpen(false); setCsvModal({ type: 'import', entity: 'ACTIVITY' }); }} className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                    <Upload size={14} className="text-blue-500" /> {t('csv.import')}
+                  </button>
+                  <button onClick={() => { setCsvMenuOpen(false); setCsvModal({ type: 'export', entity: 'ACTIVITY' }); }} className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                    <Download size={14} className="text-green-500" /> {t('csv.export')}
+                  </button>
+                  <button onClick={() => { setCsvMenuOpen(false); downloadCSV(generateTemplate('ACTIVITY'), 'activity_template.csv'); }} className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                    <FileDown size={14} className="text-slate-400" /> {t('csv.template')}
+                  </button>
+                  <div className="border-t border-slate-100 dark:border-slate-700 my-1" />
+                  <p className="px-4 pt-1 pb-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+                    {settings.language === 'he-IL' ? 'היררכיה' : 'Hierarchy'}
+                  </p>
+                  <button onClick={() => { setCsvMenuOpen(false); setCsvModal({ type: 'import', entity: 'ACTIVITY_HIERARCHY' }); }} className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                    <Upload size={14} className="text-blue-500" /> {t('csv.import')}
+                  </button>
+                  <button onClick={() => { setCsvMenuOpen(false); setCsvModal({ type: 'export', entity: 'ACTIVITY_HIERARCHY' }); }} className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                    <Download size={14} className="text-green-500" /> {t('csv.export')}
+                  </button>
+                  <button onClick={() => { setCsvMenuOpen(false); downloadCSV(generateTemplate('ACTIVITY_HIERARCHY'), 'hierarchy_template.csv'); }} className="w-full flex items-center gap-2.5 px-4 py-2 pb-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                    <FileDown size={14} className="text-slate-400" /> {t('csv.template')}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          {csvModal?.type === 'import' && (
+            <CsvImportModal
+              entityType={csvModal.entity}
+              existingDuplicateKeys={csvModal.entity === 'ACTIVITY' ? csvDuplicateKeys : hierarchyDuplicateKeys}
               dependencyMaps={{ activityByName: {}, l2ByName: {}, staffByEmail: {}, studentByName: {} }}
               settings={settings}
-              canWrite={true}
-              onImportComplete={handleActivityImportComplete}
+              onClose={() => setCsvModal(null)}
+              onImportComplete={(rows) => { setCsvModal(null); (csvModal.entity === 'ACTIVITY' ? handleActivityImportComplete : handleActivityHierarchyImportComplete)(rows); }}
             />
           )}
-          {isSuperAdmin && (
-            <ImportExportDropdown
-              entityType="ACTIVITY_HIERARCHY"
-              label={settings.language === 'he-IL' ? 'היררכיה' : 'Hierarchy'}
-              existingData={hierarchyCsvData}
-              existingDuplicateKeys={hierarchyDuplicateKeys}
-              dependencyMaps={{ activityByName: {}, l2ByName: {}, staffByEmail: {}, studentByName: {} }}
+          {csvModal?.type === 'export' && (
+            <ExportScopeModal
+              entityType={csvModal.entity}
+              data={csvModal.entity === 'ACTIVITY' ? csvExistingData : hierarchyCsvData}
               settings={settings}
-              canWrite={true}
-              onImportComplete={handleActivityHierarchyImportComplete}
+              onClose={() => setCsvModal(null)}
             />
           )}
           {isSuperAdmin && (
@@ -1505,7 +1431,7 @@ export const ActivityManager: React.FC<Props> = ({
                 key={activity.id}
                 onClick={() => {
                   if (selectMode) toggleSelected(activity.id);
-                  else { setDetailActivityId(activity.id); setDetailTab('hierarchy'); }
+                  else setDetailActivityId(activity.id);
                 }}
                 className={`bg-white dark:bg-slate-900 rounded-xl shadow-sm border p-6 flex flex-col hover:shadow-md transition-shadow cursor-pointer ${activity.isArchived ? 'opacity-60' : ''} ${selectMode && isSelected ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-900' : 'border-slate-200 dark:border-slate-800'}`}
               >
@@ -1594,7 +1520,7 @@ export const ActivityManager: React.FC<Props> = ({
                   <tr key={activity.id}
                     onClick={() => {
                       if (selectMode) toggleSelected(activity.id);
-                      else { setDetailActivityId(activity.id); setDetailTab('hierarchy'); }
+                      else setDetailActivityId(activity.id);
                     }}
                     className={`border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer ${activity.isArchived ? 'opacity-60' : ''} ${selectMode && isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
                   >

@@ -145,7 +145,6 @@ export default async function globalSetup(): Promise<void> {
         curriculum: false,
         staffBilling: false,
         revenue: false,
-        externalParticipants: false,
         orgRoleBilling: false,
       },
       eventNameMode: 'PROMPTED',

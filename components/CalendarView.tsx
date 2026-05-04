@@ -1023,28 +1023,16 @@ export const CalendarView: React.FC<Props> = ({
       // Update v2.0 participants (delete old, add new)
       setEventParticipantsV2(prev => {
         const withoutOld = prev.filter(p => p.eventId !== editingEvent.id);
-        const newParticipants: EventParticipant[] = [
-          ...formState.staffParticipants.map(sp => ({
-            id: generateId(),
-            orgId: '',
-            eventId: editingEvent.id!,
-            participantType: 'STAFF' as const,
-            staffMemberId: sp.staffMemberId,
-            assignmentType: sp.assignmentType,
-            teachingAssignmentId: sp.teachingAssignmentId || null,
-            orgRoleId: sp.orgRoleId || null,
-            createdAt: now,
-          })),
-          ...formState.externalParticipants.map(ep => ({
-            id: generateId(),
-            orgId: '',
-            eventId: editingEvent.id!,
-            participantType: 'EXTERNAL' as const,
-            externalName: ep.externalName,
-            notes: ep.notes || null,
-            createdAt: now,
-          })),
-        ];
+        const newParticipants: EventParticipant[] = formState.staffParticipants.map(sp => ({
+          id: generateId(),
+          orgId: '',
+          eventId: editingEvent.id!,
+          staffMemberId: sp.staffMemberId,
+          assignmentType: sp.assignmentType,
+          teachingAssignmentId: sp.teachingAssignmentId || null,
+          orgRoleId: sp.orgRoleId || null,
+          createdAt: now,
+        }));
         return [...withoutOld, ...newParticipants];
       });
     } else {
@@ -1096,28 +1084,16 @@ export const CalendarView: React.FC<Props> = ({
       setEventsV2(prev => [...prev, newEventV2]);
 
       // v2.0 EventParticipant documents
-      const newParticipants: EventParticipant[] = [
-        ...formState.staffParticipants.map(sp => ({
-          id: generateId(),
-          orgId: '',
-          eventId: newId,
-          participantType: 'STAFF' as const,
-          staffMemberId: sp.staffMemberId,
-          assignmentType: sp.assignmentType,
-          teachingAssignmentId: sp.teachingAssignmentId || null,
-          orgRoleId: sp.orgRoleId || null,
-          createdAt: now,
-        })),
-        ...formState.externalParticipants.map(ep => ({
-          id: generateId(),
-          orgId: '',
-          eventId: newId,
-          participantType: 'EXTERNAL' as const,
-          externalName: ep.externalName,
-          notes: ep.notes || null,
-          createdAt: now,
-        })),
-      ];
+      const newParticipants: EventParticipant[] = formState.staffParticipants.map(sp => ({
+        id: generateId(),
+        orgId: '',
+        eventId: newId,
+        staffMemberId: sp.staffMemberId,
+        assignmentType: sp.assignmentType,
+        teachingAssignmentId: sp.teachingAssignmentId || null,
+        orgRoleId: sp.orgRoleId || null,
+        createdAt: now,
+      }));
       setEventParticipantsV2(prev => [...prev, ...newParticipants]);
 
       // Google sync

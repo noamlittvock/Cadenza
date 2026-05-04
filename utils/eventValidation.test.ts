@@ -11,7 +11,6 @@ import {
 
 const baseModules: ActivityModules = {
   curriculum: false,
-  externalParticipants: false,
 };
 
 const validBase: EventFormInput = {
@@ -24,7 +23,6 @@ const validBase: EventFormInput = {
   template: 'DISCIPLINE',
   modules: { ...baseModules, curriculum: true },
   staffParticipantCount: 1,
-  externalParticipantCount: 0,
 };
 
 const fieldKeys = (errors: { field: string }[]) => errors.map(e => e.field);

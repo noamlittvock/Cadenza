@@ -5070,5 +5070,81 @@
   {
     "key": "event.v2.err_summary_title",
     "screen_group": "EventFormV2"
+  },
+  {
+    "key": "activities.type_${type.toLowerCase()}",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.archived",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.add_direct_l2_hint",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.view_tree",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.cascade_l1_count",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.cascade_l2_count",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "activities.cascade_assignment_count",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "staff.v2.scope_activity",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.scope_l1",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.scope_l2",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.overlap_error_specific",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.role.activity_teacher_one",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.role.teacher_generic",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.role.band_leader",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.role.program_lead",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.role.external_instructor",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.select_l1",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.no_l1s",
+    "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "staff.v2.scope_help_category",
+    "screen_group": "StaffMemberManager"
   }
 ]

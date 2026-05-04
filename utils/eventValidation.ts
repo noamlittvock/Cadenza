@@ -11,7 +11,6 @@ export type ActivityTemplate = 'DISCIPLINE' | 'PROGRAM' | 'ENSEMBLE' | 'ADMINIST
 
 export interface ActivityModules {
   curriculum: boolean;
-  externalParticipants: boolean;
 }
 
 export interface EventFormInput {
@@ -24,7 +23,6 @@ export interface EventFormInput {
   template: ActivityTemplate;
   modules: ActivityModules;
   staffParticipantCount: number;
-  externalParticipantCount: number;
 }
 
 export interface ValidationError {

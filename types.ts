@@ -55,6 +55,10 @@ export interface TeachingAssignment {
   id: string;
   activityId: string;
   subcategoryId: string;
+  /** Optional v2-aligned scope hints. Only consumed by the v2 seed builder;
+   *  legacy v1 code paths still treat assignments as L2-only via subcategoryId. */
+  scope?: 'ACTIVITY' | 'L1' | 'L2';
+  l1Id?: string | null;
   startDate?: string;
   endDate?: string;
   isEnsemble: boolean;
@@ -359,7 +363,6 @@ export type {
   EnrollmentStatus,
   ImportSessionStatus,
   ImportRowStatus,
-  ParticipantType,
   AssignmentType,
   StaffRole,
   EventNameMode,
@@ -380,7 +383,6 @@ export type {
   EnrollmentV2,
   EventV2,
   EventParticipant,
-  EnsembleRosterMember,
   ImportSession,
   OnboardingState,
   OrgSettingsV2,

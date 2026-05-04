@@ -147,6 +147,8 @@ export const DevTools: React.FC<DevToolsProps> = ({
             wipeV2Col(V2_COLLECTIONS.activities),
             wipeV2Col(V2_COLLECTIONS.l1Subcategories),
             wipeV2Col(V2_COLLECTIONS.l2Subcategories),
+            wipeV2Col(V2_COLLECTIONS.events),
+            wipeV2Col(V2_COLLECTIONS.eventParticipants),
             // system_configs single-doc settings
             deleteDoc(doc(db, 'system_configs', `${orgId}_lists`)),
           ]);
