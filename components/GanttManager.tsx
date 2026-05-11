@@ -182,7 +182,7 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
 
             {block.isBlackout && (
               <div className="mt-2 ms-4">
-                <span className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-[10px] px-2 py-0.5 rounded-full inline-flex items-center">
+                <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-[10px] px-2 py-0.5 rounded-full inline-flex items-center">
                   <AlertOctagon size={10} className="me-1" /> {t('gantt.blackout_label')}
                 </span>
               </div>

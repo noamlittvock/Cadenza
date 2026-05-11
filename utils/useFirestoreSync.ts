@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from './firebase';
 import { useAuth } from '../context/AuthContext';
-import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, ListsState } from '../types';
-import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS } from '../constants';
+import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings } from '../types';
+import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS } from '../constants';
 import {
     LOCAL_MODE,
     readCollection,

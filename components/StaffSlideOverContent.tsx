@@ -13,7 +13,7 @@ import { DocumentSection } from './DocumentSection';
 // ─── Role badge ─────────────────────────────────────────────────────────────
 
 const ROLE_COLORS: Record<StaffRole, string> = {
-  SUPER_ADMIN: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+  SUPER_ADMIN: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300',
   ADMIN: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
   STAFF: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
 };

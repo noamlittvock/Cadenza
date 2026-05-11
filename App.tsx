@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronRight, ChevronLeft, X } from 'lucide-react';
-import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, ListsState, Student, CalendarSubscription, HoursReport, AdminInboxItem } from './types';
-import type { ActivityV2 } from './types/v2';
-import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, INITIAL_LISTS, TRANSLATIONS, migrateTeacher, generateId } from './constants';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ChevronRight, ChevronLeft, X, Filter, Zap, List, Sparkles } from 'lucide-react';
+import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, Student, CalendarSubscription, HoursReport, AdminInboxItem } from './types';
+import type { ActivityV2, L1Subcategory, L2Subcategory, StaffMemberV2, StudentV2 } from './types/v2';
+import type { CalendarSidebarTab } from './types/calendarFilters';
+import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, TRANSLATIONS, migrateTeacher, generateId } from './constants';
 
 const t = (key: string) => {
   const lang = document.documentElement.lang || 'en-US';
@@ -16,8 +17,10 @@ import { useFirestoreSync, useFirestoreSettings } from './utils/useFirestoreSync
 import { useOnboarding } from './utils/useOnboarding';
 import { detectRoomConflicts } from './utils/roomConflicts';
 import { ImportedGoogleEvent } from './utils/googleCalendarSync';
+import { useCalendarFilters } from './hooks/useCalendarFilters';
 import { Layout } from './components/Layout';
 import { CalendarView } from './components/CalendarView';
+import { CalendarFilterPanel } from './components/CalendarFilterPanel';
 import { GanttManager } from './components/GanttManager';
 import { PowerTools } from './components/PowerTools';
 import { Settings } from './components/Settings';
@@ -35,6 +38,7 @@ import { DevSimulationProvider, useEffectiveAuth, useEffectiveOnboarding, useDev
 import { DevSimulationBanner } from './components/DevSimulationBanner';
 import { ScenarioBanner } from './components/ScenarioBanner';
 import { CommandPalette } from './components/CommandPalette';
+import { BotChatPanel } from './components/BotChatPanel';
 
 
 interface ErrorBoundaryProps {
@@ -116,8 +120,15 @@ function AppContent() {
   const [calendarSubscriptions, setCalendarSubscriptions] = useFirestoreSync<CalendarSubscription>('calendarSubscriptions', []);
   const [hoursReports, setHoursReports] = useFirestoreSync<HoursReport>('hoursReports', []);
   const [adminInboxItems, setAdminInboxItems] = useFirestoreSync<AdminInboxItem>('adminInboxItems', []);
-  const [settings, setSettings] = useFirestoreSettings<AppSettings>('settings', INITIAL_SETTINGS);
-  const [lists, setLists] = useFirestoreSettings<ListsState>('lists', INITIAL_LISTS);
+  // Seed initial language from localStorage so first render matches the persisted state
+  // and the useEffect below doesn't flip <html lang/dir> away from what index.tsx pre-applied.
+  // useFirestoreSettings reads its initial value once at mount, so a plain inline call is enough.
+  const savedLang = typeof window !== 'undefined' ? localStorage.getItem('language') : null;
+  const initialSettings: AppSettings =
+    savedLang === 'he-IL' || savedLang === 'en-US'
+      ? { ...INITIAL_SETTINGS, language: savedLang }
+      : INITIAL_SETTINGS;
+  const [settings, setSettings] = useFirestoreSettings<AppSettings>('settings', initialSettings);
 
   // QA Scenario State
   const [activeScenario, setActiveScenario] = useState<import('./utils/testTemplates').QAScenario | null>(null);
@@ -129,6 +140,30 @@ function AppContent() {
   // Marquee Selection State (Lifted)
   const [selectionMode, setSelectionMode] = useState<'NORMAL' | 'MARQUEE'>('NORMAL');
   const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
+
+  // Calendar Sidebar Tab (null = closed)
+  const [sidebarTab, setSidebarTab] = useState<CalendarSidebarTab | null>(null);
+
+  // Calendar Filter State (hoisted so sidebar Filters tab shares the same instance)
+  const { state: filterState, set: filterSet, clear: filterClear, isActive: filterIsActive } = useCalendarFilters(orgId || '');
+
+  // Union of all tags across events, used for the calendar tag filter dimension.
+  const allEventTagsForFilter = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const e of events) {
+      for (const tag of e.tags || []) {
+        const k = tag.toLowerCase();
+        if (!seen.has(k)) seen.set(k, tag);
+      }
+    }
+    return [...seen.values()].sort((a, b) => a.localeCompare(b));
+  }, [events]);
+
+  // v2 collections needed by CalendarFilterPanel (hoisted to avoid prop-drilling)
+  const [l1Subs] = useFirestoreSync<L1Subcategory>(V2_COLLECTIONS.l1Subcategories, []);
+  const [l2Subs] = useFirestoreSync<L2Subcategory>(V2_COLLECTIONS.l2Subcategories, []);
+  const [staffMembersV2] = useFirestoreSync<StaffMemberV2>(V2_COLLECTIONS.staffMembers, []);
+  const [studentsV2] = useFirestoreSync<StudentV2>(V2_COLLECTIONS.students, []);
 
   // Persistent Calendar State
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -175,26 +210,45 @@ function AppContent() {
   useEffect(() => {
     const conflicts = detectRoomConflicts(events);
 
-    // Build set of active conflict fingerprints
+    if (conflicts.length > 50) {
+      console.warn(
+        `[conflict-detection] ${conflicts.length} active room conflicts detected across ${events.length} events. ` +
+        `Investigate: stale events in Firestore, mass-overlap dataset, or duplicate event IDs.`
+      );
+    }
+
     const activeFingerprints = new Set(
       conflicts.map(c => [c.eventA.id, c.eventB.id].sort().join('|'))
     );
 
+    // Only prune orphans once events have loaded — empty events on cold mount
+    // would otherwise wipe legitimate DONE state before the snapshot arrives.
+    const eventIdSet = events.length > 0 ? new Set(events.map(e => e.id)) : null;
+
     setAdminInboxItems(prev => {
+      // Self-heal: drop ROOM_CONFLICT items whose referenced events are all gone.
+      const pruned = eventIdSet
+        ? prev.filter(item => {
+            if (item.relatedEntityType !== 'ROOM_CONFLICT') return true;
+            const ids = item.relatedEntityIds || [];
+            return ids.length === 0 || ids.some(id => eventIdSet.has(id));
+          })
+        : prev;
+
       const existingFingerprints = new Set(
-        prev
+        pruned
           .filter(item => item.relatedEntityType === 'ROOM_CONFLICT')
-          .map(item => (item.relatedEntityIds || []).sort().join('|'))
+          .map(item => (item.relatedEntityIds || []).slice().sort().join('|'))
       );
 
       // Auto-resolve: mark OPEN ROOM_CONFLICT items as DONE if conflict no longer active
       const now = new Date().toISOString();
-      let updated = prev.map(item => {
+      let updated = pruned.map(item => {
         if (
           item.relatedEntityType === 'ROOM_CONFLICT' &&
           item.status === 'OPEN'
         ) {
-          const fp = (item.relatedEntityIds || []).sort().join('|');
+          const fp = (item.relatedEntityIds || []).slice().sort().join('|');
           if (!activeFingerprints.has(fp)) {
             return { ...item, status: 'DONE' as const, markedDoneAt: now, autoResolvedReason: 'CONFLICT_CLEARED' as const };
           }
@@ -217,12 +271,18 @@ function AppContent() {
             message: `"${c.eventA.name}" and "${c.eventB.name}" overlap in ${roomName}`,
             relatedEntityType: 'ROOM_CONFLICT',
             relatedEntityIds: [c.eventA.id, c.eventB.id].sort(),
-            createdAt: new Date().toISOString(),
+            createdAt: now,
           };
         })
         .filter((item): item is NonNullable<typeof item> => item !== null);
 
-      if (newItems.length === 0 && updated === prev) return prev;
+      if (
+        newItems.length === 0 &&
+        pruned.length === prev.length &&
+        updated.every((item, i) => item === pruned[i])
+      ) {
+        return prev;
+      }
       return [...updated, ...newItems];
     });
   }, [events, rooms]);
@@ -291,7 +351,7 @@ function AppContent() {
   };
 
   // Onboarding gate: first admin is blocked from these views until setupGateCleared
-  const GATED_VIEWS: ViewState[] = ['CALENDAR', 'GANTT', 'POWER_TOOLS'];
+  const GATED_VIEWS: ViewState[] = ['CALENDAR'];
   const isHardGated =
     !isSuperAdmin &&
     onboarding.isFirstAdmin &&
@@ -345,7 +405,6 @@ function AppContent() {
         ganttBlocks={ganttBlocks}
         setGanttBlocks={setGanttBlocks}
         settings={settings}
-        lists={lists}
         activities={activities}
         // Marquee Props
         selectionMode={selectionMode}
@@ -357,16 +416,27 @@ function AppContent() {
         setCurrentDate={setCurrentDate}
         viewMode={viewMode}
         setViewMode={setViewMode}
-        // Mobile Sidebar Control
-        setIsMobileMenuOpen={setIsMobileMenuOpen}
         onNavigate={setCurrentView}
         currentView={currentView}
+        // Sidebar tab
+        sidebarTab={sidebarTab}
+        setSidebarTab={setSidebarTab}
+        // Filter state
+        filterState={filterState}
+        filterSet={filterSet}
+        filterClear={filterClear}
+        filterIsActive={filterIsActive}
+        // v2 collections
+        l1Subs={l1Subs}
+        l2Subs={l2Subs}
+        staffMembersV2={staffMembersV2}
+        studentsV2={studentsV2}
       />
     );
 
-    // Unified View for Calendar + Sidebar (Gantt/Power Tools)
-    if (['CALENDAR', 'GANTT', 'POWER_TOOLS'].includes(currentView)) {
-      const showSidebar = currentView !== 'CALENDAR';
+    // Unified View for Calendar + Sidebar (Filters/Power Tools/Gantt)
+    if (currentView === 'CALENDAR') {
+      const showSidebar = sidebarTab !== null;
 
       return (
         <div className="relative w-full h-full overflow-hidden">
@@ -381,13 +451,13 @@ function AppContent() {
             {CalendarComponent}
           </div>
 
-          {/* Collapse Arrow — rendered OUTSIDE the sliding panel so it doesn't appear when collapsed */}
+          {/* Collapse Arrow — rendered OUTSIDE the sliding panel */}
           {showSidebar && (
             <button
-              onClick={() => setCurrentView('CALENDAR')}
+              onClick={() => setSidebarTab(null)}
               className="fixed z-50 bg-slate-700 hover:bg-blue-600 text-slate-300 hover:text-white rounded-full w-10 h-10 flex items-center justify-center shadow-cadenza-deep hover:scale-110 border-4 border-slate-50 dark:border-slate-900 transition-all duration-200 btn-cadenza"
               style={{
-                ...(isRtl ? { left: '364px' } : { right: '364px' }), /* 384px sidebar width minus half the button */
+                ...(isRtl ? { left: '364px' } : { right: '364px' }),
                 bottom: '26%',
               }}
               title={local_t('app.collapse_sidebar')}
@@ -396,7 +466,7 @@ function AppContent() {
             </button>
           )}
 
-          {/* Secondary Sidebar - always rendered, slides in/out */}
+          {/* Tabbed Sidebar — always rendered, slides in/out */}
           <div
             className="sidebar-transition absolute top-0 end-0 h-full bg-white dark:bg-slate-900 shadow-xl z-40 flex flex-col border-s border-slate-200 dark:border-slate-700"
             style={{
@@ -406,9 +476,77 @@ function AppContent() {
               willChange: 'transform',
             }}
           >
-            {/* Scrollable Content — with top padding to prevent header cropping */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
-              {currentView === 'GANTT' && (
+            {/* Tab strip — short labels keep all four tabs legible at 384px */}
+            <div role="tablist" className="flex border-b border-slate-200 dark:border-slate-700 shrink-0">
+              {([
+                { tab: 'FILTERS' as const, label: local_t('cal.tab.filters'), longLabel: local_t('cal.toggle_filters'), icon: <Filter size={14} /> },
+                { tab: 'POWER_TOOLS' as const, label: local_t('cal.tab.tools'), longLabel: local_t('speed.power_tools'), icon: <Zap size={14} /> },
+                { tab: 'GANTT' as const, label: local_t('cal.tab.gantt'), longLabel: local_t('speed.gantt_view'), icon: <List size={14} /> },
+                ...(settings.aiAssistantEnabled
+                  ? [{ tab: 'BOT' as const, label: local_t('cal.tab.bot'), longLabel: local_t('bot.title'), icon: <Sparkles size={14} /> }]
+                  : []),
+              ] as const).map(({ tab, label, longLabel, icon }) => (
+                <button
+                  key={tab}
+                  role="tab"
+                  aria-selected={sidebarTab === tab}
+                  aria-label={longLabel}
+                  title={longLabel}
+                  onClick={() => setSidebarTab(tab)}
+                  className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1 py-2 text-[11px] font-medium transition-colors border-b-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 ${
+                    sidebarTab === tab
+                      ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400'
+                      : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <span className="relative flex items-center">
+                    {icon}
+                    {tab === 'FILTERS' && filterIsActive && sidebarTab !== 'FILTERS' && (
+                      <span className="absolute -top-1 -end-1 w-1.5 h-1.5 rounded-full bg-blue-600" />
+                    )}
+                  </span>
+                  <span className="truncate max-w-full leading-none">{label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Tab content */}
+            <div role="tabpanel" className="flex-1 overflow-y-auto custom-scrollbar">
+              {sidebarTab === 'FILTERS' && (
+                <CalendarFilterPanel
+                  state={filterState}
+                  onChange={filterSet}
+                  onClear={filterClear}
+                  activities={activities}
+                  l1Subs={l1Subs}
+                  l2Subs={l2Subs}
+                  staffMembers={staffMembersV2}
+                  students={studentsV2}
+                  locations={[]}
+                  allEventTags={allEventTagsForFilter}
+                  t={local_t}
+                  isRtl={isRtl}
+                />
+              )}
+              {sidebarTab === 'POWER_TOOLS' && (
+                <div className="pt-2">
+                  <PowerTools
+                    events={events}
+                    setEvents={setEvents}
+                    teachers={teachers}
+                    rooms={rooms}
+                    settings={settings}
+                    activities={activities}
+                    selectionMode={selectionMode}
+                    setSelectionMode={setSelectionMode}
+                    selectedEventIds={selectedEventIds}
+                    setSelectedEventIds={setSelectedEventIds}
+                    ganttBlocks={ganttBlocks}
+                    setGanttBlocks={setGanttBlocks}
+                  />
+                </div>
+              )}
+              {sidebarTab === 'GANTT' && (
                 <div className="p-4 pt-6">
                   <GanttManager
                     blocks={ganttBlocks}
@@ -419,24 +557,17 @@ function AppContent() {
                   />
                 </div>
               )}
-              {currentView === 'POWER_TOOLS' && (
-                <div className="pt-2">
-                  <PowerTools
-                    events={events}
-                    setEvents={setEvents}
-                    teachers={teachers}
-                    rooms={rooms}
-                    settings={settings}
-                    lists={lists}
-                    activities={activities}
-                    selectionMode={selectionMode}
-                    setSelectionMode={setSelectionMode}
-                    selectedEventIds={selectedEventIds}
-                    setSelectedEventIds={setSelectedEventIds}
-                    ganttBlocks={ganttBlocks}
-                    setGanttBlocks={setGanttBlocks}
-                  />
-                </div>
+              {sidebarTab === 'BOT' && settings.aiAssistantEnabled && (
+                <BotChatPanel
+                  active={sidebarTab === 'BOT'}
+                  locale={settings.language}
+                  t={local_t}
+                  teachers={teachers}
+                  rooms={rooms}
+                  students={students}
+                  activities={activities}
+                  events={events}
+                />
               )}
             </div>
           </div>
@@ -453,8 +584,6 @@ function AppContent() {
           <ManageHub
             rooms={rooms}
             setRooms={setRooms}
-            lists={lists}
-            setLists={setLists}
             settings={settings}
             activities={activities}
             setActivities={setActivities}
@@ -495,7 +624,6 @@ function AppContent() {
                 setAdminInboxItems([]);
                 setHoursReports([]);
                 setCalendarSubscriptions([]);
-                setLists(INITIAL_LISTS);
 
                 // 2. Delete persisted data so listeners don't re-populate state.
                 if (LOCAL_MODE && orgId) {
@@ -527,8 +655,6 @@ function AppContent() {
                       wipeCol(V2_COLLECTIONS.activities),
                       wipeCol(V2_COLLECTIONS.l1Subcategories),
                       wipeCol(V2_COLLECTIONS.l2Subcategories),
-                      // system_configs single-doc settings
-                      deleteDoc(doc(db, 'system_configs', `${orgId}_lists`)),
                     ]);
                   } catch (err) {
                     console.warn('[onWipeData] Firestore wipe error (non-fatal):', err);
@@ -542,9 +668,8 @@ function AppContent() {
             setActivities={setActivities}
             setStudents={setStudents}
             setAdminInboxItems={setAdminInboxItems}
-            lists={lists}
-            setLists={setLists}
             onNavigateToView={(view) => setCurrentView(view as ViewState)}
+            onSetSidebarTab={setSidebarTab}
             onActivateScenario={(scenario) => {
               setActiveScenario(scenario);
               setScenarioCheckedSteps([]);
@@ -600,11 +725,12 @@ function AppContent() {
       isGated={isHardGated}
     >
       <div className="relative w-full h-full flex flex-col overflow-hidden">
-        <DevSimulationBanner />
+        <DevSimulationBanner language={settings.language} />
         <CommandPalette
           open={paletteOpen}
           onClose={() => setPaletteOpen(false)}
           setCurrentView={setCurrentView}
+          setSidebarTab={setSidebarTab}
           teachers={teachers}
           students={students}
           events={events}

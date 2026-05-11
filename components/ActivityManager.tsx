@@ -14,7 +14,7 @@ import { useFirestoreSync } from '../utils/useFirestoreSync';
 import { useAuth } from '../context/AuthContext';
 import { Modal } from './Modal';
 import {
-  Plus, Edit2, Archive, RotateCcw, Layers, Trash2, Menu, LayoutGrid, List, X,
+  Plus, Edit2, Archive, RotateCcw, Layers, Trash2, Menu, LayoutGrid, List, Table2, X,
   GraduationCap, Briefcase, Music, Globe, Settings2, ArrowLeft, HelpCircle,
   ChevronRight, Sparkles, ArrowUp, ArrowDown, CheckSquare,
   ChevronDown, Upload, Download, FileDown,
@@ -366,7 +366,7 @@ export const ActivityManager: React.FC<Props> = ({
   const [teachingAssignments, setTeachingAssignments] = useFirestoreSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
 
   // ─── UI State ────────────────────────────────────────────────────────────
-  const [viewMode, setViewMode] = useListStyle(['tree', 'grid', 'list']);
+  const [viewMode, setViewMode] = useListStyle(['table', 'tree', 'grid', 'list']);
   const [treeExpanded, setTreeExpanded] = useState<Set<string>>(new Set()); // ids of expanded activity rows
   const [l1InputsByActivity, setL1InputsByActivity] = useState<Record<string, string>>({});
   const [showArchived, setShowArchived] = useState(false);
@@ -1237,11 +1237,14 @@ export const ActivityManager: React.FC<Props> = ({
               className={`p-2 transition-colors ${viewMode === 'tree' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
               <Layers size={16} />
             </button>
-            <button onClick={() => setViewMode('grid')} className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+            <button onClick={() => setViewMode('grid')} title={t('view.grid')} className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
               <LayoutGrid size={16} />
             </button>
-            <button onClick={() => setViewMode('list')} className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+            <button onClick={() => setViewMode('list')} title={t('view.list')} className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
               <List size={16} />
+            </button>
+            <button onClick={() => setViewMode('table')} title={t('view.table')} className={`hidden md:block p-2 transition-colors ${viewMode === 'table' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+              <Table2 size={16} />
             </button>
           </div>
           {isSuperAdmin && (
@@ -1485,14 +1488,60 @@ export const ActivityManager: React.FC<Props> = ({
             );
           })}
         </div>
+      ) : viewMode === 'list' ? (
+        <div className="space-y-1">
+          {visibleActivities.map(activity => {
+            const config = getActivityConfig(activity);
+            const Icon = config.icon;
+            const l2Count = l2Subs.filter(l => l.activityId === activity.id && !l.isArchived).length;
+            const isSelected = selectedIds.has(activity.id);
+            return (
+              <button key={activity.id}
+                onClick={() => {
+                  if (selectMode) toggleSelected(activity.id);
+                  else setDetailActivityId(activity.id);
+                }}
+                className={`w-full text-start flex items-center gap-4 p-3 bg-white dark:bg-slate-800 rounded-lg border transition-colors ${activity.isArchived ? 'opacity-60' : ''} ${selectMode && isSelected ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-900' : 'border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600'}`}
+              >
+                {selectMode && (
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleSelected(activity.id)}
+                    onClick={e => e.stopPropagation()}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                )}
+                <div className={`p-1.5 rounded-lg bg-${config.color}-100 dark:bg-${config.color}-900/50 text-${config.color}-600 dark:text-${config.color}-300 shrink-0`}>
+                  <Icon size={16} />
+                </div>
+                <div className="flex-1 min-w-0 flex items-center gap-3">
+                  <span className="font-medium text-slate-800 dark:text-slate-200 truncate">{activity.name}</span>
+                  <span className={`text-xs font-semibold uppercase tracking-wider text-${config.color}-500 dark:text-${config.color}-400 shrink-0`}>
+                    {t(`activities.template_${(activity.template || 'discipline').toLowerCase()}`)}
+                  </span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0">
+                    {l2Count} {t('activities.subcategories').toLowerCase()}
+                  </span>
+                </div>
+                {activity.isArchived && (
+                  <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded shrink-0">
+                    {t('activities.archived_badge')}
+                  </span>
+                )}
+                <ChevronRight size={16} className="text-slate-400 shrink-0" />
+              </button>
+            );
+          })}
+        </div>
       ) : (
-        /* List view */
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        /* Table view */
+        <div className="overflow-auto rounded-lg border border-slate-200 dark:border-slate-700">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+              <tr className="border-b border-slate-200 dark:border-slate-700">
                 {selectMode && (
-                  <th className="px-4 py-2 w-10">
+                  <th className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 shadow-sm py-2 px-3 w-10">
                     <input
                       type="checkbox"
                       checked={visibleActivities.length > 0 && visibleActivities.every(a => selectedIds.has(a.id))}
@@ -1504,10 +1553,15 @@ export const ActivityManager: React.FC<Props> = ({
                     />
                   </th>
                 )}
-                <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">{t('activities.name')}</th>
-                <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hidden md:table-cell">{t('activities.type')}</th>
-                <th className="text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hidden lg:table-cell">{t('activities.subcategories')}</th>
-                <th className="text-end px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">{t('btn.edit')}</th>
+                <th className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 shadow-sm py-2 px-3 text-start text-slate-500 dark:text-slate-400 font-medium">
+                  <button onClick={() => toggleSort('name')} className="inline-flex items-center gap-1 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
+                    {t('activities.name')}
+                    {sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                  </button>
+                </th>
+                <th className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 shadow-sm py-2 px-3 text-start text-slate-500 dark:text-slate-400 font-medium hidden md:table-cell">{t('activities.type')}</th>
+                <th className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 shadow-sm py-2 px-3 text-end text-slate-500 dark:text-slate-400 font-medium hidden lg:table-cell">{t('activities.subcategories')}</th>
+                <th className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 shadow-sm py-2 px-3 text-end text-slate-500 dark:text-slate-400 font-medium">{t('btn.edit')}</th>
               </tr>
             </thead>
             <tbody>
@@ -1522,10 +1576,10 @@ export const ActivityManager: React.FC<Props> = ({
                       if (selectMode) toggleSelected(activity.id);
                       else setDetailActivityId(activity.id);
                     }}
-                    className={`border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer ${activity.isArchived ? 'opacity-60' : ''} ${selectMode && isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                    className={`border-b border-slate-100 dark:border-slate-800 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 cursor-pointer transition-colors ${activity.isArchived ? 'opacity-60' : ''} ${selectMode && isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
                   >
                     {selectMode && (
-                      <td className="px-4 py-3 w-10" onClick={e => e.stopPropagation()}>
+                      <td className="py-2 px-3 w-10" onClick={e => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -1534,26 +1588,22 @@ export const ActivityManager: React.FC<Props> = ({
                         />
                       </td>
                     )}
-                    <td className="px-4 py-3">
+                    <td className="py-2 px-3 text-start font-medium text-slate-800 dark:text-slate-200">
                       <div className="flex items-center gap-3">
                         <div className={`p-1.5 rounded-lg bg-${config.color}-100 dark:bg-${config.color}-900/50 text-${config.color}-600 dark:text-${config.color}-300`}>
                           <Icon size={16} />
                         </div>
-                        <div>
-                          <span className="font-medium text-slate-900 dark:text-white">{activity.name}</span>
-                          {activity.isArchived && <span className="ms-2 text-xs text-amber-600 dark:text-amber-400">{t('activities.archived_badge')}</span>}
-                        </div>
+                        <span>{activity.name}</span>
+                        {activity.isArchived && <span className="ms-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded">{t('activities.archived_badge')}</span>}
                       </div>
                     </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
+                    <td className="py-2 px-3 text-start hidden md:table-cell">
                       <span className={`text-xs font-semibold uppercase text-${config.color}-500 dark:text-${config.color}-400`}>
                         {t(`activities.template_${(activity.template || 'discipline').toLowerCase()}`)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400 hidden lg:table-cell">
-                      <span className="text-xs">{l2Count} {t('activities.subcategories').toLowerCase()}</span>
-                    </td>
-                    <td className="px-4 py-3 text-end" onClick={e => e.stopPropagation()}>
+                    <td className="py-2 px-3 text-end text-slate-600 dark:text-slate-400 hidden lg:table-cell">{l2Count}</td>
+                    <td className="py-2 px-3 text-end" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
                         {isSuperAdmin && !activity.isArchived && (
                           <button onClick={() => openEditModal(activity)} className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ViewState } from '../types';
-import { Calendar, Users, AlertOctagon, Sun, Moon, ChevronLeft, ChevronRight, Settings, Smartphone, Sliders, Inbox, Lock } from 'lucide-react';
+import { Calendar, Users, AlertOctagon, Sun, Moon, ChevronLeft, ChevronRight, Settings, Smartphone, Sliders, Mail, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
 import { AppSettings } from '../types';
@@ -55,7 +55,7 @@ const NavItem = ({
         transition: 'opacity 300ms ease, max-width 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
       }}>{label}</span>
     {badge !== undefined && badge > 0 && (
-      <span className={`bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1 ${collapsed ? 'absolute -top-0.5 -end-0.5' : 'ms-auto'}`}>
+      <span className={`bg-amber-500 text-slate-900 text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1 ${collapsed ? 'absolute -top-0.5 -end-0.5' : 'ms-auto'}`}>
         {badge}
       </span>
     )}
@@ -94,10 +94,16 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Sync <html lang> with active language so Hebrew is announced to AT correctly,
+  // and so :lang(he) selectors work for any future locale-scoped CSS.
+  useEffect(() => {
+    document.documentElement.lang = isRtl ? 'he' : 'en';
+  }, [isRtl]);
+
   // Redirect Viewers from Admin Pages
   useEffect(() => {
     if (currentUser?.role === 'VIEWER') {
-      const adminViews: ViewState[] = ['GANTT', 'POWER_TOOLS', 'MANAGE', 'SETTINGS', 'SUPER_ADMIN', 'STAFF_MEMBERS', 'ADMIN_INBOX'];
+      const adminViews: ViewState[] = ['MANAGE', 'SETTINGS', 'SUPER_ADMIN', 'STAFF_MEMBERS', 'ADMIN_INBOX'];
       if (adminViews.includes(currentView)) {
         setView('CALENDAR');
       }
@@ -145,17 +151,21 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       >
         <div className={`p-2 flex items-center ${isCollapsed ? '' : 'space-x-3 rtl:space-x-reverse'} border-b border-slate-800 h-16 overflow-hidden`}
           style={{ transition: 'all 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
-          <div className="p-1.5 bg-transparent rounded-xl flex-shrink-0 overflow-hidden"
+          <button
+            type="button"
+            onClick={() => { setView('CALENDAR'); setIsMobileMenuOpen(false); }}
+            aria-label={t('nav.calendar')}
+            className="p-1.5 bg-transparent rounded-xl flex-shrink-0 overflow-hidden hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-cadenza-300 transition-opacity"
             style={{ transition: 'all 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
-            <img src="/logo.png?v=2" alt={t('layout.logo_alt')} className="w-12 h-12 object-cover rounded shadow-sm" />
-          </div>
+            <img src="/logo.png?v=3" alt={t('layout.logo_alt')} className="w-12 h-12 object-cover rounded shadow-sm" />
+          </button>
           <div className="overflow-hidden flex flex-col justify-center flex-1"
             style={{
               opacity: isCollapsed ? 0 : 1,
               maxWidth: isCollapsed ? 0 : 200,
               transition: 'opacity 300ms ease, max-width 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
             }}>
-            <h1 className="text-sm font-bold leading-snug break-words text-center flex items-center justify-center min-h-full" title={displayOrgName}>
+            <h1 className="text-xs font-bold leading-tight whitespace-nowrap overflow-hidden text-ellipsis text-center min-h-full flex items-center justify-center px-1" title={displayOrgName}>
               {displayOrgName}
             </h1>
             {orgId === 'sandbox' && !isCollapsed && (
@@ -173,7 +183,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto overflow-x-hidden pt-3">
           <NavItem
-            active={['CALENDAR', 'GANTT', 'POWER_TOOLS'].includes(currentView)}
+            active={currentView === 'CALENDAR'}
             onClick={() => { setView('CALENDAR'); setIsMobileMenuOpen(false); }}
             icon={Calendar}
             label={t('nav.calendar')}
@@ -185,22 +195,22 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             <>
               {!isMobile && (
                 <NavItem
-                  active={currentView === 'MANAGE' || currentView === 'STAFF_MEMBERS'}
-                  onClick={() => { setView('MANAGE'); setIsMobileMenuOpen(false); }}
-                  icon={Sliders}
-                  label={t('nav.manage')}
+                  active={currentView === 'ADMIN_INBOX'}
+                  onClick={() => { setView('ADMIN_INBOX'); setIsMobileMenuOpen(false); }}
+                  icon={Mail}
+                  label={t('nav.admin_inbox')}
                   collapsed={isCollapsed}
+                  badge={inboxOpenCount}
                 />
               )}
 
               {!isMobile && (
                 <NavItem
-                  active={currentView === 'ADMIN_INBOX'}
-                  onClick={() => { setView('ADMIN_INBOX'); setIsMobileMenuOpen(false); }}
-                  icon={Inbox}
-                  label={t('nav.admin_inbox')}
+                  active={currentView === 'MANAGE' || currentView === 'STAFF_MEMBERS'}
+                  onClick={() => { setView('MANAGE'); setIsMobileMenuOpen(false); }}
+                  icon={Sliders}
+                  label={t('nav.manage')}
                   collapsed={isCollapsed}
-                  badge={inboxOpenCount}
                 />
               )}
 

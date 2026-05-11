@@ -5,7 +5,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../utils/firebase';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
-import { AppSettings, CalendarEvent, Teacher, Room, Student, ListsState } from '../types';
+import { AppSettings, CalendarEvent, Teacher, Room, Student } from '../types';
 import type { ActivityV2 } from '../types/v2';
 import { Users, Building, AlertCircle, Plus, Trash2, ShieldCheck, Loader2, ImagePlus, Wrench, Edit2, Save, X, Globe, ChevronDown, ChevronUp } from 'lucide-react';
 import { TranslationManager } from './TranslationManager';
@@ -45,15 +45,12 @@ interface SuperAdminProps {
     setActivities?: (data: any[]) => void;
     setStudents?: (data: any[]) => void;
     setAdminInboxItems?: (data: any[]) => void;
-    lists?: ListsState;
-    setLists?: (data: ListsState) => void;
 }
 
 export const SuperAdmin: React.FC<SuperAdminProps> = ({
     onWipeData, onNavigateToView, onActivateScenario, settings, events = [], setEvents, activities = [],
     teachers = [], students = [], rooms = [],
     setTeachers, setHoursReports, setRooms, setGanttBlocks, setActivities, setStudents, setAdminInboxItems,
-    lists, setLists
 }) => {
     const { currentUser, isSuperAdmin } = useAuth();
     const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
@@ -772,8 +769,6 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
                                 onWipeData={onWipeData}
                                 onNavigateToView={onNavigateToView}
                                 onActivateScenario={onActivateScenario}
-                                lists={lists}
-                                setLists={setLists}
                             />
                         )}
                     </div>

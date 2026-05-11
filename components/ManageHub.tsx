@@ -1,21 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Room, ListsState, AppSettings, CalendarSubscription, Teacher, CalendarEvent, Student, HoursReport, AdminInboxItem } from '../types';
+import { Room, AppSettings, CalendarSubscription, Teacher, CalendarEvent, Student, HoursReport, AdminInboxItem } from '../types';
 import type { ActivityV2 } from '../types/v2';
 import { RoomManager } from './RoomManager';
-import { ManageLists } from './ManageLists';
 import { ActivityManager } from './ActivityManager';
 import { CalendarSubscriptionManager } from './CalendarSubscriptionManager';
 import { StaffMemberManager } from './StaffMemberManager';
-import { Home, List, Menu, Layers, Rss, Users } from 'lucide-react';
+import { Home, Menu, Layers, Rss, Users } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
 
-type ManageTab = 'staff' | 'rooms' | 'lists' | 'activities' | 'subscriptions';
+type ManageTab = 'staff' | 'rooms' | 'activities' | 'subscriptions';
 
 interface Props {
     rooms: Room[];
     setRooms: React.Dispatch<React.SetStateAction<Room[]>>;
-    lists: ListsState;
-    setLists: React.Dispatch<React.SetStateAction<ListsState>>;
     settings: AppSettings;
     activities: ActivityV2[];
     setActivities: React.Dispatch<React.SetStateAction<ActivityV2[]>>;
@@ -39,8 +36,6 @@ interface Props {
 export const ManageHub: React.FC<Props> = ({
     rooms,
     setRooms,
-    lists,
-    setLists,
     settings,
     activities,
     setActivities,
@@ -67,7 +62,7 @@ export const ManageHub: React.FC<Props> = ({
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const tabFromUrl = params.get('tab') as ManageTab;
-        if (tabFromUrl && ['staff', 'rooms', 'lists', 'activities', 'subscriptions'].includes(tabFromUrl)) {
+        if (tabFromUrl && ['staff', 'rooms', 'activities', 'subscriptions'].includes(tabFromUrl)) {
             setActiveTab(tabFromUrl);
         }
     }, []);
@@ -85,7 +80,6 @@ export const ManageHub: React.FC<Props> = ({
         { id: 'staff', label: t('nav.staff_members'), icon: Users },
         { id: 'activities', label: t('nav.activities'), icon: Layers },
         { id: 'rooms', label: t('nav.rooms'), icon: Home },
-        { id: 'lists', label: t('nav.lists'), icon: List },
         { id: 'subscriptions', label: t('nav.subscriptions'), icon: Rss },
     ];
 
@@ -140,8 +134,6 @@ export const ManageHub: React.FC<Props> = ({
                     <StaffMemberManager
                         teachers={teachers}
                         setTeachers={setTeachers}
-                        lists={lists}
-                        setLists={setLists}
                         activities={activities}
                         settings={settings}
                         hoursReports={hoursReports}
@@ -173,15 +165,6 @@ export const ManageHub: React.FC<Props> = ({
                         embedded={true}
                     />
                 )}
-                {activeTab === 'lists' && (
-                    <ManageLists
-                        lists={lists}
-                        setLists={setLists}
-                        settings={settings}
-                        onMobileMenuOpen={onMobileMenuOpen}
-                        embedded={true}
-                    />
-                )}
                 {activeTab === 'subscriptions' && (
                     <CalendarSubscriptionManager
                         subscriptions={subscriptions}
@@ -189,7 +172,7 @@ export const ManageHub: React.FC<Props> = ({
                         teachers={teachers}
                         rooms={rooms}
                         activities={activities}
-                        lists={lists}
+                        events={events}
                         settings={settings}
                         embedded={true}
                     />

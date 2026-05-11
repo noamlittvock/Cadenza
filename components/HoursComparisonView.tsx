@@ -99,7 +99,7 @@ export const HoursComparisonView: React.FC<Props> = ({
   };
 
   const getStaffColor = (staffMemberId: string) => {
-    return teachers.find(t => t.id === staffMemberId)?.color || '#6366f1';
+    return teachers.find(t => t.id === staffMemberId)?.color || '#6E1A1A';
   };
 
   const getEntryTypeLabel = (entryType: string) => {
@@ -116,7 +116,7 @@ export const HoursComparisonView: React.FC<Props> = ({
     switch (entryType) {
       case 'CALENDAR_CONFIRMED': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
       case 'CALENDAR_ADJUSTED': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
-      case 'CALENDAR_NOT_COMPLETED': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+      case 'CALENDAR_NOT_COMPLETED': return 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
       case 'MANUAL': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
       default: return 'bg-slate-100 text-slate-700';
     }
@@ -230,13 +230,13 @@ export const HoursComparisonView: React.FC<Props> = ({
                                 <td className="px-5 py-2.5 text-slate-800 dark:text-white font-medium">
                                   {row.eventName}
                                   {row.absenceReason && (
-                                    <span className="block text-xs text-red-500 mt-0.5">{row.absenceReason}</span>
+                                    <span className="block text-xs text-slate-500 dark:text-slate-400 italic mt-0.5">{row.absenceReason}</span>
                                   )}
                                 </td>
                                 <td className="px-5 py-2.5 text-end text-slate-600 dark:text-slate-400 font-mono">{row.scheduledHours > 0 ? formatHours(row.scheduledHours) : '—'}</td>
                                 <td className="px-5 py-2.5 text-end text-slate-800 dark:text-white font-mono font-semibold">{formatHours(row.reportedHours)}</td>
                                 <td className={`px-5 py-2.5 text-end font-mono font-semibold ${
-                                  row.difference > 0 ? 'text-green-600' : row.difference < 0 ? 'text-red-600' : 'text-slate-400'
+                                  row.difference > 0 ? 'text-green-600' : row.difference < 0 ? 'text-amber-600' : 'text-slate-400'
                                 }`}>
                                   {row.difference > 0 ? '+' : ''}{row.difference !== 0 ? formatHours(row.difference) : '—'}
                                 </td>
@@ -254,7 +254,7 @@ export const HoursComparisonView: React.FC<Props> = ({
                               <td className="px-5 py-3 text-end text-slate-600 dark:text-slate-400 font-mono">{formatHours(totalScheduled)}</td>
                               <td className="px-5 py-3 text-end text-slate-800 dark:text-white font-mono">{formatHours(totalReported)}</td>
                               <td className={`px-5 py-3 text-end font-mono ${
-                                totalReported - totalScheduled > 0 ? 'text-green-600' : totalReported - totalScheduled < 0 ? 'text-red-600' : 'text-slate-400'
+                                totalReported - totalScheduled > 0 ? 'text-green-600' : totalReported - totalScheduled < 0 ? 'text-amber-600' : 'text-slate-400'
                               }`}>
                                 {totalReported - totalScheduled > 0 ? '+' : ''}{totalReported !== totalScheduled ? formatHours(totalReported - totalScheduled) : '—'}
                               </td>

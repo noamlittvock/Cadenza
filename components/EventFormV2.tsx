@@ -9,10 +9,21 @@ import { migrateLegacyAssignment } from '../utils/assignmentScope';
 import { useAuth } from '../context/AuthContext';
 import { DatePicker } from './DatePicker';
 import { Repeat, HelpCircle, X } from 'lucide-react';
+import { TagChipInput } from './TagChip';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const DAY_ABBR: DayOfWeek[] = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+
+const DAY_ABBR_KEY: Record<DayOfWeek, string> = {
+  SU: 'recurrence.day_abbr_su',
+  MO: 'recurrence.day_abbr_mo',
+  TU: 'recurrence.day_abbr_tu',
+  WE: 'recurrence.day_abbr_we',
+  TH: 'recurrence.day_abbr_th',
+  FR: 'recurrence.day_abbr_fr',
+  SA: 'recurrence.day_abbr_sa',
+};
 
 const PREFILL_KEY = 'cadenza_event_prefill';
 const WALKTHROUGH_KEY = 'cadenza_event_walkthrough_done';
@@ -44,6 +55,8 @@ export interface EventFormState {
   // Status
   isCanceled: boolean;
   notes: string;
+  // Freeform user grouping labels
+  tags: string[];
 }
 
 export interface EventFormV2Handle {
@@ -62,6 +75,8 @@ export interface EventFormV2Props {
   // v1.3 compat
   rooms: Room[];
   settings: AppSettings;
+  // Pool of all tags already in use across events (for autocomplete in the tag input)
+  tagSuggestions?: string[];
   // Form lifecycle
   editingEventId: string | null;
   existingFormState?: Partial<EventFormState>;
@@ -87,10 +102,10 @@ function isoToTime(iso: string): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-function formatDateDisplay(date: string): string {
+function formatDateDisplay(date: string, language: string = 'en-US'): string {
   if (!date) return '';
   const d = new Date(date + 'T12:00:00');
-  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(language, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -98,7 +113,7 @@ function formatDateDisplay(date: string): string {
 export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
   activitiesV2, l1Subcategories, l2Subcategories, staffMembers,
   teachingAssignments: rawTeachingAssignments, orgRoles,
-  rooms, settings,
+  rooms, settings, tagSuggestions = [],
   editingEventId, existingFormState,
   isExceptionEdit, initialStart, initialEnd,
   onSave,
@@ -149,7 +164,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
         activityId: '', l1Id: '', l2Id: '', name: '', date: '', startTime: '', endTime: '',
         location: '', roomId: '',
         staffParticipants: [],
-        isCanceled: false, notes: '',
+        isCanceled: false, notes: '', tags: [],
         ...existingFormState,
       };
     }
@@ -166,6 +181,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       staffParticipants: [],
       isCanceled: false,
       notes: '',
+      tags: [],
     };
   }, [existingFormState, prefill, initialStart, initialEnd]);
 
@@ -362,7 +378,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
     if (eventNameMode === 'AUTO') {
       const l2 = l2Subcategories.find(l => l.id === form.l2Id);
       const l2Name = l2?.name || selectedActivity?.name || '';
-      const dateStr = formatDateDisplay(form.date);
+      const dateStr = formatDateDisplay(form.date, settings.language);
       if (form.staffParticipants.length === 1) {
         const staff = staffMembers.find(s => s.id === form.staffParticipants[0].staffMemberId);
         const firstName = staff?.fullName.split(' ')[0] || '';
@@ -544,21 +560,30 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
               : <span className="text-red-500"> *</span>
             }
           </label>
-          {eventNameMode === 'PROMPTED' ? (
-            <input
-              className={inputCls}
-              value={form.name}
-              onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
-              placeholder={selectedActivity ? `${selectedActivity.name} · ${formatDateDisplay(form.date)}` : t('event.v2.name_placeholder')}
-            />
-          ) : (
-            <p className="text-sm text-slate-500 dark:text-slate-400 italic">
-              {form.staffParticipants.length === 1
-                ? `${l2Subcategories.find(l => l.id === form.l2Id)?.name || selectedActivity?.name || ''} · ${staffMembers.find(s => s.id === form.staffParticipants[0].staffMemberId)?.fullName.split(' ')[0] || ''} · ${formatDateDisplay(form.date)}`
-                : `${l2Subcategories.find(l => l.id === form.l2Id)?.name || selectedActivity?.name || ''} · ${formatDateDisplay(form.date)}`
-              }
-            </p>
-          )}
+          {(() => {
+            const dateLabel = formatDateDisplay(form.date, settings.language);
+            const subcategoryLabel = l2Subcategories.find(l => l.id === form.l2Id)?.name || selectedActivity?.name || '';
+            if (eventNameMode === 'PROMPTED') {
+              return (
+                <input
+                  className={inputCls}
+                  value={form.name}
+                  onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder={selectedActivity ? `${selectedActivity.name} · ${dateLabel}` : t('event.v2.name_placeholder')}
+                />
+              );
+            }
+            const soloFirstName = form.staffParticipants.length === 1
+              ? staffMembers.find(s => s.id === form.staffParticipants[0].staffMemberId)?.fullName.split(' ')[0] || ''
+              : '';
+            return (
+              <p className="text-sm text-slate-500 dark:text-slate-400 italic">
+                {soloFirstName
+                  ? `${subcategoryLabel} · ${soloFirstName} · ${dateLabel}`
+                  : `${subcategoryLabel} · ${dateLabel}`}
+              </p>
+            );
+          })()}
           {errors.name && <p className={errorCls}>{errors.name}</p>}
         </div>
       )}
@@ -864,7 +889,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
                             : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
                           }`}
                         >
-                          {day}
+                          {t(DAY_ABBR_KEY[day])}
                         </button>
                       ))}
                     </div>
@@ -959,6 +984,19 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
             value={form.notes}
             onChange={e => setForm(prev => ({ ...prev, notes: e.target.value }))}
             placeholder={t('event.v2.notes_placeholder')}
+          />
+        </div>
+      )}
+
+      {/* Tags — freeform grouping labels with autocomplete from existing tags */}
+      {form.activityId && (
+        <div>
+          <label className={labelCls}>{t('event.v2.tags')}</label>
+          <TagChipInput
+            value={form.tags}
+            suggestions={tagSuggestions}
+            onChange={(next) => setForm(prev => ({ ...prev, tags: next }))}
+            placeholder={t('event.v2.tags_placeholder')}
           />
         </div>
       )}

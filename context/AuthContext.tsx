@@ -299,20 +299,13 @@ const RealAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children })
   if (!orgSlug || !currentUser) {
     return (
       <div
-        className="flex min-h-screen items-center justify-center px-4 py-12 bg-cover bg-center bg-no-repeat relative overflow-hidden"
+        className="flex min-h-screen items-end justify-center px-4 pt-8 pb-10 sm:pb-14 bg-cover bg-top bg-no-repeat bg-slate-950 relative overflow-hidden"
         style={{ backgroundImage: 'url("/login.png")' }}
       >
-        {/* Animated Background Overlay */}
-        <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[2px]"></div>
+        {/* Bottom legibility gradient — keeps tablet visible while anchoring the card */}
+        <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-slate-950/80 via-slate-950/30 to-transparent pointer-events-none"></div>
 
         <div className="w-full max-w-md relative z-10 transition-all duration-700 ease-out">
-          <div className="text-center mb-10 transition-transform duration-500">
-            <div className="w-44 h-44 mx-auto mb-6 drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center justify-center">
-              <img src="/logo.png?v=2" alt="Cadenza Logo" className="w-full h-full object-contain" />
-            </div>
-            <img src="/logo_text.png" alt="Cadenza" className="h-[72px] mx-auto mb-3 object-contain drop-shadow-lg" />
-          </div>
-
           <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.4)] border border-white/20 dark:border-slate-700/50 overflow-hidden transform transition-all duration-500">
             <div className="p-8">
               {loading ? (

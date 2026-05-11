@@ -14,7 +14,7 @@ import {
 import {
   Menu, Inbox, CheckCircle2, Bell, ChevronDown, ChevronUp,
   Clock, Users, Eye, EyeOff, Calendar, HelpCircle, AlertTriangle, GraduationCap,
-  ExternalLink, Mail, Phone, XCircle, ShieldCheck
+  ExternalLink, Mail, Phone, XCircle, ShieldCheck, Trash2
 } from 'lucide-react';
 
 interface Props {
@@ -191,8 +191,22 @@ export const AdminInbox: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Notifications header — resolved toggle */}
-        <div className="flex items-center justify-end mb-6">
+        {/* Notifications header — resolved toggle + clear all conflicts */}
+        <div className="flex items-center justify-end gap-4 mb-6">
+          {conflictStats.total > 5 && (
+            <button
+              onClick={() => {
+                if (window.confirm(`Clear all ${conflictStats.total} room conflict notifications? Active conflicts will reappear automatically; resolved ones will be permanently removed.`)) {
+                  setInboxItems(prev => prev.filter(i => i.relatedEntityType !== 'ROOM_CONFLICT'));
+                }
+              }}
+              className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 transition-colors"
+              title="Wipe all room-conflict notifications. Active ones will be regenerated."
+            >
+              <Trash2 size={13} />
+              Clear all conflicts ({conflictStats.total})
+            </button>
+          )}
           <button
             onClick={() => setShowResolvedNotifs(!showResolvedNotifs)}
             className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"

@@ -5,14 +5,15 @@ import { LOCAL_MODE, writeCollection } from '../utils/localStore';
 import { buildV2SeedDocs } from '../utils/v2DocBuilders';
 import { useAuth } from '../context/AuthContext';
 import { useDevSimulation, ROLE_PRESETS } from '../context/DevSimulationContext';
-import { AppSettings, CalendarEvent, Teacher, Room, Student, ListsState } from '../types';
+import { AppSettings, CalendarEvent, Teacher, Room, Student } from '../types';
+import type { CalendarSidebarTab } from '../types/calendarFilters';
 import { ActivityV2, V2_COLLECTIONS } from '../types/v2';
 import {
   Wrench, AlertTriangle, Loader2,
   Calendar, UserCog, CalendarDays, RefreshCw, ClipboardList,
 } from 'lucide-react';
 import { Modal } from './Modal';
-import { TRANSLATIONS, INITIAL_LISTS } from '../constants';
+import { TRANSLATIONS } from '../constants';
 import {
   TEST_TEMPLATES, QA_SCENARIOS, generateTemplateData, resolveTemplateDate, resolveTemplateRole,
 } from '../utils/testTemplates';
@@ -58,18 +59,17 @@ interface DevToolsProps {
   setActivities?: (data: any[]) => void;
   setStudents?: (data: any[]) => void;
   setAdminInboxItems?: (data: any[]) => void;
-  lists?: ListsState;
-  setLists?: (data: ListsState) => void;
   onWipeData?: () => void;
   onNavigateToView?: (view: string) => void;
+  onSetSidebarTab?: (tab: CalendarSidebarTab | null) => void;
   onActivateScenario?: (scenario: import('../utils/testTemplates').QAScenario) => void;
 }
 
 export const DevTools: React.FC<DevToolsProps> = ({
   settings, events, setEvents, activities, teachers, students, rooms,
   setTeachers, setHoursReports, setRooms, setGanttBlocks,
-  setActivities, setStudents, setAdminInboxItems, lists, setLists, onWipeData,
-  onNavigateToView, onActivateScenario,
+  setActivities, setStudents, setAdminInboxItems, onWipeData,
+  onNavigateToView, onSetSidebarTab, onActivateScenario,
 }) => {
   const { currentUser, isSuperAdmin, orgId } = useAuth();
   const {
@@ -122,7 +122,6 @@ export const DevTools: React.FC<DevToolsProps> = ({
       setStudents?.([]);
       setAdminInboxItems?.([]);
       setHoursReports?.([]);
-      setLists?.({ positions: [], tags: [], employmentTypes: [], absenceReasons: [] });
 
       setTemplateProgress({ pct: 20, label: 'Clearing Firestore collections…' });
 
@@ -181,13 +180,6 @@ export const DevTools: React.FC<DevToolsProps> = ({
       setAdminInboxItems?.(data.adminInboxItems);
       setHoursReports?.(data.hoursReports);
 
-      // Populate ManageLists from generated data
-      if (data.teachers.length > 0) {
-        const positions = [...new Set(data.teachers.flatMap(t => t.positionAssignments?.map(pa => pa.positionName) || []))];
-        const tags = [...new Set(data.teachers.flatMap(t => t.tags || []))];
-        setLists?.({ positions, tags, employmentTypes: [], absenceReasons: ['Sick Leave', 'Public Holiday', 'Student Absent', 'Other'] });
-      }
-
       setTemplateProgress({ pct: 80, label: 'Seeding staff & student records…' });
 
       // 3b. Seed V2 collections. Build doc shapes once, then commit through the
@@ -237,8 +229,9 @@ export const DevTools: React.FC<DevToolsProps> = ({
 
       setTemplateProgress({ pct: 95, label: 'Navigating to view…' });
 
-      // 4. Navigate to target view
+      // 4. Navigate to target view (and optionally open a sidebar tab)
       onNavigateToView?.(template.targetView);
+      if (template.sidebarTab) onSetSidebarTab?.(template.sidebarTab);
 
       setTemplateProgress({ pct: 100, label: 'Done!' });
       setTimeout(() => setTemplateProgress(null), 500);
@@ -452,7 +445,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
           {simulatedDate && (
             <div className="mb-3 px-3 py-2 bg-violet-100 dark:bg-violet-900/40 rounded-lg text-sm font-semibold text-violet-700 dark:text-violet-300 flex items-center gap-2">
               <CalendarDays size={14} />
-              Simulating: {simulatedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              Simulating: {simulatedDate.toLocaleDateString(settings.language, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               <button
                 onClick={() => withSimSpinner(() => { setSimulatedDate(null); setDateInputValue(''); })}
                 className="ms-auto text-xs text-violet-500 hover:text-violet-700 dark:hover:text-violet-200 font-normal"
@@ -599,7 +592,6 @@ export const DevTools: React.FC<DevToolsProps> = ({
                   events: localStorage.getItem('events'),
                   rooms: localStorage.getItem('rooms'),
                   settings: localStorage.getItem('settings'),
-                  lists: localStorage.getItem('lists'),
                 }));
                 alert(t('sa.snapshot_created'));
               }}
@@ -615,7 +607,6 @@ export const DevTools: React.FC<DevToolsProps> = ({
                   if (parsed.teachers) localStorage.setItem('teachers', parsed.teachers);
                   if (parsed.events) localStorage.setItem('events', parsed.events);
                   if (parsed.rooms) localStorage.setItem('rooms', parsed.rooms);
-                  if (parsed.lists) localStorage.setItem('lists', parsed.lists);
                   window.location.reload();
                 } else if (!snap) {
                   alert(t('sa.no_snapshot'));
@@ -729,7 +720,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
             </div>
             <div>
               <span className="text-slate-500 block">{t('sa.role_label')}</span>
-              <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded font-bold">{t('sa.superadmin_badge')}</span>
+              <span className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 px-2 py-0.5 rounded font-bold">{t('sa.superadmin_badge')}</span>
             </div>
             <div>
               <span className="text-slate-500 block">Simulation</span>

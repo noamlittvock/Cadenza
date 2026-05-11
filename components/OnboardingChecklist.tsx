@@ -141,7 +141,7 @@ export const OnboardingChecklist: React.FC<Props> = ({
         {/* Header */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-cadenza-gradient texture-cadenza shadow-cadenza-soft mb-5">
-            <img src="/logo.png?v=2" alt="Cadenza" className="w-10 h-10 object-contain" />
+            <img src="/logo.png?v=3" alt="Cadenza" className="w-10 h-10 object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">
             {t('onboarding.setup_title')}

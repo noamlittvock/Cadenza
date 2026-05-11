@@ -2,7 +2,11 @@ import React from 'react';
 import { X, Calendar, UserCog } from 'lucide-react';
 import { useDevSimulation } from '../context/DevSimulationContext';
 
-export const DevSimulationBanner: React.FC = () => {
+interface DevSimulationBannerProps {
+  language?: string;
+}
+
+export const DevSimulationBanner: React.FC<DevSimulationBannerProps> = ({ language = 'en-US' }) => {
   const { simulatedDate, simulatedRole, simulationActive, clearAllSimulations } = useDevSimulation();
 
   if (!simulationActive) return null;
@@ -22,7 +26,7 @@ export const DevSimulationBanner: React.FC = () => {
         {simulatedDate && (
           <span className="flex items-center gap-1.5">
             <Calendar size={14} />
-            {simulatedDate.toLocaleDateString()}
+            {simulatedDate.toLocaleDateString(language)}
           </span>
         )}
       </div>

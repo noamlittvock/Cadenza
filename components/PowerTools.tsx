@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CalendarEvent, Teacher, Room, AppSettings, ListsState, GanttBlock } from '../types';
+import { CalendarEvent, Teacher, Room, AppSettings, GanttBlock } from '../types';
 import type { ActivityV2 } from '../types/v2';
 import { TRANSLATIONS, generateId, COLORS } from '../constants';
 import { Trash2, Filter, AlertTriangle, Check, Calendar, User, Tag, BoxSelect, MousePointer2, ListFilter, Hand, XCircle } from 'lucide-react';
@@ -11,7 +11,6 @@ interface Props {
     teachers: Teacher[];
     rooms: Room[];
     settings: AppSettings;
-    lists: ListsState;
     selectionMode?: 'NORMAL' | 'MARQUEE';
     setSelectionMode?: (mode: 'NORMAL' | 'MARQUEE') => void;
     selectedEventIds?: Set<string>;
@@ -21,7 +20,19 @@ interface Props {
     activities?: ActivityV2[];
 }
 
-export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms, settings, lists, selectionMode, setSelectionMode, selectedEventIds, setSelectedEventIds, ganttBlocks, setGanttBlocks, activities = [] }) => {
+export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms, settings, selectionMode, setSelectionMode, selectedEventIds, setSelectedEventIds, ganttBlocks, setGanttBlocks, activities = [] }) => {
+    // Tag filter pool sourced from teacher tags (the value used in the actual filter check, line ~83).
+    const allTeacherTags = React.useMemo(() => {
+        const seen = new Map<string, string>();
+        for (const tch of teachers) {
+            if (tch.isArchived) continue;
+            for (const tag of tch.tags || []) {
+                const k = tag.toLowerCase();
+                if (!seen.has(k)) seen.set(k, tag);
+            }
+        }
+        return [...seen.values()].sort((a, b) => a.localeCompare(b));
+    }, [teachers]);
     const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
 
     // Selection Method State
@@ -232,7 +243,7 @@ export const PowerTools: React.FC<Props> = ({ events, setEvents, teachers, rooms
                                                 onChange={e => setFilterTag(e.target.value)}
                                             >
                                                 <option value="ALL">{t('power.all_tags')}</option>
-                                                {(lists?.tags || []).map(tag => <option key={tag} value={tag}>{tag}</option>)}
+                                                {allTeacherTags.map(tag => <option key={tag} value={tag}>{tag}</option>)}
                                             </select>
                                         </div>
                                     </div>

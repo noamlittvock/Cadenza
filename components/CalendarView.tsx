@@ -1,9 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, ListsState, RecurrenceRule, DayOfWeek } from '../types';
-import { generateId, INITIAL_LISTS } from '../constants';
-import { CATEGORY_SCHEMAS } from '../utils/schemaRegistry';
-import { ChevronLeft, ChevronRight, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronUp, ChevronDown, Repeat, Ban, RotateCcw, HelpCircle, Search, Loader2 } from 'lucide-react';
+import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, RecurrenceRule, DayOfWeek } from '../types';
+import { generateId } from '../constants';
+import { ChevronLeft, ChevronRight, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronDown, Repeat, Ban, RotateCcw, HelpCircle, Search, Loader2, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { syncEventToGoogle, removeEventFromGoogle, updateEventInGoogle } from '../utils/googleCalendarSync';
 import { Modal } from './Modal';
@@ -15,8 +14,12 @@ import { ImportExportDropdown } from './ImportExportDropdown';
 import { useFirestoreSync } from '../utils/useFirestoreSync';
 import {
   ActivityV2, L1Subcategory, L2Subcategory, StaffMemberV2,
-  TeachingAssignmentV2, OrgRoleV2, EventV2, EventParticipant, V2_COLLECTIONS,
+  TeachingAssignmentV2, OrgRoleV2, EventV2, EventParticipant, EnrollmentV2, StudentV2, V2_COLLECTIONS,
+  AssignmentType,
 } from '../types/v2';
+import { TagChip } from './TagChip';
+import { hasEventDataError } from '../utils/eventValidation';
+import type { CalendarFilterState, CalendarSidebarTab } from '../types/calendarFilters';
 interface Props {
   events: CalendarEvent[];
   setEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>;
@@ -25,7 +28,6 @@ interface Props {
   ganttBlocks: GanttBlock[];
   setGanttBlocks: React.Dispatch<React.SetStateAction<GanttBlock[]>>;
   settings: AppSettings;
-  lists: ListsState;
   activities: ActivityV2[];
 
   // Navigation & View State
@@ -36,14 +38,27 @@ interface Props {
   selectedEventIds: Set<string>;
   setSelectedEventIds: React.Dispatch<React.SetStateAction<Set<string>>>;
 
-  // Mobile Control
-  setIsMobileMenuOpen: (isOpen: boolean) => void;
-
   // Persistent Calendar State
   currentDate: Date;
   setCurrentDate: (date: Date) => void;
   viewMode: 'DAY' | 'WEEK' | 'MONTH';
   setViewMode: (mode: 'DAY' | 'WEEK' | 'MONTH') => void;
+
+  // Sidebar tab (lifted to App.tsx)
+  sidebarTab: CalendarSidebarTab | null;
+  setSidebarTab: (tab: CalendarSidebarTab | null) => void;
+
+  // Filter state (hoisted to App.tsx)
+  filterState: CalendarFilterState;
+  filterSet: (partial: Partial<CalendarFilterState>) => void;
+  filterClear: () => void;
+  filterIsActive: boolean;
+
+  // v2 collections (hoisted to App.tsx)
+  l1Subs: L1Subcategory[];
+  l2Subs: L2Subcategory[];
+  staffMembersV2: StaffMemberV2[];
+  studentsV2: StudentV2[];
 }
 
 type ViewMode = 'DAY' | 'WEEK' | 'MONTH';
@@ -51,6 +66,7 @@ type ViewMode = 'DAY' | 'WEEK' | 'MONTH';
 interface DragState {
   id: string;
   type: 'MOVE' | 'RESIZE';
+  mode: 'TIME_GRID' | 'MONTH';
   startY: number;
   startX: number;
   originalStart: Date;
@@ -99,11 +115,13 @@ const findPeakEventHour = (eventsToCheck: CalendarEvent[], displayDate: Date): n
 };
 
 export const CalendarView: React.FC<Props> = ({
-  events, setEvents, teachers, rooms, ganttBlocks, setGanttBlocks, settings, lists, activities,
+  events, setEvents, teachers, rooms, ganttBlocks, setGanttBlocks, settings, activities,
   onNavigate, currentView,
   selectionMode, setSelectionMode, selectedEventIds, setSelectedEventIds,
-  setIsMobileMenuOpen,
-  currentDate, setCurrentDate, viewMode, setViewMode
+  currentDate, setCurrentDate, viewMode, setViewMode,
+  sidebarTab, setSidebarTab,
+  filterState, filterSet, filterClear, filterIsActive,
+  l1Subs, l2Subs, staffMembersV2, studentsV2,
 }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
   const isRtl = settings?.language === 'he-IL';
@@ -112,18 +130,16 @@ export const CalendarView: React.FC<Props> = ({
   // Google Calendar sync is locked to the tenant admin who connected it
   const isCalendarOwner = currentUser?.email?.toLowerCase() === settings.googleCalendarConnectedBy?.toLowerCase();
 
-  // Safe Fallback for lists
-  const activeLists = lists || INITIAL_LISTS;
 
   // ─── v2.0 Firestore hooks (Phase 5) ─────────────────────────────────────
+  // l1Subs, l2Subs, staffMembersV2, studentsV2 are hoisted to App.tsx
   // activities prop is already ActivityV2[] from App.tsx — no redundant sync needed
-  const [l1Subs] = useFirestoreSync<L1Subcategory>(V2_COLLECTIONS.l1Subcategories, []);
-  const [l2Subs] = useFirestoreSync<L2Subcategory>(V2_COLLECTIONS.l2Subcategories, []);
-  const [staffMembersV2] = useFirestoreSync<StaffMemberV2>(V2_COLLECTIONS.staffMembers, []);
   const [teachingAssignmentsV2] = useFirestoreSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
   const [orgRolesV2] = useFirestoreSync<OrgRoleV2>(V2_COLLECTIONS.orgRoles, []);
   const [eventsV2, setEventsV2] = useFirestoreSync<EventV2>(V2_COLLECTIONS.events, []);
   const [eventParticipantsV2, setEventParticipantsV2] = useFirestoreSync<EventParticipant>(V2_COLLECTIONS.eventParticipants, []);
+  const [enrollments] = useFirestoreSync<EnrollmentV2>(V2_COLLECTIONS.enrollments, []);
+  const students = studentsV2;
 
   // ─── CSV Import/Export data ──────────────────────────────────────────────
   const canWriteCalendar = isSuperAdmin || isAdmin;
@@ -180,35 +196,18 @@ export const CalendarView: React.FC<Props> = ({
     setEventsV2(prev => [...prev, ...newEvents]);
   }, [orgId, setEventsV2, csvActivityByName, csvL2ByName]);
 
-  // Filters
-  const [filterTeacher, setFilterTeacher] = useState<string>('ALL');
-  const [filterRoom, setFilterRoom] = useState<string>('ALL');
-  const [filterClass, setFilterClass] = useState<string>('ALL');
-  const [filterPosition, setFilterPosition] = useState<string>('ALL');
-  const [filterTag, setFilterTag] = useState<string>('ALL');
-
   // Interaction State
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [tempEvent, setTempEvent] = useState<CalendarEvent | null>(null);
   const wasDraggingRef = useRef(false);
   const gridDaysRef = useRef<Date[]>([]);
 
-  // Speed Dial State
-  const [isSpeedDialOpen, setIsSpeedDialOpen] = useState(false);
-
-  // Filter UI State
-  const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
-  const [eventSearchQuery, setEventSearchQuery] = useState('');
-  const [showCanceled, setShowCanceled] = useState(true);
-  const [showBlackouts, setShowBlackouts] = useState(true);
-  const [showOnlyOverlapping, setShowOnlyOverlapping] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
 
   // Modal State (Edit/Create)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalAnchorPosition, setModalAnchorPosition] = useState<{ x: number; y: number } | null>(null);
   const [editingEvent, setEditingEvent] = useState<Partial<CalendarEvent>>({});
-  const [initialEditingEvent, setInitialEditingEvent] = useState<Partial<CalendarEvent>>({});
 
   // Detail Popover State
   const [detailItem, setDetailItem] = useState<DetailItem>(null);
@@ -236,18 +235,26 @@ export const CalendarView: React.FC<Props> = ({
   // Gantt Collapsible State
   const [isGanttExpanded, setIsGanttExpanded] = useState(true);
 
+  // Month sub-mode: EVENTS (inline event list; Gantt rubric on hover) or GANTT (overlay; events on hover).
+  // Always defaults to EVENTS on mount — no persistence.
+  const [monthSubMode, setMonthSubMode] = useState<'GANTT' | 'EVENTS'>('EVENTS');
+
+  // Latest events for scroll-centering — read inside the view/date effect without
+  // forcing it to re-run on every event mutation (which would scroll-jump mid-edit).
+  const eventsRef = useRef(events);
+  eventsRef.current = events;
+
   // Preserve scroll position across re-mounts (view switching to/from Power Tools/Gantt)
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
-    // Smart centering: Find peak event hour and scroll to it (±2 hours)
-    const peakHour = findPeakEventHour(events, currentDate);
-    const centerHour = Math.max(START_HOUR, Math.min(peakHour - 1, END_HOUR - 2)); // ±1-2 hour buffer
+    const evts = eventsRef.current;
+    const peakHour = findPeakEventHour(evts, currentDate);
+    const centerHour = Math.max(START_HOUR, Math.min(peakHour - 1, END_HOUR - 2));
     const smartScrollTop = centerHour * PIXELS_PER_HOUR;
 
-    // Use smart scroll on mount if events exist, otherwise restore saved position
-    const hasEventsOnDate = events.some((e: CalendarEvent) => {
+    const hasEventsOnDate = evts.some((e: CalendarEvent) => {
       const eStart = new Date(e.start);
       const dayStart = new Date(currentDate);
       dayStart.setHours(0, 0, 0, 0);
@@ -258,11 +265,10 @@ export const CalendarView: React.FC<Props> = ({
 
     el.scrollTop = hasEventsOnDate ? smartScrollTop : savedScrollTop;
 
-    // Save scroll position as user scrolls
     const handleScroll = () => { savedScrollTop = el.scrollTop; };
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
-  }, [viewMode, currentDate, events]); // re-run when view mode, date, or events change
+  }, [viewMode, currentDate]);
 
   const DAY_MAP: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
   const DAY_ABBR: DayOfWeek[] = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
@@ -480,53 +486,198 @@ export const CalendarView: React.FC<Props> = ({
 
   // --- Filtering & Derived Data ---
 
+  // Pre-computed lookup indexes — stable unless their source arrays change
+  const eventsV2ById = useMemo(() => new Map(eventsV2.map(e => [e.id, e])), [eventsV2]);
+
+  const participantsByEventId = useMemo(() => {
+    const map = new Map<string, EventParticipant[]>();
+    for (const p of eventParticipantsV2) {
+      const arr = map.get(p.eventId) ?? [];
+      arr.push(p);
+      map.set(p.eventId, arr);
+    }
+    return map;
+  }, [eventParticipantsV2]);
+
+  // Resolve participants for an event, falling back to legacy single-teacher events
+  // that predate the EventParticipant table.
+  const resolveParticipants = useCallback(
+    (parentId: string, legacyTeacherId?: string): EventParticipant[] =>
+      participantsByEventId.get(parentId) ??
+      (legacyTeacherId
+        ? [{ staffMemberId: legacyTeacherId, assignmentType: 'TEACHING' as AssignmentType } as EventParticipant]
+        : []),
+    [participantsByEventId]
+  );
+
+  const activityById = useMemo(() => new Map(activities.map(a => [a.id, a])), [activities]);
+
+  const staffById = useMemo(() => new Map(staffMembersV2.map(s => [s.id, s])), [staffMembersV2]);
+
+  const enrollmentsByActivityL2 = useMemo(() => {
+    const map = new Map<string, EnrollmentV2[]>();
+    for (const e of enrollments) {
+      const key = `${e.activityId}|${e.l2Id}`;
+      const arr = map.get(key) ?? [];
+      arr.push(e);
+      map.set(key, arr);
+    }
+    return map;
+  }, [enrollments]);
+
+  const studentById = useMemo(() => new Map(students.map(s => [s.id, s])), [students]);
+
+  // Union of all tags across events — used for autocomplete in EventFormV2 and the calendar tag filter.
+  const allEventTags = useMemo(() => {
+    const seen = new Map<string, string>(); // lower → original-case
+    for (const e of events) {
+      for (const t of e.tags || []) {
+        const k = t.toLowerCase();
+        if (!seen.has(k)) seen.set(k, t);
+      }
+    }
+    return [...seen.values()].sort((a, b) => a.localeCompare(b));
+  }, [events]);
+
   const filteredEvents = useMemo(() => {
-    const events = expandedEvents.filter(evt => {
-      // Hide blacked out events
-      if (evt.isHidden && !showBlackouts) return false;
+    const fs = filterState;
 
-      // Hide canceled events if toggle is off
-      if (evt.isCanceled && !showCanceled) return false;
+    const evts = expandedEvents.filter(evt => {
+      // Resolve the parent event ID (recurring instances have id = `${parentId}_YYYY-MM-DD`)
+      const parentId = evt.recurrenceId || evt.id;
+      const v2 = eventsV2ById.get(parentId);
 
-      // Hide blackout-hidden events if toggle is off
-      if (evt.isHidden && !showBlackouts) return false;
+      // Coerce status from v2 or legacy boolean fields
+      const status = v2?.status ?? (evt.isCanceled ? 'CANCELLED' : evt.isHidden ? 'ARCHIVED' : 'SCHEDULED');
 
-      const teacher = teachers.find(t => t.id === evt.teacherId);
+      if (fs.status.length > 0 && !fs.status.includes(status)) return false;
 
-      if (filterTeacher !== 'ALL' && evt.teacherId !== filterTeacher) return false;
-      if (filterRoom !== 'ALL' && evt.roomId !== filterRoom) return false;
-      if (filterClass !== 'ALL') {
-        if (evt.activityId !== filterClass) return false;
+      // Recurrence
+      const isRec = !!(evt.recurrenceRule || evt.recurrenceId);
+      if (fs.recurrence === 'RECURRING' && !isRec) return false;
+      if (fs.recurrence === 'ONE_OFF' && isRec) return false;
+
+      // Taxonomy
+      const actId = evt.activityId || v2?.activityId || '';
+      if (fs.activityId.length > 0 && !fs.activityId.includes(actId)) return false;
+
+      const l1Id = v2?.l1Id ?? null;
+      if (fs.l1Id.length > 0 && (l1Id === null || !fs.l1Id.includes(l1Id))) return false;
+
+      const l2Id = v2?.l2Id ?? null;
+      if (fs.l2Id.length > 0 && (l2Id === null || !fs.l2Id.includes(l2Id))) return false;
+
+      if (fs.activityType.length > 0) {
+        const act = activityById.get(actId);
+        if (!act || !fs.activityType.includes(act.activityType)) return false;
+      }
+      if (fs.template.length > 0) {
+        const act = activityById.get(actId);
+        if (!act || !fs.template.includes(act.template)) return false;
       }
 
-      if (filterPosition !== 'ALL' && teacher) {
-        if (!teacher.positions.includes(filterPosition)) return false;
+      // Location (v2 field, no legacy equivalent)
+      const location = v2?.location ?? '';
+      if (fs.location.length > 0 && !fs.location.includes(location)) return false;
+
+      // Staff via EventParticipant (with legacy teacherId fallback)
+      if (fs.staffMemberId.length > 0 || fs.assignmentType.length > 0 || fs.staffRole.length > 0) {
+        const participants = resolveParticipants(parentId, evt.teacherId);
+
+        if (fs.staffMemberId.length > 0) {
+          if (!participants.some(p => fs.staffMemberId.includes(p.staffMemberId))) return false;
+        }
+        if (fs.assignmentType.length > 0) {
+          if (!participants.some(p => fs.assignmentType.includes(p.assignmentType))) return false;
+        }
+        if (fs.staffRole.length > 0) {
+          if (!participants.some(p => {
+            const staff = staffById.get(p.staffMemberId);
+            return staff && fs.staffRole.includes(staff.role);
+          })) return false;
+        }
       }
 
-      if (filterTag !== 'ALL' && teacher) {
-        if (!teacher.tags.includes(filterTag)) return false;
+      // Student / Student Tag via EnrollmentV2
+      if (fs.studentId.length > 0 || fs.studentTag.length > 0) {
+        const key = `${actId}|${l2Id}`;
+        const active = (enrollmentsByActivityL2.get(key) ?? []).filter(e => e.status === 'ACTIVE');
+        if (fs.studentId.length > 0) {
+          if (!active.some(e => fs.studentId.includes(e.studentId))) return false;
+        }
+        if (fs.studentTag.length > 0) {
+          if (!active.some(e => {
+            const stu = studentById.get(e.studentId);
+            return stu && stu.tags.some(tag => fs.studentTag.includes(tag));
+          })) return false;
+        }
       }
 
-      if (eventSearchQuery.trim()) {
-        const q = eventSearchQuery.toLowerCase();
-        const nameMatch = evt.name?.toLowerCase().includes(q);
-        const teacherMatch = teacher?.fullName?.toLowerCase().includes(q);
-        const roomMatch = rooms.find(r => r.id === evt.roomId)?.name?.toLowerCase().includes(q);
-        if (!nameMatch && !teacherMatch && !roomMatch) return false;
+      // Event tag filter — match if event has any of the selected tags
+      if (fs.eventTag.length > 0) {
+        const evtTags = evt.tags || [];
+        if (!evtTags.some(tag => fs.eventTag.includes(tag))) return false;
+      }
+
+      // Validation error derived filter
+      if (fs.hasValidationError && !hasEventDataError(evt)) return false;
+
+      // Text search — matches name, location/room, notes, activity, L1/L2,
+      // staff/teacher names, and enrolled student names.
+      if (fs.search.trim()) {
+        const q = fs.search.toLowerCase();
+        const haystack: string[] = [
+          evt.name ?? '',
+          location,
+          v2?.notes ?? '',
+        ];
+
+        const act = activityById.get(actId);
+        if (act?.name) haystack.push(act.name);
+
+        if (l1Id) {
+          const l1 = l1Subs.find(l => l.id === l1Id);
+          if (l1?.name) haystack.push(l1.name);
+        }
+        if (l2Id) {
+          const l2 = l2Subs.find(l => l.id === l2Id);
+          if (l2?.name) haystack.push(l2.name);
+        }
+
+        const participants = resolveParticipants(parentId, evt.teacherId);
+        for (const p of participants) {
+          const staff = staffById.get(p.staffMemberId);
+          if (staff?.fullName) haystack.push(staff.fullName);
+        }
+
+        if (l2Id) {
+          const enrollKey = `${actId}|${l2Id}`;
+          const active = (enrollmentsByActivityL2.get(enrollKey) ?? []).filter(e => e.status === 'ACTIVE');
+          for (const e of active) {
+            const stu = studentById.get(e.studentId);
+            if (stu?.fullName) haystack.push(stu.fullName);
+          }
+        }
+
+        if (!haystack.some(s => s.toLowerCase().includes(q))) return false;
       }
 
       return true;
     });
 
-    // If overlapping filter is ON, show only events that have time/room conflicts
-    if (showOnlyOverlapping) {
-      const conflicts = detectRoomConflicts(events);
-      const conflictingEventIds = getConflictingEventIds(conflicts);
-      return events.filter(e => conflictingEventIds.has(e.id));
+    // Room conflict filter — post-filter set operation (expensive, run last)
+    if (fs.hasRoomConflict) {
+      const conflicts = detectRoomConflicts(evts);
+      const conflictingIds = getConflictingEventIds(conflicts);
+      return evts.filter(e => conflictingIds.has(e.id));
     }
 
-    return events;
-  }, [expandedEvents, teachers, activities, rooms, filterTeacher, filterRoom, filterClass, filterPosition, filterTag, showCanceled, showBlackouts, showOnlyOverlapping, eventSearchQuery]);
+    return evts;
+  }, [
+    expandedEvents, filterState,
+    eventsV2ById, activityById, resolveParticipants, staffById,
+    enrollmentsByActivityL2, studentById, l1Subs, l2Subs,
+  ]);
 
   const conflictingIds = useMemo(() => {
     const conflicts = detectRoomConflicts(filteredEvents);
@@ -540,57 +691,72 @@ export const CalendarView: React.FC<Props> = ({
     return detectRoomConflicts(expandedEvents).length;
   }, [expandedEvents]);
 
-  // BL01: Active filter pill descriptors. One entry per active select-style filter.
+  // BL01: Active filter pill descriptors — one entry per non-default dimension.
   const activeFilterPills = useMemo(() => {
     const pills: Array<{ key: string; label: string; clear: () => void }> = [];
-    if (filterTeacher !== 'ALL') {
-      const teacher = teachers.find(x => x.id === filterTeacher);
-      pills.push({
-        key: 'teacher',
-        label: `${t('cal.filter.teacher_all').replace(/^[A-Za-zא-ת ]+: ?/, '').replace(/All /i, '')}: ${teacher?.fullName ?? filterTeacher}`,
-        clear: () => setFilterTeacher('ALL'),
-      });
+    const fs = filterState;
+    const defaultStatus = new Set(['SCHEDULED', 'COMPLETED']);
+    const stateStatus = new Set(fs.status);
+    if (stateStatus.size !== defaultStatus.size || [...stateStatus].some(s => !defaultStatus.has(s as string))) {
+      pills.push({ key: 'status', label: `${t('cal.filter.status.label')}: ${fs.status.join(', ')}`, clear: () => filterSet({ status: ['SCHEDULED', 'COMPLETED'] }) });
     }
-    if (filterRoom !== 'ALL') {
-      const room = rooms.find(x => x.id === filterRoom);
-      pills.push({
-        key: 'room',
-        label: `${t('cal.filter.room_all').replace(/^All /i, '')}: ${room?.name ?? filterRoom}`,
-        clear: () => setFilterRoom('ALL'),
-      });
+    if (fs.recurrence !== 'ALL') {
+      pills.push({ key: 'recurrence', label: `${t('cal.filter.recurrence.label')}: ${fs.recurrence}`, clear: () => filterSet({ recurrence: 'ALL' }) });
     }
-    if (filterClass !== 'ALL') {
-      const activity = activities.find(x => x.id === filterClass);
-      pills.push({
-        key: 'class',
-        label: `${t('cal.filter.activity_all').replace(/^All /i, '')}: ${activity?.name ?? filterClass}`,
-        clear: () => setFilterClass('ALL'),
-      });
+    if (fs.activityType.length > 0) {
+      pills.push({ key: 'activityType', label: `${t('cal.filter.type.label')}: ${fs.activityType.join(', ')}`, clear: () => filterSet({ activityType: [] }) });
     }
-    if (filterPosition !== 'ALL') {
-      pills.push({
-        key: 'position',
-        label: `${t('cal.filter.position_all').replace(/^All /i, '')}: ${filterPosition}`,
-        clear: () => setFilterPosition('ALL'),
-      });
+    if (fs.template.length > 0) {
+      pills.push({ key: 'template', label: `${t('cal.filter.tmpl.label')}: ${fs.template.join(', ')}`, clear: () => filterSet({ template: [] }) });
     }
-    if (filterTag !== 'ALL') {
-      pills.push({
-        key: 'tag',
-        label: `${t('cal.filter.tag_all').replace(/^All /i, '')}: ${filterTag}`,
-        clear: () => setFilterTag('ALL'),
-      });
+    if (fs.activityId.length > 0) {
+      const names = fs.activityId.map(id => activityById.get(id)?.name ?? id);
+      pills.push({ key: 'activityId', label: `${t('cal.filter.activity.label')}: ${names.join(', ')}`, clear: () => filterSet({ activityId: [], l1Id: [], l2Id: [] }) });
+    }
+    if (fs.l1Id.length > 0) {
+      const names = fs.l1Id.map(id => l1Subs.find(l => l.id === id)?.name ?? id);
+      pills.push({ key: 'l1Id', label: `L1: ${names.join(', ')}`, clear: () => filterSet({ l1Id: [], l2Id: [] }) });
+    }
+    if (fs.l2Id.length > 0) {
+      const names = fs.l2Id.map(id => l2Subs.find(l => l.id === id)?.name ?? id);
+      pills.push({ key: 'l2Id', label: `L2: ${names.join(', ')}`, clear: () => filterSet({ l2Id: [] }) });
+    }
+    if (fs.staffMemberId.length > 0) {
+      const names = fs.staffMemberId.map(id => staffById.get(id)?.fullName ?? id);
+      pills.push({ key: 'staff', label: `${t('cal.filter.staff.label')}: ${names.join(', ')}`, clear: () => filterSet({ staffMemberId: [], assignmentType: [] }) });
+    }
+    if (fs.assignmentType.length > 0) {
+      pills.push({ key: 'assignmentType', label: `${t('cal.filter.assign.label')}: ${fs.assignmentType.join(', ')}`, clear: () => filterSet({ assignmentType: [] }) });
+    }
+    if (fs.staffRole.length > 0) {
+      pills.push({ key: 'staffRole', label: `${t('cal.filter.role.label')}: ${fs.staffRole.join(', ')}`, clear: () => filterSet({ staffRole: [] }) });
+    }
+    if (fs.studentId.length > 0) {
+      const names = fs.studentId.map(id => studentById.get(id)?.fullName ?? id);
+      pills.push({ key: 'studentId', label: `${t('cal.filter.student.label')}: ${names.join(', ')}`, clear: () => filterSet({ studentId: [] }) });
+    }
+    if (fs.studentTag.length > 0) {
+      pills.push({ key: 'studentTag', label: `${t('cal.filter.student_tag.label')}: ${fs.studentTag.join(', ')}`, clear: () => filterSet({ studentTag: [] }) });
+    }
+    if (fs.eventTag.length > 0) {
+      pills.push({ key: 'eventTag', label: `${t('cal.filter.event_tag.label')}: ${fs.eventTag.join(', ')}`, clear: () => filterSet({ eventTag: [] }) });
+    }
+    if (fs.location.length > 0) {
+      pills.push({ key: 'location', label: `${t('cal.filter.location.label')}: ${fs.location.join(', ')}`, clear: () => filterSet({ location: [] }) });
+    }
+    if (fs.hasRoomConflict) {
+      pills.push({ key: 'roomConflict', label: t('cal.filter.has_room_conflict'), clear: () => filterSet({ hasRoomConflict: false }) });
+    }
+    if (fs.hasValidationError) {
+      pills.push({ key: 'validationError', label: t('cal.filter.has_validation_error'), clear: () => filterSet({ hasValidationError: false }) });
+    }
+    if (fs.search) {
+      pills.push({ key: 'search', label: `"${fs.search}"`, clear: () => filterSet({ search: '' }) });
     }
     return pills;
-  }, [filterTeacher, filterRoom, filterClass, filterPosition, filterTag, teachers, rooms, activities, t]);
+  }, [filterState, activityById, l1Subs, l2Subs, staffById, studentById, t, filterSet]);
 
-  const clearAllFilters = useCallback(() => {
-    setFilterTeacher('ALL');
-    setFilterRoom('ALL');
-    setFilterClass('ALL');
-    setFilterPosition('ALL');
-    setFilterTag('ALL');
-  }, []);
+  const clearAllFilters = useCallback(() => filterClear(), [filterClear]);
 
   const displayEvents = useMemo(() => {
     if (tempEvent) {
@@ -679,6 +845,7 @@ export const CalendarView: React.FC<Props> = ({
     setDragState({
       id: evt.id,
       type,
+      mode: 'TIME_GRID',
       startY: e.clientY,
       startX: e.clientX,
       originalStart: new Date(evt.start),
@@ -687,20 +854,75 @@ export const CalendarView: React.FC<Props> = ({
     setTempEvent(evt);
   };
 
+  const handleMonthChipMouseDown = (e: React.MouseEvent, evt: CalendarEvent) => {
+    if (selectionMode === 'MARQUEE') return;
+    e.stopPropagation();
+    e.preventDefault();
+    setDetailItem(null);
+    setDragState({
+      id: evt.id,
+      type: 'MOVE',
+      mode: 'MONTH',
+      startY: e.clientY,
+      startX: e.clientX,
+      originalStart: new Date(evt.start),
+      originalEnd: new Date(evt.end),
+    });
+    setTempEvent(evt);
+  };
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!dragState || !tempEvent) return;
 
+      // Month view: date changes by hit-testing the cell under the cursor.
+      if (dragState.mode === 'MONTH') {
+        const elem = document.elementFromPoint(e.clientX, e.clientY);
+        const cell = (elem as HTMLElement | null)?.closest('[data-month-day]') as HTMLElement | null;
+        if (!cell?.dataset.monthDay) return;
+
+        const targetDate = new Date(cell.dataset.monthDay);
+        if (Number.isNaN(targetDate.getTime())) return;
+
+        const currentStart = new Date(tempEvent.start);
+        if (
+          currentStart.getFullYear() === targetDate.getFullYear() &&
+          currentStart.getMonth() === targetDate.getMonth() &&
+          currentStart.getDate() === targetDate.getDate()
+        ) return;
+
+        const original = dragState.originalStart;
+        const duration = dragState.originalEnd.getTime() - dragState.originalStart.getTime();
+        const newStart = new Date(targetDate);
+        newStart.setHours(
+          original.getHours(),
+          original.getMinutes(),
+          original.getSeconds(),
+          original.getMilliseconds(),
+        );
+        const newEnd = new Date(newStart.getTime() + duration);
+
+        setTempEvent({
+          ...tempEvent,
+          start: newStart.toISOString(),
+          end: newEnd.toISOString(),
+        });
+        return;
+      }
+
       const deltaY = e.clientY - dragState.startY;
       const deltaMinutes = Math.round((deltaY / PIXELS_PER_HOUR) * 60 / SNAP_MINUTES) * SNAP_MINUTES;
 
-      // Horizontal: calculate day offset from column width
+      // Horizontal: calculate day offset from column width — also enabled in
+      // single-column DAY view, where one column-width drag = ±1 day.
+      // RTL: columns flow right-to-left, so dragging right means earlier day.
       let dayOffset = 0;
-      if (dragState.type === 'MOVE' && containerRef.current && gridDaysRef.current.length > 1) {
+      if (dragState.type === 'MOVE' && containerRef.current && gridDaysRef.current.length >= 1) {
         const containerWidth = containerRef.current.clientWidth;
         const dayColumnWidth = (containerWidth - 50) / gridDaysRef.current.length;
         if (dayColumnWidth > 0) {
-          dayOffset = Math.round((e.clientX - dragState.startX) / dayColumnWidth);
+          const rawOffset = Math.round((e.clientX - dragState.startX) / dayColumnWidth);
+          dayOffset = isRtl ? -rawOffset : rawOffset;
         }
       }
 
@@ -842,7 +1064,6 @@ export const CalendarView: React.FC<Props> = ({
       };
     }
     setEditingEvent(newEvent);
-    setInitialEditingEvent(newEvent);
     setModalAnchorPosition(anchor ?? null);
     setIsModalOpen(true);
     setDetailItem(null);
@@ -919,78 +1140,6 @@ export const CalendarView: React.FC<Props> = ({
     }
   };
 
-  const saveEvent = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!editingEvent.name) return;
-
-    if (new Date(editingEvent.end!) <= new Date(editingEvent.start!)) {
-      alert(t('cal.alert_end_after_start'));
-      return;
-    }
-
-    if (editingEvent.id) {
-      // Check if this is a virtual recurring instance (id contains _)
-      const isVirtualInstance = editingEvent.id.includes('_') && editingEvent.recurrenceId;
-      if (isVirtualInstance) {
-        // This was triggered by "Just This One" — create exception
-        const parentId = editingEvent.recurrenceId!;
-        const dateKey = editingEvent.originalStart || new Date(editingEvent.start!).toISOString().split('T')[0];
-
-        // Add date to parent's exceptions
-        setEvents(prev => prev.map(ev => {
-          if (ev.id === parentId) {
-            return { ...ev, exceptions: [...(ev.exceptions || []), dateKey] };
-          }
-          return ev;
-        }));
-
-        // Create a standalone exception event
-        const exceptionEvent: CalendarEvent = {
-          ...editingEvent as CalendarEvent,
-          id: generateId(),
-          recurrenceId: parentId,
-          isExceptionEdit: true,
-          originalStart: dateKey,
-          recurrenceRule: undefined, // Not a parent
-          staffMemberIds: editingEvent.teacherId ? [editingEvent.teacherId] : (editingEvent as CalendarEvent).staffMemberIds || [],
-        };
-        setEvents(prev => [...prev, exceptionEvent]);
-      } else {
-        // Regular event or parent event edit
-        const updatedEvent = {
-          ...editingEvent,
-          staffMemberIds: editingEvent.teacherId ? [editingEvent.teacherId] : (editingEvent as CalendarEvent).staffMemberIds || [],
-        } as CalendarEvent;
-        setEvents(prev => prev.map(ev => ev.id === editingEvent.id ? { ...ev, ...updatedEvent } : ev));
-        setRecentlySaved(prev => new Set(prev).add(updatedEvent.id!));
-        setTimeout(() => setRecentlySaved(prev => { const n = new Set(prev); n.delete(updatedEvent.id!); return n; }), 1500);
-
-        if (updatedEvent.googleEventId) {
-          handleGoogleSync(updatedEvent, true);
-        }
-        handleTeacherGoogleSync(updatedEvent, true);
-      }
-    } else {
-      // New event — save with recurrence rule if set
-      const newId = generateId();
-      const newEvent: CalendarEvent = {
-        ...editingEvent,
-        id: newId,
-        isCanceled: false,
-        isHidden: false,
-        description: editingEvent.description || '',
-        activityId: editingEvent.activityId,
-        staffMemberIds: editingEvent.teacherId ? [editingEvent.teacherId] : [],
-      } as CalendarEvent;
-      setEvents(prev => [...prev, newEvent]);
-      setRecentlySaved(prev => new Set(prev).add(newId));
-      setTimeout(() => setRecentlySaved(prev => { const n = new Set(prev); n.delete(newId); return n; }), 1500);
-      handleGoogleSync(newEvent);
-      handleTeacherGoogleSync(newEvent);
-    }
-    setIsModalOpen(false);
-  };
-
   // ─── Phase 5: v2.0 Event Form Save Handler ─────────────────────────────
   const handleSaveV2 = (formState: EventFormState) => {
     const now = { seconds: Date.now() / 1000, nanoseconds: 0 } as any;
@@ -1048,6 +1197,7 @@ export const CalendarView: React.FC<Props> = ({
           isExceptionEdit: true,
           originalStart: dateKey,
           recurrenceRule: undefined,
+          tags: formState.tags,
         };
         setEvents(prev => [...prev, exceptionEvent]);
 
@@ -1066,6 +1216,7 @@ export const CalendarView: React.FC<Props> = ({
           activityId: formState.activityId,
           isCanceled: formState.isCanceled,
           recurrenceRule: formState.recurrenceRule,
+          tags: formState.tags,
         };
         setEvents(prev => prev.map(ev => ev.id === editingEvent.id ? { ...ev, ...updatedCE } : ev));
         setRecentlySaved(prev => new Set(prev).add(editingEvent.id!));
@@ -1115,6 +1266,7 @@ export const CalendarView: React.FC<Props> = ({
         isCanceled: false,
         isHidden: false,
         recurrenceRule: formState.recurrenceRule,
+        tags: formState.tags,
       };
       setEvents(prev => [...prev, newCE]);
       setRecentlySaved(prev => new Set(prev).add(newId));
@@ -1398,7 +1550,7 @@ export const CalendarView: React.FC<Props> = ({
   // --- Helper for Teacher Colors ---
   const getTeacherColor = (teacherId: string) => {
     const teacher = teachers.find(t => t.id === teacherId);
-    return teacher ? teacher.color : '#4f46e5'; // Default indigo
+    return teacher ? teacher.color : '#6E1A1A'; // Default bordeaux
   };
 
   const hexToRgba = (hex: string, alpha: number) => {
@@ -1616,7 +1768,7 @@ export const CalendarView: React.FC<Props> = ({
                   <MapPin size={8} /> {rooms.find(r => r.id === evt.roomId)?.name}
                 </span>
               )}
-              {evt.isCanceled && <span className="font-bold text-red-500 flex-shrink-0" style={{ fontSize: timeFontSize }}>✕</span>}
+              {evt.isCanceled && <span className="font-bold text-slate-500 dark:text-slate-400 flex-shrink-0" style={{ fontSize: timeFontSize }}>✕</span>}
             </>
           ) : (
             /* Standard multi-line layout for normal events */
@@ -1635,7 +1787,7 @@ export const CalendarView: React.FC<Props> = ({
                   <span className="truncate">{rooms.find(r => r.id === evt.roomId)?.name}</span>
                 </div>
               )}
-              {evt.isCanceled && <div className="font-bold text-red-500 mt-1">{t('cal.canceled')}</div>}
+              {evt.isCanceled && <div className="font-bold text-slate-500 dark:text-slate-400 mt-1">{t('cal.canceled')}</div>}
             </>
           )}
         </div>
@@ -1737,8 +1889,8 @@ export const CalendarView: React.FC<Props> = ({
                 top: `${top}px`,
                 width: `${width}px`,
                 height: `${height}px`,
-                border: '2px dashed rgba(59, 130, 246, 0.8)',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                border: '2px dashed rgba(60, 81, 112, 0.85)',
+                backgroundColor: 'rgba(60, 81, 112, 0.10)',
                 borderRadius: '4px',
               }}
             />
@@ -1754,12 +1906,95 @@ export const CalendarView: React.FC<Props> = ({
     for (let i = 0; i < days.length; i += 7) {
       weeks.push(days.slice(i, i + 7));
     }
+
+    const renderEventChip = (evt: CalendarEvent) => {
+      const baseColor = getTeacherColor(evt.teacherId);
+      return (
+        <div
+          key={evt.id}
+          data-event-id={evt.id}
+          tabIndex={0}
+          role="button"
+          aria-label={`${evt.name} — ${t('bl01_calendar.event.aria_focused')}`}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setDetailItem({ type: 'EVENT', data: evt });
+            }
+          }}
+          onMouseDown={(e) => handleMonthChipMouseDown(e, evt)}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (wasDraggingRef.current) return;
+            if (selectionMode === 'MARQUEE') {
+              setSelectedEventIds(prev => {
+                const next = new Set(prev);
+                next.has(evt.id) ? next.delete(evt.id) : next.add(evt.id);
+                return next;
+              });
+            } else {
+              setDetailItem({ type: 'EVENT', data: evt });
+            }
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setContextMenu({ x: e.clientX, y: e.clientY, event: evt });
+          }}
+          className={`text-[10px] text-start px-1.5 py-1 rounded ${dragState?.id === evt.id ? 'cursor-grabbing opacity-90 shadow-cadenza-deep' : 'cursor-grab'} border-s-2 animate-cadenza-arrive select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-700 ${selectedEventIds.has(evt.id) ? 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
+            ? 'bg-slate-100 text-slate-400 line-through dark:bg-slate-800 dark:text-slate-600 border-slate-400'
+            : 'hover:opacity-90 hover:shadow-cadenza-soft transition-all'
+            }`}
+          style={!evt.isCanceled ? {
+            backgroundColor: hexToRgba(baseColor, 0.1),
+            borderColor: baseColor,
+            color: 'inherit'
+          } : {}}
+        >
+          <span style={{ color: !evt.isCanceled ? baseColor : undefined }} className="font-bold flex justify-between items-center gap-2 brightness-75 dark:brightness-100">
+            <span>{formatTime(new Date(evt.start))}</span>
+            {evt.teacherId && (
+              <span className="text-[9px] uppercase tracking-wider opacity-70 truncate text-end">
+                {teachers.find(t => t.id === evt.teacherId)?.fullName.split(' ')[0]}
+              </span>
+            )}
+          </span>
+          <div className="flex flex-col mt-0.5">
+            <span className="font-medium text-slate-800 dark:text-slate-200 block truncate" title={evt.name || t('cal.unnamed')}>
+              {evt.name || t('cal.unnamed')}
+            </span>
+            {evt.roomId && (
+              <span className="text-[9px] text-slate-600 dark:text-slate-400 mt-px flex items-center gap-1 truncate" title={rooms.find(r => r.id === evt.roomId)?.name}>
+                <MapPin size={8} className="flex-shrink-0" />
+                {rooms.find(r => r.id === evt.roomId)?.name}
+              </span>
+            )}
+            {evt.tags && evt.tags.length > 0 && (
+              <div className="flex flex-wrap gap-0.5 mt-1">
+                {evt.tags.slice(0, 2).map(tag => (
+                  <TagChip key={tag} label={tag} size="xs" />
+                ))}
+                {evt.tags.length > 2 && (
+                  <span
+                    className="text-[9px] text-slate-500 dark:text-slate-400 px-1"
+                    title={evt.tags.slice(2).join(', ')}
+                  >
+                    +{evt.tags.length - 2}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
     return (
       <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 overflow-hidden">
         <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700 z-10 relative bg-white dark:bg-slate-900">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-            <div key={d} className="p-2 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">
-              {d}
+          {(weeks[0] ?? days.slice(0, 7)).map(d => (
+            <div key={d.toISOString()} className="p-2 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">
+              {d.toLocaleDateString(settings.language, { weekday: 'short' })}
             </div>
           ))}
         </div>
@@ -1819,6 +2054,8 @@ export const CalendarView: React.FC<Props> = ({
 
             return (
               <div key={wIdx} className="relative min-h-0 border-b border-slate-100 dark:border-slate-800 last:border-0 h-full group/week hover:z-50">
+                {monthSubMode === 'GANTT' ? (
+                <>
                 {/* Layer 1: Background & Day Click (z-0) */}
                 <div className="absolute inset-0 grid grid-cols-7 pointer-events-none">
                   {week.map((day) => {
@@ -1826,6 +2063,7 @@ export const CalendarView: React.FC<Props> = ({
                     return (
                       <div
                         key={day.toISOString()}
+                        data-month-day={day.toISOString()}
                         className={`border-e border-slate-100 dark:border-slate-800 last:border-0 pointer-events-auto cursor-pointer ${!isCurrentMonth ? 'bg-slate-50/50 dark:bg-slate-950/50' : 'bg-transparent'}`}
                         onClick={() => { setCurrentDate(day); setViewMode('DAY'); }}
                       />
@@ -1928,70 +2166,7 @@ export const CalendarView: React.FC<Props> = ({
                                 {dayEvents.length === 0 ? (
                                   <div className="text-xs text-slate-400 p-2 text-center">{t('cal.no_events')}</div>
                                 ) : (
-                                  dayEvents.map(evt => {
-                                    const baseColor = getTeacherColor(evt.teacherId);
-                                    return (
-                                      <div
-                                        key={evt.id}
-                                        data-event-id={evt.id}
-                                        tabIndex={0}
-                                        role="button"
-                                        aria-label={`${evt.name} — ${t('bl01_calendar.event.aria_focused')}`}
-                                        onKeyDown={(e) => {
-                                          if (e.key === 'Enter' || e.key === ' ') {
-                                            e.preventDefault();
-                                            setDetailItem({ type: 'EVENT', data: evt });
-                                          }
-                                        }}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          if (selectionMode === 'MARQUEE') {
-                                            setSelectedEventIds(prev => {
-                                              const next = new Set(prev);
-                                              next.has(evt.id) ? next.delete(evt.id) : next.add(evt.id);
-                                              return next;
-                                            });
-                                          } else {
-                                            setDetailItem({ type: 'EVENT', data: evt });
-                                          }
-                                        }}
-                                        onContextMenu={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          setContextMenu({ x: e.clientX, y: e.clientY, event: evt });
-                                        }}
-                                        className={`text-[10px] text-start px-1.5 py-1 rounded cursor-pointer border-s-2 animate-cadenza-arrive focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-700 ${selectedEventIds.has(evt.id) ? 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
-                                          ? 'bg-slate-100 text-slate-400 line-through dark:bg-slate-800 dark:text-slate-600 border-slate-400'
-                                          : 'hover:opacity-90 hover:shadow-cadenza-soft transition-all'
-                                          }`}
-                                        style={!evt.isCanceled ? {
-                                          backgroundColor: hexToRgba(baseColor, 0.1),
-                                          borderColor: baseColor,
-                                          color: 'inherit'
-                                        } : {}}
-                                      >
-                                        <span style={{ color: !evt.isCanceled ? baseColor : undefined }} className="font-bold flex justify-between items-center gap-2 brightness-75 dark:brightness-100">
-                                          <span>{formatTime(new Date(evt.start))}</span>
-                                          {evt.teacherId && (
-                                            <span className="text-[9px] uppercase tracking-wider opacity-70 truncate text-end">
-                                              {teachers.find(t => t.id === evt.teacherId)?.fullName.split(' ')[0]}
-                                            </span>
-                                          )}
-                                        </span>
-                                        <div className="flex flex-col mt-0.5">
-                                          <span className="font-medium text-slate-800 dark:text-slate-200 block truncate" title={evt.name || t('cal.unnamed')}>
-                                            {evt.name || t('cal.unnamed')}
-                                          </span>
-                                          {evt.roomId && (
-                                            <span className="text-[9px] text-slate-600 dark:text-slate-400 mt-px flex items-center gap-1 truncate" title={rooms.find(r => r.id === evt.roomId)?.name}>
-                                              <MapPin size={8} className="flex-shrink-0" />
-                                              {rooms.find(r => r.id === evt.roomId)?.name}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
-                                    );
-                                  })
+                                  dayEvents.map(evt => renderEventChip(evt))
                                 )}
                               </div>
                             </div>
@@ -2005,6 +2180,88 @@ export const CalendarView: React.FC<Props> = ({
                     );
                   })}
                 </div>
+                </>
+                ) : (
+                  /* Events mode: full-cell with inline event list + Gantt rubric on date hover */
+                  <div className="absolute inset-0 grid grid-cols-7 z-10">
+                    {week.map((day, dIdx) => {
+                      const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+                      const isToday = day.toDateString() === new Date().toDateString();
+                      const isRightEdge = dIdx >= 5;
+                      const dayEvents = displayEvents.filter(e => {
+                        const d = new Date(e.start);
+                        return d.getDate() === day.getDate() && d.getMonth() === day.getMonth();
+                      }).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+                      const dayRef = new Date(day); dayRef.setHours(12, 0, 0, 0);
+                      const dayBlocks = ganttBlocks.filter(b => {
+                        return new Date(b.startDate) <= dayRef && new Date(b.endDate) >= dayRef;
+                      });
+
+                      return (
+                        <div
+                          key={day.toISOString()}
+                          data-month-day={day.toISOString()}
+                          className={`relative flex flex-col border-e border-slate-100 dark:border-slate-800 last:border-0 min-h-0 group/cell cursor-pointer ${!isCurrentMonth ? 'bg-slate-50/50 dark:bg-slate-950/50' : 'bg-transparent'}`}
+                          onClick={() => { setCurrentDate(day); setViewMode('DAY'); }}
+                        >
+                          {/* Header: date circle + plus button */}
+                          <div className="h-[32px] flex justify-between items-start p-1 flex-shrink-0">
+                            <div className="group relative z-30">
+                              <span
+                                className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors ${isToday ? 'bg-blue-600 text-white hover:bg-blue-700' : dayEvents.filter(e => !e.isGanttBlock).length > 0 ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'}`}
+                                onClick={(e: React.MouseEvent) => { e.stopPropagation(); setCurrentDate(day); setViewMode('DAY'); }}
+                              >
+                                {day.getDate()}
+                              </span>
+
+                              {/* Hover popup: Gantt rubric for this date */}
+                              <div
+                                className={`absolute ${isBottomRow ? 'bottom-full pb-1' : 'top-full pt-1'} ${isRightEdge ? '-end-2' : '-start-2'} z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all`}
+                              >
+                                <div className="w-56 max-h-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                                  <div className="p-2 border-b border-slate-100 dark:border-slate-700 font-bold text-xs sticky top-0 bg-white dark:bg-slate-800 z-10 text-slate-800 dark:text-slate-200">
+                                    {day.toLocaleDateString(settings.language, { weekday: 'short', month: 'short', day: 'numeric' })}
+                                  </div>
+                                  <div className="overflow-y-auto p-1.5 space-y-1 custom-scrollbar">
+                                    {dayBlocks.length === 0 ? (
+                                      <div className="text-xs text-slate-400 p-2 text-center">{t('cal.no_gantt_blocks')}</div>
+                                    ) : (
+                                      dayBlocks.map(b => (
+                                        <div
+                                          key={b.id}
+                                          onClick={(e) => { e.stopPropagation(); setDetailItem({ type: 'GANTT', data: b }); }}
+                                          className="text-[10px] text-start px-1.5 py-1 rounded cursor-pointer border-s-2 hover:opacity-90 hover:shadow-cadenza-soft transition-all"
+                                          style={{ backgroundColor: hexToRgba(b.color, 0.12), borderColor: b.color }}
+                                        >
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ backgroundColor: b.color }} />
+                                            <span className="font-medium text-slate-800 dark:text-slate-200 truncate" title={b.title}>{b.title}</span>
+                                          </div>
+                                          <div className="text-[9px] text-slate-600 dark:text-slate-400 mt-px ms-3.5">
+                                            {new Date(b.startDate).toLocaleDateString(settings.language, { month: 'short', day: 'numeric' })} – {new Date(b.endDate).toLocaleDateString(settings.language, { month: 'short', day: 'numeric' })}
+                                          </div>
+                                        </div>
+                                      ))
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <button onClick={(e) => { e.stopPropagation(); handleSlotClick(day, 10); }} className="text-slate-300 hover:text-blue-500 opacity-0 group-hover/cell:opacity-100 transition-opacity relative z-30">
+                              <Plus size={14} />
+                            </button>
+                          </div>
+
+                          {/* Inline scrollable event list */}
+                          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1 pt-0 space-y-1">
+                            {dayEvents.map(evt => renderEventChip(evt))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -2015,211 +2272,242 @@ export const CalendarView: React.FC<Props> = ({
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 transition-colors duration-75 relative">
-      <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 shadow-sm z-30">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
-              <button onClick={() => {
-                const d = new Date(currentDate);
-                if (viewMode === 'MONTH') d.setMonth(d.getMonth() - 1);
-                else if (viewMode === 'WEEK') d.setDate(d.getDate() - 7);
-                else d.setDate(d.getDate() - 1);
-                setCurrentDate(d);
-              }} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded shadow-sm transition-all text-slate-600 dark:text-slate-300">
-                {isRtl ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-              </button>
-              <div className="px-3 flex items-center relative group">
-                <div className="flex flex-col items-center justify-center min-w-[150px]">
-                  <span className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center">
-                    {viewMode === 'MONTH'
-                      ? currentDate.toLocaleDateString(settings.language, { month: 'long', year: 'numeric' })
-                      : viewMode === 'WEEK'
-                        ? `${t('cal.week_of')} ${getStartOfWeek(currentDate).toLocaleDateString(settings.language)}`
-                        : currentDate.toLocaleDateString(settings.language, { weekday: 'long', month: 'short', day: 'numeric' })
-                    }
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 shadow-sm z-30">
+        <div className="flex items-center gap-2 flex-wrap">
+
+          {/* Group A — WHEN: date navigation, today, jump-to-date */}
+          <div className="flex items-center h-8 bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
+            <button onClick={() => {
+              const d = new Date(currentDate);
+              if (viewMode === 'MONTH') d.setMonth(d.getMonth() - 1);
+              else if (viewMode === 'WEEK') d.setDate(d.getDate() - 7);
+              else d.setDate(d.getDate() - 1);
+              setCurrentDate(d);
+            }} className="h-7 w-7 flex items-center justify-center hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all text-slate-600 dark:text-slate-300" aria-label={t('cal.prev')}>
+              {isRtl ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            </button>
+            <div className="px-2 flex items-center justify-center min-w-[150px] h-7">
+              <div className="flex flex-col items-center justify-center leading-tight">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                  {viewMode === 'MONTH'
+                    ? currentDate.toLocaleDateString(settings.language, { month: 'long', year: 'numeric' })
+                    : viewMode === 'WEEK'
+                      ? `${t('cal.week_of')} ${getStartOfWeek(currentDate).toLocaleDateString(settings.language)}`
+                      : currentDate.toLocaleDateString(settings.language, { weekday: 'long', month: 'short', day: 'numeric' })
+                  }
+                </span>
+                {settings.weekNumberDisplay !== 'none' && (
+                  <span className="text-[9px] text-slate-400 uppercase tracking-wider">
+                    {settings.weekNumberDisplay === 'week-number' ? `${t('cal.week_num')} ${getWeekNumber(currentDate)}` : `${t('cal.week_of')} ${getStartOfWeek(currentDate).toLocaleDateString(settings.language)}`}
                   </span>
-                  {settings.weekNumberDisplay !== 'none' && (
-                    <span className="text-[10px] text-slate-400 uppercase tracking-wider">
-                      {settings.weekNumberDisplay === 'week-number' ? `${t('cal.week_num')} ${getWeekNumber(currentDate)}` : `Week of ${getStartOfWeek(currentDate).toLocaleDateString()}`}
-                    </span>
-                  )}
-                </div>
+                )}
               </div>
-              <button onClick={() => {
-                const d = new Date(currentDate);
-                if (viewMode === 'MONTH') d.setMonth(d.getMonth() + 1);
-                else if (viewMode === 'WEEK') d.setDate(d.getDate() + 7);
-                else d.setDate(d.getDate() + 1);
-                setCurrentDate(d);
-              }} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded shadow-sm transition-all text-slate-600 dark:text-slate-300">
-                {isRtl ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-              </button>
             </div>
-            <button onClick={() => setCurrentDate(new Date())} className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 text-xs font-bold rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">{t('cal.today')}</button>
+            <button onClick={() => {
+              const d = new Date(currentDate);
+              if (viewMode === 'MONTH') d.setMonth(d.getMonth() + 1);
+              else if (viewMode === 'WEEK') d.setDate(d.getDate() + 7);
+              else d.setDate(d.getDate() + 1);
+              setCurrentDate(d);
+            }} className="h-7 w-7 flex items-center justify-center hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all text-slate-600 dark:text-slate-300" aria-label={t('cal.next')}>
+              {isRtl ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+            </button>
+          </div>
 
-            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 text-xs font-medium">
-              {['DAY', 'WEEK', 'MONTH'].map((m) => (
-                <button key={m} onClick={() => setViewMode(m as ViewMode)} className={`px-3 py-1.5 rounded transition-all ${viewMode === m ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>{t('cal.' + m.toLowerCase())}</button>
-              ))}
-            </div>
+          <button onClick={() => setCurrentDate(new Date())} className="h-8 px-3 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 text-xs font-bold rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">
+            {t('cal.today')}
+          </button>
 
-            {/* BL01: Unresolved room-conflict count badge.
-                Click navigates to ADMIN_INBOX via the existing onNavigate prop. */}
-            {unresolvedConflictCount > 0 && (
-              <button
-                type="button"
-                onClick={() => onNavigate('ADMIN_INBOX')}
-                aria-label={t('bl01_calendar.conflicts_badge.aria').replace('{count}', String(unresolvedConflictCount))}
-                title={t('bl01_calendar.conflicts_badge.aria').replace('{count}', String(unresolvedConflictCount))}
-                className="inline-flex items-center gap-1 ps-2 pe-2.5 py-1 rounded-md text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800/60 dark:hover:bg-red-900/50 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-700"
-              >
-                <AlertOctagon size={12} aria-hidden="true" />
-                <span>{t('bl01_calendar.conflicts_badge.label')}: {unresolvedConflictCount}</span>
-              </button>
-            )}
-
-            {/* Jump to Date — icon-only trigger that opens a native date picker */}
+          <div className="relative group/tt">
             <label
-              title={t('cal.jump_to_date') || 'Jump to date'}
-              className="relative p-2 rounded-lg border bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer flex items-center justify-center"
+              className="relative h-8 w-8 rounded-lg border bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer flex items-center justify-center"
             >
               <CalendarIcon size={16} />
               <input
                 type="date"
-                aria-label={t('cal.jump_to_date') || 'Jump to date'}
+                aria-label={t('cal.jump_to_date')}
                 value={currentDate.toISOString().split('T')[0]}
                 onChange={(e) => { if (e.target.value) setCurrentDate(new Date(e.target.value + 'T12:00:00')); }}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
             </label>
+            <span role="tooltip" className="pointer-events-none absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-[11px] font-medium bg-slate-900 dark:bg-slate-700 text-white whitespace-nowrap opacity-0 group-hover/tt:opacity-100 transition-opacity z-50 shadow-lg">
+              {t('cal.jump_to_date')}
+            </span>
           </div>
 
-          {/* Divider */}
-          <div className="w-px h-6 bg-slate-300 dark:bg-slate-600"></div>
+          {/* Divider — separates WHEN from VIEW */}
+          <div className="w-px h-5 bg-slate-300 dark:bg-slate-600 mx-1" />
 
-          {/* Filter Toggle Button */}
-          <button
-            onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
-            className={`p-2 rounded-lg border transition-colors ${isFiltersExpanded || !showCanceled || !showBlackouts || showOnlyOverlapping || filterTeacher !== 'ALL' || filterRoom !== 'ALL' || filterClass !== 'ALL' || filterPosition !== 'ALL' || filterTag !== 'ALL'
-              ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800'
-              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
-              }`}
-            title={t('cal.toggle_filters')}
-          >
-            <Filter size={16} />
-          </button>
+          {/* Group B — VIEW: granularity (day / week / month) */}
+          <div className="flex items-center h-8 bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 text-xs font-medium">
+            {['DAY', 'WEEK', 'MONTH'].map((m) => (
+              <button key={m} onClick={() => setViewMode(m as ViewMode)} className={`h-7 px-3 rounded-md transition-all ${viewMode === m ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>{t('cal.' + m.toLowerCase())}</button>
+            ))}
+          </div>
 
-          {/* Event Search */}
+          {/* Group B' — Month sub-mode (Gantt vs Events). Only visible in Month view. */}
+          {viewMode === 'MONTH' && (
+            <>
+              <div className="w-px h-5 bg-slate-300 dark:bg-slate-600 mx-1" />
+              <div className="flex items-center h-8 bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 text-xs font-medium">
+                {(['EVENTS', 'GANTT'] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setMonthSubMode(m)}
+                    className={`h-7 px-3 rounded-md transition-all ${monthSubMode === m ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                  >
+                    {t(m === 'GANTT' ? 'cal.month_mode_gantt' : 'cal.month_mode_events')}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Divider — separates VIEW from NARROW */}
+          <div className="w-px h-5 bg-slate-300 dark:bg-slate-600 mx-1" />
+
+          {/* Group C — NARROW: search + filter / power tools / gantt */}
           <div className="relative flex items-center">
             <input
               type="text"
-              value={eventSearchQuery}
-              onChange={(e) => setEventSearchQuery(e.target.value)}
+              value={filterState.search}
+              onChange={(e) => filterSet({ search: e.target.value })}
               placeholder={t('cal.search_placeholder') || 'Search events…'}
-              className="ps-7 pe-6 py-1.5 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none w-36 transition-all focus:w-48"
+              className="h-8 ps-7 pe-6 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none w-36 transition-all focus:w-48"
             />
             <Search size={12} className="absolute start-2 text-slate-400 pointer-events-none" />
-            {eventSearchQuery && (
-              <button onClick={() => setEventSearchQuery('')} className="absolute end-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+            {filterState.search && (
+              <button onClick={() => filterSet({ search: '' })} className="absolute end-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 <X size={12} />
               </button>
             )}
           </div>
 
-          <ImportExportDropdown
-            entityType="EVENT"
-            existingData={eventExportData}
-            existingDuplicateKeys={eventDupKeys}
-            dependencyMaps={{ activityByName: csvActivityByName, l2ByName: csvL2ByName, staffByEmail: {}, studentByName: {} }}
-            activityNames={activities.map(a => a.name)}
-            settings={settings}
-            canWrite={canWriteCalendar}
-            onImportComplete={handleEventImportComplete}
-          />
-
-          {/* Inline Filter Panel - always flows inline next to the filter toggle */}
-          {isFiltersExpanded && (
-            <div className="flex items-center gap-2 flex-nowrap">
-              {/* Event-state toggles (canceled / blackouts / overlapping) — embedded at the start of the chain */}
-              <div className="flex items-center gap-2">
-                <span className={`text-[10px] leading-tight font-medium transition-colors text-end ${!showCanceled ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>{t('cal.hide_canceled').split(' ')[0]}<br />{t('cal.hide_canceled').split(' ')[1]}</span>
-                <button
-                  onClick={() => setShowCanceled(!showCanceled)}
-                  className="status-toggle-track"
-                  role="switch"
-                  aria-checked={!showCanceled}
-                  aria-label={t('cal.aria_toggle_canceled')}
-                  style={{ backgroundColor: !showCanceled ? '#ef4444' : '#cbd5e1' }}
-                >
-                  <span
-                    className="status-toggle-thumb"
-                    style={{ transform: !showCanceled ? (isRtl ? 'translateX(-16px)' : 'translateX(16px)') : (isRtl ? 'translateX(-2px)' : 'translateX(2px)') }}
-                  />
-                </button>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-[10px] leading-tight font-medium transition-colors text-end ${!showBlackouts ? 'text-orange-600 dark:text-orange-400' : 'text-slate-500 dark:text-slate-400'}`}>{t('cal.hide_blackouts').split(' ')[0]}<br />{t('cal.hide_blackouts').split(' ')[1]}</span>
-                <button
-                  onClick={() => setShowBlackouts(!showBlackouts)}
-                  className="status-toggle-track"
-                  role="switch"
-                  aria-checked={!showBlackouts}
-                  aria-label={t('cal.aria_toggle_blackouts')}
-                  style={{ backgroundColor: !showBlackouts ? '#f97316' : '#cbd5e1' }}
-                >
-                  <span
-                    className="status-toggle-thumb"
-                    style={{ transform: !showBlackouts ? (isRtl ? 'translateX(-16px)' : 'translateX(16px)') : (isRtl ? 'translateX(-2px)' : 'translateX(2px)') }}
-                  />
-                </button>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-[10px] leading-tight font-medium transition-colors text-end ${showOnlyOverlapping ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>{t('cal.overlapping').split(' ')[0]}<br />{t('cal.overlapping').split(' ')[1] || 'Lessons'}</span>
-                <button
-                  onClick={() => setShowOnlyOverlapping(!showOnlyOverlapping)}
-                  className="status-toggle-track"
-                  role="switch"
-                  aria-checked={showOnlyOverlapping}
-                  aria-label={t('cal.aria_toggle_overlapping')}
-                  style={{ backgroundColor: showOnlyOverlapping ? '#dc2626' : '#cbd5e1' }}
-                >
-                  <span
-                    className="status-toggle-thumb"
-                    style={{ transform: showOnlyOverlapping ? (isRtl ? 'translateX(-16px)' : 'translateX(16px)') : (isRtl ? 'translateX(-2px)' : 'translateX(2px)') }}
-                  />
-                </button>
-              </div>
-              <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>
-              <select className="filter-select-uniform" value={filterTeacher} onChange={e => setFilterTeacher(e.target.value)}>
-                <option value="ALL">{t('cal.filter.teacher_all')}</option>
-                {teachers.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}
-              </select>
-              <select className="filter-select-uniform" value={filterRoom} onChange={e => setFilterRoom(e.target.value)}>
-                <option value="ALL">{t('cal.filter.room_all')}</option>
-                {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-              <select className="filter-select-uniform" value={filterClass} onChange={e => setFilterClass(e.target.value)}>
-                <option value="ALL">{t('cal.filter.activity_all')}</option>
-                {activities.filter(a => !a.isArchived).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
-              <select className="filter-select-uniform" value={filterPosition} onChange={e => setFilterPosition(e.target.value)}>
-                <option value="ALL">{t('cal.filter.position_all')}</option>
-                {activeLists.positions.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-              <select className="filter-select-uniform" value={filterTag} onChange={e => setFilterTag(e.target.value)}>
-                <option value="ALL">{t('cal.filter.tag_all')}</option>
-                {activeLists.tags.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+          <div className="flex items-center h-8 rounded-lg border border-slate-200 dark:border-slate-700">
+            <div className="relative group/tt h-full">
+              <button
+                onClick={() => setSidebarTab(sidebarTab === 'FILTERS' ? null : 'FILTERS')}
+                className={`relative h-full w-9 flex items-center justify-center text-xs font-medium transition-colors rounded-s-lg ${
+                  sidebarTab === 'FILTERS'
+                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                    : filterIsActive
+                    ? 'bg-slate-100 dark:bg-slate-800 text-blue-500 dark:text-blue-400 hover:text-slate-700 dark:hover:text-slate-200'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+                aria-label={t('cal.toggle_filters')}
+              >
+                <Filter size={14} />
+                {activeFilterPills.length > 0 && (
+                  <span className="absolute -top-1 -end-1 z-10 min-w-[14px] h-3.5 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none ring-2 ring-white dark:ring-slate-900">
+                    {activeFilterPills.length}
+                  </span>
+                )}
+              </button>
+              <span role="tooltip" className="pointer-events-none absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-[11px] font-medium bg-slate-900 dark:bg-slate-700 text-white whitespace-nowrap opacity-0 group-hover/tt:opacity-100 transition-opacity z-50 shadow-lg">
+                {t('cal.toggle_filters')}
+              </span>
             </div>
+            <div className="w-px h-full bg-slate-200 dark:bg-slate-700" />
+            <div className="relative group/tt h-full">
+              <button
+                onClick={() => setSidebarTab(sidebarTab === 'POWER_TOOLS' ? null : 'POWER_TOOLS')}
+                className={`h-full w-9 flex items-center justify-center text-xs font-medium transition-colors ${
+                  sidebarTab === 'POWER_TOOLS'
+                    ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+                aria-label={t('speed.power_tools')}
+              >
+                <Zap size={14} />
+              </button>
+              <span role="tooltip" className="pointer-events-none absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-[11px] font-medium bg-slate-900 dark:bg-slate-700 text-white whitespace-nowrap opacity-0 group-hover/tt:opacity-100 transition-opacity z-50 shadow-lg">
+                {t('speed.power_tools')}
+              </span>
+            </div>
+            <div className="w-px h-full bg-slate-200 dark:bg-slate-700" />
+            <div className="relative group/tt h-full">
+              <button
+                onClick={() => setSidebarTab(sidebarTab === 'GANTT' ? null : 'GANTT')}
+                className={`h-full w-9 flex items-center justify-center text-xs font-medium transition-colors ${
+                  !settings.aiAssistantEnabled ? 'rounded-e-lg' : ''
+                } ${
+                  sidebarTab === 'GANTT'
+                    ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+                aria-label={t('speed.gantt_view')}
+              >
+                <List size={14} />
+              </button>
+              <span role="tooltip" className="pointer-events-none absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-[11px] font-medium bg-slate-900 dark:bg-slate-700 text-white whitespace-nowrap opacity-0 group-hover/tt:opacity-100 transition-opacity z-50 shadow-lg">
+                {t('speed.gantt_view')}
+              </span>
+            </div>
+            {settings.aiAssistantEnabled && (
+              <>
+                <div className="w-px h-full bg-slate-200 dark:bg-slate-700" />
+                <div className="relative group/tt h-full">
+                  <button
+                    onClick={() => setSidebarTab(sidebarTab === 'BOT' ? null : 'BOT')}
+                    className={`h-full w-9 flex items-center justify-center text-xs font-medium transition-colors rounded-e-lg ${
+                      sidebarTab === 'BOT'
+                        ? 'bg-cadenza-600/10 dark:bg-cadenza-600/30 text-cadenza-600 dark:text-cadenza-300'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                    }`}
+                    aria-label={t('bot.title')}
+                  >
+                    <Sparkles size={14} />
+                  </button>
+                  <span role="tooltip" className="pointer-events-none absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-[11px] font-medium bg-slate-900 dark:bg-slate-700 text-white whitespace-nowrap opacity-0 group-hover/tt:opacity-100 transition-opacity z-50 shadow-lg">
+                    {t('bot.title')}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Group D — STATUS & TOOLS: pushed to trailing edge */}
+          {unresolvedConflictCount > 0 && (
+            <button
+              type="button"
+              onClick={() => onNavigate('ADMIN_INBOX')}
+              aria-label={t('bl01_calendar.conflicts_badge.aria').replace('{count}', String(unresolvedConflictCount))}
+              title={t('bl01_calendar.conflicts_badge.aria').replace('{count}', String(unresolvedConflictCount))}
+              className="ms-auto inline-flex items-center gap-1 h-6 ps-2 pe-2.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800/60 dark:hover:bg-red-900/50 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-700"
+            >
+              <AlertOctagon size={12} aria-hidden="true" />
+              <span>{t('bl01_calendar.conflicts_badge.label')}: {unresolvedConflictCount}</span>
+            </button>
           )}
-          {/* Help Toggle */}
-          <button
-            onClick={() => setShowHelp(!showHelp)}
-            className="p-2 rounded-lg border bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-            title={t('cal.help_title')}
-          >
-            <HelpCircle size={16} />
-          </button>
+
+          <div className={`flex items-center gap-2 ${unresolvedConflictCount > 0 ? '' : 'ms-auto'}`}>
+            <ImportExportDropdown
+              entityType="EVENT"
+              iconOnly
+              existingData={eventExportData}
+              existingDuplicateKeys={eventDupKeys}
+              dependencyMaps={{ activityByName: csvActivityByName, l2ByName: csvL2ByName, staffByEmail: {}, studentByName: {} }}
+              activityNames={activities.map(a => a.name)}
+              settings={settings}
+              canWrite={canWriteCalendar}
+              onImportComplete={handleEventImportComplete}
+            />
+
+            <div className="relative group/tt">
+              <button
+                onClick={() => setShowHelp(!showHelp)}
+                className="h-8 w-8 rounded-lg border bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors flex items-center justify-center"
+                aria-label={t('cal.help_title')}
+              >
+                <HelpCircle size={16} />
+              </button>
+              <span role="tooltip" className="pointer-events-none absolute top-full mt-1.5 right-0 px-2 py-1 rounded text-[11px] font-medium bg-slate-900 dark:bg-slate-700 text-white whitespace-nowrap opacity-0 group-hover/tt:opacity-100 transition-opacity z-50 shadow-lg">
+                {t('cal.help_title')}
+              </span>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -2254,7 +2542,7 @@ export const CalendarView: React.FC<Props> = ({
             <button
               type="button"
               onClick={clearAllFilters}
-              className="ms-auto text-[11px] font-medium text-red-700 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-700 rounded-sm"
+              className="ms-auto text-[11px] font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-slate-500 rounded-sm"
             >
               {t('bl01_calendar.filter.clear_all')}
             </button>
@@ -2269,90 +2557,6 @@ export const CalendarView: React.FC<Props> = ({
       )}
 
       {viewMode === 'MONTH' ? renderMonthView() : renderTimeGrid(viewMode === 'DAY' ? [currentDate] : getWeekDays(currentDate))}
-
-      {/* Speed Dial Component */}
-      <div className="fixed bottom-8 end-8 z-[60] flex flex-col items-end space-y-3">
-        {/* Speed Dial Actions */}
-        {isSpeedDialOpen && (
-          <div className="flex flex-col items-end space-y-3 mb-2" style={{ animation: 'fadeSlideUp 400ms ease-out forwards' }}>
-            {/* Power Tools */}
-            <div className="group flex items-center">
-              <span
-                className="me-3 px-3 py-1.5 bg-slate-800 dark:bg-white text-white dark:text-slate-900 text-sm font-medium rounded-lg shadow-lg
-                  max-w-0 overflow-hidden whitespace-nowrap opacity-0 
-                  group-hover:max-w-[150px] group-hover:opacity-100
-                  transition-all duration-300 ease-out"
-              >
-                {t('speed.power_tools')}
-              </span>
-              <button
-                onClick={() => onNavigate(currentView === 'POWER_TOOLS' ? 'CALENDAR' : 'POWER_TOOLS')}
-                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg 
-                  ${currentView === 'POWER_TOOLS' ? 'bg-amber-500 text-white' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}
-                  transition-transform duration-200 hover:scale-110`}
-              >
-                <Zap size={20} />
-              </button>
-            </div>
-
-            {/* Gantt View */}
-            <div className="group flex items-center">
-              <span
-                className="me-3 px-3 py-1.5 bg-slate-800 dark:bg-white text-white dark:text-slate-900 text-sm font-medium rounded-lg shadow-lg
-                  max-w-0 overflow-hidden whitespace-nowrap opacity-0 
-                  group-hover:max-w-[150px] group-hover:opacity-100
-                  transition-all duration-300 ease-out"
-              >
-                {t('speed.gantt_view')}
-              </span>
-              <button
-                onClick={() => onNavigate(currentView === 'GANTT' ? 'CALENDAR' : 'GANTT')}
-                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg 
-                  ${currentView === 'GANTT' ? 'bg-purple-500 text-white' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}
-                  transition-transform duration-200 hover:scale-110`}
-              >
-                <List size={20} />
-              </button>
-            </div>
-
-            {/* Add Event (Admin+ only) */}
-            {isAdmin && (
-            <div className="group flex items-center">
-              <span
-                className="me-3 px-3 py-1.5 bg-slate-800 dark:bg-white text-white dark:text-slate-900 text-sm font-medium rounded-lg shadow-lg
-                  max-w-0 overflow-hidden whitespace-nowrap opacity-0
-                  group-hover:max-w-[150px] group-hover:opacity-100
-                  transition-all duration-300 ease-out"
-              >
-                {t('speed.new_event')}
-              </span>
-              <button
-                onClick={() => { openModal(); }}
-                className="w-12 h-12 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center shadow-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-transform duration-200 hover:scale-110"
-              >
-                <CalendarIcon size={20} />
-              </button>
-            </div>
-            )}
-          </div>
-        )}
-
-        {/* Main Floating Action Button */}
-        <button
-          onClick={() => setIsSpeedDialOpen(!isSpeedDialOpen)}
-          className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-full w-14 h-14 flex items-center justify-center shadow-lg"
-          style={{ transition: 'transform 400ms ease-out, background-color 200ms' }}
-        >
-          {isSpeedDialOpen ? <ChevronUp size={32} /> : <Plus size={32} />}
-        </button>
-      </div>
-
-      <style>{`
-        @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
 
       {detailItem && (
         <>
@@ -2370,14 +2574,14 @@ export const CalendarView: React.FC<Props> = ({
                     <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><Clock size={16} className="me-3 flex-shrink-0" /><span>{new Date((detailItem.data as CalendarEvent).start).toLocaleString(settings.language)} - <br />{formatTime(new Date((detailItem.data as CalendarEvent).end))}</span></div>
                     <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><User size={16} className="me-3 flex-shrink-0" /><span>{teachers.find(t => t.id === (detailItem.data as CalendarEvent).teacherId)?.fullName}</span></div>
                     <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><MapPin size={16} className="me-3 flex-shrink-0" /><span>{rooms.find(r => r.id === (detailItem.data as CalendarEvent).roomId)?.name}</span></div>
-                    {(detailItem.data as CalendarEvent).isCanceled && <div className="mt-2 bg-red-100 text-red-700 text-xs px-2 py-1 rounded inline-block font-bold">{t('cal.canceled')}</div>}
+                    {(detailItem.data as CalendarEvent).isCanceled && <div className="mt-2 bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 text-xs px-2 py-1 rounded inline-block font-bold">{t('cal.canceled')}</div>}
                     {(detailItem.data as CalendarEvent).recurrenceRule && <div className="mt-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-bold"><Repeat size={10} /> {t('cal.recurring')}</div>}
                     {(detailItem.data as CalendarEvent).recurrenceId && <div className="mt-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-bold"><Repeat size={10} /> {t('cal.part_of_series')}</div>}
                   </>
                 ) : (
                   <>
                     <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><CalendarRange size={16} className="me-3 flex-shrink-0" /><span>{new Date((detailItem.data as GanttBlock).startDate).toLocaleDateString(settings.language)} - <br />{new Date((detailItem.data as GanttBlock).endDate).toLocaleDateString(settings.language)}</span></div>
-                    {(detailItem.data as GanttBlock).isBlackout && <div className="mt-2 bg-red-100 text-red-700 text-xs px-2 py-1 rounded flex items-center w-fit font-bold"><AlertOctagon size={12} className="me-1" /> {t('cal.blackout_period')}</div>}
+                    {(detailItem.data as GanttBlock).isBlackout && <div className="mt-2 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-xs px-2 py-1 rounded flex items-center w-fit font-bold"><AlertOctagon size={12} className="me-1" /> {t('cal.blackout_period')}</div>}
                   </>
                 )}
               </div>
@@ -2504,7 +2708,9 @@ export const CalendarView: React.FC<Props> = ({
             isCanceled: editingEvent.isCanceled || false,
             recurrenceRule: editingEvent.recurrenceRule,
             notes: '',
+            tags: (editingEvent as CalendarEvent).tags || [],
           } : undefined}
+          tagSuggestions={allEventTags}
           isExceptionEdit={editingEvent.isExceptionEdit}
           initialStart={editingEvent.start}
           initialEnd={editingEvent.end}
@@ -2556,6 +2762,18 @@ export const CalendarView: React.FC<Props> = ({
           </div>
         )}
       </Modal>
+
+      {/* Floating New Event FAB (admins only) — bottom-end (right LTR / left RTL) */}
+      {isAdmin && (
+        <button
+          onClick={() => openModal()}
+          aria-label={t('speed.new_event')}
+          title={t('speed.new_event')}
+          className="absolute bottom-6 end-6 z-40 w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-lg hover:shadow-xl flex items-center justify-center transition-all hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50 dark:focus-visible:ring-offset-slate-950"
+        >
+          <Plus size={26} strokeWidth={2.5} />
+        </button>
+      )}
     </div>
   );
 };

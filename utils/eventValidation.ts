@@ -123,3 +123,10 @@ export function detectOverlappingAssignments(
  * Section 15: Two TeachingAssignments for same (staffMemberId, activityId) but different l2Ids — Allow.
  * This is explicitly checked by the caller: overlap detection only matches same l2Id.
  */
+
+/** Quick per-event check for the calendar "has validation error" filter facet. */
+export function hasEventDataError(evt: { activityId?: string; start?: string; end?: string }): boolean {
+  if (!evt.activityId) return true;
+  if (!evt.start || !evt.end) return true;
+  return false;
+}

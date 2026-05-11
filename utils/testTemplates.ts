@@ -7,6 +7,7 @@
  */
 
 import { ViewState } from '../types';
+import type { CalendarSidebarTab } from '../types/calendarFilters';
 import { SimulatedRole, ROLE_PRESETS } from '../context/DevSimulationContext';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -28,6 +29,8 @@ export interface TestTemplate {
   label: string;
   description: string;
   targetView: ViewState;
+  /** Sidebar tab to open after navigating to targetView (only meaningful when targetView === 'CALENDAR') */
+  sidebarTab?: CalendarSidebarTab;
   modules: DataModule[];
   /** Simulated date offset in days from today (positive = future) */
   dateOffset?: number;
@@ -78,7 +81,8 @@ export const TEST_TEMPLATES: TestTemplate[] = [
     id: 'gantt-view',
     label: 'Gantt View',
     description: '15 Gantt blocks (12 assignments + 3 blackout) overlaid on a full event calendar. Tests Gantt rendering, drag handles, and conflict visualization.',
-    targetView: 'GANTT',
+    targetView: 'CALENDAR',
+    sidebarTab: 'GANTT',
     modules: ['teachers', 'rooms', 'activities', 'events', 'ganttBlocks'],
     color: 'violet',
   },

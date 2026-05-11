@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Search, Calendar, Users, GraduationCap, Cog, LayoutGrid, Inbox, Wrench, Shield, ListChecks } from 'lucide-react';
 import { ViewState, Teacher, Student, CalendarEvent } from '../types';
+import type { CalendarSidebarTab } from '../types/calendarFilters';
 
 interface CommandPaletteProps {
   open: boolean;
   onClose: () => void;
   setCurrentView: (v: ViewState) => void;
+  setSidebarTab: (tab: CalendarSidebarTab | null) => void;
   teachers: Teacher[];
   students: Student[];
   events: CalendarEvent[];
@@ -23,32 +25,35 @@ interface PaletteResult {
   onSelect: () => void;
 }
 
-const NAV_ICONS: Record<string, React.ReactNode> = {
+const NAV_ICONS: Record<ViewState, React.ReactNode> = {
   CALENDAR: <Calendar className="h-4 w-4" />,
-  GANTT: <LayoutGrid className="h-4 w-4" />,
   MANAGE: <ListChecks className="h-4 w-4" />,
   STAFF_MEMBERS: <Users className="h-4 w-4" />,
   ADMIN_INBOX: <Inbox className="h-4 w-4" />,
   SETTINGS: <Cog className="h-4 w-4" />,
-  POWER_TOOLS: <Wrench className="h-4 w-4" />,
   SUPER_ADMIN: <Shield className="h-4 w-4" />,
 };
 
 const NAV_KEY_BY_VIEW: Record<ViewState, string> = {
   CALENDAR: 'bl01_palette.action.calendar',
-  GANTT: 'bl01_palette.action.gantt',
   MANAGE: 'bl01_palette.action.manage',
   STAFF_MEMBERS: 'bl01_palette.action.staff_members',
   ADMIN_INBOX: 'bl01_palette.action.admin_inbox',
   SETTINGS: 'bl01_palette.action.settings',
-  POWER_TOOLS: 'bl01_palette.action.power_tools',
   SUPER_ADMIN: 'bl01_palette.action.super_admin',
 };
+
+// Sidebar tab entries kept separate so they stay discoverable from the palette
+const SIDEBAR_ENTRIES: Array<{ id: string; tab: CalendarSidebarTab; labelKey: string; icon: React.ReactNode }> = [
+  { id: 'sidebar:GANTT', tab: 'GANTT', labelKey: 'bl01_palette.action.gantt', icon: <LayoutGrid className="h-4 w-4" /> },
+  { id: 'sidebar:POWER_TOOLS', tab: 'POWER_TOOLS', labelKey: 'bl01_palette.action.power_tools', icon: <Wrench className="h-4 w-4" /> },
+];
 
 export const CommandPalette: React.FC<CommandPaletteProps> = ({
   open,
   onClose,
   setCurrentView,
+  setSidebarTab,
   teachers,
   students,
   events,
@@ -86,22 +91,24 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   // Build the navigate section (always shown; filtered by label)
   const navResults = useMemo<PaletteResult[]>(() => {
-    const all: PaletteResult[] = (Object.keys(NAV_KEY_BY_VIEW) as ViewState[]).map(view => {
-      const label = t(NAV_KEY_BY_VIEW[view]);
-      return {
-        id: `nav:${view}`,
-        kind: 'navigate',
-        label,
-        icon: NAV_ICONS[view] ?? <Calendar className="h-4 w-4" />,
-        onSelect: () => {
-          setCurrentView(view);
-          onClose();
-        },
-      };
-    });
+    const viewItems: PaletteResult[] = (Object.keys(NAV_KEY_BY_VIEW) as ViewState[]).map(view => ({
+      id: `nav:${view}`,
+      kind: 'navigate',
+      label: t(NAV_KEY_BY_VIEW[view]),
+      icon: NAV_ICONS[view] ?? <Calendar className="h-4 w-4" />,
+      onSelect: () => { setCurrentView(view); onClose(); },
+    }));
+    const sidebarItems: PaletteResult[] = SIDEBAR_ENTRIES.map(entry => ({
+      id: entry.id,
+      kind: 'navigate',
+      label: t(entry.labelKey),
+      icon: entry.icon,
+      onSelect: () => { setCurrentView('CALENDAR'); setSidebarTab(entry.tab); onClose(); },
+    }));
+    const all = [...viewItems, ...sidebarItems];
     if (!q) return all;
     return all.filter(r => r.label.toLowerCase().includes(q));
-  }, [q, t, setCurrentView, onClose]);
+  }, [q, t, setCurrentView, setSidebarTab, onClose]);
 
   const staffResults = useMemo<PaletteResult[]>(() => {
     if (!q) return [];
@@ -140,24 +147,18 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   const eventResults = useMemo<PaletteResult[]>(() => {
     if (!q) return [];
     return events
-      .filter(e => {
-        const title = ((e as any).title || (e as any).activity || e.name || '').toString();
-        return title.toLowerCase().includes(q);
-      })
+      .filter(e => (e.name || '').toLowerCase().includes(q))
       .slice(0, 5)
-      .map(e => {
-        const label = ((e as any).title || (e as any).activity || e.name || '').toString();
-        return {
-          id: `event:${e.id}`,
-          kind: 'event' as ResultKind,
-          label,
-          icon: <Calendar className="h-4 w-4" />,
-          onSelect: () => {
-            setCurrentView('CALENDAR');
-            onClose();
-          },
-        };
-      });
+      .map(e => ({
+        id: `event:${e.id}`,
+        kind: 'event' as ResultKind,
+        label: e.name || '',
+        icon: <Calendar className="h-4 w-4" />,
+        onSelect: () => {
+          setCurrentView('CALENDAR');
+          onClose();
+        },
+      }));
   }, [q, events, setCurrentView, onClose]);
 
   // Flat list for keyboard nav (in section order)

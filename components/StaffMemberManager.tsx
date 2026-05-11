@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { Teacher, ListsState, AppSettings, HoursReport, Student, AdminInboxItem } from '../types';
+import { Teacher, AppSettings, HoursReport, Student, AdminInboxItem } from '../types';
 import { buildActivityMap, getActivityName } from '../utils/activityLookup';
 import type {
   ActivityV2, StaffMemberV2, TeachingAssignmentV2, OrgRoleV2,
@@ -84,8 +84,6 @@ function datesOverlap(
 interface Props {
   teachers: Teacher[];
   setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>;
-  lists: ListsState;
-  setLists: React.Dispatch<React.SetStateAction<ListsState>>;
   activities: ActivityV2[];
   settings: AppSettings;
   hoursReports: HoursReport[];
@@ -184,7 +182,7 @@ export const StaffMemberManager: React.FC<Props> = ({
 
   // ─── View state ─────────────────────────────────────────────────────────
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
-  const [listStyle, setListStyle] = useListStyle(['grid', 'list', 'table']);
+  const [listStyle, setListStyle] = useListStyle(['table', 'grid', 'list']);
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
 

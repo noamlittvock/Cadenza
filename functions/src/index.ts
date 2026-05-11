@@ -12,6 +12,9 @@ export { onStaffMemberWrite } from "./triggers/syncUserProfile";
 // Callable stubs (implementation in later phases)
 export { computeDuration } from "./callable/computeDuration";
 
+// Cozy Bee — Q&A bot pipeline (distill question → intent; wrap result → answer)
+export { botDistill, botWrap } from "./callable/botAsk";
+
 // --- Types (mirror of client-side types relevant to iCal generation) ---
 
 interface SubscriptionFilters {

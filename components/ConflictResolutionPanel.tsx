@@ -34,7 +34,7 @@ export const ConflictResolutionPanel: React.FC<ConflictResolutionPanelProps> = (
     if (settings.timeFormat === '24h') {
       return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     }
-    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return d.toLocaleTimeString(settings.language, { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
   const isRecurring = (ev: CalendarEvent) => !!ev.recurrenceRule || !!ev.recurrenceId;

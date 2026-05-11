@@ -5146,5 +5146,353 @@
   {
     "key": "staff.v2.scope_help_category",
     "screen_group": "StaffMemberManager"
+  },
+  {
+    "key": "bl01_activity.archive.title",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "bl01_activity.archive.cancel",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "bl01_activity.archive.confirm",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "bl01_activity.archive.body_with_events",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "bl01_activity.archive.body_no_events",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "bl01_calendar.event.aria_focused",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "bl01_calendar.conflicts_badge.aria",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "bl01_calendar.conflicts_badge.label",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "bl01_calendar.filter.active_label",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "bl01_calendar.filter.pill_remove",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "bl01_calendar.filter.clear_all",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "bl01_palette.aria_open",
+    "screen_group": "CommandPalette"
+  },
+  {
+    "key": "bl01_palette.placeholder",
+    "screen_group": "CommandPalette"
+  },
+  {
+    "key": "bl01_palette.aria_close",
+    "screen_group": "CommandPalette"
+  },
+  {
+    "key": "bl01_palette.empty",
+    "screen_group": "CommandPalette"
+  },
+  {
+    "key": "bl01_palette.kbd_navigate",
+    "screen_group": "CommandPalette"
+  },
+  {
+    "key": "bl01_palette.kbd_select",
+    "screen_group": "CommandPalette"
+  },
+  {
+    "key": "bl01_palette.kbd_close",
+    "screen_group": "CommandPalette"
+  },
+  {
+    "key": "bl01_palette.shortcut_label",
+    "screen_group": "CommandPalette"
+  },
+  {
+    "key": "cal.filter.status.scheduled",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.status.completed",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.status.cancelled",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.status.archived",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.type.academic",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.type.administrative",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.type.performances",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.type.special_events",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.tmpl.discipline",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.tmpl.program",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.tmpl.ensemble",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.tmpl.external",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.tmpl.administrative",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.assign.teaching",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.assign.org_role",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.role.super_admin",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.role.admin",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.role.staff",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.panel_title",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.group.state",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.status.label",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.recurrence.label",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.recurrence.all",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.recurrence.recurring",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.recurrence.one_off",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.group.taxonomy",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.type.label",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.tmpl.label",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.activity.label",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.group.people",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.staff.label",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.assign.label",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.role.label",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.student.label",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.student_tag.label",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.group.place",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.location.label",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.location.empty",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.group.derived",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.has_room_conflict",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.has_validation_error",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "view.table",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "cal.no_gantt_blocks",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "cal.prev",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "cal.next",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "cal.filter.event_tag.label",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "[data-month-day]",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "event.v2.tags",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.tags_placeholder",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "bot.launcher_aria",
+    "screen_group": "BotChatPanel"
+  },
+  {
+    "key": "bot.launcher_title",
+    "screen_group": "BotChatPanel"
+  },
+  {
+    "key": "bot.panel_aria",
+    "screen_group": "BotChatPanel"
+  },
+  {
+    "key": "bot.title",
+    "screen_group": "BotChatPanel"
+  },
+  {
+    "key": "bot.clear",
+    "screen_group": "BotChatPanel"
+  },
+  {
+    "key": "bot.close_aria",
+    "screen_group": "BotChatPanel"
+  },
+  {
+    "key": "bot.empty_state",
+    "screen_group": "BotChatPanel"
+  },
+  {
+    "key": "bot.example_1",
+    "screen_group": "BotChatPanel"
+  },
+  {
+    "key": "bot.example_2",
+    "screen_group": "BotChatPanel"
+  },
+  {
+    "key": "bot.example_3",
+    "screen_group": "BotChatPanel"
+  },
+  {
+    "key": "bot.placeholder",
+    "screen_group": "BotChatPanel"
+  },
+  {
+    "key": "bot.send_aria",
+    "screen_group": "BotChatPanel"
+  },
+  {
+    "key": "settings.ai_assistant_section",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.ai_assistant_title",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "settings.ai_assistant_desc",
+    "screen_group": "Settings"
+  },
+  {
+    "key": "cal.tab.filters",
+    "screen_group": "App"
+  },
+  {
+    "key": "cal.tab.tools",
+    "screen_group": "App"
+  },
+  {
+    "key": "cal.tab.gantt",
+    "screen_group": "App"
+  },
+  {
+    "key": "cal.tab.bot",
+    "screen_group": "App"
   }
 ]

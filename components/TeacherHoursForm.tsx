@@ -3,7 +3,7 @@ import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/fire
 import { db } from '../utils/firebase';
 import {
   HoursReport, HoursEntry, HoursEntryType, CalendarEvent, Teacher, Activity,
-  ListsState, AppSettings
+  AppSettings
 } from '../types';
 import { generateId, TRANSLATIONS } from '../constants';
 import { Check, Plus, Trash2, Clock, AlertCircle, Send, ChevronDown, ChevronUp } from 'lucide-react';
@@ -33,8 +33,8 @@ export const TeacherHoursForm: React.FC<Props> = ({ token }) => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [staffMember, setStaffMember] = useState<Teacher | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [absenceReasons, setAbsenceReasons] = useState<string[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [absenceReasonSuggestions, setAbsenceReasonSuggestions] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +82,21 @@ export const TeacherHoursForm: React.FC<Props> = ({ token }) => {
 
         setReport(reportData);
         const orgId = reportData.orgId;
+
+        // Build absence-reason autocomplete pool from prior submitted reports in this org
+        const orgReportsSnap = await getDocs(query(
+          collection(db, 'hoursReports'),
+          where('orgId', '==', orgId),
+        ));
+        const seenReasons = new Set<string>();
+        orgReportsSnap.docs.forEach(d => {
+          const data = d.data() as HoursReport;
+          (data.reportedEntries || []).forEach((entry: HoursEntry) => {
+            const r = entry.absenceReason?.trim();
+            if (r) seenReasons.add(r);
+          });
+        });
+        setAbsenceReasonSuggestions([...seenReasons].sort());
 
         // Load staff member
         const staffQuery = query(
@@ -136,13 +151,9 @@ export const TeacherHoursForm: React.FC<Props> = ({ token }) => {
         const activitiesSnap = await getDocs(activitiesQuery);
         setActivities(activitiesSnap.docs.map(d => ({ id: d.id, ...d.data() } as Activity)));
 
-        // Load settings and lists for absence reasons
+        // Load org settings (absence reasons are now free-text per-entry, no shared catalog)
         const configSnap = await getDocs(collection(db, 'system_configs'));
         configSnap.docs.forEach(d => {
-          if (d.id.endsWith('_lists')) {
-            const listsData = d.data() as ListsState;
-            setAbsenceReasons(listsData.absenceReasons || []);
-          }
           if (d.id.endsWith('_settings')) {
             setSettings(d.data() as AppSettings);
           }
@@ -294,6 +305,12 @@ export const TeacherHoursForm: React.FC<Props> = ({ token }) => {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* Shared datalist for absence-reason inputs (browser-native autocomplete) */}
+      <datalist id="absence-reason-suggestions">
+        {absenceReasonSuggestions.map(r => (
+          <option key={r} value={r} />
+        ))}
+      </datalist>
       {/* Header */}
       <div className="bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-3xl mx-auto px-4 py-6">
@@ -301,7 +318,7 @@ export const TeacherHoursForm: React.FC<Props> = ({ token }) => {
           <p className="text-slate-500 mt-1">{t('hours.form_subtitle')}</p>
           {staffMember && (
             <div className="mt-3 flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{ backgroundColor: staffMember.color || '#6366f1' }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{ backgroundColor: staffMember.color || '#6E1A1A' }}>
                 {staffMember.fullName.charAt(0)}
               </div>
               <span className="font-medium text-slate-700">{staffMember.fullName}</span>
@@ -343,7 +360,7 @@ export const TeacherHoursForm: React.FC<Props> = ({ token }) => {
                       className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors"
                     >
                       <div className="flex items-center gap-3 text-start">
-                        <div className="w-1 h-10 rounded-full" style={{ backgroundColor: staffMember?.color || '#6366f1' }} />
+                        <div className="w-1 h-10 rounded-full" style={{ backgroundColor: staffMember?.color || '#6E1A1A' }} />
                         <div>
                           <p className="font-medium text-slate-800 text-sm">{ev.name}</p>
                           <p className="text-xs text-slate-500">{formatDate(ev.start)} · {formatTime(ev.start)} – {formatTime(ev.end)} · {scheduledHours}h</p>
@@ -353,7 +370,7 @@ export const TeacherHoursForm: React.FC<Props> = ({ token }) => {
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                           resp.entryType === 'CALENDAR_CONFIRMED' ? 'bg-green-100 text-green-700' :
                           resp.entryType === 'CALENDAR_ADJUSTED' ? 'bg-amber-100 text-amber-700' :
-                          'bg-red-100 text-red-700'
+                          'bg-slate-200 text-slate-600'
                         }`}>
                           {resp.entryType === 'CALENDAR_CONFIRMED' ? t('hours.entry_confirmed') :
                            resp.entryType === 'CALENDAR_ADJUSTED' ? t('hours.entry_adjusted') :
@@ -371,7 +388,7 @@ export const TeacherHoursForm: React.FC<Props> = ({ token }) => {
                           {([
                             ['CALENDAR_CONFIRMED', t('hours.form_confirmed'), 'bg-green-50 border-green-300 text-green-700'],
                             ['CALENDAR_ADJUSTED', t('hours.form_adjusted'), 'bg-amber-50 border-amber-300 text-amber-700'],
-                            ['CALENDAR_NOT_COMPLETED', t('hours.form_not_completed'), 'bg-red-50 border-red-300 text-red-700'],
+                            ['CALENDAR_NOT_COMPLETED', t('hours.form_not_completed'), 'bg-slate-100 border-slate-300 text-slate-600'],
                           ] as [HoursEntryType, string, string][]).map(([type, label, activeClass]) => (
                             <button
                               key={type}
@@ -410,16 +427,14 @@ export const TeacherHoursForm: React.FC<Props> = ({ token }) => {
                         {resp.entryType === 'CALENDAR_NOT_COMPLETED' && (
                           <div>
                             <label className="block text-xs font-medium text-slate-600 mb-1">{t('hours.form_absence_reason')}</label>
-                            <select
+                            <input
+                              type="text"
+                              list="absence-reason-suggestions"
                               value={resp.absenceReason || ''}
                               onChange={e => updateResponse(ev.id, { absenceReason: e.target.value })}
+                              placeholder={t('hours.form_select_reason')}
                               className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-blue-500"
-                            >
-                              <option value="">{t('hours.form_select_reason')}</option>
-                              {absenceReasons.map(reason => (
-                                <option key={reason} value={reason}>{reason}</option>
-                              ))}
-                            </select>
+                            />
                           </div>
                         )}
                       </div>

@@ -165,6 +165,9 @@ export interface CalendarEvent {
   googleEventId?: string;
   // Phase 5 — Per-teacher Google Calendar sync
   teacherGoogleEventIds?: Record<string, string>; // staffMemberId → Google Event ID
+  // Freeform user-defined grouping labels (e.g. "recital_2026", "audition_prep").
+  // Auto-colored from string hash; managed inline on the event form, no central catalog.
+  tags?: string[];
 }
 
 export interface ExternalCalendar {
@@ -200,13 +203,7 @@ export interface AppSettings {
   schoolYearEndDate?: string; // ISO date: "2025-05-31"
   schoolYearLabel?: string; // e.g., "2024-2025"
   enableSchoolYearBoundaries?: boolean; // Show year markers on calendar
-}
-
-export interface ListsState {
-  positions: string[];
-  tags: string[];
-  employmentTypes?: string[];
-  absenceReasons?: string[];
+  aiAssistantEnabled?: boolean; // Cozy Bee Q&A panel — opt-in per org, default off
 }
 
 // --- Student Module (Phase 4) ---
@@ -349,7 +346,7 @@ export interface AdminInboxItem {
   autoResolvedReason?: 'CONFLICT_CLEARED';
 }
 
-export type ViewState = 'CALENDAR' | 'GANTT' | 'MANAGE' | 'SETTINGS' | 'POWER_TOOLS' | 'SUPER_ADMIN' | 'STAFF_MEMBERS' | 'ADMIN_INBOX';
+export type ViewState = 'CALENDAR' | 'MANAGE' | 'SETTINGS' | 'SUPER_ADMIN' | 'STAFF_MEMBERS' | 'ADMIN_INBOX';
 
 // ─── v2.0 Type Re-exports ────────────────────────────────────────────────────
 // Canonical v2.0 types from the Cadenza v2.0 Final spec (Section 05).

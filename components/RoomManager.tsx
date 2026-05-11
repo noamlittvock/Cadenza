@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Room, AppSettings } from '../types';
 import { generateId } from '../constants';
-import { Plus, Edit2, Trash2, Home, Menu, LayoutGrid, List, Archive, RotateCcw, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Edit2, Trash2, Home, Menu, LayoutGrid, List, Archive, RotateCcw, ArrowUp, ArrowDown, Table2, ChevronRight } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
 import { Modal } from './Modal';
 import { useListStyle } from '../utils/useListStyle';
@@ -21,7 +21,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Room>>({});
   const [initialFormData, setInitialFormData] = useState<Partial<Room>>({});
-  const [viewMode, setViewMode] = useListStyle(['grid', 'list']);
+  const [viewMode, setViewMode] = useListStyle(['table', 'grid', 'list']);
   const [showArchived, setShowArchived] = useState(false);
   const { sortKey, sortDirection, toggleSort } = useSortState<'name' | 'itinerary'>('name');
 
@@ -159,6 +159,9 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
               <button onClick={() => setViewMode('list')} className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`} title={t('view.list')}>
                 <List size={16} />
               </button>
+              <button onClick={() => setViewMode('table')} className={`hidden md:block p-2 transition-colors ${viewMode === 'table' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`} title={t('view.table')}>
+                <Table2 size={16} />
+              </button>
             </div>
             {settings && (
               <ImportExportDropdown
@@ -198,6 +201,9 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
             </button>
             <button onClick={() => setViewMode('list')} className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`} title={t('view.list')}>
               <List size={16} />
+            </button>
+            <button onClick={() => setViewMode('table')} className={`hidden md:block p-2 transition-colors ${viewMode === 'table' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`} title={t('view.table')}>
+              <Table2 size={16} />
             </button>
           </div>
           {settings && (
@@ -269,44 +275,64 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
             </div>
           ))}
         </div>
+      ) : viewMode === 'list' ? (
+        <div className="space-y-1">
+          {filteredRooms.map(room => (
+            <button key={room.id} onClick={() => handleOpenModal(room)}
+              className={`w-full text-start flex items-center gap-4 p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors ${room.isArchived ? 'opacity-60' : ''}`}>
+              <div className="bg-indigo-100 dark:bg-indigo-900/50 p-1.5 rounded-lg text-indigo-600 dark:text-indigo-300 shrink-0">
+                <Home size={16} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="font-medium text-slate-800 dark:text-slate-200">{room.name}</span>
+                {room.itinerary && <span className="text-sm text-slate-500 dark:text-slate-400 ms-2 truncate">{room.itinerary}</span>}
+              </div>
+              {room.isArchived && (
+                <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded">
+                  {t('room.archived_badge')}
+                </span>
+              )}
+              <ChevronRight size={16} className="text-slate-400 shrink-0" />
+            </button>
+          ))}
+        </div>
       ) : (
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-clip">
+        <div className="overflow-auto rounded-lg border border-slate-200 dark:border-slate-700">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-700">
-                <th className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800/50 shadow-sm text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">
-                  <button onClick={() => toggleSort('name')} className="inline-flex items-center gap-1 hover:text-slate-900 dark:hover:text-white">
+                <th className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 shadow-sm py-2 px-3 text-start text-slate-500 dark:text-slate-400 font-medium">
+                  <button onClick={() => toggleSort('name')} className="inline-flex items-center gap-1 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
                     {t('label.room_name')}
                     {sortKey === 'name' && (sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
                   </button>
                 </th>
-                <th className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800/50 shadow-sm text-start px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hidden md:table-cell">
-                  <button onClick={() => toggleSort('itinerary')} className="inline-flex items-center gap-1 hover:text-slate-900 dark:hover:text-white">
+                <th className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 shadow-sm py-2 px-3 text-start text-slate-500 dark:text-slate-400 font-medium hidden md:table-cell">
+                  <button onClick={() => toggleSort('itinerary')} className="inline-flex items-center gap-1 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
                     {t('room.itinerary_equipment')}
                     {sortKey === 'itinerary' && (sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
                   </button>
                 </th>
-                <th className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800/50 shadow-sm text-end px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">{t('btn.edit')}</th>
+                <th className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 shadow-sm py-2 px-3 text-end text-slate-500 dark:text-slate-400 font-medium">{t('btn.edit')}</th>
               </tr>
             </thead>
             <tbody>
               {filteredRooms.map(room => (
-                <tr key={room.id} className={`border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors ${room.isArchived ? 'opacity-60' : ''}`}>
-                  <td className="px-4 py-3">
+                <tr key={room.id} onClick={() => handleOpenModal(room)}
+                  className={`border-b border-slate-100 dark:border-slate-800 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 cursor-pointer transition-colors ${room.isArchived ? 'opacity-60' : ''}`}>
+                  <td className="py-2 px-3 text-start font-medium text-slate-800 dark:text-slate-200">
                     <div className="flex items-center gap-3">
                       <div className="bg-indigo-100 dark:bg-indigo-900/50 p-1.5 rounded-lg text-indigo-600 dark:text-indigo-300">
                         <Home size={16} />
                       </div>
-                      <div>
-                        <span className="font-medium text-slate-900 dark:text-white">{room.name}</span>
-                        {room.isArchived && <span className="ms-2 text-xs text-amber-600 dark:text-amber-400">{t('room.archived_badge')}</span>}
-                      </div>
+                      <span>{room.name}</span>
+                      {room.isArchived && <span className="ms-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded">{t('room.archived_badge')}</span>}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400 hidden md:table-cell">
-                    <span className="text-xs line-clamp-1">{room.itinerary || '—'}</span>
+                  <td className="py-2 px-3 text-start text-slate-600 dark:text-slate-400 hidden md:table-cell">
+                    <span className="line-clamp-1">{room.itinerary || '—'}</span>
                   </td>
-                  <td className="px-4 py-3 text-end">
+                  <td className="py-2 px-3 text-end" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       {!room.isArchived && (
                         <button onClick={() => handleOpenModal(room)} className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title={t('btn.edit')}>

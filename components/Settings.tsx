@@ -441,6 +441,31 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
               )}
             </div>
           </section>
+
+          {/* Cozy Bee — AI Assistant */}
+          <section>
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+              {t('settings.ai_assistant_section')}
+            </h3>
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white">{t('settings.ai_assistant_title')}</h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">{t('settings.ai_assistant_desc')}</p>
+                </div>
+                <label className="inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={Boolean(tempSettings.aiAssistantEnabled)}
+                    onChange={e => handleChange('aiAssistantEnabled', e.target.checked)}
+                    disabled={!isAdmin}
+                  />
+                  <div className="relative w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-cadenza-primary rounded-full peer peer-checked:bg-cadenza-primary after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full" />
+                </label>
+              </div>
+            </div>
+          </section>
         </div>
 
         {/* Floating Save Bar */}
