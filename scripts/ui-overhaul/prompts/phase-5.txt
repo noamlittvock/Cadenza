@@ -1,0 +1,87 @@
+> AUTONOMOUS BYPASS
+> Same hard rules as phase-1 (no interactive cmds, no prompts to user, no git ops, no Firebase, no deps, scope-bounded, dark+RTL parity preserved).
+
+# Project context
+
+Cadenza v3 at `/Users/noamlitt/Building/apps/cadenza-v3`. Phases 1–4 merged. Bone-and-lacquer is fully established across chrome, calendar, staff/students, and management surfaces.
+
+Required reading: `PRODUCT.md`, `DESIGN.md`, `index.html`, then 2–3 previously-styled files to anchor visual grammar.
+
+# Phase 5 — Financial Reporting + Hours
+
+Financial dashboards are where the conservatory admin sees the calendar's economic shadow. Density and tabular precision matter most here — DO NOT use the hero-metric template (PRODUCT.md anti-reference).
+
+## Files in scope
+
+- `components/HoursComparisonView.tsx` (primary)
+- `components/TeacherHoursForm.tsx` (the standalone tokenized form at `/report/:token` — has its own auth-less route)
+- `components/DocumentSection.tsx` (if not handled in Phase 3)
+- Any financial reporting component imported anywhere — likely embedded in StaffMemberManager (Hours Reports tab) or SuperAdmin or a separate file. Discover.
+- Recharts usage anywhere — restyle chart palettes.
+
+## Required changes
+
+### Financial dashboard layout
+- Replace any "hero metric card" templates (big number + small label + supporting stats) with a single dense table view.
+- Table columns: bone-700 600 12px uppercase tracking-wide headers; tabular nums on every numeric cell; bone-500 14px on labels; bone-900 14px 500 on numbers.
+- Row striping: NONE (alternating background reads as dated SaaS). Use bone-200 divider lines between rows instead.
+- Sticky header on scroll: bone-50 + shadow-low underneath.
+- Sortable headers: lacquer-500 sort indicator (small chevron).
+- Footer row (totals): bone-100 surface, bone-900 600.
+- Currency: tabular nums + locale-aware decimal alignment. Hebrew RTL renders numbers LTR — verify alignment is consistent (numbers right-aligned in LTR table, inline-end-aligned in RTL).
+
+### Filters bar
+- Time-range picker: segmented "This week / Month / Quarter / Custom" — same segmented-control pattern as Calendar header.
+- Entity filters (Teacher / Activity / Room): same FilterPills pattern.
+- Inclusion toggles (VAT / overhead / social benefits): standard checkbox + bone-700 label. Group label bone-500 12px 600 uppercase.
+
+### Charts (Recharts)
+- Chart palette: ALL chart series in lacquer hues — `lacquer-500`, `lacquer-400`, `lacquer-600`, plus a single `info-500` for comparison series. NEVER use multi-color rainbow palettes.
+- Axis labels: bone-500 12px tabular nums.
+- Gridlines: bone-200 0.5px. NOT 1px solid (too loud).
+- Tooltip: bg-bone-50 + shadow-mid + radius-md + border bone-200; data values tabular nums bone-900.
+- Legend: below chart, bone-700 12px, color swatch 8×8 radius-sm.
+- NO chart titles inside the chart — title sits above as Inter Display 18 600.
+
+### Hours report (TeacherHoursForm — public token route)
+- Standalone auth-less form: lighter chrome but same palette.
+- Header: organization name, period range, teacher name. Inter Display.
+- Table of hours (date / activity / hours / notes): same dense table pattern as financial dashboard.
+- Submit button: lacquer-500 primary.
+- Confirmation state: ok-500 check + thank-you message.
+- Page bg: bone-50; max-w-4xl centered.
+
+### DocumentSection (if not done in Phase 3)
+- File list pattern from Phase 3 (file-type icon, filename, size mono, download/delete actions).
+
+## Constraints
+
+- Do NOT alter financial aggregation logic, payroll engine, or any computation.
+- Do NOT change tokenized-link auth flow for TeacherHoursForm.
+- Preserve `data-testid` attributes.
+- All currency / hours numbers must remain tabular nums.
+- Must respect light + dark, LTR + RTL.
+
+## Files OUT OF SCOPE
+
+CalendarView, StaffMemberManager (re-touch only the hours-reports embed if present), StudentManager equivalent, EventFormV2, ManageHub family, AdminInbox, Settings, SuperAdmin, DevTools, OnboardingChecklist.
+
+## Verification (mandatory)
+
+1. `npx tsc --noEmit` — zero errors.
+2. `npm run build` — must succeed.
+3. Output:
+
+```
+PHASE 5 REPORT
+files_modified: <list>
+financial_dashboard_surface: <discovered file paths>
+recharts_files_restyled: <list>
+tsc_errors: <int>
+build_status: <ok | failed>
+indigo_residue_in_scope: <yes/no>
+risks_for_next_phase: <bullets>
+notes: <bullets>
+```
+
+Do NOT commit. Begin.

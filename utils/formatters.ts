@@ -25,20 +25,3 @@ export function formatHours(decimalHours: number | null | undefined): string {
     if (m === 60) return `${negative ? '-' : ''}${h + 1}:00`;
     return `${negative ? '-' : ''}${h}:${m.toString().padStart(2, '0')}`;
 }
-
-/**
- * Format a currency number with thousands separators (no decimals).
- * @param currencySymbol - The currency symbol to prepend (e.g. '₪', '$', '€')
- */
-export function formatCurrency(n: number | null | undefined, currencySymbol: string = '₪'): string {
-    if (n == null || isNaN(n)) return `${currencySymbol}0`;
-    return `${currencySymbol}${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
-
-/**
- * Format a number with a given number of fraction digits.
- */
-export function formatNumber(n: number | null | undefined, fractionDigits = 0): string {
-    if (n == null || isNaN(n)) return '0';
-    return n.toLocaleString('en-US', { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits });
-}

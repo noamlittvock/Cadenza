@@ -1,0 +1,126 @@
+> AUTONOMOUS BYPASS
+> Same hard rules as phase-1 (no interactive cmds, no prompts to user, no git ops, no Firebase, no deps, scope-bounded, dark+RTL parity preserved).
+
+# Project context
+
+Cadenza v3 at `/Users/noamlitt/Building/apps/cadenza-v3`. Phases 1–5 merged. This is the final pass — sweep everything that remains.
+
+Required reading: `PRODUCT.md`, `DESIGN.md`, `index.html`, then 2–3 previously-styled files for grammar.
+
+# Phase 6 — Inbox + Settings + SuperAdmin + DevTools + Onboarding + residue sweep
+
+Restyle the remaining surfaces and clean up any residue from prior phases.
+
+## Files in scope
+
+- `components/AdminInbox.tsx`
+- `components/OnboardingChecklist.tsx`
+- `components/Settings.tsx`
+- `components/SuperAdmin.tsx`
+- `components/DevTools.tsx` (the new component extracted in chunk 5)
+- `components/TranslationManager.tsx`
+- `components/GuideMeButton.tsx`
+- `components/ConflictResolutionPanel.tsx`
+- Any other component containing `cadenza-`, `bg-blue-`, `text-indigo-`, `text-violet-`, `bg-violet-`, or any indigo residue from prior phases.
+
+## Required changes
+
+### AdminInbox
+- Inbox list: dense table-like rows (NOT cards).
+- Item row: 48px height, bone-50 default, bone-100 hover, lacquer-100 selected.
+- Status indicator: small dot + label. OPEN = lacquer-500. DONE = ok-500. Auto-resolved = bone-500 with archive icon.
+- Item type icon (notification / conflict / ROOM_CONFLICT): bone-500 12px Lucide icon.
+- Title: Inter 500 14 bone-900.
+- Body: Inter 400 13 bone-500 truncated.
+- Action area (right side): "Mark done" / "Navigate to event" / "Navigate to staff" — bone-500 ghost buttons, lacquer-500 hover.
+- Empty state: bone-500 centered, single line + small icon. NO illustrations.
+
+### OnboardingChecklist
+- Hard-gate variant (first admin pre-setup): bone-50 page bg, max-w-3xl centered, Inter Display 28 600 heading "Set up Cadenza" or current copy.
+- Checklist items: 64px height rows, bone-100 surface + radius-md + bone-200 border. Checkbox: bone-300 border default, lacquer-500 + check icon when complete. Item label Inter 500 16 bone-900. Description bone-500 13.
+- Progress: progress strip bone-200 + lacquer-500 fill (NOT a circular dial — that's SaaS cliché). Percentage Inter Display 22 tabular nums bone-900 + "X of Y complete" bone-500.
+- "Continue to calendar" CTA: lacquer-500 primary, only enabled when all required steps complete.
+- Locked-prompt mode: same chrome but with a lock icon and "Setup gate not yet cleared" copy in bone-500.
+- Soft-tour celebration variant (post-gate first calendar visit): same surface + a subtle confetti-free arrival animation (use existing `cadenza-arrive`).
+
+### Settings
+- Container: max-w-3xl centered, bone-50 page bg.
+- Settings sections: vertical stack of bone-100 cards, NOT nested. Section heading Inter Display 18 600. Each setting row: label left (Inter 500 14 bone-900), control right.
+- Toggle: use the existing `.status-toggle-track` / `.status-toggle-thumb` (already in index.html); recolor track bone-300 off / lacquer-500 on.
+- Language picker (en-US / he-IL): radio group with flag-free labels (just "English" / "עברית"). Selected lacquer-100 surface + bone-900 text.
+- Dark mode toggle: same pattern.
+- Google Calendar import: button lacquer-500 primary. Connected-state badge ok-500.
+
+### SuperAdmin
+- Tabs at top (Org config / Data / Dev): segmented control.
+- Org config: form pattern from Phase 3.
+- Data section: action grid of destructive operations (Wipe org data, etc.). Each action: bone-100 card + 1px border bone-200 + radius-md. Action button: bone-700 ghost default; on click → confirmation modal (Modal pattern from Phase 1) with danger-500 confirm button.
+- Wipe-data flow: Modal title "Permanently delete organization data?" Body lists what will be deleted in a bone-700 list. Confirm button danger-500 text + bone-100 surface (NOT solid danger button — too aggressive); type-to-confirm input required.
+
+### DevTools (extracted chunk 5 component)
+- Already has violet/blue theme for Date Simulator / Role Simulator.
+- REPLACE both with bone-and-lacquer:
+  - Date Simulator: bone-100 section + 4px left lacquer-100 accent strip. Action buttons bone-700 ghost default, hover bone-200. Active simulated date badge: lacquer-500 surface + bone-50 text + tabular nums.
+  - Role Simulator: bone-100 section + 4px left info-500 accent strip (info because dev preview, not action). Active role chip: info-500 surface + bone-50 text.
+  - "Generate Data" / "Full Stress Test": lacquer-500 primary; destructive ("Reset DB") danger-500 text.
+- Section headings JetBrains Mono 12 600 uppercase bone-700 (signals "this is dev tooling, not production UI").
+
+### TranslationManager
+- Translation list: dense table (key / en-US / he-IL columns).
+- Edit-in-place inputs: same form pattern.
+- Missing-translation indicator: warn-500 dot.
+
+### GuideMeButton
+- Floating bone-100 surface + texture-paper + shadow-mid + radius-lg.
+- Trigger: lacquer-500 primary FAB.
+
+### ConflictResolutionPanel
+- Conflict list: each conflict in a bone-100 card with bone-200 border + 4px left danger-500 strip (this is one of the rare allowed colored accents — conflict signal).
+- Resolution actions: ghost bone-700, lacquer-500 hover.
+
+### Residue sweep (apply across the codebase, not just files above)
+
+Grep for and replace any remaining occurrences of:
+- `bg-cadenza-gradient` → bone-100 + texture-paper
+- `texture-cadenza` → texture-paper
+- `shadow-cadenza-soft` → shadow-low
+- `shadow-cadenza-deep` → shadow-mid
+- `shadow-cadenza-pressed` → shadow-pressed
+- `bg-blue-{50..950}` (where it was indigo accent) → bone or lacquer per semantic role
+- `text-indigo-`, `bg-indigo-`, `border-indigo-`, `text-violet-`, `bg-violet-`, `border-violet-` → semantic equivalents
+- `animate-cadenza-pulse` → remove (no replacement)
+
+For each replacement, judge by semantic role: was it a primary action (→ lacquer)? Surface (→ bone)? Status (→ ok/warn/danger/info)?
+
+## Constraints
+
+- Do NOT modify business logic in any of these files (auth gates, onboarding sync, dev simulation context, translation runtime, conflict math).
+- Do NOT touch `context/AuthContext.tsx`, `context/DevSimulationContext.tsx`, `context/TranslationContext.tsx` (logic-only).
+- Preserve `data-testid` attributes.
+- After residue sweep, project should have ZERO `cadenza-gradient`, `texture-cadenza`, `shadow-cadenza-*`, `animate-cadenza-pulse`, `text-indigo-`, `bg-indigo-`, `text-violet-`, `bg-violet-` references in `.tsx` / `.ts` / `.html` files (excluding `node_modules`, `dist`, `e2e`, and PRODUCT.md/DESIGN.md). Some `bg-blue-*` / `text-blue-*` may legitimately remain if `blue` was redefined as the legacy palette in index.html — verify by checking what `blue-500` resolves to after Phase 1.
+
+## Files OUT OF SCOPE
+
+`context/*.tsx`, `utils/*.ts`, `types/*.ts`, `App.tsx` (already touched in Phase 1), CalendarView (Phase 2), StaffMemberManager (Phase 3), ManageHub family (Phase 4), HoursComparisonView (Phase 5).
+
+## Verification (mandatory)
+
+1. `npx tsc --noEmit` — zero errors.
+2. `npm run build` — must succeed.
+3. Run residue greps and report counts:
+   - `grep -rn "cadenza-gradient\|texture-cadenza\|shadow-cadenza-\|animate-cadenza-pulse\|text-indigo-\|bg-indigo-\|text-violet-\|bg-violet-" --include="*.tsx" --include="*.ts" --include="*.html" --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=e2e .`
+   - Result count goes in report.
+4. Output:
+
+```
+PHASE 6 REPORT
+files_modified: <list>
+residue_grep_count: <int>  (target: 0)
+residue_examples: <up to 5 file:line pairs if any remain>
+tsc_errors: <int>
+build_status: <ok | failed>
+overall_overhaul_health: <ok | needs-followup — describe>
+notes: <bullets>
+```
+
+Do NOT commit. Begin.

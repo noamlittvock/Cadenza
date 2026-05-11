@@ -1,0 +1,284 @@
+import { useState, useEffect, useRef } from 'react';
+import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { db } from './firebase';
+import { useAuth } from '../context/AuthContext';
+import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings } from '../types';
+import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS } from '../constants';
+import {
+    LOCAL_MODE,
+    readCollection,
+    writeCollection,
+    collectionSubKey,
+    readSettings,
+    writeSettings,
+    settingsSubKey,
+    subscribeKey,
+} from './localStore';
+
+// ─── Shared listener registry ────────────────────────────────────────────────
+// One Firestore onSnapshot per (orgId, collectionName) pair, shared across all
+// hook instances. This prevents duplicate listeners that can trigger Firestore
+// internal assertion failures (INTERNAL ASSERTION FAILED: Unexpected state).
+
+type NotifyFn = (items: unknown[], loaded: boolean) => void;
+
+interface SharedEntry {
+    unsubscribe: () => void;
+    observers: Set<NotifyFn>;
+    latestItems: unknown[];
+    loaded: boolean;
+}
+
+const sharedListeners = new Map<string, SharedEntry>();
+
+function subscribeShared(orgId: string, collectionName: string, notify: NotifyFn): () => void {
+    const key = `${orgId}:${collectionName}`;
+
+    if (!sharedListeners.has(key)) {
+        const observers = new Set<NotifyFn>();
+        const entry: SharedEntry = { unsubscribe: () => {}, observers, latestItems: [], loaded: false };
+        sharedListeners.set(key, entry);
+
+        const q = query(collection(db, collectionName), where('orgId', '==', orgId));
+        const unsub = onSnapshot(q, (snapshot) => {
+            const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            const e = sharedListeners.get(key);
+            if (!e) return;
+            e.latestItems = items;
+            e.loaded = true;
+            e.observers.forEach(cb => cb(items, true));
+        }, (error) => {
+            console.error(`Error syncing ${collectionName}:`, error);
+            const e = sharedListeners.get(key);
+            if (!e) return;
+            e.loaded = true;
+            e.observers.forEach(cb => cb(e.latestItems, true));
+        });
+        entry.unsubscribe = unsub;
+    }
+
+    const entry = sharedListeners.get(key)!;
+    entry.observers.add(notify);
+
+    // Deliver the latest snapshot immediately if already loaded
+    if (entry.loaded) {
+        notify(entry.latestItems, true);
+    }
+
+    return () => {
+        const e = sharedListeners.get(key);
+        if (!e) return;
+        e.observers.delete(notify);
+        // Defer the actual Firestore unsubscribe by one macrotask tick.
+        // React 18 StrictMode unmounts and immediately remounts every component in
+        // development. Without the delay, we'd call unsubscribe() while Firestore is
+        // still delivering the initial snapshot for that target, causing
+        // "INTERNAL ASSERTION FAILED: Unexpected state (ve: -1)".
+        // The setTimeout lets the remount re-register its observer before we check
+        // whether the listener is still needed.
+        setTimeout(() => {
+            const e2 = sharedListeners.get(key);
+            if (e2 && e2.observers.size === 0) {
+                e2.unsubscribe();
+                sharedListeners.delete(key);
+            }
+        }, 0);
+    };
+}
+
+// A generic hook for syncing a collection to React state
+export function useFirestoreSync<T extends { id: string }>(
+    collectionName: string,
+    initialData: T[]
+) {
+    const { orgId } = useAuth();
+    const [data, setData] = useState<T[]>(initialData);
+    const [loading, setLoading] = useState(true);
+
+    // Keep a ref to the latest data so updateData's delete-diff is never stale
+    const dataRef = useRef(data);
+    dataRef.current = data;
+
+    useEffect(() => {
+        if (!orgId) {
+            setData(initialData);
+            setLoading(false);
+            return;
+        }
+
+        // ─── Local-mode branch ─────────────────────────────────────────────
+        if (LOCAL_MODE) {
+            const load = () => {
+                const stored = readCollection<T>(orgId, collectionName);
+                setData(stored ?? initialData);
+                setLoading(false);
+            };
+            load();
+            return subscribeKey(collectionSubKey(orgId, collectionName), load);
+        }
+
+        const notify: NotifyFn = (items, loaded) => {
+            setData(items as T[]);
+            if (loaded) setLoading(false);
+        };
+
+        return subscribeShared(orgId, collectionName, notify);
+    }, [orgId, collectionName]);
+
+    // Wrapper for state updates to also write to Firestore
+    const updateData = async (newData: T[] | ((prev: T[]) => T[])) => {
+        // 1. Calculate the new state array (use ref for latest data to avoid stale closure)
+        const currentData = dataRef.current;
+        const resolvedData = typeof newData === 'function' ? (newData as any)(currentData) : newData;
+
+        // 2. Optimistic UI update
+        setData(resolvedData);
+
+        if (!orgId) return;
+
+        // ─── Local-mode write ─────────────────────────────────────────────
+        // Mirror Firestore's `merge: true` semantics: multiple hooks can write
+        // disjoint field sets to the same collection (e.g. v1 `events` writes
+        // start/end/teacherId, V2 `events` writes date/startTime/endTime — same
+        // collection name, different shapes). Read existing items from local
+        // storage and merge per-id so neither hook clobbers the other's fields.
+        // Items absent from `resolvedData` but present in `currentData` are
+        // treated as deletes; items absent from both are left untouched.
+        if (LOCAL_MODE) {
+            const stored = readCollection<T>(orgId, collectionName) ?? [];
+            const deletedIds = new Set<string>(
+                currentData.filter(c => !resolvedData.some(r => r.id === c.id)).map(c => c.id)
+            );
+            const storedById = new Map<string, T>(stored.map(s => [s.id, s] as [string, T]));
+            resolvedData.forEach(item => {
+                const existing = storedById.get(item.id) as Record<string, unknown> | undefined;
+                storedById.set(item.id, (existing ? { ...existing, ...item } : item) as T);
+            });
+            deletedIds.forEach(id => storedById.delete(id));
+            writeCollection(orgId, collectionName, Array.from(storedById.values()));
+            return;
+        }
+
+        // 3. Sync to Firestore
+        try {
+            const batch = writeBatch(db);
+
+            resolvedData.forEach(item => {
+                const docRef = doc(db, collectionName, item.id);
+                batch.set(docRef, { ...item, orgId }, { merge: true });
+            });
+
+            // Find deleted items — use ref for latest snapshot, not stale closure
+            const newIds = new Set(resolvedData.map(i => i.id));
+            currentData.forEach(oldItem => {
+                if (!newIds.has(oldItem.id)) {
+                    const docRef = doc(db, collectionName, oldItem.id);
+                    batch.delete(docRef);
+                }
+            });
+
+            await batch.commit();
+        } catch (err) {
+            console.error(`Error saving ${collectionName} to Firestore:`, err);
+        }
+    };
+
+    return [data, updateData, loading] as const;
+}
+
+// Single Document Sync (for Settings, Lists, etc.)
+export function useFirestoreSettings<T>(docId: string, initialData: T) {
+    const { orgId } = useAuth();
+    const [data, setData] = useState<T>(initialData);
+    const [loading, setLoading] = useState(true);
+
+    const isArrayType = Array.isArray(initialData);
+
+    useEffect(() => {
+        if (!orgId) {
+            setData(initialData);
+            setLoading(false);
+            return;
+        }
+
+        // ─── Local-mode branch ─────────────────────────────────────────────
+        if (LOCAL_MODE) {
+            const load = () => {
+                const stored = readSettings<T>(orgId, docId);
+                if (stored === null) {
+                    setData(initialData);
+                } else if (isArrayType) {
+                    setData(Array.isArray(stored) ? (stored as T) : initialData);
+                } else {
+                    // Merge with defaults so newly-added settings fields stay defined
+                    setData({ ...(initialData as any), ...(stored as any) } as T);
+                }
+                setLoading(false);
+            };
+            load();
+            return subscribeKey(settingsSubKey(orgId, docId), load);
+        }
+
+        const docRef = doc(db, 'system_configs', `${orgId}_${docId}`);
+
+        const unsubscribe = onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const docData = docSnap.data();
+                const { orgId: _, ...pureData } = docData;
+
+                if (isArrayType) {
+                    // Array-type data: unwrap from { _items: [...] } container
+                    if (Array.isArray(pureData._items)) {
+                        setData(pureData._items as T);
+                    } else {
+                        // Legacy fallback: reconstruct array from numeric-key object
+                        const numericKeys = Object.keys(pureData).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b));
+                        if (numericKeys.length > 0) {
+                            setData(numericKeys.map(k => (pureData as any)[k]) as T);
+                        } else {
+                            setData(initialData);
+                        }
+                    }
+                } else {
+                    // Object-type data: merge with defaults to prevent missing fields
+                    setData({ ...initialData, ...pureData } as T);
+                }
+            } else {
+                setData(initialData);
+            }
+            setLoading(false);
+        }, (error) => {
+            console.error(`Error syncing config ${docId}:`, error);
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [orgId, docId]);
+
+    const updateData = async (newData: T | ((prev: T) => T)) => {
+        const resolvedData = typeof newData === 'function' ? (newData as any)(data) : newData;
+        setData(resolvedData);
+
+        if (!orgId) return;
+
+        // ─── Local-mode write ─────────────────────────────────────────────
+        if (LOCAL_MODE) {
+            writeSettings(orgId, docId, resolvedData);
+            return;
+        }
+
+        try {
+            const docRef = doc(db, 'system_configs', `${orgId}_${docId}`);
+            if (Array.isArray(resolvedData)) {
+                // Array data: wrap in container to preserve array type in Firestore
+                await setDoc(docRef, { _items: resolvedData, orgId }, { merge: false });
+            } else {
+                await setDoc(docRef, { ...resolvedData, orgId }, { merge: true });
+            }
+        } catch (err) {
+            console.error(`Error saving config ${docId} to Firestore:`, err);
+        }
+    };
+
+    return [data, updateData, loading] as const;
+}

@@ -1,0 +1,32 @@
+> AUTONOMOUS BYPASS
+> You are running unattended inside an autonomous batch (`scripts/ui-overhaul/run.sh`).
+> The following human-gated preflight checks are PRE-CONFIRMED for this session:
+>   - PRODUCT.md exists at project root and is approved.
+>   - DESIGN.md exists at project root and is approved (bone-and-lacquer).
+>   - Shape brief was approved by the user before dispatch.
+>   - Image gate is skipped (visual probes deferred to post-batch live iteration).
+>
+> Hard rules for this run:
+>   - Do NOT invoke `/impeccable shape`, `/impeccable craft`, `/impeccable teach`, or any other interactive command.
+>   - Do NOT prompt the user — there is no human in the loop. Make reasonable judgment calls.
+>   - Do NOT run `git commit`, `git push`, `git checkout`, or any branch/remote ops. The harness commits between phases.
+>   - Do NOT touch Firebase rules, Firestore data, environment files, or any backend.
+>   - Do NOT add npm dependencies — the project uses Tailwind CDN (no local build of design tokens).
+>   - Do NOT modify files outside the per-phase scope listed below. Files for later phases are listed as OUT OF SCOPE.
+>   - Preserve dark-mode parity (`class="dark"` on `<html>`) and RTL parity (`dir="rtl"` for Hebrew) throughout every change.
+
+# Project context
+
+**Cadenza v3** — calendar-first conservatory admin platform at `/Users/noamlitt/Building/apps/cadenza-v3`.
+- React 19 + TypeScript + Vite, Tailwind via CDN.
+- Firebase (Firestore + Auth + Hosting + Functions).
+- Hebrew (RTL) + English (LTR) bilingual.
+- Branch: `cadenza-v3` (running in place — no separate branch).
+
+# Required reading (do these first, in this order)
+
+1. `PRODUCT.md` — strategic direction, anti-references, design principles.
+2. `DESIGN.md` — full visual system: bone & lacquer palette in OKLCH, typography (Inter Display + Inter + Heebo + JetBrains Mono), spacing, shadows, motion, components.
+3. `index.html` — current Tailwind config and inline CSS (the indigo system you're replacing).
+
+You MUST treat DESIGN.md as the source of truth for every color, font, shadow, radius, and motion decision. If a value isn't in DESIGN.md, derive it consistently and note it in your report.

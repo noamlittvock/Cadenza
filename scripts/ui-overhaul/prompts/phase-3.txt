@@ -1,0 +1,82 @@
+> AUTONOMOUS BYPASS
+> Same hard rules as phase-1 (no interactive cmds, no prompts to user, no git ops, no Firebase, no deps, scope-bounded, dark+RTL parity preserved).
+
+# Project context
+
+Cadenza v3 at `/Users/noamlitt/Building/apps/cadenza-v3`. Phases 1 (foundation tokens + chrome) and 2 (calendar) are merged. Bone-and-lacquer is the established system.
+
+Required reading: `PRODUCT.md`, `DESIGN.md`, `index.html`, `components/Layout.tsx`, `components/Modal.tsx`, `components/SlideOver.tsx`, `components/CalendarView.tsx` (verify established patterns).
+
+NOTE: `components/StudentManager.tsx` and `components/StudentSlideOverContent.tsx` were deleted in chunk 5. Student management may now live inside StaffMemberManager, ManageHub, or a new file. Discover the current Student-management surface before redesigning.
+
+# Phase 3 — Staff + Students
+
+Restyle the staff and student management surfaces with bone-and-lacquer. These are dense data screens — operator-tool gravitas, not card-grid SaaS.
+
+## Files in scope
+
+Discover and restyle:
+- `components/StaffMemberManager.tsx` — confirmed main staff surface
+- `components/StaffSlideOverContent.tsx` — confirmed slide-over content for staff details
+- Whatever currently handles Students (grep `Student[ \w]*Manager`, `students.map`, etc. — likely StaffMemberManager has student tabs OR ManageHub has a student section OR a new file exists).
+- `components/EventFormV2.tsx` — IN SCOPE for this phase (event creation/edit form is closely tied to staff/student linking).
+- Forms inside the above (cards, lists, search bars, filter pills usage, action buttons).
+
+## Required changes
+
+### List/grid surfaces
+- Replace card-grid pattern with denser list view where possible. If keeping cards: max 3 per row at xl, single column at md. Card surface `bg-bone-50 dark:bg-graphite-900` + 1px `border-bone-200 dark:border-graphite-700` + `radius-md` + `shadow-low`. NO nested cards.
+- Sortable column headers (if list-view): bone-700 600 weight, lacquer-500 sort indicator, hover bone-200 surface.
+- Empty rows in tables — if a current implementation pads tables with blank rows, remove them. Empty rows are violence (per PRODUCT.md principle 5).
+
+### Staff/student detail (modal or slide-over)
+- Identity header: bone-50 surface + texture-paper, bone-900 name in Inter Display 22/30 600. Role/status pills inline.
+- Collapsible sections: heading bone-900 14px 600, chevron indicator bone-500 (rotates 90° when expanded with cadenza ease 180ms). Section padding: 16/24 macro.
+- Form fields: input `bg-bone-50 dark:bg-graphite-800` + 1px `border-bone-200 dark:border-graphite-700` + `radius-md` + `text-bone-900 dark:text-graphite-100`. Focus: `border-lacquer-500` + 2px `ring-lacquer-500/30`. Labels: bone-500 12px 500 above field.
+- Required indicator: bone-700 asterisk (NOT red — too loud here).
+- Validation error: 12px danger-500 below field with a small `AlertCircle` icon.
+- Save / Cancel: lacquer-500 primary save, bone-200 ghost cancel. Keep keyboard shortcuts (Esc / Cmd-Enter).
+
+### EventFormV2 specific
+- Time pickers: tabular nums, lacquer-500 focus.
+- Recurrence section (if present): collapsible like other sections.
+- Activity / room / staff cascading selects: keep cascading logic; restyle.
+- "Pricing snapshot" or rate-related fields (if any per FinancialChain): pure data display, bone-700 numbers, bone-500 labels. NO hero-metric template.
+
+### Tags / chips inside staff detail
+- bone-100 surface bone-700 text, lacquer-100 surface bone-900 text when filtered/active. radius-sm.
+
+### Documents section (file upload UI inside staff/student)
+- Drag-and-drop area: 2px dashed `border-bone-300 dark:border-graphite-700`, hover bone-200, on-drop lacquer-500 border.
+- File list: rows with file-type icon (bone-500), filename (bone-700), size (bone-500 mono), download icon (bone-500 → lacquer-500 hover), delete icon (bone-500 → danger-500 hover).
+
+## Constraints
+
+- Do NOT change `Teacher.positionAssignments`, `Student.guardians`, or any data shape — UI only.
+- Do NOT modify `useEffectiveAuth`, `useEffectiveOnboarding`, role-gate logic.
+- Preserve `data-testid` attributes (Playwright).
+- Preserve cascading select logic for activity → subcategory → ensemble → staff.
+- Preserve Hebrew calendar pickers (@hebcal/core integration if present).
+
+## Files OUT OF SCOPE
+
+ManageHub, ActivityManager, RoomManager, financial views, AdminInbox, Settings, SuperAdmin, OnboardingChecklist, DevTools, GanttManager, PowerTools, TeacherHoursForm.
+
+## Verification (mandatory)
+
+1. `npx tsc --noEmit` — zero errors.
+2. `npm run build` — must succeed.
+3. Output:
+
+```
+PHASE 3 REPORT
+files_modified: <list>
+student_management_surface: <discovered file path(s) or "merged into StaffMemberManager" or "in ManageHub">
+tsc_errors: <int>
+build_status: <ok | failed>
+indigo_residue_in_scope: <yes/no>
+risks_for_next_phase: <bullets>
+notes: <bullets>
+```
+
+Do NOT commit. Begin.

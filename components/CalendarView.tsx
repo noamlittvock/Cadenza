@@ -1,8 +1,25 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, ListsState, RecurrenceRule, DayOfWeek } from '../types';
-import { generateId, INITIAL_LISTS } from '../constants';
-import { ChevronLeft, ChevronRight, AlertCircle, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronUp, Repeat, Ban, RotateCcw } from 'lucide-react';
+import { Timestamp } from 'firebase/firestore';
+import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, RecurrenceRule, DayOfWeek } from '../types';
+import { generateId } from '../constants';
+import { ChevronLeft, ChevronRight, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronDown, Repeat, Ban, RotateCcw, HelpCircle, Search, Loader2, Sparkles } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { syncEventToGoogle, removeEventFromGoogle, updateEventInGoogle } from '../utils/googleCalendarSync';
+import { Modal } from './Modal';
+import { EventFormV2, EventFormState, EventFormV2Handle } from './EventFormV2';
 
+import { TRANSLATIONS } from '../constants';
+import { detectRoomConflicts, getConflictingEventIds } from '../utils/roomConflicts';
+import { ImportExportDropdown } from './ImportExportDropdown';
+import { useFirestoreSync } from '../utils/useFirestoreSync';
+import {
+  ActivityV2, L1Subcategory, L2Subcategory, StaffMemberV2,
+  TeachingAssignmentV2, OrgRoleV2, EventV2, EventParticipant, EnrollmentV2, StudentV2, V2_COLLECTIONS,
+  AssignmentType,
+} from '../types/v2';
+import { TagChip } from './TagChip';
+import { hasEventDataError } from '../utils/eventValidation';
+import type { CalendarFilterState, CalendarSidebarTab } from '../types/calendarFilters';
 interface Props {
   events: CalendarEvent[];
   setEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>;
@@ -11,7 +28,7 @@ interface Props {
   ganttBlocks: GanttBlock[];
   setGanttBlocks: React.Dispatch<React.SetStateAction<GanttBlock[]>>;
   settings: AppSettings;
-  lists: ListsState;
+  activities: ActivityV2[];
 
   // Navigation & View State
   onNavigate: (view: any) => void;
@@ -19,16 +36,29 @@ interface Props {
   selectionMode: 'NORMAL' | 'MARQUEE';
   setSelectionMode: (mode: 'NORMAL' | 'MARQUEE') => void;
   selectedEventIds: Set<string>;
-  setSelectedEventIds: (ids: Set<string>) => void;
-
-  // Mobile Control
-  setIsMobileMenuOpen: (isOpen: boolean) => void;
+  setSelectedEventIds: React.Dispatch<React.SetStateAction<Set<string>>>;
 
   // Persistent Calendar State
   currentDate: Date;
   setCurrentDate: (date: Date) => void;
   viewMode: 'DAY' | 'WEEK' | 'MONTH';
   setViewMode: (mode: 'DAY' | 'WEEK' | 'MONTH') => void;
+
+  // Sidebar tab (lifted to App.tsx)
+  sidebarTab: CalendarSidebarTab | null;
+  setSidebarTab: (tab: CalendarSidebarTab | null) => void;
+
+  // Filter state (hoisted to App.tsx)
+  filterState: CalendarFilterState;
+  filterSet: (partial: Partial<CalendarFilterState>) => void;
+  filterClear: () => void;
+  filterIsActive: boolean;
+
+  // v2 collections (hoisted to App.tsx)
+  l1Subs: L1Subcategory[];
+  l2Subs: L2Subcategory[];
+  staffMembersV2: StaffMemberV2[];
+  studentsV2: StudentV2[];
 }
 
 type ViewMode = 'DAY' | 'WEEK' | 'MONTH';
@@ -36,7 +66,9 @@ type ViewMode = 'DAY' | 'WEEK' | 'MONTH';
 interface DragState {
   id: string;
   type: 'MOVE' | 'RESIZE';
+  mode: 'TIME_GRID' | 'MONTH';
   startY: number;
+  startX: number;
   originalStart: Date;
   originalEnd: Date;
 }
@@ -46,46 +78,142 @@ type DetailItem =
   | { type: 'GANTT'; data: GanttBlock }
   | null;
 
-const START_HOUR = 7;
-const END_HOUR = 22;
+const START_HOUR = 0;
+const END_HOUR = 23;
 const PIXELS_PER_HOUR = 60;
 const SNAP_MINUTES = 15;
 
+// Module-level scroll position — survives component re-mounts (sidebar toggle, etc.)
+let savedScrollTop = 7 * PIXELS_PER_HOUR; // Default: scroll to 7 AM
+
+// Helper: Find the hour with the most events for smart centering
+const findPeakEventHour = (eventsToCheck: CalendarEvent[], displayDate: Date): number => {
+  const dayStart = new Date(displayDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(displayDate);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  const hourCounts = new Array(24).fill(0);
+  eventsToCheck.forEach(event => {
+    const eventStart = new Date(event.start);
+    if (eventStart >= dayStart && eventStart <= dayEnd) {
+      const hour = eventStart.getHours();
+      hourCounts[hour]++;
+    }
+  });
+
+  let peakHour = 7; // Default fallback
+  let maxCount = 0;
+  hourCounts.forEach((count, hour) => {
+    if (count > maxCount) {
+      maxCount = count;
+      peakHour = hour;
+    }
+  });
+
+  return peakHour;
+};
+
 export const CalendarView: React.FC<Props> = ({
-  events, setEvents, teachers, rooms, ganttBlocks, setGanttBlocks, settings, lists,
+  events, setEvents, teachers, rooms, ganttBlocks, setGanttBlocks, settings, activities,
   onNavigate, currentView,
   selectionMode, setSelectionMode, selectedEventIds, setSelectedEventIds,
-  setIsMobileMenuOpen,
-  currentDate, setCurrentDate, viewMode, setViewMode
+  currentDate, setCurrentDate, viewMode, setViewMode,
+  sidebarTab, setSidebarTab,
+  filterState, filterSet, filterClear, filterIsActive,
+  l1Subs, l2Subs, staffMembersV2, studentsV2,
 }) => {
-  // Safe Fallback for lists
-  const activeLists = lists || INITIAL_LISTS;
+  const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
+  const isRtl = settings?.language === 'he-IL';
+  const { googleAccessToken, currentUser, isAdmin, isSuperAdmin, orgId } = useAuth();
 
-  // Filters
-  const [filterTeacher, setFilterTeacher] = useState<string>('ALL');
-  const [filterRoom, setFilterRoom] = useState<string>('ALL');
-  const [filterClass, setFilterClass] = useState<string>('ALL');
-  const [filterPosition, setFilterPosition] = useState<string>('ALL');
-  const [filterTag, setFilterTag] = useState<string>('ALL');
+  // Google Calendar sync is locked to the tenant admin who connected it
+  const isCalendarOwner = currentUser?.email?.toLowerCase() === settings.googleCalendarConnectedBy?.toLowerCase();
+
+
+  // ─── v2.0 Firestore hooks (Phase 5) ─────────────────────────────────────
+  // l1Subs, l2Subs, staffMembersV2, studentsV2 are hoisted to App.tsx
+  // activities prop is already ActivityV2[] from App.tsx — no redundant sync needed
+  const [teachingAssignmentsV2] = useFirestoreSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
+  const [orgRolesV2] = useFirestoreSync<OrgRoleV2>(V2_COLLECTIONS.orgRoles, []);
+  const [eventsV2, setEventsV2] = useFirestoreSync<EventV2>(V2_COLLECTIONS.events, []);
+  const [eventParticipantsV2, setEventParticipantsV2] = useFirestoreSync<EventParticipant>(V2_COLLECTIONS.eventParticipants, []);
+  const [enrollments] = useFirestoreSync<EnrollmentV2>(V2_COLLECTIONS.enrollments, []);
+  const students = studentsV2;
+
+  // ─── CSV Import/Export data ──────────────────────────────────────────────
+  const canWriteCalendar = isSuperAdmin || isAdmin;
+
+  const eventExportData = useMemo(() => eventsV2.map(e => ({
+    activityName: activities.find(a => a.id === e.activityId)?.name || '',
+    l2Name: l2Subs.find(l => l.id === e.l2Id)?.name || '',
+    date: e.date || '',
+    startTime: e.startTime || '',
+    endTime: e.endTime || '',
+    location: e.location || '',
+  })), [eventsV2, activities, l2Subs]);
+
+  const eventDupKeys = useMemo(() => new Set(eventsV2.map(e => {
+    const aName = activities.find(a => a.id === e.activityId)?.name || '';
+    const lName = l2Subs.find(l => l.id === e.l2Id)?.name || '';
+    return `${aName}|${lName}|${e.date}|${e.startTime}`.toLowerCase();
+  })), [eventsV2, activities, l2Subs]);
+
+  const csvActivityByName = useMemo(
+    () => Object.fromEntries(activities.map(a => [a.name.toLowerCase(), a.id])),
+    [activities],
+  );
+  const csvL2ByName = useMemo(
+    () => Object.fromEntries(l2Subs.map(l => [l.name.toLowerCase(), l.id])),
+    [l2Subs],
+  );
+
+  const handleEventImportComplete = useCallback((rows: Record<string, string>[]) => {
+    const now = Timestamp.now();
+    const newEvents: EventV2[] = rows.map(row => {
+      const actId = csvActivityByName[row['activityName']?.trim().toLowerCase() || ''] || '';
+      const l2Id = csvL2ByName[row['l2Name']?.trim().toLowerCase() || ''] || null;
+      const start = row['startTime'] || '09:00';
+      const end = row['endTime'] || '10:00';
+      const [sh, sm] = start.split(':').map(Number);
+      const [eh, em] = end.split(':').map(Number);
+      const durationMinutes = (eh * 60 + em) - (sh * 60 + sm);
+      return {
+        id: generateId(), orgId: orgId || '',
+        name: row['activityName'] || '',
+        activityId: actId,
+        l1Id: null, l2Id,
+        location: row['location'] || '',
+        date: row['date'] || '',
+        startTime: start, endTime: end,
+        durationMinutes: Math.max(0, durationMinutes),
+        isRecurring: false, recurringGroupId: null,
+        status: 'SCHEDULED' as const,
+        notes: null,
+        createdAt: now, updatedAt: now,
+      };
+    });
+    setEventsV2(prev => [...prev, ...newEvents]);
+  }, [orgId, setEventsV2, csvActivityByName, csvL2ByName]);
 
   // Interaction State
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [tempEvent, setTempEvent] = useState<CalendarEvent | null>(null);
+  const wasDraggingRef = useRef(false);
+  const gridDaysRef = useRef<Date[]>([]);
 
-  // Speed Dial State
-  const [isSpeedDialOpen, setIsSpeedDialOpen] = useState(false);
-
-  // Filter UI State
-  const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
-  const [showCanceled, setShowCanceled] = useState(true);
-  const [showBlackouts, setShowBlackouts] = useState(true);
+  const [showHelp, setShowHelp] = useState(false);
 
   // Modal State (Edit/Create)
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalAnchorPosition, setModalAnchorPosition] = useState<{ x: number; y: number } | null>(null);
   const [editingEvent, setEditingEvent] = useState<Partial<CalendarEvent>>({});
 
   // Detail Popover State
   const [detailItem, setDetailItem] = useState<DetailItem>(null);
+
+  // Right-click Context Menu State
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; event: CalendarEvent } | null>(null);
 
   // Recurrence Dialog State
   const [recurrenceDialog, setRecurrenceDialog] = useState<{
@@ -93,9 +221,54 @@ export const CalendarView: React.FC<Props> = ({
     event: CalendarEvent;
   } | null>(null);
 
+  const [recentlySaved, setRecentlySaved] = useState<Set<string>>(new Set());
+
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // --- Recurrence Expansion Engine ---
+  // Marquee Drag-to-Select State
+  const [marqueeActive, setMarqueeActive] = useState(false);
+  const [marqueeStart, setMarqueeStart] = useState<{ x: number; y: number } | null>(null);
+  const [marqueeEnd, setMarqueeEnd] = useState<{ x: number; y: number } | null>(null);
+  const marqueeContainerRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<EventFormV2Handle>(null);
+
+  // Gantt Collapsible State
+  const [isGanttExpanded, setIsGanttExpanded] = useState(true);
+
+  // Month sub-mode: EVENTS (inline event list; Gantt rubric on hover) or GANTT (overlay; events on hover).
+  // Always defaults to EVENTS on mount — no persistence.
+  const [monthSubMode, setMonthSubMode] = useState<'GANTT' | 'EVENTS'>('EVENTS');
+
+  // Latest events for scroll-centering — read inside the view/date effect without
+  // forcing it to re-run on every event mutation (which would scroll-jump mid-edit).
+  const eventsRef = useRef(events);
+  eventsRef.current = events;
+
+  // Preserve scroll position across re-mounts (view switching to/from Power Tools/Gantt)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const evts = eventsRef.current;
+    const peakHour = findPeakEventHour(evts, currentDate);
+    const centerHour = Math.max(START_HOUR, Math.min(peakHour - 1, END_HOUR - 2));
+    const smartScrollTop = centerHour * PIXELS_PER_HOUR;
+
+    const hasEventsOnDate = evts.some((e: CalendarEvent) => {
+      const eStart = new Date(e.start);
+      const dayStart = new Date(currentDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(currentDate);
+      dayEnd.setHours(23, 59, 59, 999);
+      return eStart >= dayStart && eStart <= dayEnd;
+    });
+
+    el.scrollTop = hasEventsOnDate ? smartScrollTop : savedScrollTop;
+
+    const handleScroll = () => { savedScrollTop = el.scrollTop; };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [viewMode, currentDate]);
 
   const DAY_MAP: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
   const DAY_ABBR: DayOfWeek[] = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
@@ -267,7 +440,7 @@ export const CalendarView: React.FC<Props> = ({
   const getStartOfWeek = (d: Date) => {
     const date = new Date(d);
     const day = date.getDay();
-    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+    const diff = date.getDate() - day;
     const newDate = new Date(date.setDate(diff));
     newDate.setHours(0, 0, 0, 0);
     return newDate;
@@ -288,9 +461,9 @@ export const CalendarView: React.FC<Props> = ({
     const firstDayOfMonth = new Date(year, month, 1);
     const startDay = firstDayOfMonth.getDay(); // 0 is Sunday
 
-    // Start from the previous Monday (or Sunday if standard US) - let's do Monday start for consistency with week view
+    // Start from the previous Sunday for week consistency
     const startDate = new Date(firstDayOfMonth);
-    const diff = startDay === 0 ? 6 : startDay - 1; // Days to subtract to get to Monday
+    const diff = startDay;
     startDate.setDate(startDate.getDate() - diff);
 
     const days = [];
@@ -313,34 +486,277 @@ export const CalendarView: React.FC<Props> = ({
 
   // --- Filtering & Derived Data ---
 
+  // Pre-computed lookup indexes — stable unless their source arrays change
+  const eventsV2ById = useMemo(() => new Map(eventsV2.map(e => [e.id, e])), [eventsV2]);
+
+  const participantsByEventId = useMemo(() => {
+    const map = new Map<string, EventParticipant[]>();
+    for (const p of eventParticipantsV2) {
+      const arr = map.get(p.eventId) ?? [];
+      arr.push(p);
+      map.set(p.eventId, arr);
+    }
+    return map;
+  }, [eventParticipantsV2]);
+
+  // Resolve participants for an event, falling back to legacy single-teacher events
+  // that predate the EventParticipant table.
+  const resolveParticipants = useCallback(
+    (parentId: string, legacyTeacherId?: string): EventParticipant[] =>
+      participantsByEventId.get(parentId) ??
+      (legacyTeacherId
+        ? [{ staffMemberId: legacyTeacherId, assignmentType: 'TEACHING' as AssignmentType } as EventParticipant]
+        : []),
+    [participantsByEventId]
+  );
+
+  const activityById = useMemo(() => new Map(activities.map(a => [a.id, a])), [activities]);
+
+  const staffById = useMemo(() => new Map(staffMembersV2.map(s => [s.id, s])), [staffMembersV2]);
+
+  const enrollmentsByActivityL2 = useMemo(() => {
+    const map = new Map<string, EnrollmentV2[]>();
+    for (const e of enrollments) {
+      const key = `${e.activityId}|${e.l2Id}`;
+      const arr = map.get(key) ?? [];
+      arr.push(e);
+      map.set(key, arr);
+    }
+    return map;
+  }, [enrollments]);
+
+  const studentById = useMemo(() => new Map(students.map(s => [s.id, s])), [students]);
+
+  // Union of all tags across events — used for autocomplete in EventFormV2 and the calendar tag filter.
+  const allEventTags = useMemo(() => {
+    const seen = new Map<string, string>(); // lower → original-case
+    for (const e of events) {
+      for (const t of e.tags || []) {
+        const k = t.toLowerCase();
+        if (!seen.has(k)) seen.set(k, t);
+      }
+    }
+    return [...seen.values()].sort((a, b) => a.localeCompare(b));
+  }, [events]);
+
   const filteredEvents = useMemo(() => {
-    return expandedEvents.filter(evt => {
-      // Hide blacked out events
-      if (evt.isHidden && !showBlackouts) return false;
+    const fs = filterState;
 
-      // Hide canceled events if toggle is off
-      if (evt.isCanceled && !showCanceled) return false;
+    const evts = expandedEvents.filter(evt => {
+      // Resolve the parent event ID (recurring instances have id = `${parentId}_YYYY-MM-DD`)
+      const parentId = evt.recurrenceId || evt.id;
+      const v2 = eventsV2ById.get(parentId);
 
-      // Hide blackout-hidden events if toggle is off
-      if (evt.isHidden && !showBlackouts) return false;
+      // Coerce status from v2 or legacy boolean fields
+      const status = v2?.status ?? (evt.isCanceled ? 'CANCELLED' : evt.isHidden ? 'ARCHIVED' : 'SCHEDULED');
 
-      const teacher = teachers.find(t => t.id === evt.teacherId);
+      if (fs.status.length > 0 && !fs.status.includes(status)) return false;
 
-      if (filterTeacher !== 'ALL' && evt.teacherId !== filterTeacher) return false;
-      if (filterRoom !== 'ALL' && evt.roomId !== filterRoom) return false;
-      if (filterClass !== 'ALL' && evt.classification !== filterClass) return false;
+      // Recurrence
+      const isRec = !!(evt.recurrenceRule || evt.recurrenceId);
+      if (fs.recurrence === 'RECURRING' && !isRec) return false;
+      if (fs.recurrence === 'ONE_OFF' && isRec) return false;
 
-      if (filterPosition !== 'ALL' && teacher) {
-        if (!teacher.positions.includes(filterPosition)) return false;
+      // Taxonomy
+      const actId = evt.activityId || v2?.activityId || '';
+      if (fs.activityId.length > 0 && !fs.activityId.includes(actId)) return false;
+
+      const l1Id = v2?.l1Id ?? null;
+      if (fs.l1Id.length > 0 && (l1Id === null || !fs.l1Id.includes(l1Id))) return false;
+
+      const l2Id = v2?.l2Id ?? null;
+      if (fs.l2Id.length > 0 && (l2Id === null || !fs.l2Id.includes(l2Id))) return false;
+
+      if (fs.activityType.length > 0) {
+        const act = activityById.get(actId);
+        if (!act || !fs.activityType.includes(act.activityType)) return false;
+      }
+      if (fs.template.length > 0) {
+        const act = activityById.get(actId);
+        if (!act || !fs.template.includes(act.template)) return false;
       }
 
-      if (filterTag !== 'ALL' && teacher) {
-        if (!teacher.tags.includes(filterTag)) return false;
+      // Location (v2 field, no legacy equivalent)
+      const location = v2?.location ?? '';
+      if (fs.location.length > 0 && !fs.location.includes(location)) return false;
+
+      // Staff via EventParticipant (with legacy teacherId fallback)
+      if (fs.staffMemberId.length > 0 || fs.assignmentType.length > 0 || fs.staffRole.length > 0) {
+        const participants = resolveParticipants(parentId, evt.teacherId);
+
+        if (fs.staffMemberId.length > 0) {
+          if (!participants.some(p => fs.staffMemberId.includes(p.staffMemberId))) return false;
+        }
+        if (fs.assignmentType.length > 0) {
+          if (!participants.some(p => fs.assignmentType.includes(p.assignmentType))) return false;
+        }
+        if (fs.staffRole.length > 0) {
+          if (!participants.some(p => {
+            const staff = staffById.get(p.staffMemberId);
+            return staff && fs.staffRole.includes(staff.role);
+          })) return false;
+        }
+      }
+
+      // Student / Student Tag via EnrollmentV2
+      if (fs.studentId.length > 0 || fs.studentTag.length > 0) {
+        const key = `${actId}|${l2Id}`;
+        const active = (enrollmentsByActivityL2.get(key) ?? []).filter(e => e.status === 'ACTIVE');
+        if (fs.studentId.length > 0) {
+          if (!active.some(e => fs.studentId.includes(e.studentId))) return false;
+        }
+        if (fs.studentTag.length > 0) {
+          if (!active.some(e => {
+            const stu = studentById.get(e.studentId);
+            return stu && stu.tags.some(tag => fs.studentTag.includes(tag));
+          })) return false;
+        }
+      }
+
+      // Event tag filter — match if event has any of the selected tags
+      if (fs.eventTag.length > 0) {
+        const evtTags = evt.tags || [];
+        if (!evtTags.some(tag => fs.eventTag.includes(tag))) return false;
+      }
+
+      // Validation error derived filter
+      if (fs.hasValidationError && !hasEventDataError(evt)) return false;
+
+      // Text search — matches name, location/room, notes, activity, L1/L2,
+      // staff/teacher names, and enrolled student names.
+      if (fs.search.trim()) {
+        const q = fs.search.toLowerCase();
+        const haystack: string[] = [
+          evt.name ?? '',
+          location,
+          v2?.notes ?? '',
+        ];
+
+        const act = activityById.get(actId);
+        if (act?.name) haystack.push(act.name);
+
+        if (l1Id) {
+          const l1 = l1Subs.find(l => l.id === l1Id);
+          if (l1?.name) haystack.push(l1.name);
+        }
+        if (l2Id) {
+          const l2 = l2Subs.find(l => l.id === l2Id);
+          if (l2?.name) haystack.push(l2.name);
+        }
+
+        const participants = resolveParticipants(parentId, evt.teacherId);
+        for (const p of participants) {
+          const staff = staffById.get(p.staffMemberId);
+          if (staff?.fullName) haystack.push(staff.fullName);
+        }
+
+        if (l2Id) {
+          const enrollKey = `${actId}|${l2Id}`;
+          const active = (enrollmentsByActivityL2.get(enrollKey) ?? []).filter(e => e.status === 'ACTIVE');
+          for (const e of active) {
+            const stu = studentById.get(e.studentId);
+            if (stu?.fullName) haystack.push(stu.fullName);
+          }
+        }
+
+        if (!haystack.some(s => s.toLowerCase().includes(q))) return false;
       }
 
       return true;
     });
-  }, [expandedEvents, teachers, filterTeacher, filterRoom, filterClass, filterPosition, filterTag, showCanceled, showBlackouts]);
+
+    // Room conflict filter — post-filter set operation (expensive, run last)
+    if (fs.hasRoomConflict) {
+      const conflicts = detectRoomConflicts(evts);
+      const conflictingIds = getConflictingEventIds(conflicts);
+      return evts.filter(e => conflictingIds.has(e.id));
+    }
+
+    return evts;
+  }, [
+    expandedEvents, filterState,
+    eventsV2ById, activityById, resolveParticipants, staffById,
+    enrollmentsByActivityL2, studentById, l1Subs, l2Subs,
+  ]);
+
+  const conflictingIds = useMemo(() => {
+    const conflicts = detectRoomConflicts(filteredEvents);
+    return getConflictingEventIds(conflicts);
+  }, [filteredEvents]);
+
+  // BL01: Total unresolved room-conflict count across all (unfiltered) expanded events.
+  // Distinct from conflictingIds (which is scoped to the current filtered view) — the badge
+  // represents conflicts in the system, not within the current filter window.
+  const unresolvedConflictCount = useMemo(() => {
+    return detectRoomConflicts(expandedEvents).length;
+  }, [expandedEvents]);
+
+  // BL01: Active filter pill descriptors — one entry per non-default dimension.
+  const activeFilterPills = useMemo(() => {
+    const pills: Array<{ key: string; label: string; clear: () => void }> = [];
+    const fs = filterState;
+    const defaultStatus = new Set(['SCHEDULED', 'COMPLETED']);
+    const stateStatus = new Set(fs.status);
+    if (stateStatus.size !== defaultStatus.size || [...stateStatus].some(s => !defaultStatus.has(s as string))) {
+      pills.push({ key: 'status', label: `${t('cal.filter.status.label')}: ${fs.status.join(', ')}`, clear: () => filterSet({ status: ['SCHEDULED', 'COMPLETED'] }) });
+    }
+    if (fs.recurrence !== 'ALL') {
+      pills.push({ key: 'recurrence', label: `${t('cal.filter.recurrence.label')}: ${fs.recurrence}`, clear: () => filterSet({ recurrence: 'ALL' }) });
+    }
+    if (fs.activityType.length > 0) {
+      pills.push({ key: 'activityType', label: `${t('cal.filter.type.label')}: ${fs.activityType.join(', ')}`, clear: () => filterSet({ activityType: [] }) });
+    }
+    if (fs.template.length > 0) {
+      pills.push({ key: 'template', label: `${t('cal.filter.tmpl.label')}: ${fs.template.join(', ')}`, clear: () => filterSet({ template: [] }) });
+    }
+    if (fs.activityId.length > 0) {
+      const names = fs.activityId.map(id => activityById.get(id)?.name ?? id);
+      pills.push({ key: 'activityId', label: `${t('cal.filter.activity.label')}: ${names.join(', ')}`, clear: () => filterSet({ activityId: [], l1Id: [], l2Id: [] }) });
+    }
+    if (fs.l1Id.length > 0) {
+      const names = fs.l1Id.map(id => l1Subs.find(l => l.id === id)?.name ?? id);
+      pills.push({ key: 'l1Id', label: `L1: ${names.join(', ')}`, clear: () => filterSet({ l1Id: [], l2Id: [] }) });
+    }
+    if (fs.l2Id.length > 0) {
+      const names = fs.l2Id.map(id => l2Subs.find(l => l.id === id)?.name ?? id);
+      pills.push({ key: 'l2Id', label: `L2: ${names.join(', ')}`, clear: () => filterSet({ l2Id: [] }) });
+    }
+    if (fs.staffMemberId.length > 0) {
+      const names = fs.staffMemberId.map(id => staffById.get(id)?.fullName ?? id);
+      pills.push({ key: 'staff', label: `${t('cal.filter.staff.label')}: ${names.join(', ')}`, clear: () => filterSet({ staffMemberId: [], assignmentType: [] }) });
+    }
+    if (fs.assignmentType.length > 0) {
+      pills.push({ key: 'assignmentType', label: `${t('cal.filter.assign.label')}: ${fs.assignmentType.join(', ')}`, clear: () => filterSet({ assignmentType: [] }) });
+    }
+    if (fs.staffRole.length > 0) {
+      pills.push({ key: 'staffRole', label: `${t('cal.filter.role.label')}: ${fs.staffRole.join(', ')}`, clear: () => filterSet({ staffRole: [] }) });
+    }
+    if (fs.studentId.length > 0) {
+      const names = fs.studentId.map(id => studentById.get(id)?.fullName ?? id);
+      pills.push({ key: 'studentId', label: `${t('cal.filter.student.label')}: ${names.join(', ')}`, clear: () => filterSet({ studentId: [] }) });
+    }
+    if (fs.studentTag.length > 0) {
+      pills.push({ key: 'studentTag', label: `${t('cal.filter.student_tag.label')}: ${fs.studentTag.join(', ')}`, clear: () => filterSet({ studentTag: [] }) });
+    }
+    if (fs.eventTag.length > 0) {
+      pills.push({ key: 'eventTag', label: `${t('cal.filter.event_tag.label')}: ${fs.eventTag.join(', ')}`, clear: () => filterSet({ eventTag: [] }) });
+    }
+    if (fs.location.length > 0) {
+      pills.push({ key: 'location', label: `${t('cal.filter.location.label')}: ${fs.location.join(', ')}`, clear: () => filterSet({ location: [] }) });
+    }
+    if (fs.hasRoomConflict) {
+      pills.push({ key: 'roomConflict', label: t('cal.filter.has_room_conflict'), clear: () => filterSet({ hasRoomConflict: false }) });
+    }
+    if (fs.hasValidationError) {
+      pills.push({ key: 'validationError', label: t('cal.filter.has_validation_error'), clear: () => filterSet({ hasValidationError: false }) });
+    }
+    if (fs.search) {
+      pills.push({ key: 'search', label: `"${fs.search}"`, clear: () => filterSet({ search: '' }) });
+    }
+    return pills;
+  }, [filterState, activityById, l1Subs, l2Subs, staffById, studentById, t, filterSet]);
+
+  const clearAllFilters = useCallback(() => filterClear(), [filterClear]);
 
   const displayEvents = useMemo(() => {
     if (tempEvent) {
@@ -408,8 +824,8 @@ export const CalendarView: React.FC<Props> = ({
       }
 
       const widthPercent = 100 / activeCols;
-      const width = Math.min(100, widthPercent + 10);
       const left = (colIndex * (100 / activeCols));
+      const width = Math.min(widthPercent + 10, 100 - left);
 
       layout[evt.id] = { left, width, zIndex: colIndex + 10 };
     });
@@ -420,6 +836,8 @@ export const CalendarView: React.FC<Props> = ({
   // --- Interaction Handlers ---
 
   const handleMouseDown = (e: React.MouseEvent, evt: CalendarEvent, type: 'MOVE' | 'RESIZE') => {
+    // In MARQUEE mode, let clicks pass through to onClick for selection toggling
+    if (selectionMode === 'MARQUEE') return;
     e.stopPropagation();
     e.preventDefault();
     // Close detail if dragging starts
@@ -427,9 +845,28 @@ export const CalendarView: React.FC<Props> = ({
     setDragState({
       id: evt.id,
       type,
+      mode: 'TIME_GRID',
       startY: e.clientY,
+      startX: e.clientX,
       originalStart: new Date(evt.start),
       originalEnd: new Date(evt.end)
+    });
+    setTempEvent(evt);
+  };
+
+  const handleMonthChipMouseDown = (e: React.MouseEvent, evt: CalendarEvent) => {
+    if (selectionMode === 'MARQUEE') return;
+    e.stopPropagation();
+    e.preventDefault();
+    setDetailItem(null);
+    setDragState({
+      id: evt.id,
+      type: 'MOVE',
+      mode: 'MONTH',
+      startY: e.clientY,
+      startX: e.clientX,
+      originalStart: new Date(evt.start),
+      originalEnd: new Date(evt.end),
     });
     setTempEvent(evt);
   };
@@ -438,10 +875,58 @@ export const CalendarView: React.FC<Props> = ({
     const handleMouseMove = (e: MouseEvent) => {
       if (!dragState || !tempEvent) return;
 
+      // Month view: date changes by hit-testing the cell under the cursor.
+      if (dragState.mode === 'MONTH') {
+        const elem = document.elementFromPoint(e.clientX, e.clientY);
+        const cell = (elem as HTMLElement | null)?.closest('[data-month-day]') as HTMLElement | null;
+        if (!cell?.dataset.monthDay) return;
+
+        const targetDate = new Date(cell.dataset.monthDay);
+        if (Number.isNaN(targetDate.getTime())) return;
+
+        const currentStart = new Date(tempEvent.start);
+        if (
+          currentStart.getFullYear() === targetDate.getFullYear() &&
+          currentStart.getMonth() === targetDate.getMonth() &&
+          currentStart.getDate() === targetDate.getDate()
+        ) return;
+
+        const original = dragState.originalStart;
+        const duration = dragState.originalEnd.getTime() - dragState.originalStart.getTime();
+        const newStart = new Date(targetDate);
+        newStart.setHours(
+          original.getHours(),
+          original.getMinutes(),
+          original.getSeconds(),
+          original.getMilliseconds(),
+        );
+        const newEnd = new Date(newStart.getTime() + duration);
+
+        setTempEvent({
+          ...tempEvent,
+          start: newStart.toISOString(),
+          end: newEnd.toISOString(),
+        });
+        return;
+      }
+
       const deltaY = e.clientY - dragState.startY;
       const deltaMinutes = Math.round((deltaY / PIXELS_PER_HOUR) * 60 / SNAP_MINUTES) * SNAP_MINUTES;
 
-      if (deltaMinutes === 0) return;
+      // Horizontal: calculate day offset from column width — also enabled in
+      // single-column DAY view, where one column-width drag = ±1 day.
+      // RTL: columns flow right-to-left, so dragging right means earlier day.
+      let dayOffset = 0;
+      if (dragState.type === 'MOVE' && containerRef.current && gridDaysRef.current.length >= 1) {
+        const containerWidth = containerRef.current.clientWidth;
+        const dayColumnWidth = (containerWidth - 50) / gridDaysRef.current.length;
+        if (dayColumnWidth > 0) {
+          const rawOffset = Math.round((e.clientX - dragState.startX) / dayColumnWidth);
+          dayOffset = isRtl ? -rawOffset : rawOffset;
+        }
+      }
+
+      if (deltaMinutes === 0 && dayOffset === 0) return;
 
       const newStart = new Date(dragState.originalStart);
       const newEnd = new Date(dragState.originalEnd);
@@ -449,6 +934,10 @@ export const CalendarView: React.FC<Props> = ({
       if (dragState.type === 'MOVE') {
         newStart.setMinutes(newStart.getMinutes() + deltaMinutes);
         newEnd.setMinutes(newEnd.getMinutes() + deltaMinutes);
+        if (dayOffset !== 0) {
+          newStart.setDate(newStart.getDate() + dayOffset);
+          newEnd.setDate(newEnd.getDate() + dayOffset);
+        }
       } else {
         newEnd.setMinutes(newEnd.getMinutes() + deltaMinutes);
         if (newEnd.getTime() - newStart.getTime() < 15 * 60 * 1000) return;
@@ -463,6 +952,12 @@ export const CalendarView: React.FC<Props> = ({
 
     const handleMouseUp = () => {
       if (dragState && tempEvent) {
+        const didMove = tempEvent.start !== dragState.originalStart.toISOString() ||
+                        tempEvent.end !== dragState.originalEnd.toISOString();
+        if (didMove) {
+          wasDraggingRef.current = true;
+          setTimeout(() => { wasDraggingRef.current = false; }, 100);
+        }
         setEvents(prev => prev.map(e => e.id === dragState.id ? tempEvent : e));
       }
       setDragState(null);
@@ -480,60 +975,205 @@ export const CalendarView: React.FC<Props> = ({
     };
   }, [dragState, tempEvent, setEvents]);
 
+  // --- Marquee Drag-to-Select ---
+  useEffect(() => {
+    if (selectionMode !== 'MARQUEE' || !marqueeActive) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      setMarqueeEnd({ x: e.clientX, y: e.clientY });
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      if (marqueeStart && marqueeEnd) {
+        // Calculate the marquee rectangle in viewport coords
+        const rect = {
+          left: Math.min(marqueeStart.x, e.clientX),
+          right: Math.max(marqueeStart.x, e.clientX),
+          top: Math.min(marqueeStart.y, e.clientY),
+          bottom: Math.max(marqueeStart.y, e.clientY),
+        };
+
+        // Only select if the drag was significant (not just a click)
+        const dragWidth = rect.right - rect.left;
+        const dragHeight = rect.bottom - rect.top;
+        if (dragWidth > 5 || dragHeight > 5) {
+          // Find all event elements that intersect the marquee rect
+          const container = marqueeContainerRef.current || containerRef.current;
+          if (container) {
+            const eventElements = container.querySelectorAll('[data-event-id]');
+            const newSelected = new Set(selectedEventIds);
+            eventElements.forEach(el => {
+              const elRect = el.getBoundingClientRect();
+              // Check intersection
+              if (
+                elRect.left < rect.right &&
+                elRect.right > rect.left &&
+                elRect.top < rect.bottom &&
+                elRect.bottom > rect.top
+              ) {
+                const eventId = el.getAttribute('data-event-id');
+                if (eventId) {
+                  newSelected.add(eventId);
+                }
+              }
+            });
+            setSelectedEventIds(newSelected);
+          }
+        }
+      }
+      setMarqueeActive(false);
+      setMarqueeStart(null);
+      setMarqueeEnd(null);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [selectionMode, marqueeActive, marqueeStart, marqueeEnd, selectedEventIds, setSelectedEventIds]);
+
+  const handleMarqueeMouseDown = useCallback((e: React.MouseEvent) => {
+    if (selectionMode !== 'MARQUEE') return;
+    // Only start marquee on left mouse button, not on event elements
+    if (e.button !== 0) return;
+    e.preventDefault();
+    setMarqueeStart({ x: e.clientX, y: e.clientY });
+    setMarqueeEnd({ x: e.clientX, y: e.clientY });
+    setMarqueeActive(true);
+  }, [selectionMode]);
+
   // --- Event Editor (Modal) ---
 
-  const openModal = (evt?: Partial<CalendarEvent>) => {
+  const openModal = (evt?: Partial<CalendarEvent>, anchor?: { x: number; y: number } | null) => {
     const defaultStart = new Date();
     defaultStart.setMinutes(0, 0, 0);
     const defaultEnd = new Date(defaultStart);
     defaultEnd.setMinutes(defaultStart.getMinutes() + settings.defaultEventDuration);
 
-    const defaultTeacher = teachers[0];
-    setEditingEvent(evt || {
-      start: defaultStart.toISOString(),
-      end: defaultEnd.toISOString(),
-      classification: activeLists.classifications[0], // Use activeLists
-      teacherId: defaultTeacher?.id,
-      roomId: rooms[0]?.id,
-      positionId: defaultTeacher?.positionAssignments?.[0]?.id || undefined,
-    });
+    let newEvent: Partial<CalendarEvent>;
+    if (evt) {
+      newEvent = { ...evt };
+    } else {
+      newEvent = {
+        start: defaultStart.toISOString(),
+        end: defaultEnd.toISOString(),
+        roomId: rooms[0]?.id,
+      };
+    }
+    setEditingEvent(newEvent);
+    setModalAnchorPosition(anchor ?? null);
     setIsModalOpen(true);
     setDetailItem(null);
   };
 
-  const handleSlotClick = (date: Date, hour: number) => {
+  // Open the create-event modal for a click anywhere inside a day column. The
+  // column is exactly (END_HOUR - START_HOUR + 1) * 60 px tall, so 1 px == 1 min.
+  // Snap to the nearest 15-minute boundary (Google-Calendar style) and create a
+  // 1-hour event. A single column-level handler avoids React's per-cell offsetY
+  // quirks that broke the previous slot-by-slot implementation.
+  const handleColumnClick = (date: Date, e: React.MouseEvent) => {
+    if (!isAdmin) return;
+    if (selectionMode === 'MARQUEE') return;
+
+    const cell = e.currentTarget.getBoundingClientRect();
+    const offsetY = Math.max(0, e.clientY - cell.top);
+    const totalMinutes = Math.round(offsetY / 15) * 15; // snap to 15-min boundary
+    const startMinutesSinceStart = Math.min(totalMinutes, (END_HOUR - START_HOUR + 1) * 60 - 15);
+
+    const snappedHour = START_HOUR + Math.floor(startMinutesSinceStart / 60);
+    const snappedMinute = startMinutesSinceStart % 60;
+
     const start = new Date(date);
-    start.setHours(hour, 0, 0, 0);
+    start.setHours(snappedHour, snappedMinute, 0, 0);
     const end = new Date(start);
     end.setMinutes(start.getMinutes() + settings.defaultEventDuration);
 
     openModal({
       start: start.toISOString(),
       end: end.toISOString(),
-      classification: activeLists.classifications[0], // Use activeLists
-      teacherId: teachers[0]?.id,
-      roomId: rooms[0]?.id
-    });
+      roomId: rooms[0]?.id,
+    }, null);
   };
 
-  const saveEvent = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingEvent.name) return;
+  // Month-view "+" button: opens the create-event modal at a fixed time on the
+  // clicked day. No fine-grained snap because there's no minute-level resolution
+  // in the month grid.
+  const handleSlotClick = (date: Date, hour: number) => {
+    if (!isAdmin) return;
+    if (selectionMode === 'MARQUEE') return;
+    const start = new Date(date);
+    start.setHours(hour, 0, 0, 0);
+    const end = new Date(start);
+    end.setMinutes(start.getMinutes() + settings.defaultEventDuration);
+    openModal({
+      start: start.toISOString(),
+      end: end.toISOString(),
+      roomId: rooms[0]?.id,
+    }, null);
+  };
 
-    if (new Date(editingEvent.end!) <= new Date(editingEvent.start!)) {
-      alert("End time must be after start time");
-      return;
+  const handleGoogleSync = async (eventToSync: CalendarEvent, isUpdate: boolean = false) => {
+    // Only sync if the currently logged-in user is the admin who connected the calendar
+    if (settings.googleCalendarSyncEnabled && settings.googleCalendarId && googleAccessToken && isCalendarOwner) {
+      try {
+        const payload = {
+          title: eventToSync.name,
+          start: eventToSync.start,
+          end: eventToSync.end,
+          description: eventToSync.description,
+          location: rooms.find(r => r.id === eventToSync.roomId)?.name
+        };
+
+        if (isUpdate && eventToSync.googleEventId) {
+          await updateEventInGoogle(googleAccessToken, settings.googleCalendarId, eventToSync.googleEventId, payload);
+        } else {
+          const gId = await syncEventToGoogle(googleAccessToken, settings.googleCalendarId, payload);
+          // Update the event with the newly assigned google Event ID
+          setEvents(prev => prev.map(ev => ev.id === eventToSync.id ? { ...ev, googleEventId: gId } : ev));
+        }
+      } catch (err) {
+        console.error("Failed to sync to Google Calendar:", err);
+      }
     }
+  };
+
+  // ─── Phase 5: v2.0 Event Form Save Handler ─────────────────────────────
+  const handleSaveV2 = (formState: EventFormState) => {
+    const now = { seconds: Date.now() / 1000, nanoseconds: 0 } as any;
+    const selectedActivity = activities.find(a => a.id === formState.activityId);
 
     if (editingEvent.id) {
-      // Check if this is a virtual recurring instance (id contains _)
-      const isVirtualInstance = editingEvent.id.includes('_') && editingEvent.recurrenceId;
-      if (isVirtualInstance) {
-        // This was triggered by "Just This One" — create exception
-        const parentId = editingEvent.recurrenceId!;
-        const dateKey = editingEvent.originalStart || new Date(editingEvent.start!).toISOString().split('T')[0];
+      // ── Edit existing event ──
+      const isVirtualInstance = editingEvent.id.includes('_') && (editingEvent as CalendarEvent).recurrenceId;
 
-        // Add date to parent's exceptions
+      // Build v2.0 EventV2 document
+      const eventV2Update: Partial<EventV2> = {
+        name: formState.name,
+        activityId: formState.activityId,
+        l1Id: formState.l1Id || null,
+        l2Id: formState.l2Id || null,
+        location: formState.location,
+        date: formState.date,
+        startTime: formState.startTime,
+        endTime: formState.endTime,
+        status: formState.isCanceled ? 'CANCELLED' : 'SCHEDULED',
+        notes: formState.notes || null,
+        updatedAt: now,
+      };
+
+      // Build compat CalendarEvent for rendering
+      const startISO = new Date(`${formState.date}T${formState.startTime}:00`).toISOString();
+      const endISO = new Date(`${formState.date}T${formState.endTime}:00`).toISOString();
+      const primaryStaffId = formState.staffParticipants[0]?.staffMemberId;
+
+      if (isVirtualInstance) {
+        // Create exception edit (same as v1.3 pattern)
+        const parentId = (editingEvent as CalendarEvent).recurrenceId!;
+        const dateKey = (editingEvent as CalendarEvent).originalStart || formState.date;
+
         setEvents(prev => prev.map(ev => {
           if (ev.id === parentId) {
             return { ...ev, exceptions: [...(ev.exceptions || []), dateKey] };
@@ -541,32 +1181,222 @@ export const CalendarView: React.FC<Props> = ({
           return ev;
         }));
 
-        // Create a standalone exception event
+        const exceptionId = generateId();
         const exceptionEvent: CalendarEvent = {
-          ...editingEvent as CalendarEvent,
-          id: generateId(),
+          ...(editingEvent as CalendarEvent),
+          id: exceptionId,
+          name: formState.name,
+          start: startISO,
+          end: endISO,
+          teacherId: primaryStaffId,
+          roomId: formState.roomId || undefined,
+          staffMemberIds: formState.staffParticipants.map(sp => sp.staffMemberId),
+          activityId: formState.activityId,
+          isCanceled: formState.isCanceled,
           recurrenceId: parentId,
           isExceptionEdit: true,
           originalStart: dateKey,
-          recurrenceRule: undefined, // Not a parent
+          recurrenceRule: undefined,
+          tags: formState.tags,
         };
         setEvents(prev => [...prev, exceptionEvent]);
+
+        // Write v2.0 event
+        setEventsV2(prev => [...prev, { ...eventV2Update, id: exceptionId, orgId: '', isRecurring: false, recurringGroupId: parentId, durationMinutes: 0, createdAt: now } as EventV2]);
       } else {
-        // Regular event or parent event edit
-        setEvents(prev => prev.map(ev => ev.id === editingEvent.id ? { ...ev, ...editingEvent } as CalendarEvent : ev));
+        // Regular event edit
+        const updatedCE: CalendarEvent = {
+          ...(editingEvent as CalendarEvent),
+          name: formState.name,
+          start: startISO,
+          end: endISO,
+          teacherId: primaryStaffId,
+          roomId: formState.roomId || undefined,
+          staffMemberIds: formState.staffParticipants.map(sp => sp.staffMemberId),
+          activityId: formState.activityId,
+          isCanceled: formState.isCanceled,
+          recurrenceRule: formState.recurrenceRule,
+          tags: formState.tags,
+        };
+        setEvents(prev => prev.map(ev => ev.id === editingEvent.id ? { ...ev, ...updatedCE } : ev));
+        setRecentlySaved(prev => new Set(prev).add(editingEvent.id!));
+        setTimeout(() => setRecentlySaved(prev => { const n = new Set(prev); n.delete(editingEvent.id!); return n; }), 1500);
+
+        // Update v2.0 event
+        setEventsV2(prev => prev.map(ev => ev.id === editingEvent.id ? { ...ev, ...eventV2Update } : ev));
+
+        // Google sync
+        if (updatedCE.googleEventId) handleGoogleSync(updatedCE, true);
+        handleTeacherGoogleSync(updatedCE, true);
       }
+
+      // Update v2.0 participants (delete old, add new)
+      setEventParticipantsV2(prev => {
+        const withoutOld = prev.filter(p => p.eventId !== editingEvent.id);
+        const newParticipants: EventParticipant[] = formState.staffParticipants.map(sp => ({
+          id: generateId(),
+          orgId: '',
+          eventId: editingEvent.id!,
+          staffMemberId: sp.staffMemberId,
+          assignmentType: sp.assignmentType,
+          teachingAssignmentId: sp.teachingAssignmentId || null,
+          orgRoleId: sp.orgRoleId || null,
+          createdAt: now,
+        }));
+        return [...withoutOld, ...newParticipants];
+      });
     } else {
-      // New event — save with recurrence rule if set
-      const newEvent: CalendarEvent = {
-        ...editingEvent,
-        id: generateId(),
+      // ── New event ──
+      const newId = generateId();
+      const startISO = new Date(`${formState.date}T${formState.startTime}:00`).toISOString();
+      const endISO = new Date(`${formState.date}T${formState.endTime}:00`).toISOString();
+      const primaryStaffId = formState.staffParticipants[0]?.staffMemberId;
+
+      // CalendarEvent for rendering compat
+      const newCE: CalendarEvent = {
+        id: newId,
+        name: formState.name,
+        description: '',
+        start: startISO,
+        end: endISO,
+        teacherId: primaryStaffId,
+        roomId: formState.roomId || undefined,
+        staffMemberIds: formState.staffParticipants.map(sp => sp.staffMemberId),
+        activityId: formState.activityId,
         isCanceled: false,
         isHidden: false,
-        description: editingEvent.description || '',
-      } as CalendarEvent;
-      setEvents(prev => [...prev, newEvent]);
+        recurrenceRule: formState.recurrenceRule,
+        tags: formState.tags,
+      };
+      setEvents(prev => [...prev, newCE]);
+      setRecentlySaved(prev => new Set(prev).add(newId));
+      setTimeout(() => setRecentlySaved(prev => { const n = new Set(prev); n.delete(newId); return n; }), 1500);
+
+      // v2.0 EventV2 document
+      const newEventV2: EventV2 = {
+        id: newId,
+        orgId: '',
+        name: formState.name,
+        activityId: formState.activityId,
+        l1Id: formState.l1Id || null,
+        l2Id: formState.l2Id || null,
+        location: formState.location,
+        date: formState.date,
+        startTime: formState.startTime,
+        endTime: formState.endTime,
+        durationMinutes: 0, // Computed server-side via computeDuration
+        isRecurring: !!formState.recurrenceRule,
+        recurringGroupId: null,
+        status: 'SCHEDULED',
+        notes: formState.notes || null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      setEventsV2(prev => [...prev, newEventV2]);
+
+      // v2.0 EventParticipant documents
+      const newParticipants: EventParticipant[] = formState.staffParticipants.map(sp => ({
+        id: generateId(),
+        orgId: '',
+        eventId: newId,
+        staffMemberId: sp.staffMemberId,
+        assignmentType: sp.assignmentType,
+        teachingAssignmentId: sp.teachingAssignmentId || null,
+        orgRoleId: sp.orgRoleId || null,
+        createdAt: now,
+      }));
+      setEventParticipantsV2(prev => [...prev, ...newParticipants]);
+
+      // Google sync
+      handleGoogleSync(newCE);
+      handleTeacherGoogleSync(newCE);
     }
+
     setIsModalOpen(false);
+  };
+
+  const handleDeleteGoogleSync = async (gId: string) => {
+    if (settings.googleCalendarSyncEnabled && settings.googleCalendarId && googleAccessToken && isCalendarOwner && gId) {
+      try {
+        await removeEventFromGoogle(googleAccessToken, settings.googleCalendarId, gId);
+      } catch (err) {
+        console.error("Failed to delete from Google Calendar", err);
+      }
+    }
+  };
+
+  // --- Phase 5: Per-Teacher Google Calendar Sync ---
+  const handleTeacherGoogleSync = async (eventToSync: CalendarEvent, isUpdate: boolean = false) => {
+    if (!googleAccessToken) return;
+
+    const staffMemberIds = eventToSync.staffMemberIds || (eventToSync.teacherId ? [eventToSync.teacherId] : []);
+    if (staffMemberIds.length === 0) return;
+
+    const existingTeacherEventIds = eventToSync.teacherGoogleEventIds || {};
+    const newTeacherEventIds = { ...existingTeacherEventIds };
+
+    const payload = {
+      title: eventToSync.name,
+      start: eventToSync.start,
+      end: eventToSync.end,
+      description: eventToSync.description,
+      location: rooms.find(r => r.id === eventToSync.roomId)?.name
+    };
+
+    // Sync to each assigned staff member's personal calendar
+    for (const memberId of staffMemberIds) {
+      const teacher = teachers.find(t => t.id === memberId);
+      if (!teacher?.googleCalendarSyncEnabled || !teacher?.googleCalendarId) continue;
+
+      try {
+        const existingGoogleEventId = existingTeacherEventIds[memberId];
+        if (isUpdate && existingGoogleEventId) {
+          await updateEventInGoogle(googleAccessToken, teacher.googleCalendarId, existingGoogleEventId, payload);
+        } else if (!existingGoogleEventId) {
+          const gId = await syncEventToGoogle(googleAccessToken, teacher.googleCalendarId, payload);
+          newTeacherEventIds[memberId] = gId;
+        }
+      } catch (err) {
+        console.error(`Failed to sync to ${teacher.fullName}'s Google Calendar:`, err);
+      }
+    }
+
+    // Remove from calendars of staff members no longer assigned to this event
+    for (const [oldMemberId, oldGoogleEventId] of Object.entries(existingTeacherEventIds)) {
+      if (!staffMemberIds.includes(oldMemberId) && oldGoogleEventId) {
+        const teacher = teachers.find(t => t.id === oldMemberId);
+        if (teacher?.googleCalendarId) {
+          try {
+            await removeEventFromGoogle(googleAccessToken, teacher.googleCalendarId, oldGoogleEventId);
+          } catch (err) {
+            console.error(`Failed to remove from ${teacher.fullName}'s Google Calendar:`, err);
+          }
+        }
+        delete newTeacherEventIds[oldMemberId];
+      }
+    }
+
+    // Persist the updated teacher Google Event IDs
+    if (JSON.stringify(newTeacherEventIds) !== JSON.stringify(existingTeacherEventIds)) {
+      setEvents(prev => prev.map(ev => ev.id === eventToSync.id ? { ...ev, teacherGoogleEventIds: newTeacherEventIds } : ev));
+    }
+  };
+
+  const handleDeleteTeacherGoogleSync = async (event: CalendarEvent) => {
+    if (!googleAccessToken) return;
+    const teacherEventIds = event.teacherGoogleEventIds || {};
+
+    for (const [memberId, googleEventId] of Object.entries(teacherEventIds)) {
+      if (!googleEventId) continue;
+      const teacher = teachers.find(t => t.id === memberId);
+      if (!teacher?.googleCalendarId) continue;
+
+      try {
+        await removeEventFromGoogle(googleAccessToken, teacher.googleCalendarId, googleEventId);
+      } catch (err) {
+        console.error(`Failed to delete from ${teacher.fullName}'s Google Calendar:`, err);
+      }
+    }
   };
 
   // --- Detail View Actions ---
@@ -580,20 +1410,26 @@ export const CalendarView: React.FC<Props> = ({
       return;
     }
 
-    if (window.confirm("Are you sure you want to delete this event?")) {
+    if (window.confirm(t('cal.confirm_delete_event'))) {
       setEvents(prev => prev.filter(e => e.id !== id));
+      if (targetEvent?.googleEventId) {
+        handleDeleteGoogleSync(targetEvent.googleEventId);
+      }
+      if (targetEvent) {
+        handleDeleteTeacherGoogleSync(targetEvent);
+      }
       setDetailItem(null);
     }
   };
 
-  const handleEditEvent = (evt: CalendarEvent) => {
+  const handleEditEvent = (evt: CalendarEvent, anchor?: { x: number; y: number } | null) => {
     // Check if this is part of a recurring series
     if (evt.recurrenceRule || evt.recurrenceId) {
       setRecurrenceDialog({ type: 'EDIT', event: evt });
       setDetailItem(null);
       return;
     }
-    openModal(evt);
+    openModal(evt, anchor);
   };
 
   const handleCancelEvent = (evt: CalendarEvent) => {
@@ -618,7 +1454,14 @@ export const CalendarView: React.FC<Props> = ({
 
     if (type === 'DELETE') {
       if (scope === 'ALL') {
-        // Delete entire series
+        // Delete entire series — also clean up teacher Google Calendar entries
+        const parentEvent = events.find(e => e.id === parentId);
+        if (parentEvent?.googleEventId) {
+          handleDeleteGoogleSync(parentEvent.googleEventId);
+        }
+        if (parentEvent) {
+          handleDeleteTeacherGoogleSync(parentEvent);
+        }
         setEvents(prev => prev.filter(e => e.id !== parentId && e.recurrenceId !== parentId));
       } else {
         // Delete just this one — add to exceptions
@@ -687,7 +1530,7 @@ export const CalendarView: React.FC<Props> = ({
   };
 
   const handleDeleteGantt = (id: string) => {
-    if (window.confirm("Delete this Gantt block? This may affect blackouts.")) {
+    if (window.confirm(t('cal.confirm_delete_gantt'))) {
       const block = ganttBlocks.find(b => b.id === id);
       if (block && block.isBlackout) {
         // Restore hidden events
@@ -707,7 +1550,7 @@ export const CalendarView: React.FC<Props> = ({
   // --- Helper for Teacher Colors ---
   const getTeacherColor = (teacherId: string) => {
     const teacher = teachers.find(t => t.id === teacherId);
-    return teacher ? teacher.color : '#3b82f6'; // Default blue
+    return teacher ? teacher.color : '#6E1A1A'; // Default bordeaux
   };
 
   const hexToRgba = (hex: string, alpha: number) => {
@@ -756,42 +1599,69 @@ export const CalendarView: React.FC<Props> = ({
     const totalHeight = Math.max(30, lanes.length * laneHeight + 10);
 
     return (
-      <div className="grid border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 relative" style={{ gridTemplateColumns: `50px 1fr` }}>
-        <div className="border-r border-slate-100 dark:border-slate-800 p-2 text-[10px] text-slate-400 text-center flex items-center justify-center font-bold">
-          GANTT
-        </div>
-        <div className="relative py-1" style={{ height: `${totalHeight}px` }}>
-          {lanes.map((lane, laneIdx) => (
-            lane.map(block => {
-              const blockStart = new Date(block.startDate);
-              const blockEnd = new Date(block.endDate);
+      <div className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 flex flex-col transition-all duration-150 relative overflow-hidden">
+        {/* Collapsed Header */}
+        {!isGanttExpanded && (
+          <div
+            className="flex items-center px-3 py-1.5 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-bold text-slate-500 dark:text-slate-400 transition-colors"
+            onClick={() => setIsGanttExpanded(true)}
+          >
+            <ChevronRight size={14} className={`opacity-70 ${isRtl ? 'ms-1 rotate-180' : 'me-1'}`} />
+            <span className="tracking-wider uppercase">GANTT</span>
+          </div>
+        )}
 
-              const totalDuration = viewEnd.getTime() - viewStart.getTime();
-              const effectiveStart = Math.max(blockStart.getTime(), viewStart.getTime());
-              const effectiveEnd = Math.min(blockEnd.getTime(), viewEnd.getTime());
+        {/* Expanded Content Grid */}
+        <div
+          className={`grid transition-all duration-300 overflow-hidden ${isGanttExpanded ? 'opacity-100' : 'opacity-0'}`}
+          style={{
+            gridTemplateColumns: `50px 1fr`,
+            height: isGanttExpanded ? 'auto' : 0,
+            visibility: isGanttExpanded ? 'visible' : 'hidden'
+          }}
+        >
+          <div
+            className="border-e border-slate-100 dark:border-slate-800 p-2 text-[10px] text-slate-400 text-center flex flex-col items-center justify-center font-bold cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            onClick={() => setIsGanttExpanded(false)}
+            title={t('btn.collapse')}
+          >
+            <ChevronDown size={14} className="opacity-70 mb-0.5" />
+            <span>GANTT</span>
+          </div>
+          <div className="relative py-1" style={{ height: `${totalHeight}px` }}>
+            {lanes.map((lane, laneIdx) => (
+              lane.map(block => {
+                const blockStart = new Date(block.startDate);
+                const blockEnd = new Date(block.endDate);
 
-              const leftPercent = ((effectiveStart - viewStart.getTime()) / totalDuration) * 100;
-              const widthPercent = ((effectiveEnd - effectiveStart) / totalDuration) * 100;
+                const totalDuration = viewEnd.getTime() - viewStart.getTime();
+                const effectiveStart = Math.max(blockStart.getTime(), viewStart.getTime());
+                const effectiveEnd = Math.min(blockEnd.getTime(), viewEnd.getTime());
 
-              return (
-                <div
-                  key={block.id}
-                  onClick={(e) => { e.stopPropagation(); setDetailItem({ type: 'GANTT', data: block }); }}
-                  className="absolute rounded px-2 flex items-center text-[10px] text-white font-medium truncate opacity-90 hover:opacity-100 transition-opacity cursor-pointer z-10 hover:shadow-lg hover:z-20 border border-white/20"
-                  style={{
-                    left: `${leftPercent}%`,
-                    width: `${widthPercent}%`,
-                    top: `${laneIdx * laneHeight}px`,
-                    height: `${laneHeight - 2}px`,
-                    backgroundColor: block.color,
-                  }}
-                  title={block.title}
-                >
-                  {block.title} {block.isBlackout && '(Blackout)'}
-                </div>
-              );
-            })
-          ))}
+                const leftPercent = ((effectiveStart - viewStart.getTime()) / totalDuration) * 100;
+                const widthPercent = ((effectiveEnd - effectiveStart) / totalDuration) * 100;
+
+                return (
+                  <div
+                    key={block.id}
+                    onClick={(e) => { e.stopPropagation(); setDetailItem({ type: 'GANTT', data: block }); }}
+                    className={`absolute rounded px-2 flex items-center text-[10px] text-white font-medium truncate opacity-90 hover:opacity-100 transition-opacity cursor-pointer z-5 hover:shadow-cadenza-deep hover:z-10 border border-white/20 animate-cadenza-arrive ${recentlySaved.has(block.id) ? 'animate-cadenza-pulse' : ''}`}
+                    style={{
+                      insetInlineStart: `${leftPercent}%`,
+                      width: `${widthPercent}%`,
+                      top: `${laneIdx * laneHeight}px`,
+                      height: `${laneHeight - 2}px`,
+                      backgroundColor: block.color,
+                      transformOrigin: isRtl ? 'right center' : 'left center',
+                    }}
+                    title={block.title}
+                  >
+                    {block.title} {block.isBlackout && '(Blackout)'}
+                  </div>
+                );
+              })
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -808,6 +1678,7 @@ export const CalendarView: React.FC<Props> = ({
     const height = durationMinutes;
 
     const isDragging = dragState?.id === evt.id;
+    const isConflicting = conflictingIds.has(evt.id);
     const baseColor = getTeacherColor(evt.teacherId);
 
     // Dynamic text scaling thresholds
@@ -823,13 +1694,40 @@ export const CalendarView: React.FC<Props> = ({
     return (
       <div
         key={evt.id}
+        data-event-id={evt.id}
+        tabIndex={0}
+        role="button"
+        aria-label={`${evt.name} — ${t('bl01_calendar.event.aria_focused')}`}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setDetailItem({ type: 'EVENT', data: evt });
+          }
+        }}
         onMouseDown={(e) => handleMouseDown(e, evt, 'MOVE')}
-        onClick={(e) => { e.stopPropagation(); setDetailItem({ type: 'EVENT', data: evt }); }}
-        className={`absolute rounded-md border shadow-sm transition-shadow select-none overflow-hidden group ${evt.isCanceled
+        onClick={(e) => {
+          e.stopPropagation();
+          if (wasDraggingRef.current) return;
+          if (selectionMode === 'MARQUEE') {
+            setSelectedEventIds(prev => {
+              const next = new Set(prev);
+              next.has(evt.id) ? next.delete(evt.id) : next.add(evt.id);
+              return next;
+            });
+          } else {
+            setDetailItem({ type: 'EVENT', data: evt });
+          }
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setContextMenu({ x: e.clientX, y: e.clientY, event: evt });
+        }}
+        className={`pointer-events-auto absolute rounded-xl border shadow-sm transition-shadow select-none overflow-hidden group animate-cadenza-arrive focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-700 ${selectedEventIds.has(evt.id) ? 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${isConflicting && !evt.isCanceled ? 'ring-2 ring-amber-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
           ? 'canceled-stripe border-slate-300 text-slate-400 dark:border-slate-600 dark:text-slate-500 bg-slate-50 dark:bg-slate-800'
           : isDragging
-            ? 'z-50 opacity-90 shadow-xl'
-            : 'hover:shadow-md cursor-pointer'
+            ? 'z-50 opacity-90 shadow-cadenza-deep cursor-grabbing'
+            : 'hover:shadow-cadenza-soft cursor-grab'
           }`}
         style={{
           top: `${top}px`,
@@ -845,9 +1743,9 @@ export const CalendarView: React.FC<Props> = ({
         }}
       >
         <div style={{ color: !evt.isCanceled ? baseColor : undefined }} className={`h-full ${isShort ? 'flex items-center gap-1' : 'flex flex-col'} overflow-hidden`}>
-          {layout.width < 90 && !evt.isCanceled && !isDragging && (
-            <div className="absolute top-0.5 right-0.5 bg-white/80 rounded-full p-0.5 dark:bg-slate-800">
-              <AlertCircle size={isCompact ? 8 : 10} color="red" />
+          {isConflicting && !evt.isCanceled && (
+            <div className="absolute top-0.5 start-0.5 bg-amber-100 dark:bg-amber-900/60 rounded-full p-0.5" title={t('cal.room_conflict')}>
+              <AlertOctagon size={isCompact ? 8 : 10} className="text-amber-600 dark:text-amber-400" />
             </div>
           )}
 
@@ -860,17 +1758,36 @@ export const CalendarView: React.FC<Props> = ({
                   {formatTime(start)}-{formatTime(end)}
                 </span>
               )}
-              {evt.isCanceled && <span className="font-bold text-red-500 flex-shrink-0" style={{ fontSize: timeFontSize }}>✕</span>}
+              {!isUltraCompact && evt.teacherId && (
+                <span className="truncate opacity-70 flex-shrink-0 flex items-center gap-0.5" style={{ fontSize: timeFontSize, lineHeight: 1.2 }}>
+                  <User size={8} /> {teachers.find(t => t.id === evt.teacherId)?.fullName?.split(' ')[0]}
+                </span>
+              )}
+              {evt.roomId && !isUltraCompact && (
+                <span className="truncate opacity-70 flex-shrink-0 flex items-center gap-0.5" style={{ fontSize: timeFontSize, lineHeight: 1.2 }}>
+                  <MapPin size={8} /> {rooms.find(r => r.id === evt.roomId)?.name}
+                </span>
+              )}
+              {evt.isCanceled && <span className="font-bold text-slate-500 dark:text-slate-400 flex-shrink-0" style={{ fontSize: timeFontSize }}>✕</span>}
             </>
           ) : (
             /* Standard multi-line layout for normal events */
             <>
-              <div className="font-bold truncate pr-4 text-black dark:text-white" style={{ opacity: 0.9 }}>{evt.name}</div>
+              <div className="font-bold truncate pe-4 text-black dark:text-white" style={{ opacity: 0.9 }}>{evt.name}</div>
               <div className="truncate opacity-75" style={{ fontSize: timeFontSize }}>
                 {formatTime(start)} - {formatTime(end)}
               </div>
-              <div className="truncate opacity-75 font-semibold" style={{ fontSize: timeFontSize }}>{teachers.find(t => t.id === evt.teacherId)?.fullName}</div>
-              {evt.isCanceled && <div className="font-bold text-red-500 mt-1">CANCELED</div>}
+              <div className="truncate opacity-75 font-semibold flex items-center gap-1" style={{ fontSize: timeFontSize }}>
+                <User size={10} className="flex-shrink-0" />
+                <span className="truncate">{teachers.find(t => t.id === evt.teacherId)?.fullName}</span>
+              </div>
+              {evt.roomId && (
+                <div className="truncate opacity-75 font-medium flex items-center gap-1 mt-0.5 text-slate-700 dark:text-slate-300" style={{ fontSize: timeFontSize }}>
+                  <MapPin size={10} className="flex-shrink-0" />
+                  <span className="truncate">{rooms.find(r => r.id === evt.roomId)?.name}</span>
+                </div>
+              )}
+              {evt.isCanceled && <div className="font-bold text-slate-500 dark:text-slate-400 mt-1">{t('cal.canceled')}</div>}
             </>
           )}
         </div>
@@ -878,7 +1795,7 @@ export const CalendarView: React.FC<Props> = ({
         {!evt.isCanceled && (
           <div
             onMouseDown={(e) => handleMouseDown(e, evt, 'RESIZE')}
-            className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize flex justify-center items-end pb-1 opacity-0 group-hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5"
+            className="absolute bottom-0 start-0 end-0 h-3 cursor-ns-resize flex justify-center items-end pb-1 opacity-0 group-hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5"
           >
             <GripHorizontal size={12} className="text-slate-400" />
           </div>
@@ -888,39 +1805,47 @@ export const CalendarView: React.FC<Props> = ({
   };
 
   const renderTimeGrid = (days: Date[]) => {
+    gridDaysRef.current = days;
     return (
-      <div className="flex-1 overflow-auto bg-white dark:bg-slate-900 relative" ref={containerRef}>
-        <div className="min-w-[800px] relative">
-          <div className="grid border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-900 z-20 shadow-sm" style={{ gridTemplateColumns: `50px repeat(${days.length}, 1fr)` }}>
-            <div className="p-4 border-r border-slate-100 dark:border-slate-800"></div>
-            {days.map(day => (
-              <div key={day.toISOString()} className={`p-3 text-center border-r border-slate-100 dark:border-slate-800 ${day.toDateString() === new Date().toDateString() ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{day.toLocaleDateString(settings.language, { weekday: 'short' })}</div>
-                <div className={`text-xl font-bold mt-1 ${day.toDateString() === new Date().toDateString() ? 'text-blue-600 dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}>
-                  {day.getDate()}
+      <div className={`flex-1 overflow-auto bg-white dark:bg-slate-900 relative ${selectionMode === 'MARQUEE' ? 'cursor-crosshair' : ''}`} ref={containerRef} onMouseDown={handleMarqueeMouseDown}>
+        <div className="min-w-[800px] relative" ref={marqueeContainerRef}>
+          <div className="sticky top-0 z-20 flex flex-col shadow-sm">
+            <div className="grid border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900" style={{ gridTemplateColumns: `50px repeat(${days.length}, 1fr)` }}>
+              <div className="p-4 border-e border-slate-100 dark:border-slate-800"></div>
+              {days.map(day => (
+                <div key={day.toISOString()} className={`p-3 text-center border-e border-slate-100 dark:border-slate-800 ${day.toDateString() === new Date().toDateString() ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
+                  <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{day.toLocaleDateString(settings.language, { weekday: 'short' })}</div>
+                  <div
+                    className={`text-xl font-bold mt-1 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${day.toDateString() === new Date().toDateString() ? 'text-blue-600 dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}
+                    onClick={() => { setCurrentDate(day); setViewMode('DAY'); }}
+                  >
+                    {day.getDate()}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+            {renderGanttStrip(days)}
           </div>
-          {renderGanttStrip(days)}
           <div className="relative" style={{ height: `${(END_HOUR - START_HOUR + 1) * 60}px` }}>
             <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `50px repeat(${days.length}, 1fr)` }}>
-              <div className="border-r border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+              <div className="border-e border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
                 {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i).map(h => (
-                  <div key={h} className="h-[60px] border-b border-slate-200 dark:border-slate-800 text-xs text-slate-400 text-right pr-2 pt-1">
+                  <div key={h} className="h-[60px] border-b border-slate-200 dark:border-slate-800 text-xs text-slate-400 text-end pe-2 pt-1">
                     {h}:00
                   </div>
                 ))}
               </div>
               {days.map((day, i) => (
-                <div key={i} className="border-r border-slate-100 dark:border-slate-800 h-full relative group">
-                  <div className="absolute inset-0 bg-blue-50/0 group-hover:bg-blue-50/5 pointer-events-none transition-colors" />
-                  {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i).map(h => (
+                <div
+                  key={i}
+                  className="border-e border-slate-100 dark:border-slate-800 h-full relative"
+                  onClick={(e) => handleColumnClick(day, e)}
+                >
+                  {/* Hour gridlines (visual only) */}
+                  {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, j) => START_HOUR + j).map(h => (
                     <div
                       key={h}
-                      className="h-[60px] border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-cell"
-                      onClick={() => handleSlotClick(day, h)}
-                      title="Click to add event"
+                      className="h-[60px] border-b border-slate-100 dark:border-slate-800 pointer-events-none"
                     />
                   ))}
                 </div>
@@ -937,7 +1862,7 @@ export const CalendarView: React.FC<Props> = ({
                 });
                 const layout = getDailyLayout(dayEvents);
                 return (
-                  <div key={day.toISOString()} className="relative h-full pointer-events-auto">
+                  <div key={day.toISOString()} className="relative h-full pointer-events-none overflow-hidden">
                     {dayEvents.map(evt => renderEvent(evt, layout[evt.id] || { left: 0, width: 100, zIndex: 1 }))}
                   </div>
                 );
@@ -945,6 +1870,32 @@ export const CalendarView: React.FC<Props> = ({
             </div>
           </div>
         </div>
+
+        {/* Marquee Selection Rectangle */}
+        {marqueeActive && marqueeStart && marqueeEnd && (() => {
+          const containerRect = containerRef.current?.getBoundingClientRect();
+          if (!containerRect) return null;
+          const scrollLeft = containerRef.current?.scrollLeft || 0;
+          const scrollTop = containerRef.current?.scrollTop || 0;
+          const left = Math.min(marqueeStart.x, marqueeEnd.x) - containerRect.left + scrollLeft;
+          const top = Math.min(marqueeStart.y, marqueeEnd.y) - containerRect.top + scrollTop;
+          const width = Math.abs(marqueeEnd.x - marqueeStart.x);
+          const height = Math.abs(marqueeEnd.y - marqueeStart.y);
+          return (
+            <div
+              className="absolute pointer-events-none z-50"
+              style={{
+                left: `${left}px`,
+                top: `${top}px`,
+                width: `${width}px`,
+                height: `${height}px`,
+                border: '2px dashed rgba(60, 81, 112, 0.85)',
+                backgroundColor: 'rgba(60, 81, 112, 0.10)',
+                borderRadius: '4px',
+              }}
+            />
+          );
+        })()}
       </div>
     );
   };
@@ -955,12 +1906,95 @@ export const CalendarView: React.FC<Props> = ({
     for (let i = 0; i < days.length; i += 7) {
       weeks.push(days.slice(i, i + 7));
     }
+
+    const renderEventChip = (evt: CalendarEvent) => {
+      const baseColor = getTeacherColor(evt.teacherId);
+      return (
+        <div
+          key={evt.id}
+          data-event-id={evt.id}
+          tabIndex={0}
+          role="button"
+          aria-label={`${evt.name} — ${t('bl01_calendar.event.aria_focused')}`}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setDetailItem({ type: 'EVENT', data: evt });
+            }
+          }}
+          onMouseDown={(e) => handleMonthChipMouseDown(e, evt)}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (wasDraggingRef.current) return;
+            if (selectionMode === 'MARQUEE') {
+              setSelectedEventIds(prev => {
+                const next = new Set(prev);
+                next.has(evt.id) ? next.delete(evt.id) : next.add(evt.id);
+                return next;
+              });
+            } else {
+              setDetailItem({ type: 'EVENT', data: evt });
+            }
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setContextMenu({ x: e.clientX, y: e.clientY, event: evt });
+          }}
+          className={`text-[10px] text-start px-1.5 py-1 rounded ${dragState?.id === evt.id ? 'cursor-grabbing opacity-90 shadow-cadenza-deep' : 'cursor-grab'} border-s-2 animate-cadenza-arrive select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-700 ${selectedEventIds.has(evt.id) ? 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900' : ''} ${recentlySaved.has(evt.id) ? 'animate-cadenza-pulse' : ''} ${evt.isCanceled
+            ? 'bg-slate-100 text-slate-400 line-through dark:bg-slate-800 dark:text-slate-600 border-slate-400'
+            : 'hover:opacity-90 hover:shadow-cadenza-soft transition-all'
+            }`}
+          style={!evt.isCanceled ? {
+            backgroundColor: hexToRgba(baseColor, 0.1),
+            borderColor: baseColor,
+            color: 'inherit'
+          } : {}}
+        >
+          <span style={{ color: !evt.isCanceled ? baseColor : undefined }} className="font-bold flex justify-between items-center gap-2 brightness-75 dark:brightness-100">
+            <span>{formatTime(new Date(evt.start))}</span>
+            {evt.teacherId && (
+              <span className="text-[9px] uppercase tracking-wider opacity-70 truncate text-end">
+                {teachers.find(t => t.id === evt.teacherId)?.fullName.split(' ')[0]}
+              </span>
+            )}
+          </span>
+          <div className="flex flex-col mt-0.5">
+            <span className="font-medium text-slate-800 dark:text-slate-200 block truncate" title={evt.name || t('cal.unnamed')}>
+              {evt.name || t('cal.unnamed')}
+            </span>
+            {evt.roomId && (
+              <span className="text-[9px] text-slate-600 dark:text-slate-400 mt-px flex items-center gap-1 truncate" title={rooms.find(r => r.id === evt.roomId)?.name}>
+                <MapPin size={8} className="flex-shrink-0" />
+                {rooms.find(r => r.id === evt.roomId)?.name}
+              </span>
+            )}
+            {evt.tags && evt.tags.length > 0 && (
+              <div className="flex flex-wrap gap-0.5 mt-1">
+                {evt.tags.slice(0, 2).map(tag => (
+                  <TagChip key={tag} label={tag} size="xs" />
+                ))}
+                {evt.tags.length > 2 && (
+                  <span
+                    className="text-[9px] text-slate-500 dark:text-slate-400 px-1"
+                    title={evt.tags.slice(2).join(', ')}
+                  >
+                    +{evt.tags.length - 2}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
     return (
       <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 overflow-hidden">
         <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700 z-10 relative bg-white dark:bg-slate-900">
-          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
-            <div key={d} className="p-2 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">
-              {d}
+          {(weeks[0] ?? days.slice(0, 7)).map(d => (
+            <div key={d.toISOString()} className="p-2 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">
+              {d.toLocaleDateString(settings.language, { weekday: 'short' })}
             </div>
           ))}
         </div>
@@ -1019,7 +2053,9 @@ export const CalendarView: React.FC<Props> = ({
             });
 
             return (
-              <div key={wIdx} className="relative min-h-0 border-b border-slate-100 dark:border-slate-800 last:border-0 h-full group/week">
+              <div key={wIdx} className="relative min-h-0 border-b border-slate-100 dark:border-slate-800 last:border-0 h-full group/week hover:z-50">
+                {monthSubMode === 'GANTT' ? (
+                <>
                 {/* Layer 1: Background & Day Click (z-0) */}
                 <div className="absolute inset-0 grid grid-cols-7 pointer-events-none">
                   {week.map((day) => {
@@ -1027,15 +2063,16 @@ export const CalendarView: React.FC<Props> = ({
                     return (
                       <div
                         key={day.toISOString()}
-                        className={`border-r border-slate-100 dark:border-slate-800 last:border-0 pointer-events-auto cursor-pointer ${!isCurrentMonth ? 'bg-slate-50/50 dark:bg-slate-950/50' : 'bg-transparent'}`}
+                        data-month-day={day.toISOString()}
+                        className={`border-e border-slate-100 dark:border-slate-800 last:border-0 pointer-events-auto cursor-pointer ${!isCurrentMonth ? 'bg-slate-50/50 dark:bg-slate-950/50' : 'bg-transparent'}`}
                         onClick={() => { setCurrentDate(day); setViewMode('DAY'); }}
                       />
                     );
                   })}
                 </div>
 
-                {/* Layer 2: Gantt Overlay (z-10) */}
-                <div className="absolute top-[32px] bottom-0 left-0 right-0 overflow-y-auto custom-scrollbar pointer-events-none z-10">
+                {/* Layer 2: Gantt Overlay (z-5) */}
+                <div className="absolute top-[32px] bottom-0 start-0 end-0 overflow-y-auto custom-scrollbar pointer-events-none z-5">
                   <div className="grid grid-cols-7 gap-y-1 relative pointer-events-auto pb-1" style={{ gridAutoRows: 'min-content' }}>
                     {weekGantts.map(block => {
                       const bStart = new Date(block.startDate); bStart.setHours(0, 0, 0, 0);
@@ -1069,13 +2106,13 @@ export const CalendarView: React.FC<Props> = ({
                         marginClass = 'mx-0';
                         bdrClass = 'border-y border-black/10 dark:border-white/10';
                       } else if (isStartCut) {
-                        roundedClass = 'rounded-r';
-                        marginClass = 'mr-1 ml-0';
-                        bdrClass = 'border border-l-0 border-black/10 dark:border-white/10';
+                        roundedClass = 'rounded-e';
+                        marginClass = 'me-1 ms-0';
+                        bdrClass = 'border border-s-0 border-black/10 dark:border-white/10';
                       } else if (isEndCut) {
-                        roundedClass = 'rounded-l';
-                        marginClass = 'ml-1 mr-0';
-                        bdrClass = 'border border-r-0 border-black/10 dark:border-white/10';
+                        roundedClass = 'rounded-s';
+                        marginClass = 'ms-1 me-0';
+                        bdrClass = 'border border-e-0 border-black/10 dark:border-white/10';
                       }
 
                       return (
@@ -1098,7 +2135,7 @@ export const CalendarView: React.FC<Props> = ({
                 </div>
 
                 {/* Layer 3: Date Headers & Popups (z-20) */}
-                <div className="absolute top-0 left-0 right-0 h-[32px] grid grid-cols-7 pointer-events-none z-20">
+                <div className="absolute top-0 start-0 end-0 h-[32px] grid grid-cols-7 pointer-events-none z-20">
                   {week.map((day, dIdx) => {
                     const isToday = day.toDateString() === new Date().toDateString();
                     const isRightEdge = dIdx >= 5;
@@ -1110,13 +2147,16 @@ export const CalendarView: React.FC<Props> = ({
                     return (
                       <div key={day.toISOString()} className="p-1 flex justify-between items-start pointer-events-auto group/cell">
                         <div className="group relative z-30">
-                          <span className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full cursor-default ${isToday ? 'bg-blue-600 text-white' : 'text-slate-700 dark:text-slate-300'}`}>
+                          <span
+                            className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors ${isToday ? 'bg-blue-600 text-white hover:bg-blue-700' : dayEvents.filter(e => !e.isGanttBlock).length > 0 ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'}`}
+                            onClick={(e: React.MouseEvent) => { e.stopPropagation(); setCurrentDate(day); setViewMode('DAY'); }}
+                          >
                             {day.getDate()}
                           </span>
 
                           {/* Hover Popup Wrapper with Bridge */}
                           <div
-                            className={`absolute ${isBottomRow ? 'bottom-full pb-1' : 'top-full pt-1'} ${isRightEdge ? '-right-2' : '-left-2'} z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all`}
+                            className={`absolute ${isBottomRow ? 'bottom-full pb-1' : 'top-full pt-1'} ${isRightEdge ? '-end-2' : '-start-2'} z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all`}
                           >
                             <div className="w-48 max-h-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                               <div className="p-2 border-b border-slate-100 dark:border-slate-700 font-bold text-xs sticky top-0 bg-white dark:bg-slate-800 z-10 text-slate-800 dark:text-slate-200">
@@ -1124,44 +2164,104 @@ export const CalendarView: React.FC<Props> = ({
                               </div>
                               <div className="overflow-y-auto p-1.5 space-y-1 custom-scrollbar">
                                 {dayEvents.length === 0 ? (
-                                  <div className="text-xs text-slate-400 p-2 text-center">No events</div>
+                                  <div className="text-xs text-slate-400 p-2 text-center">{t('cal.no_events')}</div>
                                 ) : (
-                                  dayEvents.map(evt => {
-                                    const baseColor = getTeacherColor(evt.teacherId);
-                                    return (
-                                      <div
-                                        key={evt.id}
-                                        onClick={(e) => { e.stopPropagation(); setDetailItem({ type: 'EVENT', data: evt }); }}
-                                        className={`text-[10px] text-left px-1.5 py-1 rounded cursor-pointer border-l-2 ${evt.isCanceled
-                                          ? 'bg-slate-100 text-slate-400 line-through dark:bg-slate-800 dark:text-slate-600 border-slate-400'
-                                          : 'hover:opacity-90'
-                                          }`}
-                                        style={!evt.isCanceled ? {
-                                          backgroundColor: hexToRgba(baseColor, 0.1),
-                                          borderColor: baseColor,
-                                          color: 'inherit'
-                                        } : {}}
-                                      >
-                                        <span style={{ color: !evt.isCanceled ? baseColor : undefined }} className="font-bold block brightness-75 dark:brightness-100">
-                                          {formatTime(new Date(evt.start))}
-                                        </span>
-                                        <span className="font-medium text-slate-800 dark:text-slate-200 block truncate">{evt.name}</span>
-                                      </div>
-                                    );
-                                  })
+                                  dayEvents.map(evt => renderEventChip(evt))
                                 )}
                               </div>
                             </div>
                           </div>
                         </div>
 
-                        <button onClick={(e) => { e.stopPropagation(); handleSlotClick(day, 10); }} className="text-slate-300 hover:text-blue-500 opacity-0 group-hover/cell:opacity-100 transition-opacity">
+                        <button onClick={(e) => { e.stopPropagation(); handleSlotClick(day, 10); }} className="text-slate-300 hover:text-blue-500 opacity-0 group-hover/cell:opacity-100 transition-opacity relative z-30">
                           <Plus size={14} />
                         </button>
                       </div>
                     );
                   })}
                 </div>
+                </>
+                ) : (
+                  /* Events mode: full-cell with inline event list + Gantt rubric on date hover */
+                  <div className="absolute inset-0 grid grid-cols-7 z-10">
+                    {week.map((day, dIdx) => {
+                      const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+                      const isToday = day.toDateString() === new Date().toDateString();
+                      const isRightEdge = dIdx >= 5;
+                      const dayEvents = displayEvents.filter(e => {
+                        const d = new Date(e.start);
+                        return d.getDate() === day.getDate() && d.getMonth() === day.getMonth();
+                      }).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+                      const dayRef = new Date(day); dayRef.setHours(12, 0, 0, 0);
+                      const dayBlocks = ganttBlocks.filter(b => {
+                        return new Date(b.startDate) <= dayRef && new Date(b.endDate) >= dayRef;
+                      });
+
+                      return (
+                        <div
+                          key={day.toISOString()}
+                          data-month-day={day.toISOString()}
+                          className={`relative flex flex-col border-e border-slate-100 dark:border-slate-800 last:border-0 min-h-0 group/cell cursor-pointer ${!isCurrentMonth ? 'bg-slate-50/50 dark:bg-slate-950/50' : 'bg-transparent'}`}
+                          onClick={() => { setCurrentDate(day); setViewMode('DAY'); }}
+                        >
+                          {/* Header: date circle + plus button */}
+                          <div className="h-[32px] flex justify-between items-start p-1 flex-shrink-0">
+                            <div className="group relative z-30">
+                              <span
+                                className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors ${isToday ? 'bg-blue-600 text-white hover:bg-blue-700' : dayEvents.filter(e => !e.isGanttBlock).length > 0 ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'}`}
+                                onClick={(e: React.MouseEvent) => { e.stopPropagation(); setCurrentDate(day); setViewMode('DAY'); }}
+                              >
+                                {day.getDate()}
+                              </span>
+
+                              {/* Hover popup: Gantt rubric for this date */}
+                              <div
+                                className={`absolute ${isBottomRow ? 'bottom-full pb-1' : 'top-full pt-1'} ${isRightEdge ? '-end-2' : '-start-2'} z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all`}
+                              >
+                                <div className="w-56 max-h-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                                  <div className="p-2 border-b border-slate-100 dark:border-slate-700 font-bold text-xs sticky top-0 bg-white dark:bg-slate-800 z-10 text-slate-800 dark:text-slate-200">
+                                    {day.toLocaleDateString(settings.language, { weekday: 'short', month: 'short', day: 'numeric' })}
+                                  </div>
+                                  <div className="overflow-y-auto p-1.5 space-y-1 custom-scrollbar">
+                                    {dayBlocks.length === 0 ? (
+                                      <div className="text-xs text-slate-400 p-2 text-center">{t('cal.no_gantt_blocks')}</div>
+                                    ) : (
+                                      dayBlocks.map(b => (
+                                        <div
+                                          key={b.id}
+                                          onClick={(e) => { e.stopPropagation(); setDetailItem({ type: 'GANTT', data: b }); }}
+                                          className="text-[10px] text-start px-1.5 py-1 rounded cursor-pointer border-s-2 hover:opacity-90 hover:shadow-cadenza-soft transition-all"
+                                          style={{ backgroundColor: hexToRgba(b.color, 0.12), borderColor: b.color }}
+                                        >
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ backgroundColor: b.color }} />
+                                            <span className="font-medium text-slate-800 dark:text-slate-200 truncate" title={b.title}>{b.title}</span>
+                                          </div>
+                                          <div className="text-[9px] text-slate-600 dark:text-slate-400 mt-px ms-3.5">
+                                            {new Date(b.startDate).toLocaleDateString(settings.language, { month: 'short', day: 'numeric' })} – {new Date(b.endDate).toLocaleDateString(settings.language, { month: 'short', day: 'numeric' })}
+                                          </div>
+                                        </div>
+                                      ))
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <button onClick={(e) => { e.stopPropagation(); handleSlotClick(day, 10); }} className="text-slate-300 hover:text-blue-500 opacity-0 group-hover/cell:opacity-100 transition-opacity relative z-30">
+                              <Plus size={14} />
+                            </button>
+                          </div>
+
+                          {/* Inline scrollable event list */}
+                          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1 pt-0 space-y-1">
+                            {dayEvents.map(evt => renderEventChip(evt))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -1171,228 +2271,292 @@ export const CalendarView: React.FC<Props> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 transition-colors duration-200 relative">
-      <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 shadow-sm z-30">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
-              <button onClick={() => {
-                const d = new Date(currentDate);
-                if (viewMode === 'MONTH') d.setMonth(d.getMonth() - 1);
-                else if (viewMode === 'WEEK') d.setDate(d.getDate() - 7);
-                else d.setDate(d.getDate() - 1);
-                setCurrentDate(d);
-              }} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded shadow-sm transition-all text-slate-600 dark:text-slate-300">
-                <ChevronLeft size={18} />
-              </button>
-              <div className="px-3 flex items-center relative group">
-                <input type="date" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => { if (e.target.value) setCurrentDate(new Date(e.target.value)); }} />
-                <div className="flex flex-col items-center justify-center min-w-[150px]">
-                  <span className="text-sm font-bold text-slate-800 dark:text-slate-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex items-center">
-                    {viewMode === 'MONTH'
-                      ? currentDate.toLocaleDateString(settings.language, { month: 'long', year: 'numeric' })
-                      : viewMode === 'WEEK'
-                        ? `Week of ${getStartOfWeek(currentDate).toLocaleDateString(settings.language)}`
-                        : currentDate.toLocaleDateString(settings.language, { weekday: 'long', month: 'short', day: 'numeric' })
-                    }
-                    <CalendarIcon size={14} className="ml-2 opacity-50" />
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 transition-colors duration-75 relative">
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 shadow-sm z-30">
+        <div className="flex items-center gap-2 flex-wrap">
+
+          {/* Group A — WHEN: date navigation, today, jump-to-date */}
+          <div className="flex items-center h-8 bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
+            <button onClick={() => {
+              const d = new Date(currentDate);
+              if (viewMode === 'MONTH') d.setMonth(d.getMonth() - 1);
+              else if (viewMode === 'WEEK') d.setDate(d.getDate() - 7);
+              else d.setDate(d.getDate() - 1);
+              setCurrentDate(d);
+            }} className="h-7 w-7 flex items-center justify-center hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all text-slate-600 dark:text-slate-300" aria-label={t('cal.prev')}>
+              {isRtl ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            </button>
+            <div className="px-2 flex items-center justify-center min-w-[150px] h-7">
+              <div className="flex flex-col items-center justify-center leading-tight">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                  {viewMode === 'MONTH'
+                    ? currentDate.toLocaleDateString(settings.language, { month: 'long', year: 'numeric' })
+                    : viewMode === 'WEEK'
+                      ? `${t('cal.week_of')} ${getStartOfWeek(currentDate).toLocaleDateString(settings.language)}`
+                      : currentDate.toLocaleDateString(settings.language, { weekday: 'long', month: 'short', day: 'numeric' })
+                  }
+                </span>
+                {settings.weekNumberDisplay !== 'none' && (
+                  <span className="text-[9px] text-slate-400 uppercase tracking-wider">
+                    {settings.weekNumberDisplay === 'week-number' ? `${t('cal.week_num')} ${getWeekNumber(currentDate)}` : `${t('cal.week_of')} ${getStartOfWeek(currentDate).toLocaleDateString(settings.language)}`}
                   </span>
-                  {settings.weekNumberDisplay !== 'none' && (
-                    <span className="text-[10px] text-slate-400 uppercase tracking-wider">
-                      {settings.weekNumberDisplay === 'week-number' ? `Week ${getWeekNumber(currentDate)}` : `Week of ${getStartOfWeek(currentDate).toLocaleDateString()}`}
-                    </span>
-                  )}
-                </div>
+                )}
               </div>
-              <button onClick={() => {
-                const d = new Date(currentDate);
-                if (viewMode === 'MONTH') d.setMonth(d.getMonth() + 1);
-                else if (viewMode === 'WEEK') d.setDate(d.getDate() + 7);
-                else d.setDate(d.getDate() + 1);
-                setCurrentDate(d);
-              }} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded shadow-sm transition-all text-slate-600 dark:text-slate-300">
-                <ChevronRight size={18} />
-              </button>
             </div>
-            <button onClick={() => setCurrentDate(new Date())} className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 text-xs font-bold rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">TODAY</button>
-
-            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 text-xs font-medium">
-              {['DAY', 'WEEK', 'MONTH'].map((m) => (
-                <button key={m} onClick={() => setViewMode(m as ViewMode)} className={`px-3 py-1.5 rounded transition-all ${viewMode === m ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>{m}</button>
-              ))}
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="w-px h-6 bg-slate-300 dark:bg-slate-600"></div>
-
-          {/* Canceled Status Toggle */}
-          <div className="flex items-center gap-2">
-            <span className={`text-[10px] leading-tight font-medium transition-colors text-right ${!showCanceled ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>Hide<br />Canceled</span>
-            <button
-              onClick={() => setShowCanceled(!showCanceled)}
-              className="status-toggle-track"
-              role="switch"
-              aria-checked={!showCanceled}
-              aria-label="Toggle canceled events visibility"
-              style={{
-                backgroundColor: !showCanceled ? '#ef4444' : '#cbd5e1',
-              }}
-            >
-              <span
-                className="status-toggle-thumb"
-                style={{
-                  transform: !showCanceled ? 'translateX(16px)' : 'translateX(2px)',
-                }}
-              />
+            <button onClick={() => {
+              const d = new Date(currentDate);
+              if (viewMode === 'MONTH') d.setMonth(d.getMonth() + 1);
+              else if (viewMode === 'WEEK') d.setDate(d.getDate() + 7);
+              else d.setDate(d.getDate() + 1);
+              setCurrentDate(d);
+            }} className="h-7 w-7 flex items-center justify-center hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all text-slate-600 dark:text-slate-300" aria-label={t('cal.next')}>
+              {isRtl ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
             </button>
           </div>
 
-          {/* Blackouts Status Toggle */}
-          <div className="flex items-center gap-2">
-            <span className={`text-[10px] leading-tight font-medium transition-colors text-right ${!showBlackouts ? 'text-orange-600 dark:text-orange-400' : 'text-slate-500 dark:text-slate-400'}`}>Hide<br />Blackouts</span>
-            <button
-              onClick={() => setShowBlackouts(!showBlackouts)}
-              className="status-toggle-track"
-              role="switch"
-              aria-checked={!showBlackouts}
-              aria-label="Toggle blackout events visibility"
-              style={{
-                backgroundColor: !showBlackouts ? '#f97316' : '#cbd5e1',
-              }}
-            >
-              <span
-                className="status-toggle-thumb"
-                style={{
-                  transform: !showBlackouts ? 'translateX(16px)' : 'translateX(2px)',
-                }}
-              />
-            </button>
-          </div>
-
-          {/* Filter Toggle Button */}
-          <button
-            onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
-            className={`p-2 rounded-lg border transition-colors ${isFiltersExpanded || filterTeacher !== 'ALL' || filterRoom !== 'ALL' || filterClass !== 'ALL' || filterPosition !== 'ALL' || filterTag !== 'ALL'
-              ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800'
-              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
-              }`}
-            title="Toggle Filters"
-          >
-            <Filter size={16} />
+          <button onClick={() => setCurrentDate(new Date())} className="h-8 px-3 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 text-xs font-bold rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">
+            {t('cal.today')}
           </button>
 
-          {/* Inline Filter Panel - always flows inline next to the filter toggle */}
-          {isFiltersExpanded && (
-            <div className="flex items-center gap-2 flex-nowrap">
-              <select className="filter-select-uniform" value={filterTeacher} onChange={e => setFilterTeacher(e.target.value)}>
-                <option value="ALL">Teacher: All</option>
-                {teachers.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}
-              </select>
-              <select className="filter-select-uniform" value={filterRoom} onChange={e => setFilterRoom(e.target.value)}>
-                <option value="ALL">Room: All</option>
-                {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-              <select className="filter-select-uniform" value={filterClass} onChange={e => setFilterClass(e.target.value)}>
-                <option value="ALL">Type: All</option>
-                {activeLists.classifications.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              <select className="filter-select-uniform" value={filterPosition} onChange={e => setFilterPosition(e.target.value)}>
-                <option value="ALL">Position: All</option>
-                {activeLists.positions.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-              <select className="filter-select-uniform" value={filterTag} onChange={e => setFilterTag(e.target.value)}>
-                <option value="ALL">Tag: All</option>
-                {activeLists.tags.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
+          <div className="relative group/tt">
+            <label
+              className="relative h-8 w-8 rounded-lg border bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer flex items-center justify-center"
+            >
+              <CalendarIcon size={16} />
+              <input
+                type="date"
+                aria-label={t('cal.jump_to_date')}
+                value={currentDate.toISOString().split('T')[0]}
+                onChange={(e) => { if (e.target.value) setCurrentDate(new Date(e.target.value + 'T12:00:00')); }}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+            </label>
+            <span role="tooltip" className="pointer-events-none absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-[11px] font-medium bg-slate-900 dark:bg-slate-700 text-white whitespace-nowrap opacity-0 group-hover/tt:opacity-100 transition-opacity z-50 shadow-lg">
+              {t('cal.jump_to_date')}
+            </span>
+          </div>
+
+          {/* Divider — separates WHEN from VIEW */}
+          <div className="w-px h-5 bg-slate-300 dark:bg-slate-600 mx-1" />
+
+          {/* Group B — VIEW: granularity (day / week / month) */}
+          <div className="flex items-center h-8 bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 text-xs font-medium">
+            {['DAY', 'WEEK', 'MONTH'].map((m) => (
+              <button key={m} onClick={() => setViewMode(m as ViewMode)} className={`h-7 px-3 rounded-md transition-all ${viewMode === m ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>{t('cal.' + m.toLowerCase())}</button>
+            ))}
+          </div>
+
+          {/* Group B' — Month sub-mode (Gantt vs Events). Only visible in Month view. */}
+          {viewMode === 'MONTH' && (
+            <>
+              <div className="w-px h-5 bg-slate-300 dark:bg-slate-600 mx-1" />
+              <div className="flex items-center h-8 bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 text-xs font-medium">
+                {(['EVENTS', 'GANTT'] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setMonthSubMode(m)}
+                    className={`h-7 px-3 rounded-md transition-all ${monthSubMode === m ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                  >
+                    {t(m === 'GANTT' ? 'cal.month_mode_gantt' : 'cal.month_mode_events')}
+                  </button>
+                ))}
+              </div>
+            </>
           )}
+
+          {/* Divider — separates VIEW from NARROW */}
+          <div className="w-px h-5 bg-slate-300 dark:bg-slate-600 mx-1" />
+
+          {/* Group C — NARROW: search + filter / power tools / gantt */}
+          <div className="relative flex items-center">
+            <input
+              type="text"
+              value={filterState.search}
+              onChange={(e) => filterSet({ search: e.target.value })}
+              placeholder={t('cal.search_placeholder') || 'Search events…'}
+              className="h-8 ps-7 pe-6 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none w-36 transition-all focus:w-48"
+            />
+            <Search size={12} className="absolute start-2 text-slate-400 pointer-events-none" />
+            {filterState.search && (
+              <button onClick={() => filterSet({ search: '' })} className="absolute end-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center h-8 rounded-lg border border-slate-200 dark:border-slate-700">
+            <div className="relative group/tt h-full">
+              <button
+                onClick={() => setSidebarTab(sidebarTab === 'FILTERS' ? null : 'FILTERS')}
+                className={`relative h-full w-9 flex items-center justify-center text-xs font-medium transition-colors rounded-s-lg ${
+                  sidebarTab === 'FILTERS'
+                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                    : filterIsActive
+                    ? 'bg-slate-100 dark:bg-slate-800 text-blue-500 dark:text-blue-400 hover:text-slate-700 dark:hover:text-slate-200'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+                aria-label={t('cal.toggle_filters')}
+              >
+                <Filter size={14} />
+                {activeFilterPills.length > 0 && (
+                  <span className="absolute -top-1 -end-1 z-10 min-w-[14px] h-3.5 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none ring-2 ring-white dark:ring-slate-900">
+                    {activeFilterPills.length}
+                  </span>
+                )}
+              </button>
+              <span role="tooltip" className="pointer-events-none absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-[11px] font-medium bg-slate-900 dark:bg-slate-700 text-white whitespace-nowrap opacity-0 group-hover/tt:opacity-100 transition-opacity z-50 shadow-lg">
+                {t('cal.toggle_filters')}
+              </span>
+            </div>
+            <div className="w-px h-full bg-slate-200 dark:bg-slate-700" />
+            <div className="relative group/tt h-full">
+              <button
+                onClick={() => setSidebarTab(sidebarTab === 'POWER_TOOLS' ? null : 'POWER_TOOLS')}
+                className={`h-full w-9 flex items-center justify-center text-xs font-medium transition-colors ${
+                  sidebarTab === 'POWER_TOOLS'
+                    ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+                aria-label={t('speed.power_tools')}
+              >
+                <Zap size={14} />
+              </button>
+              <span role="tooltip" className="pointer-events-none absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-[11px] font-medium bg-slate-900 dark:bg-slate-700 text-white whitespace-nowrap opacity-0 group-hover/tt:opacity-100 transition-opacity z-50 shadow-lg">
+                {t('speed.power_tools')}
+              </span>
+            </div>
+            <div className="w-px h-full bg-slate-200 dark:bg-slate-700" />
+            <div className="relative group/tt h-full">
+              <button
+                onClick={() => setSidebarTab(sidebarTab === 'GANTT' ? null : 'GANTT')}
+                className={`h-full w-9 flex items-center justify-center text-xs font-medium transition-colors ${
+                  !settings.aiAssistantEnabled ? 'rounded-e-lg' : ''
+                } ${
+                  sidebarTab === 'GANTT'
+                    ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+                aria-label={t('speed.gantt_view')}
+              >
+                <List size={14} />
+              </button>
+              <span role="tooltip" className="pointer-events-none absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-[11px] font-medium bg-slate-900 dark:bg-slate-700 text-white whitespace-nowrap opacity-0 group-hover/tt:opacity-100 transition-opacity z-50 shadow-lg">
+                {t('speed.gantt_view')}
+              </span>
+            </div>
+            {settings.aiAssistantEnabled && (
+              <>
+                <div className="w-px h-full bg-slate-200 dark:bg-slate-700" />
+                <div className="relative group/tt h-full">
+                  <button
+                    onClick={() => setSidebarTab(sidebarTab === 'BOT' ? null : 'BOT')}
+                    className={`h-full w-9 flex items-center justify-center text-xs font-medium transition-colors rounded-e-lg ${
+                      sidebarTab === 'BOT'
+                        ? 'bg-cadenza-600/10 dark:bg-cadenza-600/30 text-cadenza-600 dark:text-cadenza-300'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                    }`}
+                    aria-label={t('bot.title')}
+                  >
+                    <Sparkles size={14} />
+                  </button>
+                  <span role="tooltip" className="pointer-events-none absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-[11px] font-medium bg-slate-900 dark:bg-slate-700 text-white whitespace-nowrap opacity-0 group-hover/tt:opacity-100 transition-opacity z-50 shadow-lg">
+                    {t('bot.title')}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Group D — STATUS & TOOLS: pushed to trailing edge */}
+          {unresolvedConflictCount > 0 && (
+            <button
+              type="button"
+              onClick={() => onNavigate('ADMIN_INBOX')}
+              aria-label={t('bl01_calendar.conflicts_badge.aria').replace('{count}', String(unresolvedConflictCount))}
+              title={t('bl01_calendar.conflicts_badge.aria').replace('{count}', String(unresolvedConflictCount))}
+              className="ms-auto inline-flex items-center gap-1 h-6 ps-2 pe-2.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800/60 dark:hover:bg-red-900/50 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-700"
+            >
+              <AlertOctagon size={12} aria-hidden="true" />
+              <span>{t('bl01_calendar.conflicts_badge.label')}: {unresolvedConflictCount}</span>
+            </button>
+          )}
+
+          <div className={`flex items-center gap-2 ${unresolvedConflictCount > 0 ? '' : 'ms-auto'}`}>
+            <ImportExportDropdown
+              entityType="EVENT"
+              iconOnly
+              existingData={eventExportData}
+              existingDuplicateKeys={eventDupKeys}
+              dependencyMaps={{ activityByName: csvActivityByName, l2ByName: csvL2ByName, staffByEmail: {}, studentByName: {} }}
+              activityNames={activities.map(a => a.name)}
+              settings={settings}
+              canWrite={canWriteCalendar}
+              onImportComplete={handleEventImportComplete}
+            />
+
+            <div className="relative group/tt">
+              <button
+                onClick={() => setShowHelp(!showHelp)}
+                className="h-8 w-8 rounded-lg border bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors flex items-center justify-center"
+                aria-label={t('cal.help_title')}
+              >
+                <HelpCircle size={16} />
+              </button>
+              <span role="tooltip" className="pointer-events-none absolute top-full mt-1.5 right-0 px-2 py-1 rounded text-[11px] font-medium bg-slate-900 dark:bg-slate-700 text-white whitespace-nowrap opacity-0 group-hover/tt:opacity-100 transition-opacity z-50 shadow-lg">
+                {t('cal.help_title')}
+              </span>
+            </div>
+          </div>
+
         </div>
       </div>
 
-      {viewMode === 'MONTH' ? renderMonthView() : renderTimeGrid(viewMode === 'DAY' ? [currentDate] : getWeekDays(currentDate))}
-
-      {/* Speed Dial Component */}
-      <div className="fixed bottom-8 right-8 z-40 flex flex-col items-end space-y-3">
-        {/* Speed Dial Actions */}
-        {isSpeedDialOpen && (
-          <div className="flex flex-col items-end space-y-3 mb-2" style={{ animation: 'fadeSlideUp 400ms ease-out forwards' }}>
-            {/* Power Tools */}
-            <div className="group flex items-center">
-              <span
-                className="mr-3 px-3 py-1.5 bg-slate-800 dark:bg-white text-white dark:text-slate-900 text-sm font-medium rounded-lg shadow-lg
-                  max-w-0 overflow-hidden whitespace-nowrap opacity-0 
-                  group-hover:max-w-[150px] group-hover:opacity-100
-                  transition-all duration-300 ease-out"
-              >
-                Power Tools
-              </span>
-              <button
-                onClick={() => onNavigate(currentView === 'POWER_TOOLS' ? 'CALENDAR' : 'POWER_TOOLS')}
-                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg 
-                  ${currentView === 'POWER_TOOLS' ? 'bg-amber-500 text-white' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}
-                  transition-transform duration-200 hover:scale-110`}
-              >
-                <Zap size={20} />
-              </button>
-            </div>
-
-            {/* Gantt View */}
-            <div className="group flex items-center">
-              <span
-                className="mr-3 px-3 py-1.5 bg-slate-800 dark:bg-white text-white dark:text-slate-900 text-sm font-medium rounded-lg shadow-lg
-                  max-w-0 overflow-hidden whitespace-nowrap opacity-0 
-                  group-hover:max-w-[150px] group-hover:opacity-100
-                  transition-all duration-300 ease-out"
-              >
-                Gantt View
-              </span>
-              <button
-                onClick={() => onNavigate(currentView === 'GANTT' ? 'CALENDAR' : 'GANTT')}
-                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg 
-                  ${currentView === 'GANTT' ? 'bg-purple-500 text-white' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}
-                  transition-transform duration-200 hover:scale-110`}
-              >
-                <List size={20} />
-              </button>
-            </div>
-
-            {/* Add Event */}
-            <div className="group flex items-center">
-              <span
-                className="mr-3 px-3 py-1.5 bg-slate-800 dark:bg-white text-white dark:text-slate-900 text-sm font-medium rounded-lg shadow-lg
-                  max-w-0 overflow-hidden whitespace-nowrap opacity-0 
-                  group-hover:max-w-[150px] group-hover:opacity-100
-                  transition-all duration-300 ease-out"
-              >
-                New Event
-              </span>
-              <button
-                onClick={() => { openModal(); }}
-                className="w-12 h-12 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center shadow-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-transform duration-200 hover:scale-110"
-              >
-                <CalendarIcon size={20} />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Main Floating Action Button */}
-        <button
-          onClick={() => setIsSpeedDialOpen(!isSpeedDialOpen)}
-          className="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg"
-          style={{ transition: 'transform 400ms ease-out, background-color 200ms' }}
+      {/* BL01: Active filter pills row — visible only when at least one select-style filter is active. */}
+      {activeFilterPills.length > 0 && (
+        <div
+          className="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 px-4 py-2"
+          role="region"
+          aria-label={t('bl01_calendar.filter.active_label')}
         >
-          {isSpeedDialOpen ? <ChevronUp size={32} /> : <Plus size={32} />}
-        </button>
-      </div>
+          <div className="flex items-center flex-wrap gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 me-1">
+              {t('bl01_calendar.filter.active_label')}
+            </span>
+            {activeFilterPills.map(pill => (
+              <span
+                key={pill.key}
+                className="inline-flex items-center gap-1 ps-2.5 pe-1 py-0.5 rounded-full text-[11px] font-medium bg-stone-100 text-stone-800 border border-stone-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700"
+              >
+                <span className="truncate max-w-[180px]">{pill.label}</span>
+                <button
+                  type="button"
+                  onClick={pill.clear}
+                  aria-label={`${t('bl01_calendar.filter.pill_remove')}: ${pill.label}`}
+                  title={t('bl01_calendar.filter.pill_remove')}
+                  className="inline-flex items-center justify-center w-4 h-4 rounded-full text-stone-500 hover:text-stone-900 hover:bg-stone-200 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-700"
+                >
+                  <X size={10} aria-hidden="true" />
+                </button>
+              </span>
+            ))}
+            <button
+              type="button"
+              onClick={clearAllFilters}
+              className="ms-auto text-[11px] font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-slate-500 rounded-sm"
+            >
+              {t('bl01_calendar.filter.clear_all')}
+            </button>
+          </div>
+        </div>
+      )}
 
-      <style>{`
-        @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+      {showHelp && (
+        <div className="mx-4 mt-2 mb-1 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-xs text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+          <p>{t('cal.help_text')}</p>
+        </div>
+      )}
+
+      {viewMode === 'MONTH' ? renderMonthView() : renderTimeGrid(viewMode === 'DAY' ? [currentDate] : getWeekDays(currentDate))}
 
       {detailItem && (
         <>
@@ -1407,23 +2571,23 @@ export const CalendarView: React.FC<Props> = ({
               <div className="space-y-3 mb-6">
                 {detailItem.type === 'EVENT' ? (
                   <>
-                    <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><Clock size={16} className="mr-3 flex-shrink-0" /><span>{new Date((detailItem.data as CalendarEvent).start).toLocaleString(settings.language)} - <br />{formatTime(new Date((detailItem.data as CalendarEvent).end))}</span></div>
-                    <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><User size={16} className="mr-3 flex-shrink-0" /><span>{teachers.find(t => t.id === (detailItem.data as CalendarEvent).teacherId)?.fullName}</span></div>
-                    <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><MapPin size={16} className="mr-3 flex-shrink-0" /><span>{rooms.find(r => r.id === (detailItem.data as CalendarEvent).roomId)?.name}</span></div>
-                    {(detailItem.data as CalendarEvent).isCanceled && <div className="mt-2 bg-red-100 text-red-700 text-xs px-2 py-1 rounded inline-block font-bold">CANCELED</div>}
-                    {(detailItem.data as CalendarEvent).recurrenceRule && <div className="mt-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-bold"><Repeat size={10} /> Recurring</div>}
-                    {(detailItem.data as CalendarEvent).recurrenceId && <div className="mt-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-bold"><Repeat size={10} /> Part of Series</div>}
+                    <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><Clock size={16} className="me-3 flex-shrink-0" /><span>{new Date((detailItem.data as CalendarEvent).start).toLocaleString(settings.language)} - <br />{formatTime(new Date((detailItem.data as CalendarEvent).end))}</span></div>
+                    <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><User size={16} className="me-3 flex-shrink-0" /><span>{teachers.find(t => t.id === (detailItem.data as CalendarEvent).teacherId)?.fullName}</span></div>
+                    <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><MapPin size={16} className="me-3 flex-shrink-0" /><span>{rooms.find(r => r.id === (detailItem.data as CalendarEvent).roomId)?.name}</span></div>
+                    {(detailItem.data as CalendarEvent).isCanceled && <div className="mt-2 bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 text-xs px-2 py-1 rounded inline-block font-bold">{t('cal.canceled')}</div>}
+                    {(detailItem.data as CalendarEvent).recurrenceRule && <div className="mt-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-bold"><Repeat size={10} /> {t('cal.recurring')}</div>}
+                    {(detailItem.data as CalendarEvent).recurrenceId && <div className="mt-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-bold"><Repeat size={10} /> {t('cal.part_of_series')}</div>}
                   </>
                 ) : (
                   <>
-                    <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><CalendarRange size={16} className="mr-3 flex-shrink-0" /><span>{new Date((detailItem.data as GanttBlock).startDate).toLocaleDateString(settings.language)} - <br />{new Date((detailItem.data as GanttBlock).endDate).toLocaleDateString(settings.language)}</span></div>
-                    {(detailItem.data as GanttBlock).isBlackout && <div className="mt-2 bg-red-100 text-red-700 text-xs px-2 py-1 rounded flex items-center w-fit font-bold"><AlertOctagon size={12} className="mr-1" /> BLACKOUT PERIOD</div>}
+                    <div className="flex items-center text-sm text-slate-600 dark:text-slate-400"><CalendarRange size={16} className="me-3 flex-shrink-0" /><span>{new Date((detailItem.data as GanttBlock).startDate).toLocaleDateString(settings.language)} - <br />{new Date((detailItem.data as GanttBlock).endDate).toLocaleDateString(settings.language)}</span></div>
+                    {(detailItem.data as GanttBlock).isBlackout && <div className="mt-2 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-xs px-2 py-1 rounded flex items-center w-fit font-bold"><AlertOctagon size={12} className="me-1" /> {t('cal.blackout_period')}</div>}
                   </>
                 )}
               </div>
               <div className="flex gap-3">
-                {detailItem.type === 'EVENT' && <button onClick={() => handleEditEvent(detailItem.data as CalendarEvent)} className="flex-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 py-2 rounded-lg flex items-center justify-center font-medium transition-colors"><Edit size={16} className="mr-2" /> Edit</button>}
-                {detailItem.type === 'EVENT' && (
+                {detailItem.type === 'EVENT' && isAdmin && <button onClick={(e) => handleEditEvent(detailItem.data as CalendarEvent, { x: e.clientX, y: e.clientY })} className="flex-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 py-2 rounded-lg flex items-center justify-center font-medium transition-colors"><Edit size={16} className="me-2" /> {t('cal.detail.edit')}</button>}
+                {detailItem.type === 'EVENT' && isAdmin && (
                   <button
                     onClick={() => handleCancelEvent(detailItem.data as CalendarEvent)}
                     className={`flex-1 py-2 rounded-lg flex items-center justify-center font-medium transition-colors ${(detailItem.data as CalendarEvent).isCanceled
@@ -1432,336 +2596,183 @@ export const CalendarView: React.FC<Props> = ({
                       }`}
                   >
                     {(detailItem.data as CalendarEvent).isCanceled
-                      ? <><RotateCcw size={16} className="mr-2" /> Restore</>
-                      : <><Ban size={16} className="mr-2" /> Cancel</>
+                      ? <><RotateCcw size={16} className="me-2" /> {t('cal.detail.restore')}</>
+                      : <><Ban size={16} className="me-2" /> {t('cal.detail.cancel_event')}</>
                     }
                   </button>
                 )}
-                <button onClick={() => detailItem.type === 'EVENT' ? handleDeleteEvent(detailItem.data.id, detailItem.data as CalendarEvent) : handleDeleteGantt(detailItem.data.id)} className="flex-1 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 py-2 rounded-lg flex items-center justify-center font-medium transition-colors"><Trash2 size={16} className="mr-2" /> Delete</button>
+                <button onClick={() => detailItem.type === 'EVENT' ? handleDeleteEvent(detailItem.data.id, detailItem.data as CalendarEvent) : handleDeleteGantt(detailItem.data.id)} className="flex-1 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 py-2 rounded-lg flex items-center justify-center font-medium transition-colors"><Trash2 size={16} className="me-2" /> {t('cal.detail.delete')}</button>
               </div>
             </div>
           </div>
         </>
       )}
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg p-6 border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">{editingEvent.id ? 'Edit Event' : 'New Event'}</h3>
-            <form onSubmit={saveEvent} className="space-y-4">
-              <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Event Name</label><input required className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" value={editingEvent.name || ''} onChange={e => setEditingEvent({ ...editingEvent, name: e.target.value })} placeholder="e.g. Piano Lesson" /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Teacher</label><select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.teacherId} onChange={e => {
-                  const newTeacher = teachers.find(t => t.id === e.target.value);
-                  setEditingEvent({
-                    ...editingEvent,
-                    teacherId: e.target.value,
-                    positionId: newTeacher?.positionAssignments?.[0]?.id || undefined,
-                  });
-                }}>{teachers.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}</select></div>
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Room</label><select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.roomId} onChange={e => setEditingEvent({ ...editingEvent, roomId: e.target.value })}>{rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></div>
-              </div>
-              {/* Position Assignment Dropdown */}
-              {(() => {
-                const selectedTeacher = teachers.find(t => t.id === editingEvent.teacherId);
-                const assignments = selectedTeacher?.positionAssignments || [];
-                if (assignments.length === 0) return null;
-                return (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Position</label>
-                    <select
-                      className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none"
-                      value={editingEvent.positionId || ''}
-                      onChange={e => setEditingEvent({ ...editingEvent, positionId: e.target.value || undefined })}
-                    >
-                      <option value="">— No position —</option>
-                      {assignments.map(pa => (
-                        <option key={pa.id} value={pa.id}>
-                          {pa.positionName} ({pa.rateType === 'HOURLY' ? `${settings.currency}${pa.rateValue}/hr` : `${settings.currency}${pa.rateValue.toLocaleString()}/mo`})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                );
-              })()}
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Start Time</label><input type="datetime-local" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.start ? new Date(new Date(editingEvent.start).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setEditingEvent({ ...editingEvent, start: new Date(e.target.value).toISOString() })} /></div>
-                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">End Time</label><input type="datetime-local" className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.end ? new Date(new Date(editingEvent.end).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setEditingEvent({ ...editingEvent, end: new Date(e.target.value).toISOString() })} /></div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Classification</label>
-                <select className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none" value={editingEvent.classification} onChange={e => setEditingEvent({ ...editingEvent, classification: e.target.value })}>
-                  {activeLists.classifications.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-
-              {/* Recurrence Section */}
-              {!editingEvent.isExceptionEdit && (
-                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                  <label className="flex items-center space-x-3 cursor-pointer mb-3">
-                    <input
-                      type="checkbox"
-                      className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-slate-300 dark:border-slate-600"
-                      checked={!!editingEvent.recurrenceRule}
-                      onChange={e => {
-                        if (e.target.checked) {
-                          const startDay = editingEvent.start ? DAY_ABBR[new Date(editingEvent.start).getDay()] : 'MO';
-                          setEditingEvent({
-                            ...editingEvent,
-                            recurrenceRule: { frequency: 'WEEKLY', interval: 1, byDay: [startDay] }
-                          });
-                        } else {
-                          const { recurrenceRule, ...rest } = editingEvent;
-                          setEditingEvent(rest);
-                        }
-                      }}
-                    />
-                    <div className="flex items-center gap-2">
-                      <Repeat size={16} className="text-blue-500" />
-                      <span className="font-medium text-slate-900 dark:text-white">Recurring Event</span>
-                    </div>
-                  </label>
-
-                  {editingEvent.recurrenceRule && (() => {
-                    const rule = editingEvent.recurrenceRule!;
-                    const updateRule = (updates: Partial<RecurrenceRule>) => {
-                      setEditingEvent({ ...editingEvent, recurrenceRule: { ...rule, ...updates } });
-                    };
-
-                    return (
-                      <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-700">
-                        {/* Preset Buttons */}
-                        <div className="flex gap-2 flex-wrap">
-                          {[
-                            { label: 'Weekly', rule: { frequency: 'WEEKLY' as const, interval: 1, byDay: [editingEvent.start ? DAY_ABBR[new Date(editingEvent.start).getDay()] : 'MO' as DayOfWeek] } },
-                            { label: 'Bi-Weekly', rule: { frequency: 'WEEKLY' as const, interval: 2, byDay: [editingEvent.start ? DAY_ABBR[new Date(editingEvent.start).getDay()] : 'MO' as DayOfWeek] } },
-                            { label: 'Daily', rule: { frequency: 'DAILY' as const, interval: 1 } },
-                            { label: 'Monthly', rule: { frequency: 'MONTHLY' as const, interval: 1 } },
-                          ].map(preset => (
-                            <button
-                              key={preset.label}
-                              type="button"
-                              onClick={() => updateRule({ ...preset.rule, untilDate: rule.untilDate, count: rule.count })}
-                              className={`px-3 py-1 text-xs rounded-full border transition-colors ${rule.frequency === preset.rule.frequency && rule.interval === preset.rule.interval
-                                ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700'
-                                : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600'
-                                }`}
-                            >
-                              {preset.label}
-                            </button>
-                          ))}
-                        </div>
-
-                        {/* Frequency & Interval */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-slate-600 dark:text-slate-400">Every</span>
-                          <input
-                            type="number"
-                            min={1}
-                            max={52}
-                            className="w-16 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none"
-                            value={rule.interval}
-                            onChange={e => updateRule({ interval: Math.max(1, parseInt(e.target.value) || 1) })}
-                          />
-                          <select
-                            className="border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none"
-                            value={rule.frequency}
-                            onChange={e => updateRule({ frequency: e.target.value as RecurrenceRule['frequency'] })}
-                          >
-                            <option value="DAILY">day(s)</option>
-                            <option value="WEEKLY">week(s)</option>
-                            <option value="MONTHLY">month(s)</option>
-                          </select>
-                        </div>
-
-                        {/* Day-of-week selector for WEEKLY */}
-                        {rule.frequency === 'WEEKLY' && (
-                          <div>
-                            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">On days</label>
-                            <div className="flex gap-1">
-                              {DAY_ABBR.map(day => (
-                                <button
-                                  key={day}
-                                  type="button"
-                                  onClick={() => {
-                                    const current = rule.byDay || [];
-                                    const next = current.includes(day)
-                                      ? current.filter(d => d !== day)
-                                      : [...current, day];
-                                    updateRule({ byDay: next.length > 0 ? next : [day] });
-                                  }}
-                                  className={`w-8 h-8 text-xs rounded-full font-medium transition-colors ${(rule.byDay || []).includes(day)
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
-                                    }`}
-                                >
-                                  {day}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Monthly mode selector */}
-                        {rule.frequency === 'MONTHLY' && editingEvent.start && (() => {
-                          const startDate = new Date(editingEvent.start);
-                          const dayNum = startDate.getDate();
-                          const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][startDate.getDay()];
-                          const weekOfMonth = Math.ceil(dayNum / 7);
-                          const posLabels = ['', '1st', '2nd', '3rd', '4th', '5th'];
-                          const isPositionalMode = !!rule.bySetPos;
-
-                          return (
-                            <div className="space-y-2">
-                              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Monthly mode</label>
-                              <div className="space-y-1">
-                                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
-                                  <input
-                                    type="radio"
-                                    name="monthlyMode"
-                                    checked={!isPositionalMode}
-                                    onChange={() => updateRule({ byMonthDay: dayNum, bySetPos: undefined, byDayOfWeek: undefined })}
-                                    className="text-blue-600"
-                                  />
-                                  On the {dayNum}{dayNum === 1 ? 'st' : dayNum === 2 ? 'nd' : dayNum === 3 ? 'rd' : 'th'} of each month
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
-                                  <input
-                                    type="radio"
-                                    name="monthlyMode"
-                                    checked={isPositionalMode}
-                                    onChange={() => updateRule({ bySetPos: weekOfMonth, byDayOfWeek: DAY_ABBR[startDate.getDay()], byMonthDay: undefined })}
-                                    className="text-blue-600"
-                                  />
-                                  On the {posLabels[weekOfMonth]} {dayName} of each month
-                                </label>
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                        {/* End Condition */}
-                        <div className="space-y-2">
-                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Ends</label>
-                          <div className="space-y-2">
-                            <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
-                              <input
-                                type="radio"
-                                name="endMode"
-                                checked={!rule.untilDate && !rule.count}
-                                onChange={() => updateRule({ untilDate: undefined, count: undefined })}
-                                className="text-blue-600"
-                              />
-                              Never
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
-                              <input
-                                type="radio"
-                                name="endMode"
-                                checked={!!rule.untilDate}
-                                onChange={() => {
-                                  const defaultEnd = new Date();
-                                  defaultEnd.setMonth(defaultEnd.getMonth() + 3);
-                                  updateRule({ untilDate: defaultEnd.toISOString().split('T')[0], count: undefined });
-                                }}
-                                className="text-blue-600"
-                              />
-                              On date
-                              {rule.untilDate && (
-                                <input
-                                  type="date"
-                                  className="border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none ml-1"
-                                  value={rule.untilDate}
-                                  onChange={e => updateRule({ untilDate: e.target.value })}
-                                />
-                              )}
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
-                              <input
-                                type="radio"
-                                name="endMode"
-                                checked={!!rule.count}
-                                onChange={() => updateRule({ count: 12, untilDate: undefined })}
-                                className="text-blue-600"
-                              />
-                              After
-                              {rule.count !== undefined && (
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={365}
-                                  className="w-16 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-2 py-1 text-sm outline-none"
-                                  value={rule.count}
-                                  onChange={e => updateRule({ count: Math.max(1, parseInt(e.target.value) || 1) })}
-                                />
-                              )}
-                              {rule.count !== undefined && <span>occurrences</span>}
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-
-              {editingEvent.id && !editingEvent.recurrenceRule && (
-                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 mt-2">
-                  <label className="flex items-center space-x-3 cursor-pointer">
-                    <input type="checkbox" className="w-5 h-5 text-red-600 rounded focus:ring-red-500 border-slate-300 dark:border-slate-600" checked={editingEvent.isCanceled || false} onChange={e => setEditingEvent({ ...editingEvent, isCanceled: e.target.checked })} />
-                    <span className="font-medium text-slate-900 dark:text-white">Mark as Canceled</span>
-                  </label>
-                </div>
-              )}
-              <div className="flex justify-between mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
-                {editingEvent.id && <button type="button" onClick={() => { handleDeleteEvent(editingEvent.id!, editingEvent as CalendarEvent); setIsModalOpen(false); }} className="text-red-500 hover:text-red-700 text-sm font-medium">Delete Event</button>}
-                <div className="flex space-x-3 ml-auto">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
-                  <button type="submit" className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg">Save Changes</button>
-                </div>
-              </div>
-            </form>
+      {/* Right-click Context Menu */}
+      {contextMenu && (
+        <>
+          <div className="fixed inset-0 z-[200]" onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }} />
+          <div
+            className="fixed z-[201] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-cadenza-deep py-1 min-w-[160px] animate-cadenza-arrive"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+          >
+            <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-700 mb-1">
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate max-w-[180px]">{contextMenu.event.name}</p>
+            </div>
+            {isAdmin && (
+              <button
+                onClick={() => { handleEditEvent(contextMenu.event, { x: contextMenu.x, y: contextMenu.y }); setContextMenu(null); }}
+                className="w-full text-start px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
+              >
+                <Edit size={14} className="text-blue-500" /> {t('cal.detail.edit')}
+              </button>
+            )}
+            {isAdmin && !contextMenu.event.isCanceled && (
+              <button
+                onClick={() => { handleCancelEvent(contextMenu.event); setContextMenu(null); }}
+                className="w-full text-start px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
+              >
+                <Ban size={14} className="text-amber-500" /> {t('cal.detail.cancel_event')}
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                onClick={() => { handleDeleteEvent(contextMenu.event.id, contextMenu.event); setContextMenu(null); }}
+                className="w-full text-start px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+              >
+                <Trash2 size={14} /> {t('cal.detail.delete')}
+              </button>
+            )}
           </div>
-        </div>
+        </>
       )}
 
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => { setIsModalOpen(false); setModalAnchorPosition(null); }}
+        title={editingEvent.id ? t('event.edit') : t('event.new')}
+        anchorPosition={modalAnchorPosition}
+        isDirty={true}
+        maxWidth="max-w-2xl"
+        footerContent={
+          <div className="flex justify-between w-full">
+            <div>
+              {editingEvent.id && (
+                <button type="button" onClick={() => { handleDeleteEvent(editingEvent.id!, editingEvent as CalendarEvent); setIsModalOpen(false); }} className="text-red-500 hover:text-red-700 text-sm font-medium">
+                  {t('cal.delete_event')}
+                </button>
+              )}
+            </div>
+            <div className="flex space-x-3 rtl:space-x-reverse">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"
+              >
+                {t('btn.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => formRef.current?.triggerSave()}
+                disabled={formRef.current?.isSaving}
+                className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium transition-all disabled:opacity-60 flex items-center gap-2"
+              >
+                {formRef.current?.isSaving && <Loader2 size={14} className="animate-spin" />}
+                {t('cal.save_changes')}
+              </button>
+            </div>
+          </div>
+        }
+      >
+        <EventFormV2
+          ref={formRef}
+          activitiesV2={activities}
+          l1Subcategories={l1Subs}
+          l2Subcategories={l2Subs}
+          staffMembers={staffMembersV2}
+          teachingAssignments={teachingAssignmentsV2}
+          orgRoles={orgRolesV2}
+          rooms={rooms}
+          settings={settings}
+          editingEventId={editingEvent.id || null}
+          existingFormState={editingEvent.id ? {
+            activityId: editingEvent.activityId || '',
+            l1Id: '',
+            l2Id: (editingEvent as any).l2Id || (editingEvent as any).subcategoryId || '',
+            name: editingEvent.name || '',
+            date: editingEvent.start ? new Date(editingEvent.start).toISOString().split('T')[0] : '',
+            startTime: editingEvent.start ? `${String(new Date(editingEvent.start).getHours()).padStart(2, '0')}:${String(new Date(editingEvent.start).getMinutes()).padStart(2, '0')}` : '',
+            endTime: editingEvent.end ? `${String(new Date(editingEvent.end).getHours()).padStart(2, '0')}:${String(new Date(editingEvent.end).getMinutes()).padStart(2, '0')}` : '',
+            location: '',
+            roomId: editingEvent.roomId || '',
+            isCanceled: editingEvent.isCanceled || false,
+            recurrenceRule: editingEvent.recurrenceRule,
+            notes: '',
+            tags: (editingEvent as CalendarEvent).tags || [],
+          } : undefined}
+          tagSuggestions={allEventTags}
+          isExceptionEdit={editingEvent.isExceptionEdit}
+          initialStart={editingEvent.start}
+          initialEnd={editingEvent.end}
+          onSave={handleSaveV2}
+          t={t}
+        />
+      </Modal>
+
       {/* Recurrence Series Dialog - "Just This One" vs "All Events" */}
-      {recurrenceDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-sm p-6 border border-slate-200 dark:border-slate-800">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
+      <Modal
+        isOpen={!!recurrenceDialog}
+        onClose={() => setRecurrenceDialog(null)}
+        title={recurrenceDialog ? (recurrenceDialog.type === 'EDIT' ? t('recurrence.edit_series_title') : recurrenceDialog.type === 'DELETE' ? t('recurrence.delete_series_title') : recurrenceDialog.event.isCanceled ? t('recurrence.restore_series_title') : t('recurrence.cancel_series_title')) : ''}
+        isDirty={false}
+        t={t}
+        maxWidth="max-w-sm"
+        footerContent={<></>}
+      >
+        {recurrenceDialog && (
+          <div>
+            <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg flex-shrink-0">
                 <Repeat size={20} className="text-blue-600 dark:text-blue-400" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                {recurrenceDialog.type === 'EDIT' ? 'Edit Recurring Event' : recurrenceDialog.type === 'DELETE' ? 'Delete Recurring Event' : recurrenceDialog.event.isCanceled ? 'Restore Recurring Event' : 'Cancel Recurring Event'}
-              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                {recurrenceDialog.type === 'EDIT' ? t('recurrence.series_desc_edit') : recurrenceDialog.type === 'DELETE' ? t('recurrence.series_desc_delete') : recurrenceDialog.event.isCanceled ? t('recurrence.series_desc_restore') : t('recurrence.series_desc_cancel')}
+              </p>
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
-              This is part of a recurring series. What would you like to {recurrenceDialog.type === 'EDIT' ? 'edit' : recurrenceDialog.type === 'DELETE' ? 'delete' : recurrenceDialog.event.isCanceled ? 'restore' : 'cancel'}?
-            </p>
-            <div className="flex gap-3 mb-4">
+            <div className="flex gap-3 mb-4 mt-6">
               <button
                 onClick={() => handleSeriesAction('THIS')}
                 className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 py-3 rounded-lg font-medium transition-colors text-sm"
               >
-                Just This One
+                {t('recurrence.just_this_one')}
               </button>
               <button
                 onClick={() => handleSeriesAction('ALL')}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium transition-colors text-sm"
+                className="flex-1 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft py-3 rounded-lg font-medium transition-colors text-sm"
               >
-                All Events
+                {t('recurrence.all_events')}
               </button>
             </div>
             <button
               onClick={() => setRecurrenceDialog(null)}
-              className="w-full text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 py-2"
+              className="w-full text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 py-2 transition-colors"
             >
-              Cancel
+              {t('btn.cancel')}
             </button>
           </div>
-        </div>
+        )}
+      </Modal>
+
+      {/* Floating New Event FAB (admins only) — bottom-end (right LTR / left RTL) */}
+      {isAdmin && (
+        <button
+          onClick={() => openModal()}
+          aria-label={t('speed.new_event')}
+          title={t('speed.new_event')}
+          className="absolute bottom-6 end-6 z-40 w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-lg hover:shadow-xl flex items-center justify-center transition-all hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50 dark:focus-visible:ring-offset-slate-950"
+        >
+          <Plus size={26} strokeWidth={2.5} />
+        </button>
       )}
     </div>
   );

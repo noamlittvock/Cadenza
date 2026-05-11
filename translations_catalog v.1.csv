@@ -1,0 +1,206 @@
+Key,Context,Original English,Hebrew (Natural),Hebrew (Formal),Hebrew (Concise),Hebrew (Colloquial),Manual Override,Final Translation
+btn_save,Standard save button,Save,שמור,שמור,שמור,לשמור,,שמור
+btn_cancel,Standard cancel button,Cancel,ביטול,בטל,ביטול,לבטל,,ביטול
+btn_delete,Standard delete button,Delete,מחק,מחק,מחק,למחוק,,מחק
+btn_edit,Standard edit button,Edit,ערוך,ערוך,עריכה,לערוך,,ערוך
+btn_add,Standard add button,Add,הוסף,הוסף,הוסף,להוסיף,,הוסף
+btn_close,Standard close button,Close,סגור,סגור,סגור,לסגור,,סגור
+btn_confirm,Standard confirm button,Confirm,אישור,אשר,אישור,לאשר,,אישור
+btn_back,Standard back button,Back,חזור,חזור,חזור,אחורה,,חזור
+btn_export,Standard export button,Export,ייצא,ייצא,ייצוא,לייצא,,ייצא
+btn_import,Standard import button,Import,ייבא,ייבא,ייבוא,לייבא,,ייבא
+btn_clear_all,Clear all filters or selections,Clear All,נקה הכל,נקה הכל,נקה הכל,לנקות הכל,,נקה הכל
+btn_download_template,Download CSV template,Template,תבנית,הורד תבנית,תבנית,טמפלייט,,תבנית
+btn_create,Create new item,Create,צור,צור,צור,ליצור,,צור
+msg_loading,Loading indicator,Loading...,טוען...,טוען נתונים...,טוען...,בטעינה...,,טוען...
+msg_no_data,Empty state message,No data matches current filters.,אין נתונים התואמים לסינונים.,לא נמצאו נתונים התואמים להגדרות הסינון.,אין תוצאות.,אין שום דבר מתאים.,,אין נתונים התואמים לסינונים.
+nav_section_operations,Sidebar section header,OPERATIONS,תפעול,תפעול שוטף,תפעול,תפעול,,תפעול
+nav_section_management,Sidebar section header,MANAGEMENT,ניהול,ניהול מערכת,ניהול,ניהול,,ניהול
+nav_section_analytics,Sidebar section header,ANALYTICS,אנליטיקה,ניתוח נתונים,דוחות,דוחות,,אנליטיקה
+nav_section_admin,Sidebar section header,ADMIN,הגדרות מתקדמות,ניהול מתקדם,מתקדם,אדמין,,הגדרות מתקדמות
+nav_calendar,Sidebar link,Calendar,לוח שנה,לוח שנה ראשי,לוח שנה,יומן,,לוח שנה
+nav_power_tools,Sidebar link,Power Tools,כלים מתקדמים,ניהול אירועים מתקדם,כלים,כלי עריכה,,כלים מתקדמים
+nav_gantt,Sidebar link,Semesters & Blackouts,סמסטרים וחופשות,ניהול תקופות לימוד וחופשות,סמסטרים,חופשות וסמסטרים,,סמסטרים וחופשות
+nav_teachers,Sidebar link,Teachers & Rates,מורים ותעריפים,ניהול מורים,מורים,צוות הדרכה,,מורים ותעריפים
+nav_rooms,Sidebar link,Rooms & Locations,חדרים ומיקומים,ניהול משאבי מבנה,חדרים,חדרים,,חדרים ומיקומים
+nav_lists,Sidebar link,Dropdown Lists,רשימות,ניהול תפריטי קטגוריות,רשימות,רשימות בחירה,,רשימות
+nav_financial_dash,Sidebar link,Financial Dashboard,דשבורד פיננסי,סקירה פיננסית,כספים,דשבורד כספים,,דשבורד פיננסי
+nav_financial_analysis,Sidebar link,Financial Analysis,ניתוח נתונים פיננסיים,ניתוח נתונים מורחב,אנליטיקה,דוחות מפורטים,,ניתוח נתונים פיננסיים
+nav_settings,Sidebar link,Settings,הגדרות,הגדרות מערכת,הגדרות,הגדרות,,הגדרות
+nav_super_admin,Sidebar link,Super Admin,סופר אדמין,מנהל על,אדמין,ניהול פלטפורמה,,סופר אדמין
+nav_sign_out,Sidebar link/button,Sign Out,התנתק,התנתקות מהמערכת,יציאה,יציאה,,התנתק
+auth_sign_in_google,Login button,Sign in with Google,התחבר עם גוגל,כניסה למערכת באמצעות חשבון Google,התחבר בגוגל,כניסה עם גוגל,,התחבר עם גוגל
+auth_unauthorized,Login error message,Unauthorized User,משתמש לא מורשה,גישה נדחתה: משתמש חסר הרשאות,אין הרשאה,אין לך גישה לכאן,,משתמש לא מורשה
+auth_no_access,Login error descriptive,Your account does not have access to the system. Please contact the administrator.,לחשבונך אין גישה למערכת. אנא צור קשר עם מנהל המערכת.,"לחשבון זה אין הרשאות כניסה למערכת. לבירורים, אנא פנה להנהלה.",אין הרשאת כניסה. צור קשר עם ההנהלה.,אין לך הרשאה למערכת. דבר עם המנהל.,,לחשבונך אין גישה למערכת. אנא צור קשר עם מנהל המערכת.
+auth_contact_admin,Login unapproved status,Contact system administrator for access approval.,צור קשר עם מנהל המערכת לאישור גישה.,אנא עמוד בקשר עם מפעיל המערכת לקבלת הרשאות מסודרות.,יש לפנות למנהל לאישור.,דבר עם המנהל כדי שיאשר אותך.,,צור קשר עם מנהל המערכת לאישור גישה.
+auth_select_workspace,Gateway text,Select Workspace,בחר סביבת עבודה,בחירת מרחב פעילות,בחר סביבה,בחר כניסה,,בחר סביבת עבודה
+auth_enter,Gateway button,Enter,היכנס,היכנס למערכת,כניסה,כנס,,היכנס
+cal_today,Calendar header button,Today,היום,יום נוכחי,היום,היום,,היום
+cal_month,Calendar header button,Month,חודש,תצוגה חודשית,חודש,חודש,,חודש
+cal_week,Calendar header button,Week,שבוע,תצוגה שבועית,שבוע,שבוע,,שבוע
+cal_day,Calendar header button,Day,יום,תצוגה יומית,יום,יום,,יום
+cal_refresh,Calendar action,Refresh Calendar,רענן יומן,רענון יומן אירועים,רענן יומן,לרענן יומן,,רענן יומן
+cal_speed_dial,Speed dial tip,Quick Actions,פעולות מהירות,סרגל משימות מהירות,פעולות,פעולות מהירות,,פעולות מהירות
+cal_filter_events,Search input placeholder,Filter events...,סנן אירועים...,סינון ותיחום אירועים...,סינון...,חיפוש אירועים,,סנן אירועים...
+cal_filter_teacher,Filter label,Filter by Teacher,סננון לפי מורה,"סינון ע""פ צוות הוראה",לפי מורה,לפי מורה,,סננון לפי מורה
+cal_filter_room,Filter label,Filter by Room,סנן לפי חדר,"סינון ע""פ פריסת חדרים",לפי חדר,לפי חדר,,סנן לפי חדר
+cal_filter_category,Filter label,Filter Category,סנן לפי קטגוריה,"סינון ע""פ קטגוריה",לפי קטגוריה,לפי קטגוריה,,סנן לפי קטגוריה
+cal_filter_tag,Filter label,Filter Tag,סנן לפי תגית,"סינון ע""פ תגית מיון",לפי תגית,לפי תגית,,סנן לפי תגית
+cal_show_canceled,Checkbox label,Show Canceled,הצג מבוטלים,הצג אירועי ביטול,הצג מבוטלים,כולל מבוטלים,,הצג מבוטלים
+cal_all_teachers,Dropdown default,All Teachers,כל המורים,תצוגת סך צוות ההוראה,כל המורים,כל המורים,,כל המורים
+cal_all_rooms,Dropdown default,All Rooms,כל החדרים,תצוגת סך החדרים,כל החדרים,כל החדרים,,כל החדרים
+cal_event_add,Modal title,Add Event,הוסף אירוע,יצירת אירוע חדש ביומן,אירוע חדש,הוספת אירוע,,הוסף אירוע
+cal_event_edit,Modal title,Edit Event,ערוך אירוע,עריכת נתוני אירוע,עריכה,עריכת אירוע,,ערוך אירוע
+modal_event_title,Input label,Event Title,כותרת האירוע,שם אירוע הליבה,כותרת,שם האירוע,,כותרת האירוע
+modal_students,Input label,Student(s),תלמיד(ים),הרכב תלמידים משתתפים,תלמידים,תלמידים,,תלמיד(ים)
+modal_start_time,Input label,Start,התחלה,מועד תחילת הפעילות,התחלה,התחלה,,התחלה
+modal_end_time,Input label,End,סיום,מועד סיום הפעילות,סיום,סיום,,סיום
+modal_select_room,Dropdown label,Select Room,בחר חדר,הקצאת חדר פעילות,בחר חדר,בחר חדר,,בחר חדר
+modal_select_teacher,Dropdown label,Select Teacher,בחר מורה,בחירת איש צוות,מורה,מי המורה,,בחר מורה
+modal_select_pos,Dropdown label,Select Position,בחר תפקיד,בחירת תחום עיסוק/תפקיד,תפקיד,איזה תפקיד,,בחר תפקיד
+modal_color,Input label,Color,צבע,סיווג צבע לישות,צבע,צבע,,צבע
+modal_payment_method,Input label,Payment Method,שיטת תשלום,אופן חישוב שכר/עלות,תשלום,איך משלמים,,שיטת תשלום
+modal_pay_standard,Payment opt,Standard Rate,תעריף רגיל,הזנת תעריף תקין,תעריף רגיל,תעריף רגיל,,תעריף רגיל
+modal_pay_one_off,Payment opt,One-off Special Rate,תעריף חד פעמי מיוחד,תשלום תעריף חריג,חד פעמי,תשלום חד פעמי,,תעריף חד פעמי מיוחד
+modal_pay_none,Payment opt,No Additional Payment,ללא תשלום נוסף,רכיב ללא עלות נוספת,ללא תשלום,בלי תשלום,,ללא תשלום נוסף
+modal_rate_value,Input label,Rate Value,ערך התעריף,סכום התעריף לחיוב,תעריף,סכום,,ערך התעריף
+modal_status_canceled,Checkbox label,Is Canceled?,מבוטל?,האם האירוע בסטטוס ביטול?,מבוטל,התבטל?,,מבוטל?
+modal_status_paid_cancel,Checkbox label,Paid Cancellation? (Teacher gets paid),ביטול בתשלום? (המורה יקבל תשלום),ביטול בחיוב? (מזכה את איש הצוות),ביטול בתשלום,ביטול שעליו מקבלים תשלום?,,ביטול בתשלום? (המורה יקבל תשלום)
+modal_status_student_noshow,Checkbox label,Student No-Show? (Counts for metrics),התלמיד לא הופיע? (נחשב במדדים),אי-הגעת תלמיד? (נכלל במדדי מעקב),תלמיד לא הגיע,תלמיד הבריז?,,התלמיד לא הופיע? (נחשב במדדים)
+modal_recurrence,Input label,Recurrence,חזרה,תדירות מופע מחזורי,חזרתיות,כל כמה זמן,,חזרה
+recur_none,Recurrence opt,Does not repeat,לא חוזר,אירוע חד-פעמי,לא חוזר,חד פעמי,,לא חוזר
+recur_daily,Recurrence opt,Daily,יומי,מופע יומי,יומי,כל יום,,יומי
+recur_weekly,Recurrence opt,Weekly,שבועי,מופע שבועי,שבועי,כל שבוע,,שבועי
+recur_monthly,Recurrence opt,Monthly,חודשי,מופע חודשי,חודשי,כל חודש,,חודשי
+modal_recur_until,Input label,Repeat Until (End Date),חזור עד (תאריך סיום),מועד תפוגת מחזוריות,עד תאריך,עד מתי,,חזור עד (תאריך סיום)
+modal_duplicate,Button text,Duplicate,שכפל,שכפול רשומה,שכפל,לשכפל אירוע,,שכפל
+modal_event_series_warn,Warning text,This is a recurring series. Edits will only apply to THIS instance.,זוהי סדרה מחזורית. שינויים יחולו רק על מופע זה.,שים לב: מדובר באירוע מחזורי. העדכונים ישמרו באופן נקודתי למופע זה בלבד.,שינוי חל רק על מופע זה.,זה אירוע חוזר. השינוי פה הוא רק לפעם הזאת.,,זוהי סדרה מחזורית. שינויים יחולו רק על מופע זה.
+manage_rooms_title,Page header,Manage Rooms,נהל חדרים,ניהול חללי פעילות וחדרים,ניהול חדרים,ניהול חדרים,,נהל חדרים
+modal_room_name,Input label,Room Name,שם החדר,כינוי חדר הפעילות,שם חדר,שם החדר,,שם החדר
+modal_room_cap,Input label,Capacity,תפוסה,קיבולת מקסימלית,קיבולת,מספר מקומות,,תפוסה
+gantt_title,Page header,Semesters & Blackouts,סמסטרים וחופשות,ניהול מערך סמסטרים וחופשים,חופשות וסמסטרים,סמסטרים וחופשות,,סמסטרים וחופשות
+gantt_subtitle,Page subheader,Manage semesters & blackouts.,נהל סמסטרים וחופשות.,מערך שליטה ותכנון תקופות לימוד.,ניהול תקופות,תקופות של חופש וסמסטר,,נהל סמסטרים וחופשות.
+gantt_add_period,Modal title,Add Gantt / Blackout Period,הוסף סמסטר / תקופת חופשה,הזנת תקופת לימוד או גאנט,הוספת תקופה,הוספת סמסטר או חופש,,הוסף סמסטר / תקופת חופשה
+gantt_period_name,Input label,"Period Name (e.g. Fall Semester, Hanukkah)","שם התקופה (למשל סמסטר א', חנוכה)","כותרת התקופה (כגון: סמסטר סתיו, חופשת פסח)",שם קטגוריה,איזה חופש / סמסטר,,"שם התקופה (למשל סמסטר א', חנוכה)"
+gantt_apply_blackout,Label,Apply Blackout,הפעל חופשה (הסתרת אירועים),החלת משטר פגרת לימודים,הפעל חופשה,הפעלת חופשה,,הפעל חופשה (הסתרת אירועים)
+gantt_blackout_desc,Description,Automatically HIDE all events in this range from calendar and reports.,הסתר אוטומטית את כל האירועים בטווח זה מהיומן ומהדוחות.,הסתרת נתוני אירועים לתקופה זו מהיומנים תוך אי-הכללה תמחירית,הסתר אירועים בתקופה,יסתיר את כל השיעורים שנופלים בתאריכים האלו,,הסתר אוטומטית את כל האירועים בטווח זה מהיומן ומהדוחות.
+gantt_blackout_warn,Warning,Caution: Existing events in this range will be hidden.,זהירות: אירועים קיימים בטווח זה יוסתרו.,התראה מערכתית: פעולה זו תסתיר שיעורים הקיימים זה מכבר ביומן.,אזהרה: אירועים קיימים יוסתרו.,זהירות - אירועים שכבר קבעת לא יראו,,זהירות: אירועים קיימים בטווח זה יוסתרו.
+gantt_create_apply,Button text,Create & Apply,צור והחל,הקמה והחלה אוטומטית,צור והחל,צור וחבר,,צור והחל
+teach_title,Page title,Manage Instructors,ניהול מדריכים,מערך ניהול צוות הוראה,ניהול מורים,צוות מורים,,ניהול מדריכים
+teach_add_teacher,Button text,Add Teacher,הוסף מורה,הקמת מסד איש צוות,מורה חדש,הוספת מורה,,הוסף מורה
+teach_search,Search input,Search teachers...,חפש מורים...,חיפוש ואיתור אנשי צוות...,חיפוש...,חיפוש מדרכים,,חפש מורים...
+teach_col_name,Table header,Name,שם איש צוות,שם פרטי ומשפחה,שם,שם,,שם איש צוות
+teach_col_contact,Table header,Contact,פרטי קשר,אמצעי התקשרות,קשר,טלפון / מייל,,פרטי קשר
+teach_col_positions,Table header,Positions & Rates,תפקידים ותעריפים,תחומי עיסוק ומדרג שכר,תפקידים,מקצועות ותעריף,,תפקידים ותעריפים
+teach_col_tags,Table header,Tags,תגיות,סיווגי תיוג ניהולי,תגיות,תגיות,,תגיות
+teach_col_actions,Table header,Actions,פעולות,מרכז פעולות מתקדמות,פעולות,כלים,,פעולות
+teach_modal_full_name,Input label,Full Name,שם מלא,שם מלא (פרטי ומשפחה),שם מכבי,שם מורה,,שם מלא
+teach_modal_color,Input label,Teacher Color,צבע מורה,שיוך צבע ייחודי,צבע,צבע ביומן,,צבע מורה
+teach_modal_email,Input label,Email,"דוא""ל",כתובת דואר אלקטרוני,מייל,אימייל,,"דוא""ל"
+teach_modal_phone,Input label,Phone,טלפון,מספר טלפון נייד,נייד,פלאפון,,טלפון
+teach_modal_tags,Input label,Tags (comma separated),תגיות (מופרדות בפסיקים),מערך תיוג,תגיות,מילות חיפוש,,תגיות (מופרדות בפסיקים)
+teach_modal_pos_assign,Section header,Position Assignments,שיוך תפקידים,הגדרת סמכויות והשמות,השמות תפקיד,שיוך תפקיד למורה,,שיוך תפקידים
+teach_modal_add_pos,Button text,Add Position,הוסף תפקיד,הזנת תפקיד הוראה חדש,תפקיד חדש,להוסיף תפקיד,,הוסף תפקיד
+teach_modal_pos_name,Input label,Title,כותרת תפקיד,שם משרת השמה,שם תפקיד,שם תפקיד,,כותרת תפקיד
+teach_modal_pos_category,Input label,Category,קטגוריה,שיוך קטגוריאלי,קטגוריה,מעמד,,קטגוריה
+teach_modal_rate_type,Input label,Rate Type,סוג תעריף,מבנה מודל שכר,סוג שכר,איך משלמים,,סוג תעריף
+teach_rate_hourly,Dropdown opt,Hourly,שעתי,בסיס חיוב שעתי,שעתי,לפי שעה,,שעתי
+teach_rate_global,Dropdown opt,Global Monthly,חודשי גלובלי,תגמול תקופתי קבוע (גלובלי),גלובלי,שכר חודשי,,חודשי גלובלי
+teach_import_alert,Alert dialog,Are you sure you want to delete selected teachers? This cannot be undone.,האם אתה בטוח שברצונך למחוק את המורים שנבחרו? פעולה זו אינה ניתנת לביטול.,התראה חמורה: הסרת רשומות מורים היא בלתי הפיכה. האם לאשר?,למחוק מורים אלו לצמיתות?,זה ימחק הכל - בטוחים?,,האם אתה בטוח שברצונך למחוק את המורים שנבחרו? פעולה זו אינה ניתנת לביטול.
+list_title,Page title,Dropdown Lists,רשימות בחירה,ניהול רשימות שדות נתונים,ניהול רשימות,רשימות מתקפלות,,רשימות בחירה
+list_subtitle,Page subtitle,"Manage dropdown options for positions, tags, etc.","נהל אפשרויות בחירה עבור תפקידים, תגיות ועוד.",תחזוקת ערכי שדות ותפריטי מערכת מרכזיים.,עדכון אפשרויות בחירה,ניהול אופציות לתפקידים ותגיות,,"נהל אפשרויות בחירה עבור תפקידים, תגיות ועוד."
+list_positions,Tab name,Positions,תפקידים,רשימת משרות ותפקידים,תפקידים,יעוד,,תפקידים
+list_tags,Tab name,Tags,תגיות,אינדקס תגי מיון,תגיות,תיוגים,,תגיות
+list_categories,Tab name,Categories,קטגוריות,סיווגי קבוצות הוראה,קטגוריות,קבוצות,,קטגוריות
+list_add_item,Button text,Add Item,הוסף פריט,הזנת פריט רשומה מילוני,הוסף,להוסיף לרשימה,,הוסף פריט
+list_placeholder,Input placeholder,Enter value...,הזן ערך...,נא להזין ערך טקסטואלי...,ערך...,להקליד פה,,הזן ערך...
+power_tools_title,Page title,Power Tools,כלים מתקדמים,מרכז כלים ניהוליים מתקדמים,כלים מתקדמים,חיפוש אירועים מורחב,,כלים מתקדמים
+power_tools_tab_filter,Tab,By Filter,לפי סינון,איתור לפי חיתוך סינונים,לפי סינון,חיפוש לפי פילטר,,לפי סינון
+power_tools_tab_manual,Tab,Manual Select,בחירה ידנית,בחירת אירועים באופן נקודתי,ידני,בחירה ידנית אחד אחד,,בחירה ידנית
+power_btn_apply_cancel,Button text,Apply Cancel Status,החל סטטוס ביטול,שינוי גורף לסטטוס ביטול,סמן מבוטל,לבטל שיעורים,,החל סטטוס ביטול
+power_btn_remove_cancel,Button text,Remove Cancel Status,הסר סטטוס ביטול,שחזור של אירועים מבוטלים,הסר ביטול,לבטל את הביטול (להחזיר),,הסר סטטוס ביטול
+power_btn_delete_evts,Button text,Delete Events,מחק אירועים,מחיקה גורפת של אירועי יומן,מחיקה,למחוק חזק את השיעורים,,מחק אירועים
+power_confirm_delete,Alert text,Are you absolutely sure you want to completely DELETE these events? This cannot be undone.,האם אתה בטוח לחלוטין שברצונך למחוק אירועים אלה קליל? הפעולה אינה הפיכה.,אזהרה מנהלתית קריטית: פעולה זו תמחק לחלוטין את רשומות האירועים מן המסד ללא אפשרות שחזור. לאשר?,למחוק לגמרי ולתמיד?,למחוק לתמיד ולא רואים יותר?,,האם אתה בטוח לחלוטין שברצונך למחוק אירועים אלה קליל? הפעולה אינה הפיכה.
+fin_dash_title,Page title,Financial Dashboard,דשבורד פיננסי,מרכז ניתוח ותצוגה פיננסית,דשבורד ראשי,כספים בכללי,,דשבורד פיננסי
+fin_dash_subtitle,Page subtitle,"Overview of income, payroll, and teaching metrics","סקירה של הכנסות, שכר ומדדי הוראה","סקירה מנהלתית: מודלי הכנסות, עלויות שכר ומדדי ביצוע",סקירה והכנסות,מבט על הכנסות ושכר,,"סקירה של הכנסות, שכר ומדדי הוראה"
+fin_filter_dates,Filter section,Date Range,טווח תאריכים,תיחום תקופת דיווח,תאריכים,איזה תאריכים,,טווח תאריכים
+fin_date_this_month,Dropdown opt,This Month,חודש נוכחי,בחודש הקלנדרי הנוכחי,חודש זה,החודש,,חודש נוכחי
+fin_date_last_month,Dropdown opt,Last Month,חודש שעבר,בחודש הקלנדרי החולף,חודש קודם,חודש שעבר,,חודש שעבר
+fin_date_this_year,Dropdown opt,This Year,השנה,בשנה הקלנדרית הנוכחית,השנה,השנה,,השנה
+fin_date_custom,Dropdown opt,Custom Range,טווח מותאם אישית,תקופת בחירה מותאמת אישית,מותאם אישית,לפי תאריכים שלי,,טווח מותאם אישית
+fin_metric_payroll,Stat card,Estimated Payroll,הערכת שכר,תחזית הוצאות מורחבת (שכר),שכר משוער,משכורות (בערך),,הערכת שכר
+fin_metric_hours,Stat card,Total Hours,סך שעות,סך שעות פעילות הוראה,סך שעות,כמה שעות הכל,,סך שעות
+fin_metric_active,Stat card,Active Hours,שעות פעילות,סך שעות הוראה בפועל,שעות בפועל,שעות שלמדנו,,שעות פעילות
+fin_metric_canceled,Stat card,Canceled Hours,שעות מבוטלות,סך שעות פעילות שבוטלו,שעות בוטלו,שעות ביטול,,שעות מבוטלות
+fin_metric_cancel_rate,Stat card,Cancellation Rate,אחוז ביטולים,שיעור ביטולים תקופתי,% ביטול,באחוזים בוטל,,אחוז ביטולים
+fin_table_teacher,Table Header,Teacher,מורה,שם המדריך/ה,מורה,מורה,,מורה
+fin_table_events,Table Header,Events,אירועים,סך אירועי מערכת,אירועים,כמה אירועים,,אירועים
+fin_table_hours,Table Header,Hours,שעות,היקף שעות,שעות,שעות,,שעות
+fin_table_cost,Table Header,Est. Cost,עלות משוערת,עלות תעסוקה משוערת,עלות,סכום (בערך),,עלות משוערת
+fin_analysis_title,Page title,Financial Analysis,ניתוח נתונים פיננסיים,אנליטיקה וניתוח עסקי,ניתוח,דוחות לעומק,,ניתוח נתונים פיננסיים
+fin_analysis_subtitle,Page subtitle,"Deep dive into metrics, trends, and comparisons","צלילה לעומק למדדים, מגמות והשוואות",סקירה אנליטית של מגמות והוצאות,מגמות והשוואות,לבדוק מגמות במערכת,,"צלילה לעומק למדדים, מגמות והשוואות"
+fin_insight_top_earner,Insight card,Highest Payroll,שכר הגבוה ביותר,"הוצאת שכר בולטת בדו""ח",שיא שכר,מי עלה הכי הרבה,,שכר הגבוה ביותר
+fin_insight_most_hours,Insight card,Most Hours Taught,הכי הרבה שעות הוראה,שיאן שעות הוראה,מירב השעות,מי עבד הכי קשה,,הכי הרבה שעות הוראה
+fin_insight_cancellations,Insight card,Most Canceled Hours,מרבית שעות הביטול,מרכז שעות מבוטלות,מרבית הביטולים,למי בוטלו הכי הרבה,,מרבית שעות הביטול
+chart_builder_btn,Button text,Build Custom Chart,בנה גרף מותאם,יצירת תרשים מותאם אישית,בניית גרף,לעשות גרף חדש,,בנה גרף מותאם
+chart_type_bar,Dropdown opt,Bar Chart,גרף עמודות,תרשים עמודות קלאסי,עמודות,עמודות לגובה,,גרף עמודות
+chart_type_line,Dropdown opt,Line Chart,גרף קווים,תרשים קווי רציף,קווים,גרף של חוט,,גרף קווים
+chart_type_pie,Dropdown opt,Pie Chart,גרף עוגה,תרשים עוגה (פאי),עוגה,גרף עוגה,,גרף עוגה
+chart_type_area,Dropdown opt,Area Chart,גרף שטח,תרשים שטחי רציף,שטח,שטחים,,גרף שטח
+chart_metric_payroll,Dropdown opt,Payroll Amount,סכומי שכר,תחשיב עלויות המעביד,שכר,כמה שילמנו,,סכומי שכר
+chart_metric_hours,Dropdown opt,Hours Taught,שעות הוראה,שעות עבודה בפועל,שעות,כמה שעות עבדו,,שעות הוראה
+chart_metric_events,Dropdown opt,Event Count,ספירת אירועים,סכימת אירועי המערכת,ספירה,כמה מפגשים,,ספירת אירועים
+settings_title,Page title,Settings,הגדרות,מרכז הגדרות מערכת,הגדרות,הגדרות,,הגדרות
+settings_theme,Section,Theme,ערכת נושא,מראה ותצוגה נחזית,תצוגה,תצוגות וצבע,,ערכת נושא
+settings_theme_light,Button text,Light,בהיר,תצוגת יום,בהיר,רגיל,,בהיר
+settings_theme_dark,Button text,Dark,כהה,תצוגת לילה/כהה,כהה,כהה,,כהה
+settings_language,Section,Language,שפה,שפת ממשק המשתמש,שפה,שפה,,שפה
+settings_developer,Section,Developer Options,אפשרויות פיתוח,ממשק מפתחים מתקדם,מפתחים,אפשרויות סודיות,,אפשרויות פיתוח
+super_admin_title,Page title,Super Admin Console,מסוף סופר אדמין,מסוף ניהול מערכתי - סופר אדמין,אדמין,תפריט הפעלות על,,מסוף סופר אדמין
+super_admin_subtitle,Page subtitle,"Manage Tenants, Access Control & Developer Tools","נהל ארגונים, בקרת גישה וכלים","ממשק על: ארגונים, שדות הרשאה מורחבים ופיתוח",ניהול על,לנהל את כולם,,"נהל ארגונים, בקרת גישה וכלים"
+chart_builder_bar,Chart type,Bar,עמודות,תרשים עמודות,עמודות,עמודות,,עמודות
+chart_builder_stacked,Chart type,Stacked,מוערם,תרשים מוערם,מוערם,מוערם,,מוערם
+chart_builder_line,Chart type,Line,קו,תרשים רציף,קווים,קווים,,קו
+chart_builder_pie,Chart type,Pie,עוגה,תרשים עוגה,עוגה,פאי,,עוגה
+chart_builder_table,Chart type,Table,טבלה,תצוגה טבלאית,טבלה,טבלה,,טבלה
+chart_calc_sum,Calculation type,Sum,סכום,סכום,סך,סך הכל,,סכום
+chart_calc_avg,Calculation type,Average,ממוצע,ממוצע,ממוצע,ממוצע,,ממוצע
+chart_calc_count,Calculation type,Count,ספירה,כמות רשומות,כמות,כמה יש,,ספירה
+chart_calc_min,Calculation type,Min,מינימום,ערך מינימלי,מינ',הכי קצת,,מינימום
+chart_calc_max,Calculation type,Max,מקסימום,ערך מקסימלי,מקס',הכי הרבה,,מקסימום
+chart_time_today,Timeframe,Today,היום,היום הנוכחי,היום,היום,,היום
+chart_time_curr_week,Timeframe,Current Week,שבוע נוכחי,שבוע קלנדרי נוכחי,השבוע,השבוע הזה,,שבוע נוכחי
+chart_time_curr_month,Timeframe,Current Month,חודש נוכחי,חודש קלנדרי נוכחי,החודש,החודש הזה,,חודש נוכחי
+chart_time_custom,Timeframe,Custom Range,טווח מותאם אישית,תקופת בחירה,מותאם אישית,טווח שלי,,טווח מותאם אישית
+chart_time_spec_day,Timeframe,Specific Day,יום מסוים,תאריך ספציפי,יום מסוים,יום ספציפי,,יום מסוים
+chart_time_spec_week,Timeframe,Specific Week,שבוע מסוים,שבוע ספציפי,שבוע מסוים,שבוע ספציפי,,שבוע מסוים
+chart_time_spec_month,Timeframe,Specific Month,חודש מסוים,חודש ספציפי,חודש מסוים,חודש ספציפי,,חודש מסוים
+chart_no_options,Empty state,No options available,אין אפשרויות זמינות,לא נמצאו ערכים מתאימים,אין אפשרויות,אין כלום,,אין אפשרויות זמינות
+chart_select_period,Placeholder,Select a period,בחר תקופה,נא לבחור תקופת ייחוס,בחר תקופה,תבחרו מתי,,בחר תקופה
+chart_edit_title,Modal title,Edit Chart,ערוך תרשים,עריכת מאפייני תרשים,ערוך גרף,לערוך גרף,,ערוך תרשים
+chart_create_title,Modal title,Create Custom Chart,צור תרשים מותאם אישית,הקמת תרשים ניתוח נתונים,גרף חדש,להכין גרף,,צור תרשים מותאם אישית
+chart_inp_title,Input label,Chart Title,כותרת התרשים,הגדרת שם התרשים,כותרת,שם לגרף,,כותרת התרשים
+chart_desc_grouping,Helper text,Classify data by category (timeframes are controlled separately below),סווג נתונים לפי קטגוריה (תקופות זמן מנוהלות בנפרד למטה),קביעת פרמטרים לחיתוך מידע (חתכי זמן נקבעים בנפרד),סיווג נתונים (תקופות יוגדרו למטה),לפי מה לחלק את הנתונים?,,סווג נתונים לפי קטגוריה (תקופות זמן מנוהלות בנפרד למטה)
+chart_desc_time,Helper text,Select the time period for analysis (independent of grouping),בחר תקופת זמן לניתוח (ללא קשר לסיווג),קביעת מסגרת הזמן לניתוח הנתונים,בחר תקופה,מתי לבדוק?,,בחר תקופת זמן לניתוח (ללא קשר לסיווג)
+chart_comp_active,Helper text,Comparison Mode is active — add periods to compare against the primary timeframe,מצב השוואה פעיל — הוסף תקופות להשוואה מול תקופת הזמן הראשית,ממשק השוואתי הופעל: נא להגדיר תקופות דיווח ביחס למדד העדכני,השוואה פעילה – הוסף תקופות,אנחנו בהשוואה - תוסיפו עוד תקופות להשוות,,מצב השוואה פעיל — הוסף תקופות להשוואה מול תקופת הזמן הראשית
+chart_comp_inactive,Helper text,Compare the same filters against different periods of the same timeframe type,השווה את אותם מסננים כנגד תקופות שונות מאותו סוג,השוואת מדדי החתך ביחס לתקופות קודמות בעלות מאפיינים זהים,השווה תקופות שונות,אפשר להשוות את אותם דברים לתקופות אחרות,,השווה את אותם מסננים כנגד תקופות שונות מאותו סוג
+chart_filter_mode,Label,Filter Mode,מצב סינון,ניתוב מנגנון סינון,מצב סינון,סוג פילטר,,מצב סינון
+chart_mode_live,Option,Live,חי,מעקב זמן אמת,חי,זז איתי,,חי
+chart_mode_live_desc,Desc,Reacts to dashboard filters,מגיב לסינוני הדשבורד,משתנה בהתאם להגדרות התצוגה בעמוד הרלוונטי,מושפע מהדשבורד,משתנה כשמשחקים עם הפילטרים בחוץ,,מגיב לסינוני הדשבורד
+chart_mode_snap,Option,Snapshot,תמונת מצב,פריז (הקפאת נתונים),קבוע,נעול,,תמונת מצב
+chart_mode_snap_desc,Desc,Freezes filters at save time,מקפיא סינונים בשעת השמירה,הקפאת נתוני סינון בהתאם למועד יצירת התרשים,סינון קבוע,נשאר קבוע כמו עכשיו,,מקפיא סינונים בשעת השמירה
+chart_data_total,Table footer,Total,סך הכל,"סך הכל (סה""כ)","סה""כ",בסך הכל,,סך הכל
+cal_event_name_req,Input label,Event Name *,שם האירוע *,שם האירוע (שדה חובה),שם אירוע *,שם אירוע (חובה),,שם האירוע *
+cal_event_cat_req,Input label,Category *,קטגוריה *,שיוך קטגוריאלי (שדה חובה),קטגוריה *,סוג (חובה),,קטגוריה *
+cal_cat_teacher_lessons,OptGroup,Teacher Lessons,שיעורי מורים,מערך שיעורי סגל,שיעורים,שיעורים רגילים,,שיעורי מורים
+cal_cat_indiv_lesson,Option,Individual Lesson,שיעור פרטני,הוראה פרטנית במרכז,פרטני,שיעור פרטי,,שיעור פרטני
+cal_cat_group_lesson,Option,Group Lesson,שיעור קבוצתי,פעילות הרכב/קבוצה,קבוצתי,קבוצה,,שיעור קבוצתי
+cal_cat_general_events,OptGroup,General Events,אירועים כלליים,רשימת סיווגים כללים (פעילות חיצונית/מנהלה),כללי,שונות (לא שיעורים),,אירועים כלליים
+cal_recur_biweekly,Option,Bi-Weekly,דו-שבועי,מופע פעם בשבועיים,דו-שבועי,כל שבועיים,,דו-שבועי
+cal_recur_ends_after,Input label,Ends after,מסתיים לאחר,פקיעת תוקף המחזוריות (לאחר),מסתיים אחרי,נגמר אחרי,,מסתיים לאחר
+cal_recur_ends_on,Input label,Ends on,מסתיים בתאריך,מועד תפוגת מחזוריות (תאריך ספציפי),מסתיים ב-,עד מתי,,מסתיים בתאריך
+cal_recur_occurrences,Suffix,occurrences,מופעים,מופעים חזוריים,פעמים,פעמים,,מופעים
+cal_btn_save_series,Button text,Save & Update Series,שמור ועדכן סדרה,שמירת שינויים והחלה על סדרת מופעים שלמה,עדכן סדרה,תשמור על הכל,,שמור ועדכן סדרה
+cal_btn_delete_series,Button text,Delete Series,מחק סדרה,מחיקה גורפת לסדרת המופעים,מחק סדרה,תמחק את כל הסדרה,,מחק סדרה
+cal_err_sync,Alert dialog,Failed to sync to Google Calendar,סנכרון מול גוגל יומן נכשל,שגיאת מערכת: ניסיון ההתממשקות מול יומן Google לא צלח,שגיאת סנכרון גוגל,לא הצליח לשמור בגוגל,,סנכרון מול גוגל יומן נכשל
+cal_err_time,Alert dialog,End time must be after start time,זמן הסיום חייב להיות אחרי זמן ההתחלה,ערך לא תקין: מועד הסיום נדרש להיות מאוחר למועד ההתחלה,סיום לפני התחלה,הסיום לא הגיוני לעומת ההתחלה,,זמן הסיום חייב להיות אחרי זמן ההתחלה

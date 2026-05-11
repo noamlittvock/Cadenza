@@ -1,0 +1,1043 @@
+Key,Context,Original English,Hebrew (Natural),Hebrew (Formal),Hebrew (Concise),Hebrew (Colloquial),Manual Override,Final Translation
+btn_save,Standard save button,Save,שמירה,שמירה,שמירה,לשמור,,שמירה
+btn_cancel,Standard cancel button,Cancel,ביטול,ביטול,ביטול,לבטל,,ביטול
+btn_delete,Standard delete button,Delete,מחיקה,מחיקה,מחיקה,למחוק,,מחיקה
+btn_edit,Standard edit button,Edit,ערוך,ערוך,עריכה,לערוך,,ערוך
+btn_add,Standard add button,Add,הוסף,הוסף,הוסף,להוסיף,,הוסף
+btn_close,Standard close button,Close,סגור,סגור,סגור,לסגור,,סגור
+btn_confirm,Standard confirm button,Confirm,אישור,אשר,אישור,לאשר,,אישור
+btn_back,Standard back button,Back,חזור,חזור,חזור,אחורה,,חזור
+btn_export,Standard export button,Export,ייצוא,ייצוא,ייצוא,לייצא,,ייצוא
+btn_import,Standard import button,Import,ייבא,ייבא,ייבוא,לייבא,,ייבא
+btn_clear_all,Clear all filters or selections,Clear All,נקה הכל,נקה הכל,נקה הכל,לנקות הכל,,נקה הכל
+btn_download_template,Download CSV template,Template,תבנית,תבנית,תבנית,תבנית,,תבנית
+btn_create,General create button,Create,צור,צור חדש,יצירה,להכין,,צור
+loading_text,Standard loading message,Loading...,טוען...,בטעינה...,טעינה,רגע...,,טוען...
+no_data_msg,Empty state message,No data matches current filters.,אין נתונים התואמים לפילטרים.,לא נמצאו רשומות התואמות לסינון הנוכחי,אין תוצאות,לא מצאנו כלום,,אין נתונים התואמים לפילטרים.
+sidebar_section_ops,Sidebar section,OPERATIONS,תפעול,ניהול תפעולי,תפעול,עבודה,,תפעול
+sidebar_section_mgmt,Sidebar section,MANAGEMENT,ניהול,אדמיניסטרציה וניהול,ניהול,ניהול,,ניהול
+sidebar_section_analytics,Sidebar section,ANALYTICS,אנליטיקה,ניתוח נתונים ומגמות,נתונים,דוחות,,אנליטיקה
+nav_dashboard,Sidebar link,Dashboard,דשבורד,לוח בקרה מרכזי,לוח בקרה,דשבורד,,דשבורד
+nav_calendar,Sidebar link,Calendar,יומן,לוח אירועים מרכזי,יומן,לוח שנה,,יומן
+nav_power_tools,Sidebar link,Power Tools,כלים מתקדמים,ניהול אירועים מתקדם,כלים,כלי עריכה,,כלים מתקדמים
+nav_gantt,Sidebar link,Semesters & Blackouts,סמסטרים וחופשות,ניהול תקופות לימוד וחופשות,סמסטרים,חופשות וסמסטרים,,סמסטרים וחופשות
+nav_teachers,Sidebar link,Teachers,מורים,מאגר צוות הוראה,מורים,מורים,,מורים
+nav_locations,Sidebar link,Locations,מיקומים,ניהול כיתות ומרחבים,חדרים,מקומות,,מיקומים
+nav_lists,Sidebar link,Dropdown Lists,רשימות,ניהול תפריטי קטגוריות,רשימות,רשימות בחירה,,רשימות
+nav_financial_dash,Sidebar link,Financial Dashboard,לוח בקרה פיננסי,לוח בקרה פיננסי,לוח בקרה פיננסי,לוח בקרה פיננסי,,לוח בקרה פיננסי
+nav_financial_analysis,Sidebar link,Financial Analysis,ניתוח נתונים פיננסיים,ניתוח נתונים מורחב,אנליטיקה,דוחות מפורטים,,ניתוח נתונים פיננסיים
+nav_settings,Sidebar link,Settings,הגדרות,הגדרות מערכת,הגדרות,הגדרות,,הגדרות
+cal_view_month,Calendar view toggle,Month,חודש,תצוגה חודשית,חודש,חודשי,,חודש
+cal_view_week,Calendar view toggle,Week,שבוע,תצוגה שבועית,שבוע,שבועי,,שבוע
+cal_view_day,Calendar view toggle,Day,יום,תצוגה יומית,יום,יומי,,יום
+cal_view_list,Calendar view toggle,List,רשימה,תצוגת רשימת אירועים,רשימה,רשימה,,רשימה
+cal_today,Calendar header button,Today,היום,יום נוכחי,היום,היום,,היום
+cal_filter_teacher,Calendar filter label,Teacher,מורה,סינון לפי מורה,מורה,מורה,,מורה
+cal_filter_room,Calendar filter label,Room,חדר,סינון לפי חדר/מיקום,חדר,חדר,,חדר
+cal_filter_type,Calendar filter label,Type,סוג,סינון לפי סוג אירוע,סוג,סוג,,סוג
+cal_btn_add_event,Calendar button,Add Event,הוסף אירוע,הוספת אירוע חדש ליומן,חדש,להוסיף,,הוסף אירוע
+cal_modal_title_add,Modal title,Add Event,הוסף אירוע,יצירת אירוע חדש,חדש,להוסיף,,הוסף אירוע
+cal_modal_title_edit,Modal title,Edit Event,ערוך אירוע,עריכת פרטי אירוע,עריכה,לערוך,,ערוך אירוע
+cal_label_title,Input label,Title,כותרת,שם האירוע / כותרת,כותרת,כותרת,,כותרת
+cal_label_teacher,Input label,Teacher,מורה,מורה אחראי,מורה,מורה,,מורה
+cal_label_room,Input label,Room,חדר,מיקום / חדר לימוד,חדר,חדר,,חדר
+cal_label_position,Input label,Position,תפקיד,תפקיד / הגדרת משרה,תפקיד,תפקיד,,תפקיד
+cal_label_type,Input label,Type,סוג,סוג פעילות,סוג,סוג,,סוג
+cal_label_date,Input label,Date,תאריך,מועד האירוע,תאריך,תאריך,,תאריך
+cal_label_start,Input label,Start Time,זמן התחלה,שעת התחלה,התחלה,מתחיל ב-,,זמן התחלה
+cal_label_end,Input label,End Time,זמן סיום,שעת סיום,סיום,נגמר ב-,,זמן סיום
+cal_label_recur,Input label,Recurring,מחזורי,אירוע חוזר במערכת,חזורי,קבוע,,מחזורי
+cal_recur_none,Option,None,ללא,ללא חזרתיות,ללא,חד פעמי,,ללא
+cal_recur_daily,Option,Daily,יומי,חזרה יומית,יומי,כל יום,,יומי
+cal_recur_weekly,Option,Weekly,שבועי,חזרה שבועית,שבועי,כל שבוע,,שבועי
+cal_recur_monthly,Option,Monthly,חודשי,חזרה חודשית,חודשי,כל חודש,,חודשי
+cal_legend_individual,Legend,Individual Lesson,שיעור פרטני,שיעור הוראה פרטנית,פרטני,פרטי,,שיעור פרטני
+cal_legend_group,Legend,Group Lesson,שיעור קבוצתי,שיעור בקבוצה / הרכב,קבוצתי,קבוצה,,שיעור קבוצתי
+cal_legend_general,Legend,General Event,אירוע כללי,אירוע כללי / מנהלתי,כללי,שונות,,אירוע כללי
+cal_legend_break,Legend,Break/Blackout,הפסקה/חסימה,זמן חסום / הפסקה,חסימה,הפסקה,,הפסקה/חסימה
+power_tab_clash,Tab title,Clash Detector,זיהוי התנגשויות,"מערכת לזיהוי התנגשויות בלו""ז",התנגשויות,"בעיות בלו""ז",,זיהוי התנגשויות
+power_tab_bulk,Tab title,Bulk Actions,פעולות גורפות,ביצוע שינויים מרובים,גורף,שינוי המוני,,פעולות גורפות
+power_clash_desc,Description,Find overlapping bookings for teachers and rooms.,מצא התנגשויות בשיבוץ מורים וחדרים.,איתור חפיפות בזמני מורים וחדרי לימוד,חפיפות,בדיקת כפילויות,,מצא התנגשויות בשיבוץ מורים וחדרים.
+power_bulk_desc,Description,Update or delete multiple events at once.,עדכן או מחק מספר אירועים בו-זמנית.,ביצוע עדכון או מחיקה של קבוצת אירועים,עדכון המוני,לשנות הכל,,עדכן או מחק מספר אירועים בו-זמנית.
+gantt_title,Page header,Semesters & Blackouts,סמסטרים וחופשות,ניהול מערך סמסטרים וחופשים,חופשות וסמסטרים,סמסטרים וחופשות,,סמסטרים וחופשות
+gantt_btn_add,Button,Add Semester/Blackout,הוסף סמסטר/חופשה,הגדרת תקופת לימוד או חופשה חדשה,חדש,להוסיף,,הוסף סמסטר/חופשה
+teach_title,Page header,Teacher Manager,ניהול מורים,מערכת ניהול סגל ההוראה,מורים,ניהול מורים,,ניהול מורים
+teach_btn_add,Button,Add Teacher,הוסף מורה,רישום מורה חדש במערכת,הוסף מורה,מורה חדש,,הוסף מורה
+teach_col_name,Table header,Name,שם,שם המורה,שם,שם,,שם
+teach_col_email,Table header,Email,אימייל,כתובת דואר אלקטרוני,אימייל,מייל,,אימייל
+teach_col_phone,Table header,Phone,טלפון,מספר טלפון ליצירת קשר,טלפון,טלפון,,טלפון
+teach_col_positions,Table header,Positions,תפקידים,תחומי הוראה ותפקידים,תפקידים,תפקידים,,תפקידים
+teach_col_tags,Table header,Tags,תגיות,סיווגי תיוג ניהולי,תגיות,תגיות,,תגיות
+loc_title,Page header,Location Manager,ניהול מיקומים,ניהול רשימת חדרים ומיקומים,חדרים,ניהול חדרים,,ניהול מיקומים
+loc_btn_add,Button,Add Location,הוסף מיקום,הוספת חדר או מרחב לימוד חדש,הוסף חדר,מקום חדש,,הוסף מיקום
+loc_col_name,Table header,Room Name,שם החדר,שם החדר / המרחב,שם,שם חדר,,שם החדר
+loc_col_capacity,Table header,Capacity,קיבולת,תפוסת חדר מקסימלית,קיבולת,כמות אנשים,,קיבולת
+loc_col_type,Table header,Type,סוג,סוג המרחב (כיתה/אולם),סוג,סוג,,סוג
+list_title,Page title,Dropdown Lists,רשימות בחירה,ניהול רשימות שדות נתונים,ניהול רשימות,רשימות מתקפלות,,רשימות בחירה
+list_desc,Description,Manage the options for dropdown menus across the app.,נהל את האפשרויות לתפריטי הבחירה באפליקציה.,עריכת ערכים לרשימות בחירה במערכת,ערוך רשימות,הגדרות תפריטים,,נהל את האפשרויות לתפריטי הבחירה באפליקציה.
+fin_dash_title,Page header,Financial Dashboard,דשבורד פיננסי,לוח בקרה וסקירה פיננסית,כספים,מצב כספי,,דשבורד פיננסי
+fin_stat_revenue,Stat label,Total Revenue,סך הכנסות,"סה""כ הכנסות ברוטו",הכנסות,כסף שנכנס,,סך הכנסות
+fin_stat_hours,Stat label,Total Hours,"סה""כ שעות","סה""כ שעות פעילות/הוראה",שעות,כמה שעות,,"סה""כ שעות"
+fin_stat_avg_rate,Stat label,Avg. Hourly Rate,תעריף שעתי ממוצע,ממוצע הכנסה לשעת הוראה,ממוצע לשעה,שכר שעתי,,תעריף שעתי ממוצע
+fin_chart_revenue_time,Chart title,Revenue Over Time,הכנסות לאורך זמן,מגמת הכנסות תקופתית,הכנסות,גרף הכנסות,,הכנסות לאורך זמן
+fin_chart_revenue_teacher,Chart title,Revenue by Teacher,הכנסות לפי מורה,התפלגות הכנסות לפי סגל הוראה,לפי מורה,כמה כל מורה מכניס,,הכנסות לפי מורה
+fin_ana_title,Page header,Financial Analysis,ניתוח נתונים פיננסיים,"ניתוח עומק ודו""חות פיננסיים",אנליטיקה,דוחות כספיים,,ניתוח נתונים פיננסיים
+fin_ana_group_by,Label,Group By,קבץ לפי,חיתוך נתונים לפי קטגוריה,קבץ לפי,סידור לפי,,קבץ לפי
+fin_ana_period,Label,Time Period,תקופת זמן,טווח תאריכים לניתוח,זמן,תקופה,,תקופת זמן
+set_title,Page header,Settings,הגדרות,הגדרות מערכת וניהול חשבון,הגדרות,הגדרות,,הגדרות
+set_section_general,Section,General Settings,הגדרות כלליות,הגדרות מערכת בסיסיות,כללי,הגדרות,,הגדרות כלליות
+set_label_org_name,Input label,Organization Name,שם הארגון,שם המוסד / המרכז,שם,שם המקום,,שם הארגון
+set_label_currency,Input label,Currency,מטבע,מטבע פעילות מוגדר,מטבע,כסף,,מטבע
+set_btn_save,Button,Save Settings,שמור הגדרות,שמירת עדכוני מערכת,שמור,לשמור,,שמור הגדרות
+cal_cat_lesson,OptGroup,Lessons,שיעורים,פעילויות הוראה ולימוד,שיעורים,שיעורים,,שיעורים
+cal_cat_indiv_lesson,Option,Individual Lesson,שיעור פרטני,הוראה פרטנית במרכז,פרטני,שיעור פרטי,,שיעור פרטני
+cal_cat_group_lesson,Option,Group Lesson,שיעור קבוצתי,פעילות הרכב/קבוצה,קבוצתי,קבוצה,,שיעור קבוצתי
+cal_cat_general_events,OptGroup,General Events,אירועים כלליים,רשימת סיווגים כללים (פעילות חיצונית/מנהלה),כללי,שונות (לא שיעורים),,אירועים כלליים
+cal_recur_biweekly,Option,Bi-Weekly,דו-שבועי,מופע פעם בשבועיים,דו-שבועי,כל שבועיים,,דו-שבועי
+cal_recur_ends_after,Input label,Ends after,מסתיים לאחר,פקיעת תוקף המחזוריות (לאחר),מסתיים אחרי,נגמר אחרי,,מסתיים לאחר
+cal_recur_ends_on,Input label,Ends on,מסתיים בתאריך,מועד תפוגת מחזוריות (תאריך ספציפי),מסתיים ב-,עד מתי,,מסתיים בתאריך
+cal_recur_occurrences,Suffix,occurrences,מופעים,מופעים חזוריים,פעמים,פעמים,,מופעים
+cal_btn_save_series,Button text,Save & Update Series,שמור ועדכן סדרה,שמירת שינויים והחלה על סדרת מופעים,עדכן סדרה,לשנות הכל,,שמור ועדכן סדרה
+cal_recur_this_only,Option,This event only,אירוע זה בלבד,עדכון מופע נוכחי בלבד,רק זה,רק הפעם,,אירוע זה בלבד
+cal_recur_all_future,Option,This and all future events,אירוע זה וכל הבאים,עדכון מופע נוכחי וכל המופעים העתידיים,החל מכאן,מהיום והלאה,,אירוע זה וכל הבאים
+cal_recur_all_events,Option,All events in series,כל האירועים בסדרה,עדכון כל המופעים בסדרה (עבר ועתיד),כל הסדרה,כל הפעמים,,כל האירועים בסדרה
+cal_error_teacher_req,Error message,Teacher is required,חובה לבחור מורה,יש לבחור מורה מתוך הרשימה,חובה מורה,חסר מורה,,חובה לבחור מורה
+cal_error_room_req,Error message,Room is required,חובה לבחור חדר,יש לבחור מיקום/חדר מהרשימה,חובה חדר,חסר חדר,,חובה לבחור חדר
+cal_error_date_req,Error message,Date is required,חובה לבחור תאריך,יש להזין תאריך תקף,חובה תאריך,חסר תאריך,,חובה לבחור תאריך
+cal_error_time_range,Error message,End time must be after start time.,זמן הסיום חייב להיות אחרי זמן ההתחלה.,שעת הסיום אינה יכולה להיות מוקדמת משעת ההתחלה,שגיאת זמן,זמן לא תקין,,זמן הסיום חייב להיות אחרי זמן ההתחלה.
+cal_conflict_alert,Alert title,Scheduling Conflict,"התנגשות בלו""ז",זוהתה התנגשות בשיבוץ האירועים,התנגשות,"לו""ז כפול",,"התנגשות בלו""ז"
+cal_conflict_teacher,Conflict detail,Teacher is already booked.,המורה כבר תפוס.,המורה משובץ לאירוע אחר בזמן זה,מורה תפוס,המורה כבר עובד,,המורה כבר תפוס.
+cal_conflict_room,Conflict detail,Room is already booked.,החדר כבר תפוס.,החדר משובץ לשימוש אחר בזמן זה,חדר תפוס,החדר לא פנוי,,החדר כבר תפוס.
+cal_conflict_ignore,Button,Save Anyway,שמור בכל זאת,אישור ושמירה למרות ההתנגשות,שמור,בכל זאת,,שמור בכל זאת
+power_clash_none,Message,No conflicts found for the selected period.,לא נמצאו התנגשויות לתקופה שנבחרה.,סריקת המערכת לא העלתה התנגשויות בטווח התאריכים,אין בעיות,הכל תקין,,לא נמצאו התנגשויות לתקופה שנבחרה.
+power_bulk_select,Label,Select events to update,בחר אירועים לעדכון,יש לסמן את האירועים עליהם יחול השינוי,בחר אירועים,סמן מה לשנות,,בחר אירועים לעדכון
+power_bulk_action,Label,Choose Action,בחר פעולה,בחר את הפעולה לביצוע גורף,פעולה,מה לעשות,,בחר פעולה
+power_bulk_delete,Option,Delete Selected,מחק נבחרים,מחיקת כל האירועים המסומנים,מחיקה,למחוק,,מחק נבחרים
+power_bulk_change_teacher,Option,Change Teacher,החלף מורה,עדכון המורה לכל האירועים שנבחרו,החלף מורה,לשנות מורה,,החלף מורה
+power_bulk_change_room,Option,Change Room,החלף חדר,עדכון המיקום לכל האירועים שנבחרו,החלף חדר,לשנות חדר,,החלף חדר
+gantt_label_name,Input label,Name,שם,שם הסמסטר או החופשה,שם,שם,,שם
+gantt_label_type,Input label,Type,סוג,סוג התקופה (לימודים/חופשה),סוג,סוג,,סוג
+gantt_type_semester,Option,Semester,סמסטר,תקופת לימודים רשמית,סמסטר,סמסטר,,סמסטר
+gantt_type_blackout,Option,Blackout/Holiday,חופשה,ימי חופשה או חסימה מנהלתית,חופשה,חופש,,חופשה
+gantt_error_overlap,Error,Dates overlap with an existing entry.,התאריכים חופפים לרשומה קיימת.,טווח התאריכים המוזן חופף לתקופה שכבר הוגדרה,חפיפת תאריכים,כבר קיים,,התאריכים חופפים לרשומה קיימת.
+teach_label_status,Input label,Status,סטטוס,סטטוס העסקה נוכחי,סטטוס,מצב,,סטטוס
+teach_status_active,Option,Active,פעיל,מורה פעיל במערכת,פעיל,עובד,,פעיל
+teach_status_inactive,Option,Inactive,לא פעיל,מורה שאינו פעיל כעת,לא פעיל,מוקפא,,לא פעיל
+teach_btn_view,Action,View Details,צפה בפרטים,צפייה בכרטיס המורה המלא,פרטים,לראות,,צפה בפרטים
+teach_btn_edit,Action,Edit Profile,ערוך פרופיל,עריכת פרטי המורה והגדרותיו,עריכה,לערוך,,ערוך פרופיל
+loc_label_type,Input label,Room Type,סוג חדר,סיווג סוג המיקום,סוג,סוג,,סוג חדר
+loc_type_classroom,Option,Classroom,כיתה,חדר לימוד רגיל,כיתה,כיתה,,כיתה
+loc_type_studio,Option,Studio,סטודיו,חדר סטודיו / חדר אימון,סטודיו,סטודיו,,סטודיו
+loc_type_hall,Option,Hall,אולם,אולם מופעים או חדר גדול,אולם,אולם,,אולם
+loc_type_other,Option,Other,אחר,מיקום מסוג אחר,אחר,אחר,,אחר
+list_cat_teacher_pos,Category title,Teacher Positions,תפקידי מורים,רשימת הגדרות תפקיד לסגל,תפקידים,תפקידים,,תפקידי מורים
+list_cat_event_types,Category title,Event Types,סוגי אירועים,רשימת סוגי הפעילויות ביומן,סוגים,סוגים,,סוגי אירועים
+list_cat_tags,Category title,Management Tags,תגיות ניהול,תגיות לסיווג וניהול פנימי,תגיות,תגיות,,תגיות
+fin_ana_group_none,Option,No Grouping,ללא הקבצה,הצגת נתונים גולמית ללא חיתוך,ללא,הכל רגיל,,ללא הקבצה
+fin_ana_group_teacher,Option,Teacher,מורה,ניתוח נתונים לפי מורה,לפי מורה,מורה,,מורה
+fin_ana_group_type,Option,Event Type,סוג אירוע,ניתוח נתונים לפי סוג הפעילות,לפי סוג,סוג,,סוג אירוע
+fin_ana_group_location,Option,Location,מיקום,ניתוח נתונים לפי חדר או מרחב,לפי מיקום,מקום,,מיקום
+fin_ana_period_current_month,Option,Current Month,החודש,נתוני החודש הקלנדרי הנוכחי,החודש,החודש,,החודש
+fin_ana_period_last_month,Option,Last Month,חודש שעבר,סיכום נתוני החודש הקודם,חודש שעבר,חודש שעבר,,חודש שעבר
+fin_ana_period_year,Option,This Year,השנה,סיכום נתונים מתחילת השנה,השנה,השנה,,השנה
+fin_ana_period_custom,Option,Custom Range,טווח מותאם אישית,בחירת טווח תאריכים ידני,מותאם,לבחור זמן,,טווח מותאם אישית
+set_label_email,Input label,Admin Email,אימייל מנהל,"כתובת דוא""ל למשלוח הודעות מערכת",אימייל,מייל מנהל,,אימייל מנהל
+set_label_timezone,Input label,Timezone,אזור זמן,הגדרת אזור זמן מקומי,אזור זמן,שעון,,אזור זמן
+set_label_lang,Input label,Default Language,שפת ברירת מחדל,שפת ממשק המערכת הראשית,שפה,שפה,,שפת ברירת מחדל
+set_success_msg,Notification,Settings saved successfully.,ההגדרות נשמרו בהצלחה.,כל השינויים עודכנו ונשמרו במערכת,נשמר,עודכן,,ההגדרות נשמרו בהצלחה.
+components/CalendarView.tsx:1621,Imported from translated_strings,— No Room —,— ללא חדר —,— אין חדר —,— חדר לא נבחר —,ללא חדר,,— ללא חדר —
+components/FinancialDashboard.tsx:586,Imported from translated_strings,· Click headers to sort,· לחץ על הכותרות למיון,· הקלק למיון אופקי,· לחץ למיון,מיון לפי כותרת,,· לחץ על הכותרות למיון
+components/CalendarView.tsx:1487,Imported from translated_strings,(Optional),(אופציונלי),(רשות),(לא חובה),(לבחירה),,(אופציונלי)
+components/CalendarView.tsx:1579,Imported from translated_strings,(Requires Teacher & Position),(דורש מורה ותפקיד),(מותנה במורה ובתפקיד),(חובה לבחור מורה),(מצריך מורה/תפקיד),,(דורש מורה ותפקיד)
+components/TeacherManager.tsx:939,Imported from translated_strings,* Colors will be auto-assigned,* צבעים יוקצו אוטומטית,* צבעים ייבחרו אוטומטית,* הקצאת צבע אוטומטית,צבע אוטומטי,,* צבעים יוקצו אוטומטית
+components/Layout.tsx:320,Imported from translated_strings,© 2026 Music Center,© 2026 מרכז המוזיקה,© 2026 המרכז למוזיקה,כל הזכויות שמורות 2026,© 2026,,© 2026 מרכז המוזיקה
+components/TeacherManager.tsx:846,Imported from translated_strings,+ Add first position,+ הוסף תפקיד ראשון,+ הגדר תפקיד חדש,+ פתח משרה ראשונה,הוסף תפקיד,,+ הוסף תפקיד ראשון
+components/FinancialAnalysis.tsx:210,Imported from translated_strings,$ — US Dollar (USD),$ — דולר אמריקאי,$ — USD,$ — דולר,דולר אמריקאי,,$ — דולר אמריקאי
+components/FinancialAnalysis.tsx:212,Imported from translated_strings,£ — British Pound (GBP),£ — לירה שטרלינג,£ — GBP,£ — פאונד,פאונד בריטי,,£ — לירה שטרלינג
+components/FinancialAnalysis.tsx:213,Imported from translated_strings,¥ — Japanese Yen (JPY),¥ — ין יפני,¥ — JPY,¥ — ין,ין יפני,,¥ — ין יפני
+components/FinancialAnalysis.tsx:211,Imported from translated_strings,€ — Euro (EUR),€ — אירו,€ — EUR,€ — יורו,אירו,,€ — אירו
+components/FinancialAnalysis.tsx:209,Imported from translated_strings,₪ — Israeli Shekel (ILS),₪ — שקל חדש,₪ — ILS,₪ — שקל,שקל חדש,,₪ — שקל חדש
+components/ManageLists.tsx:206,Imported from translated_strings,1. Fill in the data below,1. מלא את הנתונים למטה,1. הזן פרטים מטה,1. מילוי טופס,הזנת נתונים,,1. מלא את הנתונים למטה
+components/ManageLists.tsx:207,Imported from translated_strings,2. Export to CSV,2. ייצא ל-CSV,2. הורד קובץ נתונים,2. שמירה כקובץ,ייצוא נתונים,,2. ייצא ל-CSV
+components/ManageLists.tsx:208,Imported from translated_strings,3. Open in your app,3. פתח באפליקציה שלך,3. טען למערכת,3. הפעלת קוד,סנכרון אפליקציה,,3. פתח באפליקציה שלך
+components/ManageLists.tsx:181,Imported from translated_strings,Actions,פעולות,ניהול,ביצוע,פעולות,,פעולות
+components/ChartBuilderModal.tsx:883,Imported from translated_strings,Add Position,הוספת תפקיד,הגדרת משרה,שיוך מקצועי,הוסף תפקיד,,הוספת תפקיד
+components/ManageLists.tsx:191,Imported from translated_strings,Add Row,הוסף שורה,הוספת רשומה,חדש,הוסף,,הוסף שורה
+components/TeacherManager.tsx:839,Imported from translated_strings,Add Teacher,הוספת מורה,רישום איש צוות,מורה חדש,הוסף מורה,,הוספת מורה
+components/TeacherManager.tsx:903,Imported from translated_strings,Already in list,כבר ברשימה,קיים במערכת,רשום,כבר קיים,,כבר ברשימה
+components/TeacherManager.tsx:892,Imported from translated_strings,Back to List,חזרה לרשימה,חזור,אחורה,חזור,,חזרה לרשימה
+components/CalendarView.tsx:1925,Imported from translated_strings,Cancel,ביטול,בטל,יציאה,ביטול,,ביטול
+components/CalendarView.tsx:1305,Imported from translated_strings,Category: All,קטגוריה: הכל,לפי קטגוריה: כולם,כל הקבוצות,סיווג כללי,,קטגוריה: הכל
+components/ChartBuilderModal.tsx:920,Imported from translated_strings,Choose an icon for this position,בחר אייקון לתפקיד זה,שייך סמל גרפי,בחר סמל,אייקון תפקיד,,בחר אייקון לתפקיד זה
+components/FinancialAnalysis.tsx:237,Imported from translated_strings,Classify data by category (timeframes are controlled separately below),קבץ נתונים לפי קטגוריה (טווחי זמן נשלטים בנפרד למטה),ניתוח לפי סיווג נושאי,סינון קטגוריות,קיבוץ נתונים,,קבץ נתונים לפי קטגוריה (טווחי זמן נשלטים בנפרד למטה)
+components/FinancialDashboard.tsx:571,Imported from translated_strings,Current Week,השבוע הנוכחי,שבוע זה,השבוע,השבוע,,השבוע הנוכחי
+components/FinancialDashboard.tsx:510,Imported from translated_strings,Daily,יומי,מדי יום,כל יום,יומי,,יומי
+components/FinancialAnalysis.tsx:254,Imported from translated_strings,Download Report (CSV),הורד דוח (CSV),ייצוא נתונים לקובץ,שמור דוח,הורדת דוח,,הורד דוח (CSV)
+components/ManageLists.tsx:180,Imported from translated_strings,Entry Name,שם הרשומה,ערך,שם,שם,,שם הרשומה
+components/ManageLists.tsx:188,Imported from translated_strings,Export,ייצוא,שמור כקובץ חיצוני,הפצה,ייצוא,,ייצוא
+components/FinancialDashboard.tsx:476,Imported from translated_strings,Financial Dashboard,לוח בקרה פיננסי,סקירה כספית,דשבורד כספים,מצב פיננסי,,לוח בקרה פיננסי
+components/ManageLists.tsx:205,Imported from translated_strings,How to use this tool:,איך להשתמש בכלי זה:,מדריך למשתמש,הוראות,איך זה עובד?,,איך להשתמש בכלי זה:
+components/FinancialDashboard.tsx:511,Imported from translated_strings,Hourly,שעתי,לפי שעה,כל שעה,שעתי,,שעתי
+components/TeacherManager.tsx:936,Imported from translated_strings,Import Teachers from CSV,ייבוא מורים מקובץ CSV,טעינת סגל מקובץ,הוספה המונית,ייבוא מורים,,ייבוא מורים מקובץ CSV
+components/CalendarView.tsx:1222,Imported from translated_strings,Live,חי,בשידור חי,פעיל עכשיו,בלייב,,חי
+components/FinancialDashboard.tsx:570,Imported from translated_strings,Monthly,חודשי,מדי חודש,כל חודש,חודשי,,חודשי
+components/CalendarView.tsx:1304,Imported from translated_strings,No Filters,ללא פילטרים,ללא סינון,הכל,נקה הכל,,ללא פילטרים
+components/CalendarView.tsx:1620,Imported from translated_strings,No Room,ללא חדר,אין חדר,לא נבחר מיקום,אין חדר,,ללא חדר
+components/TeacherManager.tsx:908,Imported from translated_strings,No teachers found in this file.,לא נמצאו מורים בקובץ זה.,הקובץ ריק מנתוני סגל,אין נתונים,קובץ ריק,,לא נמצאו מורים בקובץ זה.
+components/ChartBuilderModal.tsx:915,Imported from translated_strings,Position Name,שם התפקיד,הגדרת המשרה,תפקיד,שם תפקיד,,שם התפקיד
+components/ChartBuilderModal.tsx:938,Imported from translated_strings,Preview,תצוגה מקדימה,הצג לפני שמירה,איך זה נראה?,תצוגה,,תצוגה מקדימה
+components/FinancialDashboard.tsx:505,Imported from translated_strings,Revenue Trend,מגמת הכנסות,גרף רווחים,כיוון הכנסות,מגמה,,מגמת הכנסות
+components/ChartBuilderModal.tsx:948,Imported from translated_strings,Save,שמירה,שמור,אישור,שמור,,שמירה
+components/CalendarView.tsx:1931,Imported from translated_strings,Save & Update Series,שמור ועדכן סדרה,עדכון כל המופעים,שמור הכל,עדכן סדרה,,שמור ועדכן סדרה
+components/CalendarView.tsx:1938,Imported from translated_strings,Save Changes,שמור שינויים,עדכן,אישור,שמור,,שמור שינויים
+components/ChartBuilderModal.tsx:912,Imported from translated_strings,Select Icon,בחר אייקון,בחירת סמל,אייקון,בחר סמל,,בחר אייקון
+components/FinancialAnalysis.tsx:246,Imported from translated_strings,Select the time period for analysis (independent of grouping),בחר את תקופת הזמן לניתוח (ללא קשר להקבצה),קביעת טווח תאריכים,בחר זמן,תקופת ניתוח,,בחר את תקופת הזמן לניתוח (ללא קשר להקבצה)
+components/TeacherManager.tsx:905,Imported from translated_strings,Select Teachers to Import,בחר מורים לייבוא,סמן אנשי סגל לטעינה,מי לייבא?,בחר מורים,,בחר מורים לייבוא
+components/TeacherManager.tsx:937,Imported from translated_strings,"Select your .csv file with columns: Name, Email, Phone, Tags",בחר קובץ .csv עם העמודות: שם,אימייל,טלפון,תגיות,העלה קובץ נתונים מפורמט,בחר קובץ
+components/TeacherManager.tsx:911,Imported from translated_strings,Selected,נבחרו,סומנו,נבחרו מורים,נבחר,,נבחרו
+components/TeacherManager.tsx:904,Imported from translated_strings,Skip,דלג,וותר,הבא,דלג,,דלג
+components/ManageLists.tsx:189,Imported from translated_strings,Template,תבנית,קובץ אב,פורמט מקור עקבי,תבנית,,תבנית
+components/Settings.tsx:325,Imported from translated_strings,Testing Tools,כלי בדיקה,סל פתרונות ניסוי שגיאות,מרחב הניסוי והטעייה,בדיקות,,כלי בדיקה
+components/FinancialAnalysis.tsx:173,Imported from translated_strings,This action cannot be undone.,לא ניתן לבטל פעולה זו.,מחיקה פרמננטית מסוכנת,אובדן נתונים לא הפיך לחלוטין,בלתי הפיך,,לא ניתן לבטל פעולה זו.
+components/CalendarView.tsx:1884,Imported from translated_strings,This is part of a recurring series. What would you like to,זהו אירוע מתוך סדרה חוזרת. מה תרצה לעשות,נמצא ברצף אירועים מתגלגל,זה חלק מגוש מתמשך זמן מה לא לעשות,שייך לסדרה,,זהו אירוע מתוך סדרה חוזרת. מה תרצה לעשות
+components/CalendarView.tsx:1226,Imported from translated_strings,TODAY,היום,המועד הנוכחי,זמננו המדויק עכשיו,היום!,,היום
+components/CalendarView.tsx:1306,Imported from translated_strings,Type: All,סוג: הכל,לפי סוג: כולם,כל סוג פעילות באזור,סוג הפעילות,,סוג: הכל
+components/TeacherManager.tsx:906,Imported from translated_strings,unique teachers. Select the ones you want to import.,מורים ייחודיים. בחר את אלו שברצונך לייבוא.,אנשי סגל חדשים לזיהוי,מי להוסיף?,מורים לייבוא,,מורים ייחודיים. בחר את אלו שברצונך לייבוא.
+components/ManageLists.tsx:162,Imported from translated_strings,Update your app by modifying these lists.,עדכן את האפליקציה שלך על ידי שינוי רשימות אלו.,ניהול ערכי המערכת,שנה רשימות,עדכון נתונים,,עדכן את האפליקציה שלך על ידי שינוי רשימות אלו.
+nav_analysis,Sidebar link,Analysis,ניתוח,ניתוח נתונים,ניתוח,ניתוח,,ניתוח
+nav_super_admin,Sidebar link,Super Admin,מנהל-על,ניהול מערכת עליון,מנהל-על,מנהל-על,,מנהל-על
+btn_sign_out,Sidebar button,Sign Out,יציאה,התנתקות מהמערכת,יציאה,להתנתק,,יציאה
+theme_light,Theme toggle,Light Mode,מצב בהיר,מצב תצוגה בהיר,בהיר,מצב בהיר,,מצב בהיר
+theme_dark,Theme toggle,Dark Mode,מצב כהה,מצב תצוגה כהה,כהה,מצב כהה,,מצב כהה
+nav_mobile_access,Sidebar link,Mobile Access,גישה מנייד,גישה ממכשיר נייד,מובייל,גישה מנייד,,גישה מנייד
+footer_copyright,Footer text,Copyright Noam Solutions.,זכויות יוצרים Noam Solutions.,כל הזכויות שמורות ל-Noam Solutions.,© Noam Solutions,© Noam Solutions,,זכויות יוצרים Noam Solutions.
+sidebar_expand,Tooltip,Expand Sidebar,הרחב תפריט צד,הרחב את סרגל הצד,הרחב,הרחב,,הרחב תפריט צד
+sidebar_collapse,Tooltip,Collapse Sidebar,כווץ תפריט צד,כווץ את סרגל הצד,כווץ,כווץ,,כווץ תפריט צד
+btn_open_menu,Tooltip,Open Menu,פתח תפריט,פתח את התפריט,תפריט,פתח תפריט,,פתח תפריט
+set_section_currency,Section header,Currency,מטבע,הגדרות מטבע,מטבע,מטבע,,מטבע
+set_label_currency_symbol,Input label,Currency Symbol,סמל מטבע,סמל המטבע הפעיל,סמל,סמל מטבע,,סמל מטבע
+set_currency_desc,Description,This symbol will appear next to all cost values in the financial dashboard, analysis, and exports.,סמל זה יופיע ליד כל ערכי העלות בדשבורד הפיננסי, הניתוח והייצוא.,סמל זה ישמש להצגת ערכים כספיים בכל חלקי המערכת.,מופיע ליד כל ערך כספי,סימן הכסף בכל מקום,,סמל זה יופיע ליד כל ערכי העלות בדשבורד הפיננסי, הניתוח והייצוא.
+set_currency_inr,Option,₹ — Indian Rupee (INR),₹ — רופי הודי,₹ — INR,₹ — רופי,רופי הודי,,₹ — רופי הודי
+set_currency_btc,Option,₿ — Bitcoin (BTC),₿ — ביטקוין,₿ — BTC,₿ — ביטקוין,ביטקוין,,₿ — ביטקוין
+set_week_hidden,Option,Hidden,מוסתר,מספרי שבוע מוסתרים,מוסתר,מוסתר,,מוסתר
+set_week_number,Option,Week Number,מספר שבוע,מספר שבוע שנתי,מספר,מספר שבוע,,מספר שבוע
+set_week_of,Option,Week of...,שבוע של...,שבוע שמתחיל בתאריך...,שבוע של,שבוע של...,,שבוע של...
+set_gcal_sync,Section title,Google Calendar Sync,סנכרון יומן Google,סנכרון עם יומן Google,סנכרון Google,סנכרון גוגל,,סנכרון יומן Google
+set_gcal_desc,Description,Push scheduled lessons to the tenant admin's Google Calendar.,דחיפת שיעורים מתוזמנים ליומן Google של מנהל הארגון.,העברת שיעורים שנקבעו ליומן Google של מנהל המערכת.,סנכרון שיעורים ליומן,דחיפת שיעורים לגוגל,,דחיפת שיעורים מתוזמנים ליומן Google של מנהל הארגון.
+btn_connect_account,Button,Connect My Account,חבר את החשבון שלי,חיבור החשבון האישי,חבר חשבון,חבר אותי,,חבר את החשבון שלי
+btn_disconnect,Button,Disconnect,נתק,ניתוק הסנכרון,נתק,נתק,,נתק
+label_admin_only,Status label,Admin only,מנהלים בלבד,זמין למנהלי מערכת בלבד,מנהלים בלבד,רק למנהלים,,מנהלים בלבד
+label_managed_by_admin,Status label,Managed by tenant admin,מנוהל על ידי מנהל הארגון,בניהול מנהל הארגון,מנוהל בידי מנהל,מנהל מטפל,,מנוהל על ידי מנהל הארגון
+set_connected_via,Label,Connected via,מחובר דרך,חשבון מחובר באמצעות,מחובר דרך,מחובר דרך,,מחובר דרך
+set_sync_inactive,Warning,Different account — sync inactive for you,חשבון אחר — סנכרון לא פעיל עבורך,חשבון שונה — הסנכרון אינו פעיל עבורך,סנכרון לא פעיל,לא מסונכרן עבורך,,חשבון אחר — סנכרון לא פעיל עבורך
+set_token_expired,Warning,Authentication token expired. Please reconnect to restore sync.,אסימון האימות פג תוקף. חבר מחדש כדי לשחזר את הסנכרון.,תוקף אסימון האימות פג. יש להתחבר מחדש.,אסימון פג תוקף,חבר מחדש,,אסימון האימות פג תוקף. חבר מחדש כדי לשחזר את הסנכרון.
+btn_reconnect,Button,Reconnect,חבר מחדש,התחברות מחדש,חבר מחדש,חבר מחדש,,חבר מחדש
+set_fetching_cals,Loading,Fetching your calendars...,מביא את היומנים שלך...,טוען את רשימת היומנים...,טוען יומנים...,רגע...,,מביא את היומנים שלך...
+set_select_calendar,Label,Select Target Calendar,בחר יומן יעד,בחירת יומן היעד,בחר יומן,בחר יומן,,בחר יומן יעד
+set_choose_cal,Placeholder,-- Choose a calendar --,— בחר יומן —,— בחר יומן מהרשימה —,— בחר —,— בחר יומן —,,— בחר יומן —
+set_primary,Label,(Primary),(ראשי),(יומן ראשי),(ראשי),(ראשי),,(ראשי)
+set_auto_add_desc,Description,New lessons will be automatically added to this calendar.,שיעורים חדשים יתווספו אוטומטית ליומן זה.,שיעורים שנוצרו יתווספו באופן אוטומטי ליומן הנבחר.,הוספה אוטומטית,שיעורים חדשים נכנסים אוטומטית,,שיעורים חדשים יתווספו אוטומטית ליומן זה.
+set_sync_managed_by,Description,Calendar sync is managed by {email},סנכרון היומן מנוהל על ידי {email},ניהול הסנכרון באחריות {email},מנוהל ע"י {email},{email} מנהל את הסנכרון,,סנכרון היומן מנוהל על ידי {email}
+set_sync_condition,Description,Events will only sync to Google Calendar when the designated admin ({email}) is logged in. Only that account can modify the calendar configuration.,אירועים יסתנכרנו ליומן Google רק כאשר המנהל המיועד ({email}) מחובר. רק חשבון זה יכול לשנות את הגדרות היומן.,הסנכרון פעיל רק בעת התחברות המנהל ({email}). שינוי הגדרות יומן אפשרי רק מחשבון זה.,סנכרון רק כשמנהל מחובר,עובד רק כש-{email} מחובר,,אירועים יסתנכרנו ליומן Google רק כאשר המנהל המיועד ({email}) מחובר. רק חשבון זה יכול לשנות את הגדרות היומן.
+fin_all_time,Option,All Time,כל הזמנים,כל הנתונים ההיסטוריים,הכל,מאז ומעולם,,כל הזמנים
+fin_grand_total,Stat label,Grand Total,סה"כ כולל,סיכום כולל כל ההכנסות,סה"כ,סך הכל,,סה"כ כולל
+fin_hourly_fees,Stat label,Hourly Fees,תעריפים שעתיים,עלויות שעתיות מצטברות,שעתי,שכר שעתי,,תעריפים שעתיים
+fin_global_monthly,Stat label,Global Monthly,חודשי גלובלי,עלויות חודשיות קבועות,חודשי,חודשי,,חודשי גלובלי
+fin_active_hours,Stat label,Active Hours,שעות פעילות,סה"כ שעות הוראה פעילות,שעות,שעות פעילות,,שעות פעילות
+fin_canceled_label,Stat label,Canceled,מבוטלים,אירועים מבוטלים,מבוטל,מבוטל,,מבוטלים
+fin_teacher_metrics,Section title,Teacher Metrics,מדדי מורים,נתונים מפורטים לפי מורה,מדדי מורים,נתוני מורים,,מדדי מורים
+fin_sort_hint,Hint text,· Click headers to sort,· לחץ על הכותרות למיון,· ניתן למיין בלחיצה על כותרות,· לחץ למיון,מיון לפי כותרת,,· לחץ על הכותרות למיון
+col_name,Table header,Name,שם,שם,שם,שם,,שם
+col_active_hrs,Table header,Active Hrs,שעות פעילות,שעות הוראה פעילות,שעות,שעות פעילות,,שעות פעילות
+col_canceled_hrs,Table header,Canceled Hrs,שעות מבוטלות,שעות שבוטלו,מבוטלות,שעות מבוטלות,,שעות מבוטלות
+col_cancel_count,Table header,Cancel #,מס' ביטולים,מספר ביטולים,ביטולים,ביטולים,,מס' ביטולים
+col_hourly_cost,Table header,Hourly Cost,עלות שעתית,עלות מבוססת שעות,שעתי,עלות שעתית,,עלות שעתית
+col_one_off_cost,Table header,One-Off Cost,עלות חד-פעמית,עלויות חד-פעמיות,חד-פעמי,עלות חד-פעמית,,עלות חד-פעמית
+col_global_cost,Table header,Global Cost,עלות גלובלית,עלויות חודשיות קבועות,גלובלי,עלות גלובלית,,עלות גלובלית
+col_total,Table header,Total,סה"כ,סיכום כולל,סה"כ,סה"כ,,סה"כ
+col_recipient,Table header,Recipient,נמען,שם הנמען,נמען,נמען,,נמען
+col_email_address,Table header,Email Address,כתובת אימייל,כתובת דואר אלקטרוני,אימייל,מייל,,כתובת אימייל
+col_total_payout,Table header,Total Payout,סה"כ תשלום,סיכום תשלום כולל,סה"כ,סה"כ תשלום,,סה"כ תשלום
+fin_delete_chart,Modal title,Delete Chart,מחק תרשים,מחיקת תרשים,מחק,מחק תרשים,,מחק תרשים
+fin_insight_title,Input label,Insight Title,כותרת תובנה,שם התובנה,כותרת,כותרת תובנה,,כותרת תובנה
+fin_metric,Input label,Metric,מדד,מדד לניתוח,מדד,מדד,,מדד
+fin_total_active_hours,Option,Total Active Hours,סה"כ שעות פעילות,סיכום שעות הוראה פעילות,שעות פעילות,שעות פעילות,,סה"כ שעות פעילות
+fin_total_canceled_hours,Option,Total Canceled Hours,סה"כ שעות מבוטלות,סה"כ שעות שבוטלו,מבוטלות,שעות מבוטלות,,סה"כ שעות מבוטלות
+fin_hourly_payroll,Option,Hourly Payroll,שכר שעתי,עלויות שכר שעתיות,שעתי,שכר שעתי,,שכר שעתי
+fin_global_payroll,Option,Global Payroll,שכר גלובלי,עלויות שכר חודשיות,גלובלי,שכר גלובלי,,שכר גלובלי
+fin_grand_total_payroll,Option,Grand Total Payroll,סה"כ שכר,סיכום כולל של עלויות שכר,סה"כ שכר,סה"כ שכר,,סה"כ שכר
+fin_avg_hours_teacher,Option,Avg Hours per Teacher,ממוצע שעות למורה,ממוצע שעות הוראה למורה,ממוצע שעות,ממוצע שעות,,ממוצע שעות למורה
+fin_avg_payroll_teacher,Option,Avg Payroll per Teacher,ממוצע שכר למורה,ממוצע עלות שכר למורה,ממוצע שכר,ממוצע שכר,,ממוצע שכר למורה
+fin_cancel_rate,Option,Cancellation Rate,שיעור ביטולים,אחוז אירועים שבוטלו,ביטולים,שיעור ביטולים,,שיעור ביטולים
+fin_highest_earner,Option,Highest Earner,המשתכר הגבוה,המורה עם ההשתכרות הגבוהה,הגבוה,המשתכר הגבוה,,המשתכר הגבוה
+fin_lowest_earner,Option,Lowest Earner,המשתכר הנמוך,המורה עם ההשתכרות הנמוכה,הנמוך,המשתכר הנמוך,,המשתכר הנמוך
+filter_all_teachers,Filter option,All Teachers,כל המורים,כל אנשי הסגל,כל המורים,כולם,,כל המורים
+btn_save_insight,Button,Save Insight,שמור תובנה,שמירת התובנה,שמור,שמור תובנה,,שמור תובנה
+btn_download_report,Button,Download Report (CSV),הורד דוח (CSV),הורדת דוח בפורמט CSV,הורד דוח,הורד דוח,,הורד דוח (CSV)
+fin_choose_insights,Section title,Choose Visible Insights,בחר תובנות לתצוגה,בחירת תובנות להצגה,בחר תובנות,בחר תובנות,,בחר תובנות לתצוגה
+fin_no_insights,Empty state,No insights selected. Click Edit to choose which insights to display.,לא נבחרו תובנות. לחץ על ערוך כדי לבחור אילו תובנות להציג.,לא הוגדרו תובנות. לחץ עריכה לבחירת תובנות.,אין תובנות,לחץ ערוך לבחירת תובנות,,לא נבחרו תובנות. לחץ על ערוך כדי לבחור אילו תובנות להציג.
+fin_create_first_chart,Empty state,Create your first custom chart,צור את התרשים המותאם הראשון שלך,יצירת התרשים המותאם הראשון,צור תרשים,צור תרשים ראשון,,צור את התרשים המותאם הראשון שלך
+fin_back_to_dashboard,Tooltip,Back to Dashboard,חזרה לדשבורד,חזרה ללוח הבקרה,חזור,חזרה,,חזרה לדשבורד
+teach_page_title,Page header,Teacher Management,ניהול מורים,מערכת ניהול צוות הוראה,ניהול מורים,ניהול מורים,,ניהול מורים
+filter_all_categories,Filter option,All Categories,כל הקטגוריות,כל הסיווגים,הכל,כל הקטגוריות,,כל הקטגוריות
+filter_by_position,Filter option,Filter by Position,סנן לפי תפקיד,סינון לפי הגדרת תפקיד,לפי תפקיד,סנן לפי תפקיד,,סנן לפי תפקיד
+filter_by_tag,Filter option,Filter by Tag,סנן לפי תגית,סינון לפי תגית ניהולית,לפי תגית,סנן לפי תגית,,סנן לפי תגית
+col_positions_rates,Table header,Positions & Rates,תפקידים ותעריפים,תפקידי הוראה ותעריפים,תפקידים,תפקידים ותעריפים,,תפקידים ותעריפים
+col_contact,Table header,Contact,פרטי קשר,פרטי יצירת קשר,קשר,פרטי קשר,,פרטי קשר
+label_full_name,Input label,Full Name,שם מלא,שם המורה המלא,שם,שם מלא,,שם מלא
+label_teacher_color,Input label,Teacher Color,צבע המורה,צבע ייצוגי למורה,צבע,צבע,,צבע המורה
+label_position_assignment,Label,Position Assignment,שיוך תפקיד,הגדרת שיוך תפקיד,תפקיד,שיוך תפקיד,,שיוך תפקיד
+label_category,Input label,Category,קטגוריה,סיווג הפעילות,קטגוריה,קטגוריה,,קטגוריה
+label_rate_type,Input label,Rate Type,סוג תעריף,סוג התעריף,תעריף,סוג תעריף,,סוג תעריף
+teach_import_title,Modal title,Import Teachers,ייבוא מורים,ייבוא צוות הוראה,ייבוא,ייבוא מורים,,ייבוא מורים
+col_rates,Table header,Rates,תעריפים,תעריפי שכר,תעריפים,תעריפים,,תעריפים
+placeholder_search_teachers,Placeholder,Search teachers...,חפש מורים...,חיפוש בצוות ההוראה...,חפש...,חפש מורים...,,חפש מורים...
+placeholder_or_type_new,Placeholder,Or type new...,או הקלד חדש...,או הזן ערך חדש...,חדש...,או הקלד חדש...,,או הקלד חדש...
+tooltip_remove_position,Tooltip,Remove position,הסר תפקיד,הסרת שיוך תפקיד,הסר,הסר תפקיד,,הסר תפקיד
+room_title,Page header,Room Management,ניהול חדרים,ניהול חדרים ומרחבים,חדרים,ניהול חדרים,,ניהול חדרים
+room_itinerary,Section header,Itinerary & Equipment,ציוד ואביזרים,ציוד וריהוט בחדר,ציוד,ציוד ואביזרים,,ציוד ואביזרים
+label_room_name,Input label,Room Name,שם החדר,שם החדר/המיקום,שם,שם החדר,,שם החדר
+label_itinerary_desc,Input label,Itinerary / Description,תיאור / ציוד,תיאור החדר והציוד,תיאור,תיאור / ציוד,,תיאור / ציוד
+placeholder_room_details,Placeholder,Details about equipment, capacity, etc.,פרטים על ציוד, קיבולת וכדומה,פרטים אודות ציוד, קיבולת ותנאי החדר,ציוד, קיבולת,פרטים על ציוד וקיבולת,,פרטים על ציוד, קיבולת וכדומה
+gantt_label_title,Input label,Title,כותרת,כותרת התקופה,כותרת,כותרת,,כותרת
+gantt_label_start_date,Input label,Start Date,תאריך התחלה,תאריך תחילת התקופה,התחלה,תאריך התחלה,,תאריך התחלה
+gantt_label_end_date,Input label,End Date,תאריך סיום,תאריך סיום התקופה,סיום,תאריך סיום,,תאריך סיום
+gantt_label_color,Input label,Display Color,צבע תצוגה,צבע הצגה בגרף,צבע,צבע,,צבע תצוגה
+gantt_apply_blackout,Toggle label,Apply Blackout,החל חסימה,הפעלת חסימת תקופה,חסימה,החל חסימה,,החל חסימה
+gantt_blackout_desc,Description,Automatically HIDE all events in this range from calendar and reports.,הסתר אוטומטית את כל האירועים בטווח זה מהיומן ומהדוחות.,הסתרה אוטומטית של כל האירועים בטווח מהיומן ומהדוחות.,הסתר אירועים,הסתר הכל בטווח,,הסתר אוטומטית את כל האירועים בטווח זה מהיומן ומהדוחות.
+gantt_subtitle,Page subtitle,Manage semesters & blackouts.,ניהול סמסטרים וחופשות.,ניהול תקופות לימוד וחופשות.,סמסטרים וחופשות,ניהול סמסטרים,,ניהול סמסטרים וחופשות.
+pt_time_range,Section header,Time Range,טווח זמן,הגדרת טווח תאריכים,זמן,טווח זמן,,טווח זמן
+label_from,Input label,From,מ-,מתאריך,מ-,מ-,,מ-
+label_to,Input label,To,עד,עד תאריך,עד,עד,,עד
+pt_criteria,Section header,Criteria,קריטריונים,קריטריונים לסינון,קריטריונים,קריטריונים,,קריטריונים
+filter_all_types,Filter option,All Types,כל הסוגים,כל סוגי הפעילויות,הכל,כל הסוגים,,כל הסוגים
+filter_all_tags,Filter option,All Tags,כל התגיות,כל התגיות הניהוליות,הכל,כל התגיות,,כל התגיות
+pt_interactive,Section title,Interactive Selection,בחירה אינטראקטיבית,בחירת אירועים ידנית,בחירה ידנית,בחירה אינטראקטיבית,,בחירה אינטראקטיבית
+pt_import_csv,Section title,Import Schedule from CSV,ייבוא מערכת שעות מ-CSV,ייבוא מערכת שעות מקובץ CSV,ייבוא CSV,ייבוא מ-CSV,,ייבוא מערכת שעות מ-CSV
+label_blackout,Badge,BLACKOUT,חסימה,תקופת חסימה,חסימה,חסימה,,חסימה
+cal_canceled,Status,CANCELED,מבוטל,מבוטל,מבוטל,מבוטל,,מבוטל
+cal_no_events,Empty state,No events,אין אירועים,אין אירועים בתאריך זה,אין אירועים,אין אירועים,,אין אירועים
+cal_hide_canceled,Toggle,Hide Canceled,הסתר מבוטלים,הסתר אירועים מבוטלים,הסתר מבוטלים,הסתר מבוטלים,,הסתר מבוטלים
+cal_hide_blackouts,Toggle,Hide Blackouts,הסתר חסימות,הסתר תקופות חסומות,הסתר חסימות,הסתר חסימות,,הסתר חסימות
+cal_label_event_name,Input label,Event Name,שם האירוע,שם האירוע,שם,שם האירוע,,שם האירוע
+cal_select_category,Placeholder,Select Category,בחר קטגוריה,בחר סוג פעילות,בחר,בחר קטגוריה,,בחר קטגוריה
+cal_recurring_event,Toggle label,Recurring Event,אירוע מחזורי,הגדרת אירוע חוזר,מחזורי,אירוע מחזורי,,אירוע מחזורי
+cal_every,Label,Every,כל,חזרה כל,כל,כל,,כל
+cal_on_days,Label,On days,בימים,בימים הבאים,בימים,בימים,,בימים
+cal_monthly_mode,Label,Monthly mode,מחזוריות חודשית,הגדרת מחזור חודשי,חודשי,מצב חודשי,,מחזוריות חודשית
+cal_mark_canceled,Toggle label,Mark as Canceled,סמן כמבוטל,סימון כאירוע מבוטל,מבוטל,סמן כמבוטל,,סמן כמבוטל
+cal_cancel_pay_status,Input label,Cancellation Pay Status,סטטוס תשלום ביטול,הגדרת תשלום בעת ביטול,תשלום ביטול,סטטוס תשלום,,סטטוס תשלום ביטול
+cal_no_pay,Option,No Pay,ללא תשלום,ביטול ללא תשלום,ללא תשלום,ללא תשלום,,ללא תשלום
+cal_paid_cancel,Option,Paid Cancellation,ביטול בתשלום,ביטול עם תשלום מלא,בתשלום,ביטול בתשלום,,ביטול בתשלום
+cal_delete_event,Button,Delete Event,מחק אירוע,מחיקת אירוע,מחק,מחק אירוע,,מחק אירוע
+cal_payment_method,Input label,Payment Method,שיטת תשלום,אופן התשלום,תשלום,שיטת תשלום,,שיטת תשלום
+placeholder_event_name,Placeholder,e.g. Piano Lesson,לדוגמה: שיעור פסנתר,לדוגמה: שיעור פסנתר,שיעור פסנתר,לדוגמה: שיעור פסנתר,,לדוגמה: שיעור פסנתר
+tooltip_add_event,Tooltip,Click to add event,לחץ להוספת אירוע,לחץ ליצירת אירוע חדש,הוסף אירוע,לחץ להוספת אירוע,,לחץ להוספת אירוע
+tooltip_toggle_filters,Tooltip,Toggle Filters,הצג/הסתר פילטרים,החלפת תצוגת פילטרים,פילטרים,הצג פילטרים,,הצג/הסתר פילטרים
+chart_title_label,Input label,Chart Title,כותרת התרשים,שם התרשים,כותרת,כותרת,,כותרת התרשים
+chart_filter_mode,Label,Filter Mode,מצב סינון,הגדרת אופן הסינון,סינון,מצב סינון,,מצב סינון
+chart_live,Option,Live,חי,נתונים בזמן אמת,חי,חי,,חי
+chart_live_desc,Description,Reacts to dashboard filters,מגיב לפילטרי הדשבורד,מעודכן בהתאם לפילטרים הפעילים,מגיב לפילטרים,מגיב לפילטרים,,מגיב לפילטרי הדשבורד
+chart_snapshot,Option,Snapshot,תמונת מצב,נתונים מוקפאים,תמונה,תמונת מצב,,תמונת מצב
+chart_snapshot_desc,Description,Freezes filters at save time,מקפיא פילטרים בעת השמירה,שומר את הפילטרים כפי שהוגדרו בעת השמירה,מקפיא פילטרים,מקפיא בשמירה,,מקפיא פילטרים בעת השמירה
+chart_sort_by,Label,Sort By,מיין לפי,מיון לפי,מיין,מיין לפי,,מיין לפי
+chart_dimension_label,Option,Dimension Label,תווית מימד,מיון לפי שם,תווית,לפי שם,,תווית מימד
+chart_ascending,Option,Ascending,עולה,סדר עולה,עולה,עולה,,עולה
+chart_descending,Option,Descending,יורד,סדר יורד,יורד,יורד,,יורד
+chart_no_options,Empty state,No options available,אין אפשרויות זמינות,אין אפשרויות להצגה,ריק,אין אפשרויות,,אין אפשרויות זמינות
+filter_teachers,Filter section,Teachers,מורים,צוות הוראה,מורים,מורים,,מורים
+filter_positions,Filter section,Positions,תפקידים,תפקידי הוראה,תפקידים,תפקידים,,תפקידים
+filter_tags,Filter section,Tags,תגיות,תגיות ניהוליות,תגיות,תגיות,,תגיות
+filter_categories,Filter section,Categories,קטגוריות,סיווגי פעילות,קטגוריות,קטגוריות,,קטגוריות
+filter_rate_type,Filter section,Rate Type,סוג תעריף,סוג תעריף שכר,תעריף,סוג תעריף,,סוג תעריף
+list_classifications,Category title,Classifications,סיווגים,רשימת סיווגי פעילות,סיווגים,סיווגים,,סיווגים
+auth_sign_in_google,Button,Sign In with Google,התחבר עם Google,התחברות באמצעות חשבון Google,התחבר,התחבר עם גוגל,,התחבר עם Google
+auth_workspaces,Section title,Authorized Workspaces,סביבות עבודה מורשות,סביבות עבודה מאושרות,סביבות עבודה,סביבות עבודה,,סביבות עבודה מורשות
+confirm_delete_event,Dialog,Are you sure you want to delete this event?,האם אתה בטוח שברצונך למחוק אירוע זה?,האם ברצונך למחוק אירוע זה?,למחוק אירוע?,בטוח למחוק?,,האם אתה בטוח שברצונך למחוק אירוע זה?
+confirm_delete_gantt,Dialog,Delete this Gantt block? This may affect blackouts.,למחוק בלוק זה? הפעולה עשויה להשפיע על חסימות.,האם למחוק בלוק זה? פעולה זו עלולה להשפיע על חסימות.,למחוק? משפיע על חסימות,בטוח? עלול להשפיע,,למחוק בלוק זה? הפעולה עשויה להשפיע על חסימות.
+alert_end_time,Error alert,End time must be after start time,זמן הסיום חייב להיות אחרי זמן ההתחלה,שעת הסיום חייבת להיות מאוחרת משעת ההתחלה,שגיאת שעה,זמן לא תקין,,זמן הסיום חייב להיות אחרי זמן ההתחלה
+confirm_delete_teacher,Dialog,Are you sure you want to delete this teacher? Associated events will show warnings.,האם למחוק מורה זה? אירועים קשורים יציגו אזהרות.,האם ברצונך למחוק מורה זה? אירועים שנוצרו בשמו יציגו אזהרות.,למחוק מורה?,בטוח? אירועים יראו אזהרה,,האם למחוק מורה זה? אירועים קשורים יציגו אזהרות.
+confirm_delete_room,Dialog,Are you sure? Scheduled events will flag warnings.,האם אתה בטוח? אירועים מתוזמנים יציגו אזהרות.,האם ברצונך להמשיך? אירועים מתוזמנים יציגו אזהרות.,בטוח? אזהרות באירועים,בטוח?,,האם אתה בטוח? אירועים מתוזמנים יציגו אזהרות.
+confirm_delete_gantt_block,Dialog,Delete this block? If it is a blackout, events will be restored.,למחוק בלוק זה? אם זו חסימה, האירועים ישוחזרו.,האם למחוק? במקרה של חסימה, האירועים יחזרו לתצוגה.,למחוק? אירועים ישוחזרו,בטוח?,,למחוק בלוק זה? אם זו חסימה, האירועים ישוחזרו.
+alert_error_reading_file,Error alert,Error reading file,שגיאה בקריאת הקובץ,אירעה שגיאה בקריאת הקובץ,שגיאת קובץ,שגיאה בקריאה,,שגיאה בקריאת הקובץ
+alert_no_valid_teachers,Error alert,No valid or new unique teachers found in CSV. Please ensure the file contains columns: Name, Email, Phone, Position, Category, RateType, RateValue, Tags,לא נמצאו מורים תקינים או חדשים ב-CSV. ודא שהקובץ מכיל עמודות: שם, אימייל, טלפון, תפקיד, קטגוריה, סוג תעריף, ערך תעריף, תגיות,לא אותרו רשומות חדשות בקובץ. ודא שהקובץ בפורמט הנדרש.,אין מורים חדשים ב-CSV,לא מצאנו מורים חדשים,,לא נמצאו מורים תקינים או חדשים ב-CSV. ודא שהקובץ מכיל עמודות: שם, אימייל, טלפון, תפקיד, קטגוריה, סוג תעריף, ערך תעריף, תגיות
+alert_no_valid_rows,Error alert,No valid rows found. Please ensure dates are in YYYY-MM-DD or DD/MM/YYYY format.,לא נמצאו שורות תקינות. ודא שהתאריכים בפורמט YYYY-MM-DD או DD/MM/YYYY.,לא נמצאו שורות תקינות. ודא שפורמט התאריכים תקין.,אין שורות תקינות,תאריכים לא תקינים,,לא נמצאו שורות תקינות. ודא שהתאריכים בפורמט YYYY-MM-DD או DD/MM/YYYY.
+alert_csv_parse_fail,Error alert,Failed to parse CSV file.,שגיאה בניתוח קובץ CSV.,אירעה שגיאה בעיבוד קובץ ה-CSV.,שגיאת CSV,CSV לא תקין,,שגיאה בניתוח קובץ CSV.
+confirm_delete_all_data,Dialog,Are you sure you want to permanently delete all Teachers, Rooms, Events, and Gantt Blocks from THIS workspace in the cloud?,האם אתה בטוח שברצונך למחוק לצמיתות את כל המורים, החדרים, האירועים ובלוקי הגאנט ממרחב העבודה הזה בענן?,האם ברצונך למחוק לצמיתות את כל הנתונים במרחב עבודה זה?,למחוק הכל?,בטוח? הכל יימחק,,האם אתה בטוח שברצונך למחוק לצמיתות את כל המורים, החדרים, האירועים ובלוקי הגאנט ממרחב העבודה הזה בענן?
+tooltip_edit,Tooltip,Edit,ערוך,עריכה,ערוך,ערוך,,ערוך
+tooltip_duplicate,Tooltip,Duplicate,שכפל,שכפול,שכפל,שכפל,,שכפל
+tooltip_delete,Tooltip,Delete,מחק,מחיקה,מחק,מחק,,מחק
+tooltip_switch_light,Tooltip,Switch to Light Mode,עבור למצב בהיר,מעבר למצב תצוגה בהיר,מצב בהיר,עבור לבהיר,,עבור למצב בהיר
+tooltip_switch_dark,Tooltip,Switch to Dark Mode,עבור למצב כהה,מעבר למצב תצוגה כהה,מצב כהה,עבור לכהה,,עבור למצב כהה
+dynamic_rate_hourly,Dynamic label,Rate ({currency}/hour),תעריף ({currency}/שעה),תעריף ({currency} לשעה),({currency}/שעה),תעריף ({currency}/שעה),,תעריף ({currency}/שעה)
+dynamic_monthly_fee,Dynamic label,Monthly Fee ({currency}),דמי חודשי ({currency}),תשלום חודשי ({currency}),({currency}),דמי חודשי ({currency}),,דמי חודשי ({currency})
+dynamic_send_reports,Dynamic button,Send {n} Reports,שלח {n} דוחות,שליחת {n} דוחות,שלח {n},שלח {n} דוחות,,שלח {n} דוחות
+dynamic_week_of,Dynamic label,Week of {date},שבוע של {date},שבוע שמתחיל ב-{date},שבוע {date},שבוע של {date},,שבוע של {date}
+
+analysis.title,analysis section,"Financial Analysis","ניתוח פיננסי","ניתוח פיננסי","ניתוח פיננסי","ניתוח פיננסי",,"ניתוח פיננסי"
+analysis.subtitle,analysis section,"Insights, charts, comparisons, and deep data exploration.","תובנות, תרשימים, השוואות, וחקירת נתונים מעמיקה.","תובנות, תרשימים, השוואות, וחקירת נתונים מעמיקה.","תובנות, תרשימים, השוואות, וחקירת נתונים מעמיקה.","תובנות, תרשימים, השוואות, וחקירת נתונים מעמיקה.",,"תובנות, תרשימים, השוואות, וחקירת נתונים מעמיקה."
+analysis.key_insights,analysis section,"Key Insights","תובנות מפתח","תובנות מפתח","תובנות מפתח","תובנות מפתח",,"תובנות מפתח"
+analysis.charts,analysis section,"Charts","תרשימים","תרשימים","תרשימים","תרשימים",,"תרשימים"
+analysis.new_chart,analysis section,"New Chart","תרשים חדש","תרשים חדש","תרשים חדש","תרשים חדש",,"תרשים חדש"
+analysis.create_first_chart,analysis section,"Create your first custom chart","צור את התרשים המותאם הראשון שלך","צור את התרשים המותאם הראשון שלך","צור את התרשים המותאם הראשון שלך","צור את התרשים המותאם הראשון שלך",,"צור את התרשים המותאם הראשון שלך"
+analysis.create_first_chart_desc,analysis section,"Group data by any dimension, pick metrics, and choose a visualization","קבץ נתונים לפי כל ממד, בחר מדדים, ובחר סוג הצגה","קבץ נתונים לפי כל ממד, בחר מדדים, ובחר סוג הצגה","קבץ נתונים לפי כל ממד, בחר מדדים, ובחר סוג הצגה","קבץ נתונים לפי כל ממד, בחר מדדים, ובחר סוג הצגה",,"קבץ נתונים לפי כל ממד, בחר מדדים, ובחר סוג הצגה"
+analysis.advanced_filters,analysis section,"Advanced Filters","פילטרים מתקדמים","פילטרים מתקדמים","פילטרים מתקדמים","פילטרים מתקדמים",,"פילטרים מתקדמים"
+analysis.clear_all,analysis section,"Clear all","נקה הכל","נקה הכל","נקה הכל","נקה הכל",,"נקה הכל"
+analysis.choose_insights,analysis section,"Choose Visible Insights","בחר תובנות גלויות","בחר תובנות גלויות","בחר תובנות גלויות","בחר תובנות גלויות",,"בחר תובנות גלויות"
+analysis.custom_insight,analysis section,"Custom Insight","תובנה מותאמת","תובנה מותאמת","תובנה מותאמת","תובנה מותאמת",,"תובנה מותאמת"
+analysis.show_all,analysis section,"Show All","הצג הכל","הצג הכל","הצג הכל","הצג הכל",,"הצג הכל"
+analysis.no_insights,analysis section,"No insights selected.","לא נבחרו תובנות.","לא נבחרו תובנות.","לא נבחרו תובנות.","לא נבחרו תובנות.",,"לא נבחרו תובנות."
+analysis.click_edit,analysis section,"Click Edit to choose which insights to display.","לחץ על עריכה לבחירת התובנות שיוצגו.","לחץ על עריכה לבחירת התובנות שיוצגו.","לחץ על עריכה לבחירת התובנות שיוצגו.","לחץ על עריכה לבחירת התובנות שיוצגו.",,"לחץ על עריכה לבחירת התובנות שיוצגו."
+analysis.filters,analysis section,"Filters","פילטרים","פילטרים","פילטרים","פילטרים",,"פילטרים"
+analysis.back_to_dashboard,analysis section,"Back to Dashboard","חזרה לדשבורד","חזרה לדשבורד","חזרה לדשבורד","חזרה לדשבורד",,"חזרה לדשבורד"
+analysis.open_menu,analysis section,"Open Menu","פתח תפריט","פתח תפריט","פתח תפריט","פתח תפריט",,"פתח תפריט"
+time.current_week,time section,"Current Week","שבוע נוכחי","שבוע נוכחי","שבוע נוכחי","שבוע נוכחי",,"שבוע נוכחי"
+time.current_month,time section,"Current Month","חודש נוכחי","חודש נוכחי","חודש נוכחי","חודש נוכחי",,"חודש נוכחי"
+time.custom_range,time section,"Custom Range","טווח מותאם","טווח מותאם","טווח מותאם","טווח מותאם",,"טווח מותאם"
+time.all_time,time section,"All Time","כל הזמנים","כל הזמנים","כל הזמנים","כל הזמנים",,"כל הזמנים"
+time.today,time section,"Today","היום","היום","היום","היום",,"היום"
+time.specific_day,time section,"Specific Day","יום ספציפי","יום ספציפי","יום ספציפי","יום ספציפי",,"יום ספציפי"
+time.specific_week,time section,"Specific Week","שבוע ספציפי","שבוע ספציפי","שבוע ספציפי","שבוע ספציפי",,"שבוע ספציפי"
+time.specific_month,time section,"Specific Month","חודש ספציפי","חודש ספציפי","חודש ספציפי","חודש ספציפי",,"חודש ספציפי"
+insight.most_hours,insight section,"Most Hours Taught","הכי הרבה שעות הוראה","הכי הרבה שעות הוראה","הכי הרבה שעות הוראה","הכי הרבה שעות הוראה",,"הכי הרבה שעות הוראה"
+insight.most_canceled,insight section,"Most Canceled Hours","הכי הרבה שעות מבוטלות","הכי הרבה שעות מבוטלות","הכי הרבה שעות מבוטלות","הכי הרבה שעות מבוטלות",,"הכי הרבה שעות מבוטלות"
+insight.highest_payroll,insight section,"Highest Payroll","שכר הכי גבוה","שכר הכי גבוה","שכר הכי גבוה","שכר הכי גבוה",,"שכר הכי גבוה"
+insight.lowest_payroll,insight section,"Lowest Payroll","שכר הכי נמוך","שכר הכי נמוך","שכר הכי נמוך","שכר הכי נמוך",,"שכר הכי נמוך"
+insight.cancel_rate,insight section,"Cancellation Rate","אחוז ביטולים","אחוז ביטולים","אחוז ביטולים","אחוז ביטולים",,"אחוז ביטולים"
+insight.avg_cost,insight section,"Avg Cost / Teacher","עלות ממוצעת / מורה","עלות ממוצעת / מורה","עלות ממוצעת / מורה","עלות ממוצעת / מורה",,"עלות ממוצעת / מורה"
+insight.top_position,insight section,"Top Position (Hrs)","תפקיד מוביל (שעות)","תפקיד מוביל (שעות)","תפקיד מוביל (שעות)","תפקיד מוביל (שעות)",,"תפקיד מוביל (שעות)"
+insight.cost_split,insight section,"Hourly vs Global","שעתי מול גלובלי","שעתי מול גלובלי","שעתי מול גלובלי","שעתי מול גלובלי",,"שעתי מול גלובלי"
+insight.most_positions,insight section,"Most Positions","הכי הרבה תפקידים","הכי הרבה תפקידים","הכי הרבה תפקידים","הכי הרבה תפקידים",,"הכי הרבה תפקידים"
+insight.active_teachers,insight section,"Active Teachers","מורים פעילים","מורים פעילים","מורים פעילים","מורים פעילים",,"מורים פעילים"
+insight.of_active_hours,insight section,"of all active hours","מכל השעות הפעילות","מכל השעות הפעילות","מכל השעות הפעילות","מכל השעות הפעילות",,"מכל השעות הפעילות"
+insight.of_their_hours,insight section,"of their total hours","מסך כל השעות שלהם","מסך כל השעות שלהם","מסך כל השעות שלהם","מסך כל השעות שלהם",,"מסך כל השעות שלהם"
+insight.no_cancellations,insight section,"No cancellations","אין ביטולים","אין ביטולים","אין ביטולים","אין ביטולים",,"אין ביטולים"
+insight.of_total_payroll,insight section,"of total payroll","מסך כל השכר","מסך כל השכר","מסך כל השכר","מסך כל השכר",,"מסך כל השכר"
+insight.of_total,insight section,"of total","מהסך הכל","מהסך הכל","מהסך הכל","מהסך הכל",,"מהסך הכל"
+insight.no_data,insight section,"No data","אין נתונים","אין נתונים","אין נתונים","אין נתונים",,"אין נתונים"
+insight.most_active_position,insight section,"Most active position","תפקיד הכי פעיל","תפקיד הכי פעיל","תפקיד הכי פעיל","תפקיד הכי פעיל",,"תפקיד הכי פעיל"
+metric.total_active_hours,metric section,"Total Active Hours","סה"כ שעות פעילות","סה"כ שעות פעילות","סה"כ שעות פעילות","סה"כ שעות פעילות",,"סה"כ שעות פעילות"
+metric.total_canceled_hours,metric section,"Total Canceled Hours","סה"כ שעות מבוטלות","סה"כ שעות מבוטלות","סה"כ שעות מבוטלות","סה"כ שעות מבוטלות",,"סה"כ שעות מבוטלות"
+metric.hourly_payroll,metric section,"Hourly Payroll","שכר שעתי","שכר שעתי","שכר שעתי","שכר שעתי",,"שכר שעתי"
+metric.oneoff_payroll,metric section,"One-Off Payroll","תשלום חד פעמי","תשלום חד פעמי","תשלום חד פעמי","תשלום חד פעמי",,"תשלום חד פעמי"
+metric.global_payroll,metric section,"Global Payroll","שכר גלובלי","שכר גלובלי","שכר גלובלי","שכר גלובלי",,"שכר גלובלי"
+metric.grand_total,metric section,"Grand Total Payroll","סה"כ שכר","סה"כ שכר","סה"כ שכר","סה"כ שכר",,"סה"כ שכר"
+metric.avg_hours,metric section,"Avg Hours per Teacher","ממוצע שעות למורה","ממוצע שעות למורה","ממוצע שעות למורה","ממוצע שעות למורה",,"ממוצע שעות למורה"
+metric.avg_payroll,metric section,"Avg Payroll per Teacher","ממוצע שכר למורה","ממוצע שכר למורה","ממוצע שכר למורה","ממוצע שכר למורה",,"ממוצע שכר למורה"
+metric.highest_earner,metric section,"Highest Earner","בעל ההכנסה הגבוהה ביותר","בעל ההכנסה הגבוהה ביותר","בעל ההכנסה הגבוהה ביותר","בעל ההכנסה הגבוהה ביותר",,"בעל ההכנסה הגבוהה ביותר"
+metric.lowest_earner,metric section,"Lowest Earner","בעל ההכנסה הנמוכה ביותר","בעל ההכנסה הנמוכה ביותר","בעל ההכנסה הנמוכה ביותר","בעל ההכנסה הנמוכה ביותר",,"בעל ההכנסה הנמוכה ביותר"
+metric.all_teachers,metric section,"All Teachers","כל המורים","כל המורים","כל המורים","כל המורים",,"כל המורים"
+modal.new_insight,modal section,"New Insight","תובנה חדשה","תובנה חדשה","תובנה חדשה","תובנה חדשה",,"תובנה חדשה"
+modal.insight_title,modal section,"Insight Title","כותרת התובנה","כותרת התובנה","כותרת התובנה","כותרת התובנה",,"כותרת התובנה"
+modal.metric,modal section,"Metric","מדד","מדד","מדד","מדד",,"מדד"
+modal.filter_by_teacher,modal section,"Filter by Teacher (Optional)","סנן לפי מורה (אופציונלי)","סנן לפי מורה (אופציונלי)","סנן לפי מורה (אופציונלי)","סנן לפי מורה (אופציונלי)",,"סנן לפי מורה (אופציונלי)"
+modal.save_insight,modal section,"Save Insight","שמור תובנה","שמור תובנה","שמור תובנה","שמור תובנה",,"שמור תובנה"
+modal.totals,modal section,"Totals","סיכומים","סיכומים","סיכומים","סיכומים",,"סיכומים"
+modal.averages_rates,modal section,"Averages & Rates","ממוצעים ושיעורים","ממוצעים ושיעורים","ממוצעים ושיעורים","ממוצעים ושיעורים",,"ממוצעים ושיעורים"
+modal.extremes,modal section,"Extremes","קיצוניים","קיצוניים","קיצוניים","קיצוניים",,"קיצוניים"
+modal.delete_chart,modal section,"Delete Chart","מחק תרשים","מחק תרשים","מחק תרשים","מחק תרשים",,"מחק תרשים"
+modal.cannot_undo,modal section,"This action cannot be undone.","פעולה זו אינה ניתנת לביטול.","פעולה זו אינה ניתנת לביטול.","פעולה זו אינה ניתנת לביטול.","פעולה זו אינה ניתנת לביטול.",,"פעולה זו אינה ניתנת לביטול."
+modal.confirm_delete_chart,modal section,"Are you sure you want to delete","האם אתה בטוח שברצונך למחוק","האם אתה בטוח שברצונך למחוק","האם אתה בטוח שברצונך למחוק","האם אתה בטוח שברצונך למחוק",,"האם אתה בטוח שברצונך למחוק"
+chart.live,chart section,"LIVE","חי","חי","חי","חי",,"חי"
+chart.snapshot,chart section,"SNAPSHOT","תמונת מצב","תמונת מצב","תמונת מצב","תמונת מצב",,"תמונת מצב"
+chart.updated,chart section,"Updated","עודכן","עודכן","עודכן","עודכן",,"עודכן"
+chart.edit,chart section,"Edit","עריכה","עריכה","עריכה","עריכה",,"עריכה"
+chart.duplicate,chart section,"Duplicate","שכפול","שכפול","שכפול","שכפול",,"שכפול"
+chart.delete,chart section,"Delete","מחיקה","מחיקה","מחיקה","מחיקה",,"מחיקה"
+chart.done,chart section,"Done","סיום","סיום","סיום","סיום",,"סיום"
+filter.teachers,filter section,"Teachers","מורים","מורים","מורים","מורים",,"מורים"
+filter.positions,filter section,"Positions","תפקידים","תפקידים","תפקידים","תפקידים",,"תפקידים"
+filter.tags,filter section,"Tags","תגיות","תגיות","תגיות","תגיות",,"תגיות"
+filter.categories,filter section,"Categories","קטגוריות","קטגוריות","קטגוריות","קטגוריות",,"קטגוריות"
+filter.rate_type,filter section,"Rate Type","סוג תעריף","סוג תעריף","סוג תעריף","סוג תעריף",,"סוג תעריף"
+filter.hourly,filter section,"Hourly","שעתי","שעתי","שעתי","שעתי",,"שעתי"
+filter.global_monthly,filter section,"Global Monthly","גלובלי חודשי","גלובלי חודשי","גלובלי חודשי","גלובלי חודשי",,"גלובלי חודשי"
+builder.title,builder section,"Chart Builder","בונה תרשימים","בונה תרשימים","בונה תרשימים","בונה תרשימים",,"בונה תרשימים"
+builder.edit_chart,builder section,"Edit Chart","עריכת תרשים","עריכת תרשים","עריכת תרשים","עריכת תרשים",,"עריכת תרשים"
+builder.chart_title,builder section,"Chart Title","כותרת התרשים","כותרת התרשים","כותרת התרשים","כותרת התרשים",,"כותרת התרשים"
+builder.dimension_label,builder section,"Dimension Label","תווית ממד","תווית ממד","תווית ממד","תווית ממד",,"תווית ממד"
+builder.preview,builder section,"Preview","תצוגה מקדימה","תצוגה מקדימה","תצוגה מקדימה","תצוגה מקדימה",,"תצוגה מקדימה"
+builder.save_chart,builder section,"Save Chart","שמור תרשים","שמור תרשים","שמור תרשים","שמור תרשים",,"שמור תרשים"
+cal.teacher,cal section,"Teacher","מורה","מורה","מורה","מורה",,"מורה"
+cal.room,cal section,"Room","חדר","חדר","חדר","חדר",,"חדר"
+cal.description,cal section,"Description","תיאור","תיאור","תיאור","תיאור",,"תיאור"
+cal.event_name,cal section,"Event Name","שם האירוע","שם האירוע","שם האירוע","שם האירוע",,"שם האירוע"
+cal.type,cal section,"Type","סוג","סוג","סוג","סוג",,"סוג"
+cal.start,cal section,"Start","התחלה","התחלה","התחלה","התחלה",,"התחלה"
+cal.end,cal section,"End","סיום","סיום","סיום","סיום",,"סיום"
+cal.add_event,cal section,"Add Event","הוספת אירוע","הוספת אירוע","הוספת אירוע","הוספת אירוע",,"הוספת אירוע"
+cal.edit_event,cal section,"Edit Event","עריכת אירוע","עריכת אירוע","עריכת אירוע","עריכת אירוע",,"עריכת אירוע"
+cal.recurrence,cal section,"Recurrence","חזרה","חזרה","חזרה","חזרה",,"חזרה"
+cal.no_repeat,cal section,"Does not repeat","לא חוזר","לא חוזר","לא חוזר","לא חוזר",,"לא חוזר"
+cal.daily,cal section,"Daily","יומי","יומי","יומי","יומי",,"יומי"
+cal.weekly,cal section,"Weekly","שבועי","שבועי","שבועי","שבועי",,"שבועי"
+cal.monthly,cal section,"Monthly","חודשי","חודשי","חודשי","חודשי",,"חודשי"
+cal.yearly,cal section,"Yearly","שנתי","שנתי","שנתי","שנתי",,"שנתי"
+lists.manage_title,lists section,"Manage Lists","ניהול רשימות","ניהול רשימות","ניהול רשימות","ניהול רשימות",,"ניהול רשימות"
+lists.configure_desc,lists section,"Configure global dropdown options for Positions, Tags, and Classifications.","הגדר אפשרויות תפריט נפתח גלובליות עבור תפקידים, תגיות וסיווגים.","הגדר אפשרויות תפריט נפתח גלובליות עבור תפקידים, תגיות וסיווגים.","הגדר אפשרויות תפריט נפתח גלובליות עבור תפקידים, תגיות וסיווגים.","הגדר אפשרויות תפריט נפתח גלובליות עבור תפקידים, תגיות וסיווגים.",,"הגדר אפשרויות תפריט נפתח גלובליות עבור תפקידים, תגיות וסיווגים."
+lists.positions,lists section,"Positions","תפקידים","תפקידים","תפקידים","תפקידים",,"תפקידים"
+lists.tags,lists section,"Tags","תגיות","תגיות","תגיות","תגיות",,"תגיות"
+lists.classifications,lists section,"Classifications","סיווגים","סיווגים","סיווגים","סיווגים",,"סיווגים"
+lists.import_preview,lists section,"Import Preview","תצוגה מקדימה לייבוא","תצוגה מקדימה לייבוא","תצוגה מקדימה לייבוא","תצוגה מקדימה לייבוא",,"תצוגה מקדימה לייבוא"
+lists.new_positions,lists section,"New Positions","תפקידים חדשים","תפקידים חדשים","תפקידים חדשים","תפקידים חדשים",,"תפקידים חדשים"
+lists.new_tags,lists section,"New Tags","תגיות חדשות","תגיות חדשות","תגיות חדשות","תגיות חדשות",,"תגיות חדשות"
+lists.new_classifications,lists section,"New Classifications","סיווגים חדשים","סיווגים חדשים","סיווגים חדשים","סיווגים חדשים",,"סיווגים חדשים"
+lists.import_all,lists section,"Import All","ייבוא הכל","ייבוא הכל","ייבוא הכל","ייבוא הכל",,"ייבוא הכל"
+lists.no_items,lists section,"No items found","לא נמצאו פריטים","לא נמצאו פריטים","לא נמצאו פריטים","לא נמצאו פריטים",,"לא נמצאו פריטים"
+lists.import_csv,lists section,"Import CSV","ייבוא CSV","ייבוא CSV","ייבוא CSV","ייבוא CSV",,"ייבוא CSV"
+room.add,room section,"Add Room","הוספת חדר","הוספת חדר","הוספת חדר","הוספת חדר",,"הוספת חדר"
+room.edit,room section,"Edit Room","עריכת חדר","עריכת חדר","עריכת חדר","עריכת חדר",,"עריכת חדר"
+room.add_new,room section,"Add New Room","הוספת חדר חדש","הוספת חדר חדש","הוספת חדר חדש","הוספת חדר חדש",,"הוספת חדר חדש"
+room.itinerary_desc,room section,"Itinerary / Description","רשימת ציוד / תיאור","רשימת ציוד / תיאור","רשימת ציוד / תיאור","רשימת ציוד / תיאור",,"רשימת ציוד / תיאור"
+room.no_rooms,room section,"No rooms configured. Add one to get started.","לא הוגדרו חדרים. הוסף אחד כדי להתחיל.","לא הוגדרו חדרים. הוסף אחד כדי להתחיל.","לא הוגדרו חדרים. הוסף אחד כדי להתחיל.","לא הוגדרו חדרים. הוסף אחד כדי להתחיל.",,"לא הוגדרו חדרים. הוסף אחד כדי להתחיל."
+room.no_details,room section,"No details provided.","לא סופקו פרטים.","לא סופקו פרטים.","לא סופקו פרטים.","לא סופקו פרטים.",,"לא סופקו פרטים."
+room.equipment,room section,"Equipment","ציוד","ציוד","ציוד","ציוד",,"ציוד"
+cal.today,cal section,"TODAY","היום","היום","היום","היום",,"היום"
+cal.day,cal section,"DAY","יום","יום","יום","יום",,"יום"
+cal.week,cal section,"WEEK","שבוע","שבוע","שבוע","שבוע",,"שבוע"
+cal.month,cal section,"MONTH","חודש","חודש","חודש","חודש",,"חודש"
+cal.hide_canceled,cal section,"Hide Canceled","הסתר מבוטלים","הסתר מבוטלים","הסתר מבוטלים","הסתר מבוטלים",,"הסתר מבוטלים"
+cal.hide_blackouts,cal section,"Hide Blackouts","הסתר חסימות","הסתר חסימות","הסתר חסימות","הסתר חסימות",,"הסתר חסימות"
+cal.toggle_filters,cal section,"Toggle Filters","החלף מסננים","החלף מסננים","החלף מסננים","החלף מסננים",,"החלף מסננים"
+cal.week_of,cal section,"Week of","שבוע של","שבוע של","שבוע של","שבוע של",,"שבוע של"
+cal.week_num,cal section,"Week","שבוע","שבוע","שבוע","שבוע",,"שבוע"
+cal.click_add,cal section,"Click to add event","לחץ להוספת אירוע","לחץ להוספת אירוע","לחץ להוספת אירוע","לחץ להוספת אירוע",,"לחץ להוספת אירוע"
+cal.unnamed,cal section,"Unnamed Event","אירוע ללא שם","אירוע ללא שם","אירוע ללא שם","אירוע ללא שם",,"אירוע ללא שם"
+cal.blackout_period,cal section,"BLACKOUT PERIOD","תקופת חסימה","תקופת חסימה","תקופת חסימה","תקופת חסימה",,"תקופת חסימה"
+cal.recurring,cal section,"Recurring","חוזר","חוזר","חוזר","חוזר",,"חוזר"
+cal.part_of_series,cal section,"Part of Series","חלק מסדרה","חלק מסדרה","חלק מסדרה","חלק מסדרה",,"חלק מסדרה"
+cal.filter.teacher_all,cal section,"Teacher: All","מורה: הכל","מורה: הכל","מורה: הכל","מורה: הכל",,"מורה: הכל"
+cal.filter.room_all,cal section,"Room: All","חדר: הכל","חדר: הכל","חדר: הכל","חדר: הכל",,"חדר: הכל"
+cal.filter.type_all,cal section,"Type: All","סוג: הכל","סוג: הכל","סוג: הכל","סוג: הכל",,"סוג: הכל"
+cal.filter.position_all,cal section,"Position: All","תפקיד: הכל","תפקיד: הכל","תפקיד: הכל","תפקיד: הכל",,"תפקיד: הכל"
+cal.filter.tag_all,cal section,"Tag: All","תגית: הכל","תגית: הכל","תגית: הכל","תגית: הכל",,"תגית: הכל"
+cal.detail.edit,cal section,"Edit","עריכה","עריכה","עריכה","עריכה",,"עריכה"
+cal.detail.restore,cal section,"Restore","שחזור","שחזור","שחזור","שחזור",,"שחזור"
+cal.detail.cancel_event,cal section,"Cancel","ביטול","ביטול","ביטול","ביטול",,"ביטול"
+cal.detail.delete,cal section,"Delete","מחיקה","מחיקה","מחיקה","מחיקה",,"מחיקה"
+speed.power_tools,speed section,"Power Tools","כלים מתקדמים","כלים מתקדמים","כלים מתקדמים","כלים מתקדמים",,"כלים מתקדמים"
+speed.gantt_view,speed section,"Gantt View","תצוגת גאנט","תצוגת גאנט","תצוגת גאנט","תצוגת גאנט",,"תצוגת גאנט"
+speed.new_event,speed section,"New Event","אירוע חדש","אירוע חדש","אירוע חדש","אירוע חדש",,"אירוע חדש"
+event.new,event section,"New Event","אירוע חדש","אירוע חדש","אירוע חדש","אירוע חדש",,"אירוע חדש"
+event.edit,event section,"Edit Event","עריכת אירוע","עריכת אירוע","עריכת אירוע","עריכת אירוע",,"עריכת אירוע"
+event.name,event section,"Event Name","שם האירוע","שם האירוע","שם האירוע","שם האירוע",,"שם האירוע"
+event.name_placeholder,event section,"e.g. Piano Lesson","לדוגמה: שיעור פסנתר","לדוגמה: שיעור פסנתר","לדוגמה: שיעור פסנתר","לדוגמה: שיעור פסנתר",,"לדוגמה: שיעור פסנתר"
+event.category,event section,"Category","קטגוריה","קטגוריה","קטגוריה","קטגוריה",,"קטגוריה"
+event.select_category,event section,"Select Category","בחר קטגוריה","בחר קטגוריה","בחר קטגוריה","בחר קטגוריה",,"בחר קטגוריה"
+event.teacher_lessons,event section,"Teacher Lessons","שיעורי מורה","שיעורי מורה","שיעורי מורה","שיעורי מורה",,"שיעורי מורה"
+event.individual_lesson,event section,"Individual Lesson","שיעור פרטי","שיעור פרטי","שיעור פרטי","שיעור פרטי",,"שיעור פרטי"
+event.group_lesson,event section,"Group Lesson","שיעור קבוצתי","שיעור קבוצתי","שיעור קבוצתי","שיעור קבוצתי",,"שיעור קבוצתי"
+event.general_events,event section,"General Events","אירועים כלליים","אירועים כלליים","אירועים כלליים","אירועים כלליים",,"אירועים כלליים"
+event.teacher,event section,"Teacher","מורה","מורה","מורה","מורה",,"מורה"
+event.optional,event section,"(Optional)","(אופציונלי)","(אופציונלי)","(אופציונלי)","(אופציונלי)",,"(אופציונלי)"
+event.select_teacher,event section,"Select Teacher","בחר מורה","בחר מורה","בחר מורה","בחר מורה",,"בחר מורה"
+event.org_no_teacher,event section,"Organization / No Teacher (Optional)","ארגון / ללא מורה (אופציונלי)","ארגון / ללא מורה (אופציונלי)","ארגון / ללא מורה (אופציונלי)","ארגון / ללא מורה (אופציונלי)",,"ארגון / ללא מורה (אופציונלי)"
+event.select_category_first,event section,"Select Category First","בחר קטגוריה קודם","בחר קטגוריה קודם","בחר קטגוריה קודם","בחר קטגוריה קודם",,"בחר קטגוריה קודם"
+event.position,event section,"Position","תפקיד","תפקיד","תפקיד","תפקיד",,"תפקיד"
+event.select_teacher_first,event section,"Select Teacher First","בחר מורה קודם","בחר מורה קודם","בחר מורה קודם","בחר מורה קודם",,"בחר מורה קודם"
+event.no_positions,event section,"No positions available for this teacher under this category","אין תפקידים זמינים למורה זה תחת קטגוריה זו","אין תפקידים זמינים למורה זה תחת קטגוריה זו","אין תפקידים זמינים למורה זה תחת קטגוריה זו","אין תפקידים זמינים למורה זה תחת קטגוריה זו",,"אין תפקידים זמינים למורה זה תחת קטגוריה זו"
+event.select_position,event section,"Select a position","בחר תפקיד","בחר תפקיד","בחר תפקיד","בחר תפקיד",,"בחר תפקיד"
+event.payment_method,event section,"Payment Method","שיטת תשלום","שיטת תשלום","שיטת תשלום","שיטת תשלום",,"שיטת תשלום"
+event.no_payment,event section,"No Payment (Scheduling Only)","ללא תשלום (תזמון בלבד)","ללא תשלום (תזמון בלבד)","ללא תשלום (תזמון בלבד)","ללא תשלום (תזמון בלבד)",,"ללא תשלום (תזמון בלבד)"
+event.use_position_rate,event section,"Use Position Rate","השתמש בתעריף תפקיד","השתמש בתעריף תפקיד","השתמש בתעריף תפקיד","השתמש בתעריף תפקיד",,"השתמש בתעריף תפקיד"
+event.requires_teacher_position,event section,"(Requires Teacher & Position)","(דורש מורה ותפקיד)","(דורש מורה ותפקיד)","(דורש מורה ותפקיד)","(דורש מורה ותפקיד)",,"(דורש מורה ותפקיד)"
+event.one_off_payment,event section,"One-Off Payment","תשלום חד פעמי","תשלום חד פעמי","תשלום חד פעמי","תשלום חד פעמי",,"תשלום חד פעמי"
+event.one_off_price,event section,"One-Off Price","מחיר חד פעמי","מחיר חד פעמי","מחיר חד פעמי","מחיר חד פעמי",,"מחיר חד פעמי"
+event.room,event section,"Room","חדר","חדר","חדר","חדר",,"חדר"
+event.no_room,event section,"No Room","ללא חדר","ללא חדר","ללא חדר","ללא חדר",,"ללא חדר"
+event.start_time,event section,"Start Time","שעת התחלה","שעת התחלה","שעת התחלה","שעת התחלה",,"שעת התחלה"
+event.end_time,event section,"End Time","שעת סיום","שעת סיום","שעת סיום","שעת סיום",,"שעת סיום"
+event.description_label,event section,"Description","תיאור","תיאור","תיאור","תיאור",,"תיאור"
+recurrence.recurring_event,recurrence section,"Recurring Event","אירוע חוזר","אירוע חוזר","אירוע חוזר","אירוע חוזר",,"אירוע חוזר"
+recurrence.weekly,recurrence section,"Weekly","שבועי","שבועי","שבועי","שבועי",,"שבועי"
+recurrence.biweekly,recurrence section,"Bi-Weekly","דו-שבועי","דו-שבועי","דו-שבועי","דו-שבועי",,"דו-שבועי"
+recurrence.daily,recurrence section,"Daily","יומי","יומי","יומי","יומי",,"יומי"
+recurrence.monthly,recurrence section,"Monthly","חודשי","חודשי","חודשי","חודשי",,"חודשי"
+recurrence.every,recurrence section,"Every","כל","כל","כל","כל",,"כל"
+recurrence.days,recurrence section,"day(s)","יום/ימים","יום/ימים","יום/ימים","יום/ימים",,"יום/ימים"
+recurrence.weeks,recurrence section,"week(s)","שבוע/ות","שבוע/ות","שבוע/ות","שבוע/ות",,"שבוע/ות"
+recurrence.months,recurrence section,"month(s)","חודש/ים","חודש/ים","חודש/ים","חודש/ים",,"חודש/ים"
+recurrence.on_days,recurrence section,"On days","בימים","בימים","בימים","בימים",,"בימים"
+recurrence.monthly_mode,recurrence section,"Monthly mode","מצב חודשי","מצב חודשי","מצב חודשי","מצב חודשי",,"מצב חודשי"
+recurrence.on_day_n,recurrence section,"On day","ביום","ביום","ביום","ביום",,"ביום"
+recurrence.ends,recurrence section,"Ends","מסתיים","מסתיים","מסתיים","מסתיים",,"מסתיים"
+recurrence.never,recurrence section,"Never","לעולם לא","לעולם לא","לעולם לא","לעולם לא",,"לעולם לא"
+recurrence.after_n,recurrence section,"After N occurrences","אחרי N חזרות","אחרי N חזרות","אחרי N חזרות","אחרי N חזרות",,"אחרי N חזרות"
+recurrence.on_date,recurrence section,"On date","בתאריך","בתאריך","בתאריך","בתאריך",,"בתאריך"
+recurrence.occurrences,recurrence section,"occurrences","חזרות","חזרות","חזרות","חזרות",,"חזרות"
+settings.admin_only,settings section,"Admin only","מנהל בלבד","מנהל בלבד","מנהל בלבד","מנהל בלבד",,"מנהל בלבד"
+settings.managed_by_tenant,settings section,"Managed by tenant admin","מנוהל על ידי מנהל שוכר","מנוהל על ידי מנהל שוכר","מנוהל על ידי מנהל שוכר","מנוהל על ידי מנהל שוכר",,"מנוהל על ידי מנהל שוכר"
+settings.token_expired,settings section,"Authentication token expired. Please reconnect to restore sync.","אסימון האימות פג תוקף. אנא התחבר מחדש לשיחזור סנכרון.","אסימון האימות פג תוקף. אנא התחבר מחדש לשיחזור סנכרון.","אסימון האימות פג תוקף. אנא התחבר מחדש לשיחזור סנכרון.","אסימון האימות פג תוקף. אנא התחבר מחדש לשיחזור סנכרון.",,"אסימון האימות פג תוקף. אנא התחבר מחדש לשיחזור סנכרון."
+settings.hidden,settings section,"Hidden","מוסתר","מוסתר","מוסתר","מוסתר",,"מוסתר"
+settings.week_number,settings section,"Week Number","מספר שבוע","מספר שבוע","מספר שבוע","מספר שבוע",,"מספר שבוע"
+settings.week_of,settings section,"Week of...","שבוע של...","שבוע של...","שבוע של...","שבוע של...",,"שבוע של..."
+settings.mobile_access,settings section,"Mobile Access","גישה מניידת","גישה מניידת","גישה מניידת","גישה מניידת",,"גישה מניידת"
+power.all_teachers,power section,"All Teachers","כל המורים","כל המורים","כל המורים","כל המורים",,"כל המורים"
+power.all_types,power section,"All Types","כל הסוגים","כל הסוגים","כל הסוגים","כל הסוגים",,"כל הסוגים"
+power.all_tags,power section,"All Tags","כל התגיות","כל התגיות","כל התגיות","כל התגיות",,"כל התגיות"
+teacher.all_categories,teacher section,"All Categories","כל הקטגוריות","כל הקטגוריות","כל הקטגוריות","כל הקטגוריות",,"כל הקטגוריות"
+teacher.filter_position,teacher section,"Filter by Position","סנן לפי תפקיד","סנן לפי תפקיד","סנן לפי תפקיד","סנן לפי תפקיד",,"סנן לפי תפקיד"
+teacher.filter_tag,teacher section,"Filter by Tag","סנן לפי תגית","סנן לפי תגית","סנן לפי תגית","סנן לפי תגית",,"סנן לפי תגית"
+teacher.remove_position,teacher section,"Remove position","הסר תפקיד","הסר תפקיד","הסר תפקיד","הסר תפקיד",,"הסר תפקיד"
+teacher.select_from_list,teacher section,"Select from list...","בחר מרשימה...","בחר מרשימה...","בחר מרשימה...","בחר מרשימה...",,"בחר מרשימה..."
+gantt.delete,gantt section,"Delete","מחיקה","מחיקה","מחיקה","מחיקה",,"מחיקה"
+common.save,common section,"Save","שמירה","שמירה","שמירה","שמירה",,"שמירה"
+common.cancel,common section,"Cancel","ביטול","ביטול","ביטול","ביטול",,"ביטול"
+common.delete,common section,"Delete","מחיקה","מחיקה","מחיקה","מחיקה",,"מחיקה"
+common.edit,common section,"Edit","עריכה","עריכה","עריכה","עריכה",,"עריכה"
+common.close,common section,"Close","סגירה","סגירה","סגירה","סגירה",,"סגירה"
+common.not_found,common section,"Not found","לא נמצא","לא נמצא","לא נמצא","לא נמצא",,"לא נמצא"
+common.sandbox,common section,"SANDBOX","ארגז חול","ארגז חול","ארגז חול","ארגז חול",,"ארגז חול"
+builder.group_by,builder section,"Group By","קיבוץ לפי","קיבוץ לפי","קיבוץ לפי","קיבוץ לפי",,"קיבוץ לפי"
+builder.group_by_desc,builder section,"Classify data by category (timeframes are controlled separately below)","סווג נתונים לפי קטגוריה (מסגרות הזמן נשלטות בנפרד למטה)","סווג נתונים לפי קטגוריה (מסגרות הזמן נשלטות בנפרד למטה)","סווג נתונים לפי קטגוריה (מסגרות הזמן נשלטות בנפרד למטה)","סווג נתונים לפי קטגוריה (מסגרות הזמן נשלטות בנפרד למטה)",,"סווג נתונים לפי קטגוריה (מסגרות הזמן נשלטות בנפרד למטה)"
+builder.metrics,builder section,"Metrics","מדדים","מדדים","מדדים","מדדים",,"מדדים"
+builder.add,builder section,"Add","הוסף","הוסף","הוסף","הוסף",,"הוסף"
+builder.by,builder section,"by","לפי","לפי","לפי","לפי",,"לפי"
+builder.timeframe,builder section,"Timeframe","מסגרת זמן","מסגרת זמן","מסגרת זמן","מסגרת זמן",,"מסגרת זמן"
+builder.timeframe_desc,builder section,"Select the time period for analysis (independent of grouping)","בחר את תקופת הזמן לניתוח (בלתי תלוי בקיבוץ)","בחר את תקופת הזמן לניתוח (בלתי תלוי בקיבוץ)","בחר את תקופת הזמן לניתוח (בלתי תלוי בקיבוץ)","בחר את תקופת הזמן לניתוח (בלתי תלוי בקיבוץ)",,"בחר את תקופת הזמן לניתוח (בלתי תלוי בקיבוץ)"
+builder.events_in_timeframe,builder section,"events in selected timeframe","אירועים במסגרת הזמן הנבחרת","אירועים במסגרת הזמן הנבחרת","אירועים במסגרת הזמן הנבחרת","אירועים במסגרת הזמן הנבחרת",,"אירועים במסגרת הזמן הנבחרת"
+builder.comparison_mode,builder section,"Comparison Mode","מצב השוואה","מצב השוואה","מצב השוואה","מצב השוואה",,"מצב השוואה"
+builder.comparison_active,builder section,"Comparison Mode is active — add periods to compare against the primary timeframe","מצב השוואה פעיל — הוסף תקופות להשוואה מול מסגרת הזמן הראשית","מצב השוואה פעיל — הוסף תקופות להשוואה מול מסגרת הזמן הראשית","מצב השוואה פעיל — הוסף תקופות להשוואה מול מסגרת הזמן הראשית","מצב השוואה פעיל — הוסף תקופות להשוואה מול מסגרת הזמן הראשית",,"מצב השוואה פעיל — הוסף תקופות להשוואה מול מסגרת הזמן הראשית"
+builder.comparison_inactive,builder section,"Compare the same filters against different periods of the same timeframe type","השווה את אותם מסננים מול תקופות שונות מאותו סוג מסגרת זמן","השווה את אותם מסננים מול תקופות שונות מאותו סוג מסגרת זמן","השווה את אותם מסננים מול תקופות שונות מאותו סוג מסגרת זמן","השווה את אותם מסננים מול תקופות שונות מאותו סוג מסגרת זמן",,"השווה את אותם מסננים מול תקופות שונות מאותו סוג מסגרת זמן"
+builder.side_by_side,builder section,"Side by Side","זה לצד זה","זה לצד זה","זה לצד זה","זה לצד זה",,"זה לצד זה"
+builder.merged,builder section,"Merged","ממוזג","ממוזג","ממוזג","ממוזג",,"ממוזג"
+builder.comparison_n,builder section,"Comparison","השוואה","השוואה","השוואה","השוואה",,"השוואה"
+builder.select_comparison_day,builder section,"Select comparison day:","בחר יום להשוואה:","בחר יום להשוואה:","בחר יום להשוואה:","בחר יום להשוואה:",,"בחר יום להשוואה:"
+builder.pick_date_in_week,builder section,"Pick a date within the comparison week:","בחר תאריך בשבוע ההשוואה:","בחר תאריך בשבוע ההשוואה:","בחר תאריך בשבוע ההשוואה:","בחר תאריך בשבוע ההשוואה:",,"בחר תאריך בשבוע ההשוואה:"
+builder.select_comparison_month,builder section,"Select comparison month:","בחר חודש להשוואה:","בחר חודש להשוואה:","בחר חודש להשוואה:","בחר חודש להשוואה:",,"בחר חודש להשוואה:"
+builder.select_comparison_range,builder section,"Select comparison date range:","בחר טווח תאריכים להשוואה:","בחר טווח תאריכים להשוואה:","בחר טווח תאריכים להשוואה:","בחר טווח תאריכים להשוואה:",,"בחר טווח תאריכים להשוואה:"
+builder.to,builder section,"to","עד","עד","עד","עד",,"עד"
+builder.events,builder section,"events","אירועים","אירועים","אירועים","אירועים",,"אירועים"
+builder.add_another,builder section,"Add Another Comparison","הוסף השוואה נוספת","הוסף השוואה נוספת","הוסף השוואה נוספת","הוסף השוואה נוספת",,"הוסף השוואה נוספת"
+builder.visualization,builder section,"Visualization","ויזואליזציה","ויזואליזציה","ויזואליזציה","ויזואליזציה",,"ויזואליזציה"
+builder.metrics_displayed,builder section,"metrics — displayed as","מדדים — מוצגים כ","מדדים — מוצגים כ","מדדים — מוצגים כ","מדדים — מוצגים כ",,"מדדים — מוצגים כ"
+builder.stacked_segments,builder section,"stacked segments","מקטעים מוערמים","מקטעים מוערמים","מקטעים מוערמים","מקטעים מוערמים",,"מקטעים מוערמים"
+builder.grouped_series,builder section,"grouped series","סדרות מקובצות","סדרות מקובצות","סדרות מקובצות","סדרות מקובצות",,"סדרות מקובצות"
+builder.data_filters,builder section,"Data Filters","מסנני נתונים","מסנני נתונים","מסנני נתונים","מסנני נתונים",,"מסנני נתונים"
+builder.filter_desc,builder section,"Narrow chart data by specific teachers, positions, tags, or categories","צמצם נתוני תרשים לפי מורים, תפקידים, תגיות או קטגוריות ספציפיים","צמצם נתוני תרשים לפי מורים, תפקידים, תגיות או קטגוריות ספציפיים","צמצם נתוני תרשים לפי מורים, תפקידים, תגיות או קטגוריות ספציפיים","צמצם נתוני תרשים לפי מורים, תפקידים, תגיות או קטגוריות ספציפיים",,"צמצם נתוני תרשים לפי מורים, תפקידים, תגיות או קטגוריות ספציפיים"
+builder.clear_all_filters,builder section,"Clear all filters","נקה את כל המסננים","נקה את כל המסננים","נקה את כל המסננים","נקה את כל המסננים",,"נקה את כל המסננים"
+builder.filter_mode,builder section,"Filter Mode","מצב מסנן","מצב מסנן","מצב מסנן","מצב מסנן",,"מצב מסנן"
+builder.live,builder section,"Live","חי","חי","חי","חי",,"חי"
+builder.live_desc,builder section,"Reacts to dashboard filters","מגיב למסנני לוח הבקרה","מגיב למסנני לוח הבקרה","מגיב למסנני לוח הבקרה","מגיב למסנני לוח הבקרה",,"מגיב למסנני לוח הבקרה"
+builder.snapshot,builder section,"Snapshot","תמונת מצב","תמונת מצב","תמונת מצב","תמונת מצב",,"תמונת מצב"
+builder.snapshot_desc,builder section,"Freezes filters at save time","מקפיא מסננים בזמן השמירה","מקפיא מסננים בזמן השמירה","מקפיא מסננים בזמן השמירה","מקפיא מסננים בזמן השמירה",,"מקפיא מסננים בזמן השמירה"
+builder.active,builder section,"Active:","פעיל:","פעיל:","פעיל:","פעיל:",,"פעיל:"
+builder.advanced,builder section,"Advanced Options","אפשרויות מתקדמות","אפשרויות מתקדמות","אפשרויות מתקדמות","אפשרויות מתקדמות",,"אפשרויות מתקדמות"
+builder.sort_by,builder section,"Sort By","מיון לפי","מיון לפי","מיון לפי","מיון לפי",,"מיון לפי"
+builder.ascending,builder section,"Ascending","עולה","עולה","עולה","עולה",,"עולה"
+builder.descending,builder section,"Descending","יורד","יורד","יורד","יורד",,"יורד"
+builder.limit_topn,builder section,"Limit (Top N)","הגבלה (N עליונים)","הגבלה (N עליונים)","הגבלה (N עליונים)","הגבלה (N עליונים)",,"הגבלה (N עליונים)"
+builder.no_limit,builder section,"0 = no limit","0 = ללא הגבלה","0 = ללא הגבלה","0 = ללא הגבלה","0 = ללא הגבלה",,"0 = ללא הגבלה"
+builder.show_all,builder section,"0 = show all groups","0 = הצג את כל הקבוצות","0 = הצג את כל הקבוצות","0 = הצג את כל הקבוצות","0 = הצג את כל הקבוצות",,"0 = הצג את כל הקבוצות"
+builder.live_preview,builder section,"Live Preview","תצוגה מקדימה חיה","תצוגה מקדימה חיה","תצוגה מקדימה חיה","תצוגה מקדימה חיה",,"תצוגה מקדימה חיה"
+builder.merged_overlay,builder section,"MERGED OVERLAY","שכבה ממוזגת","שכבה ממוזגת","שכבה ממוזגת","שכבה ממוזגת",,"שכבה ממוזגת"
+builder.side_by_side_label,builder section,"SIDE BY SIDE","זה לצד זה","זה לצד זה","זה לצד זה","זה לצד זה",,"זה לצד זה"
+builder.cancel,builder section,"Cancel","ביטול","ביטול","ביטול","ביטול",,"ביטול"
+builder.update_chart,builder section,"Update Chart","עדכן תרשים","עדכן תרשים","עדכן תרשים","עדכן תרשים",,"עדכן תרשים"
+builder.create_chart,builder section,"Create Custom Chart","צור תרשים מותאם","צור תרשים מותאם","צור תרשים מותאם","צור תרשים מותאם",,"צור תרשים מותאם"
+builder.chart_title_placeholder,builder section,"e.g., Monthly Cost Trend, Hours by Department...","לדוגמה: מגמת עלויות חודשית, שעות לפי מחלקה...","לדוגמה: מגמת עלויות חודשית, שעות לפי מחלקה...","לדוגמה: מגמת עלויות חודשית, שעות לפי מחלקה...","לדוגמה: מגמת עלויות חודשית, שעות לפי מחלקה...",,"לדוגמה: מגמת עלויות חודשית, שעות לפי מחלקה..."
+builder.pick_date_desired_week,builder section,"Pick any date within the desired week:","בחר כל תאריך בשבוע הרצוי:","בחר כל תאריך בשבוע הרצוי:","בחר כל תאריך בשבוע הרצוי:","בחר כל תאריך בשבוע הרצוי:",,"בחר כל תאריך בשבוע הרצוי:"
+builder.primary,builder section,"Primary","ראשי","ראשי","ראשי","ראשי",,"ראשי"
+builder.select_period,builder section,"Select a period","בחר תקופה","בחר תקופה","בחר תקופה","בחר תקופה",,"בחר תקופה"
+builder.custom_range,builder section,"Custom Range","טווח מותאם","טווח מותאם","טווח מותאם","טווח מותאם",,"טווח מותאם"
+builder.week_of,builder section,"Week of","שבוע של","שבוע של","שבוע של","שבוע של",,"שבוע של"
+viz.bar,viz section,"Bar","עמודות","עמודות","עמודות","עמודות",,"עמודות"
+viz.stacked,viz section,"Stacked","מוערם","מוערם","מוערם","מוערם",,"מוערם"
+viz.line,viz section,"Line","קו","קו","קו","קו",,"קו"
+viz.pie,viz section,"Pie","עוגה","עוגה","עוגה","עוגה",,"עוגה"
+viz.table,viz section,"Table","טבלה","טבלה","טבלה","טבלה",,"טבלה"
+agg.sum,agg section,"Sum","סכום","סכום","סכום","סכום",,"סכום"
+agg.average,agg section,"Average","ממוצע","ממוצע","ממוצע","ממוצע",,"ממוצע"
+agg.count,agg section,"Count","ספירה","ספירה","ספירה","ספירה",,"ספירה"
+agg.min,agg section,"Min","מינימום","מינימום","מינימום","מינימום",,"מינימום"
+agg.max,agg section,"Max","מקסימום","מקסימום","מקסימום","מקסימום",,"מקסימום"
+tf.today,tf section,"Today","היום","היום","היום","היום",,"היום"
+tf.current_week,tf section,"Current Week","שבוע נוכחי","שבוע נוכחי","שבוע נוכחי","שבוע נוכחי",,"שבוע נוכחי"
+tf.current_month,tf section,"Current Month","חודש נוכחי","חודש נוכחי","חודש נוכחי","חודש נוכחי",,"חודש נוכחי"
+tf.custom_range,tf section,"Custom Range","טווח מותאם","טווח מותאם","טווח מותאם","טווח מותאם",,"טווח מותאם"
+tf.specific_day,tf section,"Specific Day","יום ספציפי","יום ספציפי","יום ספציפי","יום ספציפי",,"יום ספציפי"
+tf.specific_week,tf section,"Specific Week","שבוע ספציפי","שבוע ספציפי","שבוע ספציפי","שבוע ספציפי",,"שבוע ספציפי"
+tf.specific_month,tf section,"Specific Month","חודש ספציפי","חודש ספציפי","חודש ספציפי","חודש ספציפי",,"חודש ספציפי"
+dropdown.all,dropdown section,"All","הכל","הכל","הכל","הכל",,"הכל"
+dropdown.selected,dropdown section,"selected","נבחרו","נבחרו","נבחרו","נבחרו",,"נבחרו"
+dropdown.select_all,dropdown section,"Select All","בחר הכל","בחר הכל","בחר הכל","בחר הכל",,"בחר הכל"
+dropdown.clear,dropdown section,"Clear","נקה","נקה","נקה","נקה",,"נקה"
+dropdown.no_options,dropdown section,"No options available","אין אפשרויות זמינות","אין אפשרויות זמינות","אין אפשרויות זמינות","אין אפשרויות זמינות",,"אין אפשרויות זמינות"
+filter.rate_types,filter section,"Rate Types","סוגי תעריפים","סוגי תעריפים","סוגי תעריפים","סוגי תעריפים",,"סוגי תעריפים"
+builder.teacher_s,builder section,"teacher(s)","מורה/ים","מורה/ים","מורה/ים","מורה/ים",,"מורה/ים"
+builder.position_s,builder section,"position(s)","תפקיד/ים","תפקיד/ים","תפקיד/ים","תפקיד/ים",,"תפקיד/ים"
+builder.tag_s,builder section,"tag(s)","תגית/ות","תגית/ות","תגית/ות","תגית/ות",,"תגית/ות"
+builder.category_ies,builder section,"categor(ies)","קטגוריה/ות","קטגוריה/ות","קטגוריה/ות","קטגוריה/ות",,"קטגוריה/ות"
+builder.rate_type_s,builder section,"rate type(s)","סוג/י תעריף","סוג/י תעריף","סוג/י תעריף","סוג/י תעריף",,"סוג/י תעריף"
+builder.metric,builder section,"metric","מדד","מדד","מדד","מדד",,"מדד"
+builder.metrics_word,builder section,"metrics","מדדים","מדדים","מדדים","מדדים",,"מדדים"
+builder.filter,builder section,"filter","מסנן","מסנן","מסנן","מסנן",,"מסנן"
+builder.filters_word,builder section,"filters","מסננים","מסננים","מסננים","מסננים",,"מסננים"
+builder.applied,builder section,"applied","מוחל","מוחל","מוחל","מוחל",,"מוחל"
+nav.analysis,nav section,"Analysis","ניתוח","ניתוח","ניתוח","ניתוח",,"ניתוח"
+nav.super_admin,nav section,"Super Admin","מנהל-על","מנהל-על","מנהל-על","מנהל-על",,"מנהל-על"
+cal.aria_toggle_canceled,cal section,"Toggle canceled events visibility","החלף נראות אירועים מבוטלים","החלף נראות אירועים מבוטלים","החלף נראות אירועים מבוטלים","החלף נראות אירועים מבוטלים",,"החלף נראות אירועים מבוטלים"
+cal.aria_toggle_blackouts,cal section,"Toggle blackout events visibility","החלף נראות אירועי חסימה","החלף נראות אירועי חסימה","החלף נראות אירועי חסימה","החלף נראות אירועי חסימה",,"החלף נראות אירועי חסימה"
+settings.open_menu,settings section,"Open Menu","פתח תפריט","פתח תפריט","פתח תפריט","פתח תפריט",,"פתח תפריט"
+common.sign_out,common section,"Sign Out","התנתקות","התנתקות","התנתקות","התנתקות",,"התנתקות"
+room.details_placeholder,room section,"Details about equipment, capacity, etc.","פרטים על ציוד, קיבולת וכו'","פרטים על ציוד, קיבולת וכו'","פרטים על ציוד, קיבולת וכו'","פרטים על ציוד, קיבולת וכו'",,"פרטים על ציוד, קיבולת וכו'"
+teacher.or_type_new,teacher section,"Or type new...","או הקלד חדש...","או הקלד חדש...","או הקלד חדש...","או הקלד חדש...",,"או הקלד חדש..."
+financial.delete_title,financial section,"Delete","מחיקה","מחיקה","מחיקה","מחיקה",,"מחיקה"
+teach.col_name,teach section,"Name","שם","שם","שם","שם",,"שם"
+teach.col_positions,teach section,"Positions & Rates","תפקידים ותעריפים","תפקידים ותעריפים","תפקידים ותעריפים","תפקידים ותעריפים",,"תפקידים ותעריפים"
+teach.col_tags,teach section,"Tags","תגיות","תגיות","תגיות","תגיות",,"תגיות"
+teach.col_contact,teach section,"Contact","יצירת קשר","יצירת קשר","יצירת קשר","יצירת קשר",,"יצירת קשר"
+teach.col_actions,teach section,"Actions","פעולות","פעולות","פעולות","פעולות",,"פעולות"
+teach.template,teach section,"Template","תבנית","תבנית","תבנית","תבנית",,"תבנית"
+teach.export,teach section,"Export","ייצוא","ייצוא","ייצוא","ייצוא",,"ייצוא"
+teach.import,teach section,"Import","ייבוא","ייבוא","ייבוא","ייבוא",,"ייבוא"
+teach.subtitle,teach section,"Manage instructor profiles, positions, rates, and tags.","נהל פרופילי מדריכים, תפקידים, תעריפים ותגיות.","נהל פרופילי מדריכים, תפקידים, תעריפים ותגיות.","נהל פרופילי מדריכים, תפקידים, תעריפים ותגיות.","נהל פרופילי מדריכים, תפקידים, תעריפים ותגיות.",,"נהל פרופילי מדריכים, תפקידים, תעריפים ותגיות."
+teach.select_position_placeholder,teach section,"Select Position...","בחר תפקיד...","בחר תפקיד...","בחר תפקיד...","בחר תפקיד...",,"בחר תפקיד..."
+teach.select_tag_placeholder,teach section,"Select Tag...","בחר תגית...","בחר תגית...","בחר תגית...","בחר תגית...",,"בחר תגית..."
+teach.edit_teacher,teach section,"Edit Teacher","עריכת מורה","עריכת מורה","עריכת מורה","עריכת מורה",,"עריכת מורה"
+teach.add_new_teacher,teach section,"Add New Teacher","הוספת מורה חדש","הוספת מורה חדש","הוספת מורה חדש","הוספת מורה חדש",,"הוספת מורה חדש"
+teach.position_assignments_label,teach section,"Position Assignments","שיוכי תפקידים","שיוכי תפקידים","שיוכי תפקידים","שיוכי תפקידים",,"שיוכי תפקידים"
+teach.add_position,teach section,"Add Position","הוסף תפקיד","הוסף תפקיד","הוסף תפקיד","הוסף תפקיד",,"הוסף תפקיד"
+teach.position_name,teach section,"Position Name","שם תפקיד","שם תפקיד","שם תפקיד","שם תפקיד",,"שם תפקיד"
+teach.category,teach section,"Category","קטגוריה","קטגוריה","קטגוריה","קטגוריה",,"קטגוריה"
+teach.rate_type,teach section,"Rate Type","סוג תעריף","סוג תעריף","סוג תעריף","סוג תעריף",,"סוג תעריף"
+teach.hourly,teach section,"Hourly","שעתי","שעתי","שעתי","שעתי",,"שעתי"
+teach.global_monthly,teach section,"Global Monthly","חודשי גלובלי","חודשי גלובלי","חודשי גלובלי","חודשי גלובלי",,"חודשי גלובלי"
+teach.rate_hourly_label,teach section,"Rate","תעריף","תעריף","תעריף","תעריף",,"תעריף"
+teach.per_hour,teach section,"/hour","/שעה","/שעה","/שעה","/שעה",,"/שעה"
+teach.monthly_fee,teach section,"Monthly Fee","תשלום חודשי","תשלום חודשי","תשלום חודשי","תשלום חודשי",,"תשלום חודשי"
+teach.no_positions_yet,teach section,"No positions assigned yet.","עדיין לא שויכו תפקידים.","עדיין לא שויכו תפקידים.","עדיין לא שויכו תפקידים.","עדיין לא שויכו תפקידים.",,"עדיין לא שויכו תפקידים."
+teach.position_placeholder,teach section,"e.g. Piano Instructor","לדוגמה: מדריך פסנתר","לדוגמה: מדריך פסנתר","לדוגמה: מדריך פסנתר","לדוגמה: מדריך פסנתר",,"לדוגמה: מדריך פסנתר"
+teach.tags_label,teach section,"Tags","תגיות","תגיות","תגיות","תגיות",,"תגיות"
+teach.add_tag,teach section,"Add","הוסף","הוסף","הוסף","הוסף",,"הוסף"
+teach.email,teach section,"Email","דוא""ל","דוא""ל","דוא""ל","דוא""ל",,"דוא""ל"
+teach.phone,teach section,"Phone","טלפון","טלפון","טלפון","טלפון",,"טלפון"
+teach.cancel,teach section,"Cancel","ביטול","ביטול","ביטול","ביטול",,"ביטול"
+teach.save,teach section,"Save","שמירה","שמירה","שמירה","שמירה",,"שמירה"
+teach.import_teachers,teach section,"Import Teachers","ייבוא מורים","ייבוא מורים","ייבוא מורים","ייבוא מורים",,"ייבוא מורים"
+teach.import_col_name,teach section,"Name","שם","שם","שם","שם",,"שם"
+teach.import_col_email,teach section,"Email","דוא""ל","דוא""ל","דוא""ל","דוא""ל",,"דוא""ל"
+teach.import_col_positions,teach section,"Positions","תפקידים","תפקידים","תפקידים","תפקידים",,"תפקידים"
+teach.import_col_rates,teach section,"Rates","תעריפים","תעריפים","תעריפים","תעריפים",,"תעריפים"
+teach.import_n_teachers,teach section,"Import","ייבוא","ייבוא","ייבוא","ייבוא",,"ייבוא"
+teach.teachers_word,teach section,"Teachers","מורים","מורים","מורים","מורים",,"מורים"
+teach.delete_selection,teach section,"Delete Selection","מחק בחירה","מחק בחירה","מחק בחירה","מחק בחירה",,"מחק בחירה"
+sa.access_denied,auto,"Access Denied","הגישה נדחתה","הגישה נדחתה","הגישה נדחתה","הגישה נדחתה",,"הגישה נדחתה"
+sa.restricted,auto,"This area is restricted to the platform super-administrator.","אזור זה מוגבל למנהל-העל של הפלטפורמה.","אזור זה מוגבל למנהל-העל של הפלטפורמה.","אזור זה מוגבל למנהל-העל של הפלטפורמה.","אזור זה מוגבל למנהל-העל של הפלטפורמה.",,"אזור זה מוגבל למנהל-העל של הפלטפורמה."
+sa.console_title,auto,"Super Admin Console","מסוף מנהל-על","מסוף מנהל-על","מסוף מנהל-על","מסוף מנהל-על",,"מסוף מנהל-על"
+sa.console_subtitle,auto,"Manage Tenants, Access Control & Developer Tools","ניהול ארגונים, הרשאות וכלי פיתוח","ניהול ארגונים, הרשאות וכלי פיתוח","ניהול ארגונים, הרשאות וכלי פיתוח","ניהול ארגונים, הרשאות וכלי פיתוח",,"ניהול ארגונים, הרשאות וכלי פיתוח"
+sa.tab_orgs,auto,"Organizations","ארגונים","ארגונים","ארגונים","ארגונים",,"ארגונים"
+sa.tab_access,auto,"Access Mappings","מיפויי גישה","מיפויי גישה","מיפויי גישה","מיפויי גישה",,"מיפויי גישה"
+sa.tab_dev,auto,"Developer Tools","כלי פיתוח","כלי פיתוח","כלי פיתוח","כלי פיתוח",,"כלי פיתוח"
+sa.register_org,auto,"Register New Organization","רישום ארגון חדש","רישום ארגון חדש","רישום ארגון חדש","רישום ארגון חדש",,"רישום ארגון חדש"
+sa.org_name,auto,"Organization Name","שם הארגון","שם הארגון","שם הארגון","שם הארגון",,"שם הארגון"
+sa.org_name_placeholder,auto,"e.g. Alpert Music Center","לדוגמה: מרכז המוזיקה אלפרט","לדוגמה: מרכז המוזיקה אלפרט","לדוגמה: מרכז המוזיקה אלפרט","לדוגמה: מרכז המוזיקה אלפרט",,"לדוגמה: מרכז המוזיקה אלפרט"
+sa.url_slug,auto,"URL Slug (ID)","מזהה URL","מזהה URL","מזהה URL","מזהה URL",,"מזהה URL"
+sa.url_slug_placeholder,auto,"e.g. alpert (no spaces)","לדוגמה: alpert (ללא רווחים)","לדוגמה: alpert (ללא רווחים)","לדוגמה: alpert (ללא רווחים)","לדוגמה: alpert (ללא רווחים)",,"לדוגמה: alpert (ללא רווחים)"
+sa.id_label,auto,"ID:","מזהה:","מזהה:","מזהה:","מזהה:",,"מזהה:"
+sa.edit_org_title,auto,"Edit Organization","עריכת ארגון","עריכת ארגון","עריכת ארגון","עריכת ארגון",,"עריכת ארגון"
+sa.upload_logo,auto,"Upload Logo","העלאת לוגו","העלאת לוגו","העלאת לוגו","העלאת לוגו",,"העלאת לוגו"
+sa.delete_org,auto,"Delete Organization","מחיקת ארגון","מחיקת ארגון","מחיקת ארגון","מחיקת ארגון",,"מחיקת ארגון"
+sa.save_changes,auto,"Save Changes","שמור שינויים","שמור שינויים","שמור שינויים","שמור שינויים",,"שמור שינויים"
+sa.cancel,auto,"Cancel","ביטול","ביטול","ביטול","ביטול",,"ביטול"
+sa.no_orgs,auto,"No organizations registered yet.","עדיין לא נרשמו ארגונים.","עדיין לא נרשמו ארגונים.","עדיין לא נרשמו ארגונים.","עדיין לא נרשמו ארגונים.",,"עדיין לא נרשמו ארגונים."
+sa.map_user,auto,"Map User to Organization","שיוך משתמש לארגון","שיוך משתמש לארגון","שיוך משתמש לארגון","שיוך משתמש לארגון",,"שיוך משתמש לארגון"
+sa.user_email,auto,"User Email (Gmail)","דוא""ל משתמש (Gmail)","דוא""ל משתמש (Gmail)","דוא""ל משתמש (Gmail)","דוא""ל משתמש (Gmail)",,"דוא""ל משתמש (Gmail)"
+sa.user_email_placeholder,auto,"user@gmail.com","user@gmail.com","user@gmail.com","user@gmail.com","user@gmail.com",,"user@gmail.com"
+sa.organization,auto,"Organization","ארגון","ארגון","ארגון","ארגון",,"ארגון"
+sa.select_org,auto,"Select Org...","בחר ארגון...","בחר ארגון...","בחר ארגון...","בחר ארגון...",,"בחר ארגון..."
+sa.all_orgs,auto,"All Organizations","כל הארגונים","כל הארגונים","כל הארגונים","כל הארגונים",,"כל הארגונים"
+sa.viewer,auto,"VIEWER","צופה","צופה","צופה","צופה",,"צופה"
+sa.admin,auto,"ADMIN","מנהל","מנהל","מנהל","מנהל",,"מנהל"
+sa.revoke_access,auto,"Revoke Access","ביטול גישה","ביטול גישה","ביטול גישה","ביטול גישה",,"ביטול גישה"
+sa.generate_test,auto,"Generate Test Data","יצירת נתוני בדיקה","יצירת נתוני בדיקה","יצירת נתוני בדיקה","יצירת נתוני בדיקה",,"יצירת נתוני בדיקה"
+sa.state_snapshot,auto,"State Snapshot","תמונת מצב","תמונת מצב","תמונת מצב","תמונת מצב",,"תמונת מצב"
+sa.snapshot_desc,auto,"Save current app data to browser storage or restore from a previous snapshot.","שמור נתוני אפליקציה נוכחיים באחסון הדפדפן או שחזר מתמונת מצב קודמת.","שמור נתוני אפליקציה נוכחיים באחסון הדפדפן או שחזר מתמונת מצב קודמת.","שמור נתוני אפליקציה נוכחיים באחסון הדפדפן או שחזר מתמונת מצב קודמת.","שמור נתוני אפליקציה נוכחיים באחסון הדפדפן או שחזר מתמונת מצב קודמת.",,"שמור נתוני אפליקציה נוכחיים באחסון הדפדפן או שחזר מתמונת מצב קודמת."
+sa.create_snapshot,auto,"Create Snapshot","צור תמונת מצב","צור תמונת מצב","צור תמונת מצב","צור תמונת מצב",,"צור תמונת מצב"
+sa.snapshot_created,auto,"Snapshot created successfully!","תמונת מצב נוצרה בהצלחה!","תמונת מצב נוצרה בהצלחה!","תמונת מצב נוצרה בהצלחה!","תמונת מצב נוצרה בהצלחה!",,"תמונת מצב נוצרה בהצלחה!"
+sa.snapshot_created_short,auto,"Snapshot created!","תמונת מצב נוצרה!","תמונת מצב נוצרה!","תמונת מצב נוצרה!","תמונת מצב נוצרה!",,"תמונת מצב נוצרה!"
+sa.test_generated,auto,"Test data generated successfully!","נתוני בדיקה נוצרו בהצלחה!","נתוני בדיקה נוצרו בהצלחה!","נתוני בדיקה נוצרו בהצלחה!","נתוני בדיקה נוצרו בהצלחה!",,"נתוני בדיקה נוצרו בהצלחה!"
+sa.no_snapshot,auto,"No snapshot found.","לא נמצאה תמונת מצב.","לא נמצאה תמונת מצב.","לא נמצאה תמונת מצב.","לא נמצאה תמונת מצב.",,"לא נמצאה תמונת מצב."
+sa.testing_tools,auto,"Testing Tools","כלי בדיקה","כלי בדיקה","כלי בדיקה","כלי בדיקה",,"כלי בדיקה"
+sa.testing_desc,auto,"Actions specific for evaluating Layer 1 logic.","פעולות ספציפיות להערכת לוגיקת שכבה 1.","פעולות ספציפיות להערכת לוגיקת שכבה 1.","פעולות ספציפיות להערכת לוגיקת שכבה 1.","פעולות ספציפיות להערכת לוגיקת שכבה 1.",,"פעולות ספציפיות להערכת לוגיקת שכבה 1."
+sa.run_calendar_test,auto,"Run Calendar Test Gen","הרצת יצירת בדיקות לוח שנה","הרצת יצירת בדיקות לוח שנה","הרצת יצירת בדיקות לוח שנה","הרצת יצירת בדיקות לוח שנה",,"הרצת יצירת בדיקות לוח שנה"
+sa.run_teacher_gen,auto,"Run Teacher Gen","הרצת יצירת מורים","הרצת יצירת מורים","הרצת יצירת מורים","הרצת יצירת מורים",,"הרצת יצירת מורים"
+sa.system_info,auto,"System Information","מידע מערכת","מידע מערכת","מידע מערכת","מידע מערכת",,"מידע מערכת"
+sa.super_admin_label,auto,"Super Admin","מנהל-על","מנהל-על","מנהל-על","מנהל-על",,"מנהל-על"
+sa.total_tenants,auto,"Total Tenants","סה""כ ארגונים","סה""כ ארגונים","סה""כ ארגונים","סה""כ ארגונים",,"סה""כ ארגונים"
+sa.total_access,auto,"Total Access Records","סה""כ רשומות גישה","סה""כ רשומות גישה","סה""כ רשומות גישה","סה""כ רשומות גישה",,"סה""כ רשומות גישה"
+sa.superadmin_badge,auto,"SUPERADMIN","מנהל-על","מנהל-על","מנהל-על","מנהל-על",,"מנהל-על"
+settings.english_us,auto,"English (United States)","English (United States)","English (United States)","English (United States)","English (United States)",,"English (United States)"
+settings.tz_utc,auto,"UTC","UTC","UTC","UTC","UTC",,"UTC"
+settings.tz_jerusalem,auto,"Jerusalem (Israel)","ירושלים (ישראל)","ירושלים (ישראל)","ירושלים (ישראל)","ירושלים (ישראל)",,"ירושלים (ישראל)"
+settings.tz_eastern,auto,"Eastern Time (US & Canada)","זמן מזרחי (ארה""ב וקנדה)","זמן מזרחי (ארה""ב וקנדה)","זמן מזרחי (ארה""ב וקנדה)","זמן מזרחי (ארה""ב וקנדה)",,"זמן מזרחי (ארה""ב וקנדה)"
+settings.tz_pacific,auto,"Pacific Time (US & Canada)","זמן מערבי (ארה""ב וקנדה)","זמן מערבי (ארה""ב וקנדה)","זמן מערבי (ארה""ב וקנדה)","זמן מערבי (ארה""ב וקנדה)",,"זמן מערבי (ארה""ב וקנדה)"
+settings.date_mmddyyyy,auto,"MM/DD/YYYY (04/16/2026)","MM/DD/YYYY (04/16/2026)","MM/DD/YYYY (04/16/2026)","MM/DD/YYYY (04/16/2026)","MM/DD/YYYY (04/16/2026)",,"MM/DD/YYYY (04/16/2026)"
+settings.date_ddmmyyyy,auto,"DD/MM/YYYY (16/04/2026)","DD/MM/YYYY (16/04/2026)","DD/MM/YYYY (16/04/2026)","DD/MM/YYYY (16/04/2026)","DD/MM/YYYY (16/04/2026)",,"DD/MM/YYYY (16/04/2026)"
+settings.date_iso,auto,"YYYY-MM-DD (2026-04-16)","YYYY-MM-DD (2026-04-16)","YYYY-MM-DD (2026-04-16)","YYYY-MM-DD (2026-04-16)","YYYY-MM-DD (2026-04-16)",,"YYYY-MM-DD (2026-04-16)"
+settings.gcal_label,auto,"GCal","יומן גוגל","יומן גוגל","יומן גוגל","יומן גוגל",,"יומן גוגל"
+settings.gcal_title,auto,"Google Calendar Sync","סנכרון יומן גוגל","סנכרון יומן גוגל","סנכרון יומן גוגל","סנכרון יומן גוגל",,"סנכרון יומן גוגל"
+settings.gcal_reconnect,auto,"Reconnect","התחבר מחדש","התחבר מחדש","התחבר מחדש","התחבר מחדש",,"התחבר מחדש"
+settings.gcal_auto_note,auto,"New lessons will be automatically added to this calendar.","שיעורים חדשים יתווספו אוטומטית ליומן זה.","שיעורים חדשים יתווספו אוטומטית ליומן זה.","שיעורים חדשים יתווספו אוטומטית ליומן זה.","שיעורים חדשים יתווספו אוטומטית ליומן זה.",,"שיעורים חדשים יתווספו אוטומטית ליומן זה."
+power.time_range,auto,"Time Range","טווח זמנים","טווח זמנים","טווח זמנים","טווח זמנים",,"טווח זמנים"
+power.criteria,auto,"Criteria","קריטריונים","קריטריונים","קריטריונים","קריטריונים",,"קריטריונים"
+power.interactive_selection,auto,"Interactive Selection","בחירה אינטראקטיבית","בחירה אינטראקטיבית","בחירה אינטראקטיבית","בחירה אינטראקטיבית",,"בחירה אינטראקטיבית"
+power.selected_events,auto,"Selected Events:","אירועים נבחרים:","אירועים נבחרים:","אירועים נבחרים:","אירועים נבחרים:",,"אירועים נבחרים:"
+power.import_csv_title,auto,"Import Schedule from CSV","ייבוא לוח זמנים מ-CSV","ייבוא לוח זמנים מ-CSV","ייבוא לוח זמנים מ-CSV","ייבוא לוח זמנים מ-CSV",,"ייבוא לוח זמנים מ-CSV"
+power.import_csv_desc,auto,"Bulk import semesters, holidays, or blackout periods.","ייבוא מרוכז של סמסטרים, חגים או תקופות חסימה.","ייבוא מרוכז של סמסטרים, חגים או תקופות חסימה.","ייבוא מרוכז של סמסטרים, חגים או תקופות חסימה.","ייבוא מרוכז של סמסטרים, חגים או תקופות חסימה.",,"ייבוא מרוכז של סמסטרים, חגים או תקופות חסימה."
+power.blackout_label,auto,"BLACKOUT","חסימה","חסימה","חסימה","חסימה",,"חסימה"
+power.alert_deleted,auto,"Successfully deleted ${count} events.","נמחקו ${count} אירועים בהצלחה.","נמחקו ${count} אירועים בהצלחה.","נמחקו ${count} אירועים בהצלחה.","נמחקו ${count} אירועים בהצלחה.",,"נמחקו ${count} אירועים בהצלחה."
+power.alert_no_valid,auto,"No valid rows found. Please ensure dates are in YYYY-MM-DD or M/D/YYYY format.","לא נמצאו שורות תקפות. ודא שהתאריכים בפורמט YYYY-MM-DD או M/D/YYYY.","לא נמצאו שורות תקפות. ודא שהתאריכים בפורמט YYYY-MM-DD או M/D/YYYY.","לא נמצאו שורות תקפות. ודא שהתאריכים בפורמט YYYY-MM-DD או M/D/YYYY.","לא נמצאו שורות תקפות. ודא שהתאריכים בפורמט YYYY-MM-DD או M/D/YYYY.",,"לא נמצאו שורות תקפות. ודא שהתאריכים בפורמט YYYY-MM-DD או M/D/YYYY."
+power.alert_parse_fail,auto,"Failed to parse CSV file.","נכשל בניתוח קובץ CSV.","נכשל בניתוח קובץ CSV.","נכשל בניתוח קובץ CSV.","נכשל בניתוח קובץ CSV.",,"נכשל בניתוח קובץ CSV."
+power.alert_imported,auto,"Successfully imported ${n} schedule blocks.","יובאו ${n} בלוקי לוח זמנים בהצלחה.","יובאו ${n} בלוקי לוח זמנים בהצלחה.","יובאו ${n} בלוקי לוח זמנים בהצלחה.","יובאו ${n} בלוקי לוח זמנים בהצלחה.",,"יובאו ${n} בלוקי לוח זמנים בהצלחה."
+layout.logo_alt,auto,"Cadenza Logo","לוגו קדנצה","לוגו קדנצה","לוגו קדנצה","לוגו קדנצה",,"לוגו קדנצה"
+layout.sandbox_badge,auto,"SANDBOX","ארגז חול","ארגז חול","ארגז חול","ארגז חול",,"ארגז חול"
+layout.sign_out,auto,"Sign Out","התנתק","התנתק","התנתק","התנתק",,"התנתק"
+layout.mobile_access_label,auto,"Mobile Access","גישה מנייד","גישה מנייד","גישה מנייד","גישה מנייד",,"גישה מנייד"
+analysis.chart_name_placeholder,auto,"e.g. Piano Revenue","לדוגמה: הכנסות פסנתר","לדוגמה: הכנסות פסנתר","לדוגמה: הכנסות פסנתר","לדוגמה: הכנסות פסנתר",,"לדוגמה: הכנסות פסנתר"
+analysis.edit_tooltip,auto,"Edit","עריכה","עריכה","עריכה","עריכה",,"עריכה"
+analysis.duplicate_tooltip,auto,"Duplicate","שכפול","שכפול","שכפול","שכפול",,"שכפול"
+gantt.name_placeholder,auto,"e.g. Winter Break","לדוגמה: חופשת חורף","לדוגמה: חופשת חורף","לדוגמה: חופשת חורף","לדוגמה: חופשת חורף",,"לדוגמה: חופשת חורף"
+gantt.auto_hide,auto,"Automatically","אוטומטית","אוטומטית","אוטומטית","אוטומטית",,"אוטומטית"
+gantt.hide_label,auto,"HIDE","הסתר","הסתר","הסתר","הסתר",,"הסתר"
+dashboard.report_desc,auto,"Based on current filters, reports will be sent to the following teachers.","על פי הסינונים הנוכחיים, דוחות יישלחו למורים הבאים.","על פי הסינונים הנוכחיים, דוחות יישלחו למורים הבאים.","על פי הסינונים הנוכחיים, דוחות יישלחו למורים הבאים.","על פי הסינונים הנוכחיים, דוחות יישלחו למורים הבאים.",,"על פי הסינונים הנוכחיים, דוחות יישלחו למורים הבאים."
+dashboard.report_success,auto,"Reports Sent Successfully!","הדוחות נשלחו בהצלחה!","הדוחות נשלחו בהצלחה!","הדוחות נשלחו בהצלחה!","הדוחות נשלחו בהצלחה!",,"הדוחות נשלחו בהצלחה!"
+lists.no_items_found,auto,"No items found","לא נמצאו פריטים","לא נמצאו פריטים","לא נמצאו פריטים","לא נמצאו פריטים",,"לא נמצאו פריטים"
+lists.csv_no_unique,auto,"No new unique items found in the CSV. Make sure you used the template format.","לא נמצאו פריטים ייחודיים חדשים ב-CSV. ודא שהשתמשת בפורמט התבנית.","לא נמצאו פריטים ייחודיים חדשים ב-CSV. ודא שהשתמשת בפורמט התבנית.","לא נמצאו פריטים ייחודיים חדשים ב-CSV. ודא שהשתמשת בפורמט התבנית.","לא נמצאו פריטים ייחודיים חדשים ב-CSV. ודא שהשתמשת בפורמט התבנית.",,"לא נמצאו פריטים ייחודיים חדשים ב-CSV. ודא שהשתמשת בפורמט התבנית."
+room.subtitle,auto,"Configure spaces and equipment itineraries.","הגדר חללים ומסלולי ציוד.","הגדר חללים ומסלולי ציוד.","הגדר חללים ומסלולי ציוד.","הגדר חללים ומסלולי ציוד.",,"הגדר חללים ומסלולי ציוד."
+room.name_placeholder,auto,"e.g. Studio A","לדוגמה: סטודיו A","לדוגמה: סטודיו A","לדוגמה: סטודיו A","לדוגמה: סטודיו A",,"לדוגמה: סטודיו A"
+teach.alert_error_reading,auto,"Error reading file","שגיאה בקריאת הקובץ","שגיאה בקריאת הקובץ","שגיאה בקריאת הקובץ","שגיאה בקריאת הקובץ",,"שגיאה בקריאת הקובץ"
+teach.alert_no_valid,auto,"No valid or new unique teachers found in CSV.\nPlease ensure the file contains columns: Name, Email, Phone, Position, Category, RateType, RateValue, Tags","לא נמצאו מורים תקפים או ייחודיים חדשים ב-CSV.\nודא שהקובץ מכיל עמודות: שם, דוא""ל, טלפון, תפקיד, קטגוריה, סוג תעריף, ערך תעריף, תגיות","לא נמצאו מורים תקפים או ייחודיים חדשים ב-CSV.\nודא שהקובץ מכיל עמודות: שם, דוא""ל, טלפון, תפקיד, קטגוריה, סוג תעריף, ערך תעריף, תגיות","לא נמצאו מורים תקפים או ייחודיים חדשים ב-CSV.\nודא שהקובץ מכיל עמודות: שם, דוא""ל, טלפון, תפקיד, קטגוריה, סוג תעריף, ערך תעריף, תגיות","לא נמצאו מורים תקפים או ייחודיים חדשים ב-CSV.\nודא שהקובץ מכיל עמודות: שם, דוא""ל, טלפון, תפקיד, קטגוריה, סוג תעריף, ערך תעריף, תגיות",,"לא נמצאו מורים תקפים או ייחודיים חדשים ב-CSV.\nודא שהקובץ מכיל עמודות: שם, דוא""ל, טלפון, תפקיד, קטגוריה, סוג תעריף, ערך תעריף, תגיות"
+cal.alert_end_after_start,auto,"End time must be after start time","שעת הסיום חייבת להיות אחרי שעת ההתחלה","שעת הסיום חייבת להיות אחרי שעת ההתחלה","שעת הסיום חייבת להיות אחרי שעת ההתחלה","שעת הסיום חייבת להיות אחרי שעת ההתחלה",,"שעת הסיום חייבת להיות אחרי שעת ההתחלה"
+power.title,auto,"Power Tools","כלים מתקדמים","כלים מתקדמים","כלים מתקדמים","כלים מתקדמים",,"כלים מתקדמים"
+power.subtitle,auto,"Bulk actions for event management.","פעולות מרוכזות לניהול אירועים.","פעולות מרוכזות לניהול אירועים.","פעולות מרוכזות לניהול אירועים.","פעולות מרוכזות לניהול אירועים.",,"פעולות מרוכזות לניהול אירועים."
+power.tab_filter,auto,"By Filter","לפי מסנן","לפי מסנן","לפי מסנן","לפי מסנן",,"לפי מסנן"
+power.tab_manual,auto,"Manual Select","בחירה ידנית","בחירה ידנית","בחירה ידנית","בחירה ידנית",,"בחירה ידנית"
+power.tab_import,auto,"Import Schedule","ייבוא לוח זמנים","ייבוא לוח זמנים","ייבוא לוח זמנים","ייבוא לוח זמנים",,"ייבוא לוח זמנים"
+power.label_from,auto,"From","מ-","מ-","מ-","מ-",,"מ-"
+power.label_to,auto,"To","עד","עד","עד","עד",,"עד"
+power.select_time_range_first,auto,"Please select a time range first.","אנא בחר טווח זמנים תחילה.","אנא בחר טווח זמנים תחילה.","אנא בחר טווח זמנים תחילה.","אנא בחר טווח זמנים תחילה.",,"אנא בחר טווח זמנים תחילה."
+power.clear_filters,auto,"Clear Filters","נקה מסננים","נקה מסננים","נקה מסננים","נקה מסננים",,"נקה מסננים"
+power.manual_desc,auto,"Click and drag directly on the calendar grid to draw a selection rectangle, or click individual events to toggle them.","לחץ וגרור ישירות על רשת הלוח שנה כדי לצייר מלבן בחירה, או לחץ על אירועים בודדים כדי להחליף אותם.","לחץ וגרור ישירות על רשת הלוח שנה כדי לצייר מלבן בחירה, או לחץ על אירועים בודדים כדי להחליף אותם.","לחץ וגרור ישירות על רשת הלוח שנה כדי לצייר מלבן בחירה, או לחץ על אירועים בודדים כדי להחליף אותם.","לחץ וגרור ישירות על רשת הלוח שנה כדי לצייר מלבן בחירה, או לחץ על אירועים בודדים כדי להחליף אותם.",,"לחץ וגרור ישירות על רשת הלוח שנה כדי לצייר מלבן בחירה, או לחץ על אירועים בודדים כדי להחליף אותם."
+power.clear_selection,auto,"Clear Selection","נקה בחירה","נקה בחירה","נקה בחירה","נקה בחירה",,"נקה בחירה"
+power.download_template,auto,"Download CSV Template","הורד תבנית CSV","הורד תבנית CSV","הורד תבנית CSV","הורד תבנית CSV",,"הורד תבנית CSV"
+power.processing,auto,"Processing...","מעבד...","מעבד...","מעבד...","מעבד...",,"מעבד..."
+power.drop_csv,auto,"Drop CSV file or Click to Browse","גרור קובץ CSV או לחץ לעיון","גרור קובץ CSV או לחץ לעיון","גרור קובץ CSV או לחץ לעיון","גרור קובץ CSV או לחץ לעיון",,"גרור קובץ CSV או לחץ לעיון"
+power.preview,auto,"Preview","תצוגה מקדימה","תצוגה מקדימה","תצוגה מקדימה","תצוגה מקדימה",,"תצוגה מקדימה"
+power.items,auto,"items","פריטים","פריטים","פריטים","פריטים",,"פריטים"
+power.confirm_import,auto,"Confirm Import","אישור ייבוא","אישור ייבוא","אישור ייבוא","אישור ייבוא",,"אישור ייבוא"
+power.targeted,auto,"targeted","ממוקדים","ממוקדים","ממוקדים","ממוקדים",,"ממוקדים"
+power.adjust_filters,auto,"Adjust filters.","התאם מסננים.","התאם מסננים.","התאם מסננים.","התאם מסננים.",,"התאם מסננים."
+power.select_events,auto,"Select events.","בחר אירועים.","בחר אירועים.","בחר אירועים.","בחר אירועים.",,"בחר אירועים."
+power.bulk_cancel,auto,"Bulk Cancel","ביטול מרוכז","ביטול מרוכז","ביטול מרוכז","ביטול מרוכז",,"ביטול מרוכז"
+power.bulk_delete,auto,"Bulk Delete","מחיקה מרוכזת","מחיקה מרוכזת","מחיקה מרוכזת","מחיקה מרוכזת",,"מחיקה מרוכזת"
+power.confirm_action,auto,"Are you sure you want to","האם אתה בטוח שברצונך","האם אתה בטוח שברצונך","האם אתה בטוח שברצונך","האם אתה בטוח שברצונך",,"האם אתה בטוח שברצונך"
+power.action_cancel,auto,"CANCEL","לבטל","לבטל","לבטל","לבטל",,"לבטל"
+power.action_delete,auto,"PERMANENTLY DELETE","למחוק לצמיתות","למחוק לצמיתות","למחוק לצמיתות","למחוק לצמיתות",,"למחוק לצמיתות"
+power.events_word,auto,"events","אירועים","אירועים","אירועים","אירועים",,"אירועים"
+power.matching,auto,"matching","תואמים","תואמים","תואמים","תואמים",,"תואמים"
+power.selected_word,auto,"selected","נבחרים","נבחרים","נבחרים","נבחרים",,"נבחרים"
+power.alert_canceled,auto,"Successfully canceled","בוטלו בהצלחה","בוטלו בהצלחה","בוטלו בהצלחה","בוטלו בהצלחה",,"בוטלו בהצלחה"
+power.alert_cancel_note,auto,"Note: Canceled events may be hidden. Enable the ""Show Canceled"" filter in the calendar toolbar to view them.","הערה: אירועים מבוטלים עשויים להיות מוסתרים. הפעל את מסנן ""הצג מבוטלים"" בסרגל הלוח שנה כדי לצפות בהם.","הערה: אירועים מבוטלים עשויים להיות מוסתרים. הפעל את מסנן ""הצג מבוטלים"" בסרגל הלוח שנה כדי לצפות בהם.","הערה: אירועים מבוטלים עשויים להיות מוסתרים. הפעל את מסנן ""הצג מבוטלים"" בסרגל הלוח שנה כדי לצפות בהם.","הערה: אירועים מבוטלים עשויים להיות מוסתרים. הפעל את מסנן ""הצג מבוטלים"" בסרגל הלוח שנה כדי לצפות בהם.",,"הערה: אירועים מבוטלים עשויים להיות מוסתרים. הפעל את מסנן ""הצג מבוטלים"" בסרגל הלוח שנה כדי לצפות בהם."
+fin.email_report,auto,"Email Report","דוח אימייל","דוח אימייל","דוח אימייל","דוח אימייל",,"דוח אימייל"
+fin.no_data_matches,auto,"No data matches current filters.","אין נתונים התואמים למסננים הנוכחיים.","אין נתונים התואמים למסננים הנוכחיים.","אין נתונים התואמים למסננים הנוכחיים.","אין נתונים התואמים למסננים הנוכחיים.",,"אין נתונים התואמים למסננים הנוכחיים."
+fin.send_reports_title,auto,"Send Financial Reports","שליחת דוחות פיננסיים","שליחת דוחות פיננסיים","שליחת דוחות פיננסיים","שליחת דוחות פיננסיים",,"שליחת דוחות פיננסיים"
+fin.email_dispatched,auto,"Email reports have been generated and dispatched to","דוחות אימייל נוצרו ונשלחו אל","דוחות אימייל נוצרו ונשלחו אל","דוחות אימייל נוצרו ונשלחו אל","דוחות אימייל נוצרו ונשלחו אל",,"דוחות אימייל נוצרו ונשלחו אל"
+fin.recipients,auto,"recipients","נמענים","נמענים","נמענים","נמענים",,"נמענים"
+fin.month_singular,auto,"month","חודש","חודש","חודש","חודש",,"חודש"
+fin.months_plural,auto,"months","חודשים","חודשים","חודשים","חודשים",,"חודשים"
+builder.viz_bar,auto,"Bar","עמודות","עמודות","עמודות","עמודות",,"עמודות"
+builder.viz_stacked,auto,"Stacked","מוערם","מוערם","מוערם","מוערם",,"מוערם"
+builder.viz_line,auto,"Line","קו","קו","קו","קו",,"קו"
+builder.viz_pie,auto,"Pie","עוגה","עוגה","עוגה","עוגה",,"עוגה"
+builder.viz_table,auto,"Table","טבלה","טבלה","טבלה","טבלה",,"טבלה"
+builder.agg_sum,auto,"Sum","סכום","סכום","סכום","סכום",,"סכום"
+builder.agg_average,auto,"Average","ממוצע","ממוצע","ממוצע","ממוצע",,"ממוצע"
+builder.agg_count,auto,"Count","ספירה","ספירה","ספירה","ספירה",,"ספירה"
+builder.agg_min,auto,"Min","מינימום","מינימום","מינימום","מינימום",,"מינימום"
+builder.agg_max,auto,"Max","מקסימום","מקסימום","מקסימום","מקסימום",,"מקסימום"
+builder.tf_today,auto,"Today","היום","היום","היום","היום",,"היום"
+builder.tf_current_week,auto,"Current Week","שבוע נוכחי","שבוע נוכחי","שבוע נוכחי","שבוע נוכחי",,"שבוע נוכחי"
+builder.tf_current_month,auto,"Current Month","חודש נוכחי","חודש נוכחי","חודש נוכחי","חודש נוכחי",,"חודש נוכחי"
+builder.tf_custom_range,auto,"Custom Range","טווח מותאם","טווח מותאם","טווח מותאם","טווח מותאם",,"טווח מותאם"
+builder.tf_specific_day,auto,"Specific Day","יום ספציפי","יום ספציפי","יום ספציפי","יום ספציפי",,"יום ספציפי"
+builder.tf_specific_week,auto,"Specific Week","שבוע ספציפי","שבוע ספציפי","שבוע ספציפי","שבוע ספציפי",,"שבוע ספציפי"
+builder.tf_specific_month,auto,"Specific Month","חודש ספציפי","חודש ספציפי","חודש ספציפי","חודש ספציפי",,"חודש ספציפי"
+dim.teacher,auto,"Teacher","מורה","מורה","מורה","מורה",,"מורה"
+dim.position,auto,"Position","תפקיד","תפקיד","תפקיד","תפקיד",,"תפקיד"
+dim.category,auto,"Category","קטגוריה","קטגוריה","קטגוריה","קטגוריה",,"קטגוריה"
+dim.tag,auto,"Tag","תגית","תגית","תגית","תגית",,"תגית"
+dim.rate_type,auto,"Rate Type","סוג תעריף","סוג תעריף","סוג תעריף","סוג תעריף",,"סוג תעריף"
+dim.month,auto,"Month","חודש","חודש","חודש","חודש",,"חודש"
+dim.week,auto,"Week","שבוע","שבוע","שבוע","שבוע",,"שבוע"
+dim.day_of_week,auto,"Day of Week","יום בשבוע","יום בשבוע","יום בשבוע","יום בשבוע",,"יום בשבוע"
+dim.room,auto,"Room","חדר","חדר","חדר","חדר",,"חדר"
+dim.classification,auto,"Classification","סיווג","סיווג","סיווג","סיווג",,"סיווג"
+metric.active_hours,auto,"Active Hours","שעות פעילות","שעות פעילות","שעות פעילות","שעות פעילות",,"שעות פעילות"
+metric.canceled_hours,auto,"Canceled Hours","שעות מבוטלות","שעות מבוטלות","שעות מבוטלות","שעות מבוטלות",,"שעות מבוטלות"
+metric.total_hours,auto,"Total Hours","סה""כ שעות","סה""כ שעות","סה""כ שעות","סה""כ שעות",,"סה""כ שעות"
+metric.hourly_cost,auto,"Hourly Cost","עלות שעתית","עלות שעתית","עלות שעתית","עלות שעתית",,"עלות שעתית"
+metric.global_cost,auto,"Global Cost","עלות גלובלית","עלות גלובלית","עלות גלובלית","עלות גלובלית",,"עלות גלובלית"
+metric.total_cost,auto,"Total Cost","עלות כוללת","עלות כוללת","עלות כוללת","עלות כוללת",,"עלות כוללת"
+metric.event_count,auto,"Event Count","מספר אירועים","מספר אירועים","מספר אירועים","מספר אירועים",,"מספר אירועים"
+metric.teacher_count,auto,"Teacher Count","מספר מורים","מספר מורים","מספר מורים","מספר מורים",,"מספר מורים"
+metric.avg_rate,auto,"Average Rate","תעריף ממוצע","תעריף ממוצע","תעריף ממוצע","תעריף ממוצע",,"תעריף ממוצע"
+super.add_btn,auto,"Add","הוסף","הוסף","הוסף","הוסף",,"הוסף"
+super.switch_bulk,auto,"Switch to Bulk CSV Entry","עבור לקלט CSV מרוכז","עבור לקלט CSV מרוכז","עבור לקלט CSV מרוכז","עבור לקלט CSV מרוכז",,"עבור לקלט CSV מרוכז"
+super.switch_single,auto,"Switch to Single Entry","עבור לקלט בודד","עבור לקלט בודד","עבור לקלט בודד","עבור לקלט בודד",,"עבור לקלט בודד"
+super.role_viewer,auto,"Viewer","צופה","צופה","צופה","צופה",,"צופה"
+super.role_admin,auto,"Admin","מנהל","מנהל","מנהל","מנהל",,"מנהל"
+super.tools_notice,auto,"These tools are exclusively available to the Super Admin. No tenant admin can access them.","כלים אלה זמינים אך ורק למנהל-על. אף מנהל דייר לא יכול לגשת אליהם.","כלים אלה זמינים אך ורק למנהל-על. אף מנהל דייר לא יכול לגשת אליהם.","כלים אלה זמינים אך ורק למנהל-על. אף מנהל דייר לא יכול לגשת אליהם.","כלים אלה זמינים אך ורק למנהל-על. אף מנהל דייר לא יכול לגשת אליהם.",,"כלים אלה זמינים אך ורק למנהל-על. אף מנהל דייר לא יכול לגשת אליהם."
+super.wipe_data,auto,"Wipe Data","מחיקת נתונים","מחיקת נתונים","מחיקת נתונים","מחיקת נתונים",,"מחיקת נתונים"
+settings.connect_account,auto,"Connect My Account","חבר את החשבון שלי","חבר את החשבון שלי","חבר את החשבון שלי","חבר את החשבון שלי",,"חבר את החשבון שלי"
+fin.rate_hourly,auto,"Hourly","שעתי","שעתי","שעתי","שעתי",,"שעתי"
+fin.rate_global,auto,"Global Monthly","חודשי גלובלי","חודשי גלובלי","חודשי גלובלי","חודשי גלובלי",,"חודשי גלובלי"
+app.something_wrong,auto,"Something went wrong.","משהו השתבש.","משהו השתבש.","משהו השתבש.","משהו השתבש.",,"משהו השתבש."
+app.collapse_sidebar,auto,"Collapse Sidebar","כווץ סרגל צד","כווץ סרגל צד","כווץ סרגל צד","כווץ סרגל צד",,"כווץ סרגל צד"
+app.not_found,auto,"Not found","לא נמצא","לא נמצא","לא נמצא","לא נמצא",,"לא נמצא"
+app.confirm_wipe,auto,"Are you sure you want to permanently delete all Teachers, Rooms, Events, and Gantt data? This cannot be undone.","האם אתה בטוח שברצונך למחוק לצמיתות את כל המורים, החדרים, האירועים ונתוני גנט? לא ניתן לבטל פעולה זו.","האם אתה בטוח שברצונך למחוק לצמיתות את כל המורים, החדרים, האירועים ונתוני גנט? לא ניתן לבטל פעולה זו.","האם אתה בטוח שברצונך למחוק לצמיתות את כל המורים, החדרים, האירועים ונתוני גנט? לא ניתן לבטל פעולה זו.","האם אתה בטוח שברצונך למחוק לצמיתות את כל המורים, החדרים, האירועים ונתוני גנט? לא ניתן לבטל פעולה זו.",,"האם אתה בטוח שברצונך למחוק לצמיתות את כל המורים, החדרים, האירועים ונתוני גנט? לא ניתן לבטל פעולה זו."
+app.reload,auto,"Reload App","טען מחדש","טען מחדש","טען מחדש","טען מחדש",,"טען מחדש"
+cal.confirm_delete_event,auto,"Are you sure you want to delete this event?","האם אתה בטוח שברצונך למחוק אירוע זה?","האם אתה בטוח שברצונך למחוק אירוע זה?","האם אתה בטוח שברצונך למחוק אירוע זה?","האם אתה בטוח שברצונך למחוק אירוע זה?",,"האם אתה בטוח שברצונך למחוק אירוע זה?"
+cal.confirm_delete_gantt,auto,"Delete this Gantt block? This may affect blackouts.","למחוק בלוק גנט זה? זה עלול להשפיע על תקופות חסימה.","למחוק בלוק גנט זה? זה עלול להשפיע על תקופות חסימה.","למחוק בלוק גנט זה? זה עלול להשפיע על תקופות חסימה.","למחוק בלוק גנט זה? זה עלול להשפיע על תקופות חסימה.",,"למחוק בלוק גנט זה? זה עלול להשפיע על תקופות חסימה."
+cal.occurrences,auto,"occurrences","מופעים","מופעים","מופעים","מופעים",,"מופעים"
+chart.no_data_filters,auto,"No data matches the current filters","אין נתונים התואמים למסננים הנוכחיים","אין נתונים התואמים למסננים הנוכחיים","אין נתונים התואמים למסננים הנוכחיים","אין נתונים התואמים למסננים הנוכחיים",,"אין נתונים התואמים למסננים הנוכחיים"
+builder.filters_applied,auto,"filters applied","מסננים מופעלים","מסננים מופעלים","מסננים מופעלים","מסננים מופעלים",,"מסננים מופעלים"
+builder.narrow_desc,auto,"Narrow chart data by specific teachers, positions, tags, or categories","צמצם נתוני תרשים לפי מורים, תפקידים, תגיות או קטגוריות","צמצם נתוני תרשים לפי מורים, תפקידים, תגיות או קטגוריות","צמצם נתוני תרשים לפי מורים, תפקידים, תגיות או קטגוריות","צמצם נתוני תרשים לפי מורים, תפקידים, תגיות או קטגוריות",,"צמצם נתוני תרשים לפי מורים, תפקידים, תגיות או קטגוריות"
+gantt.confirm_delete_block,auto,"Delete this block? If it is a blackout, events will be restored.","למחוק בלוק זה? אם מדובר בחסימה, האירועים ישוחזרו.","למחוק בלוק זה? אם מדובר בחסימה, האירועים ישוחזרו.","למחוק בלוק זה? אם מדובר בחסימה, האירועים ישוחזרו.","למחוק בלוק זה? אם מדובר בחסימה, האירועים ישוחזרו.",,"למחוק בלוק זה? אם מדובר בחסימה, האירועים ישוחזרו."
+lists.confirm_remove,auto,"from lists? Existing records using this will not be updated.","מרשימות? רשומות קיימות המשתמשות בזה לא יעודכנו.","מרשימות? רשומות קיימות המשתמשות בזה לא יעודכנו.","מרשימות? רשומות קיימות המשתמשות בזה לא יעודכנו.","מרשימות? רשומות קיימות המשתמשות בזה לא יעודכנו.",,"מרשימות? רשומות קיימות המשתמשות בזה לא יעודכנו."
+lists.remove_word,auto,"Remove","הסר","הסר","הסר","הסר",,"הסר"
+rooms.confirm_delete,auto,"Are you sure? Scheduled events will flag warnings.","האם אתה בטוח? אירועים מתוזמנים יסומנו עם אזהרות.","האם אתה בטוח? אירועים מתוזמנים יסומנו עם אזהרות.","האם אתה בטוח? אירועים מתוזמנים יסומנו עם אזהרות.","האם אתה בטוח? אירועים מתוזמנים יסומנו עם אזהרות.",,"האם אתה בטוח? אירועים מתוזמנים יסומנו עם אזהרות."
+teachers.confirm_delete,auto,"Are you sure you want to delete this teacher? Associated events will show warnings.","האם אתה בטוח שברצונך למחוק מורה זה? אירועים משויכים יציגו אזהרות.","האם אתה בטוח שברצונך למחוק מורה זה? אירועים משויכים יציגו אזהרות.","האם אתה בטוח שברצונך למחוק מורה זה? אירועים משויכים יציגו אזהרות.","האם אתה בטוח שברצונך למחוק מורה זה? אירועים משויכים יציגו אזהרות.",,"האם אתה בטוח שברצונך למחוק מורה זה? אירועים משויכים יציגו אזהרות."
+teachers.confirm_bulk_delete,auto,"teachers? This cannot be undone.","מורים? לא ניתן לבטל פעולה זו.","מורים? לא ניתן לבטל פעולה זו.","מורים? לא ניתן לבטל פעולה זו.","מורים? לא ניתן לבטל פעולה זו.",,"מורים? לא ניתן לבטל פעולה זו."
+teachers.confirm_bulk_prefix,auto,"Are you sure you want to delete","האם אתה בטוח שברצונך למחוק","האם אתה בטוח שברצונך למחוק","האם אתה בטוח שברצונך למחוק","האם אתה בטוח שברצונך למחוק",,"האם אתה בטוח שברצונך למחוק"
+super.confirm_delete_org,auto,"Are you sure you want to delete the entire organization","האם אתה בטוח שברצונך למחוק את הארגון כולו","האם אתה בטוח שברצונך למחוק את הארגון כולו","האם אתה בטוח שברצונך למחוק את הארגון כולו","האם אתה בטוח שברצונך למחוק את הארגון כולו",,"האם אתה בטוח שברצונך למחוק את הארגון כולו"
+super.delete_org_warn,auto,"This will not delete Firestore data, only the admin record.","פעולה זו לא תמחק נתוני Firestore, רק את רשומת המנהל.","פעולה זו לא תמחק נתוני Firestore, רק את רשומת המנהל.","פעולה זו לא תמחק נתוני Firestore, רק את רשומת המנהל.","פעולה זו לא תמחק נתוני Firestore, רק את רשומת המנהל.",,"פעולה זו לא תמחק נתוני Firestore, רק את רשומת המנהל."
+super.confirm_change_slug,auto,"WARNING: Changing the tenant ID will migrate all Firestore data. Continue?","אזהרה: שינוי מזהה הדייר יעביר את כל נתוני Firestore. להמשיך?","אזהרה: שינוי מזהה הדייר יעביר את כל נתוני Firestore. להמשיך?","אזהרה: שינוי מזהה הדייר יעביר את כל נתוני Firestore. להמשיך?","אזהרה: שינוי מזהה הדייר יעביר את כל נתוני Firestore. להמשיך?",,"אזהרה: שינוי מזהה הדייר יעביר את כל נתוני Firestore. להמשיך?"
+super.confirm_revoke,auto,"Are you sure you want to revoke access for","האם אתה בטוח שברצונך לבטל גישה עבור","האם אתה בטוח שברצונך לבטל גישה עבור","האם אתה בטוח שברצונך לבטל גישה עבור","האם אתה בטוח שברצונך לבטל גישה עבור",,"האם אתה בטוח שברצונך לבטל גישה עבור"
+super.id_label,auto,"ID:","מזהה:","מזהה:","מזהה:","מזהה:",,"מזהה:"
+super.csv_format,auto,"email, organization_slug, role","אימייל, מזהה_ארגון, תפקיד","אימייל, מזהה_ארגון, תפקיד","אימייל, מזהה_ארגון, תפקיד","אימייל, מזהה_ארגון, תפקיד",,"אימייל, מזהה_ארגון, תפקיד"
+super.confirm_snapshot,auto,"Would you like to take a Snapshot of current state before generating test data?","האם תרצה ליצור תמונת מצב לפני יצירת נתוני בדיקה?","האם תרצה ליצור תמונת מצב לפני יצירת נתוני בדיקה?","האם תרצה ליצור תמונת מצב לפני יצירת נתוני בדיקה?","האם תרצה ליצור תמונת מצב לפני יצירת נתוני בדיקה?",,"האם תרצה ליצור תמונת מצב לפני יצירת נתוני בדיקה?"
+super.confirm_generate,auto,"Generate test data? This will overwrite current data in this workspace.","ליצור נתוני בדיקה? פעולה זו תדרוס את הנתונים הנוכחיים.","ליצור נתוני בדיקה? פעולה זו תדרוס את הנתונים הנוכחיים.","ליצור נתוני בדיקה? פעולה זו תדרוס את הנתונים הנוכחיים.","ליצור נתוני בדיקה? פעולה זו תדרוס את הנתונים הנוכחיים.",,"ליצור נתוני בדיקה? פעולה זו תדרוס את הנתונים הנוכחיים."
+super.confirm_restore,auto,"Restore snapshot? Current changes will be overwritten!","לשחזר תמונת מצב? השינויים הנוכחיים יידרסו!","לשחזר תמונת מצב? השינויים הנוכחיים יידרסו!","לשחזר תמונת מצב? השינויים הנוכחיים יידרסו!","לשחזר תמונת מצב? השינויים הנוכחיים יידרסו!",,"לשחזר תמונת מצב? השינויים הנוכחיים יידרסו!"
+super.confirm_cal_test,auto,"Run Calendar Test Generator? Current state will be cleared. (Snapshot taken automatically)","להריץ מחולל בדיקות לוח שנה? המצב הנוכחי יימחק. (תמונת מצב נלקחת אוטומטית)","להריץ מחולל בדיקות לוח שנה? המצב הנוכחי יימחק. (תמונת מצב נלקחת אוטומטית)","להריץ מחולל בדיקות לוח שנה? המצב הנוכחי יימחק. (תמונת מצב נלקחת אוטומטית)","להריץ מחולל בדיקות לוח שנה? המצב הנוכחי יימחק. (תמונת מצב נלקחת אוטומטית)",,"להריץ מחולל בדיקות לוח שנה? המצב הנוכחי יימחק. (תמונת מצב נלקחת אוטומטית)"
+super.confirm_teacher_test,auto,"Run Teacher Test Generator? Current teachers will be replaced. (Snapshot taken automatically)","להריץ מחולל מורים? המורים הנוכחיים יוחלפו. (תמונת מצב נלקחת אוטומטית)","להריץ מחולל מורים? המורים הנוכחיים יוחלפו. (תמונת מצב נלקחת אוטומטית)","להריץ מחולל מורים? המורים הנוכחיים יוחלפו. (תמונת מצב נלקחת אוטומטית)","להריץ מחולל מורים? המורים הנוכחיים יוחלפו. (תמונת מצב נלקחת אוטומטית)",,"להריץ מחולל מורים? המורים הנוכחיים יוחלפו. (תמונת מצב נלקחת אוטומטית)"
+settings.currency_ils,auto,"₪ — Israeli New Shekel (ILS)","₪ — שקל חדש (ILS)","₪ — שקל חדש (ILS)","₪ — שקל חדש (ILS)","₪ — שקל חדש (ILS)",,"₪ — שקל חדש (ILS)"
+settings.currency_usd,auto,"$ — US Dollar (USD)","$ — דולר אמריקאי (USD)","$ — דולר אמריקאי (USD)","$ — דולר אמריקאי (USD)","$ — דולר אמריקאי (USD)",,"$ — דולר אמריקאי (USD)"
+settings.currency_eur,auto,"€ — Euro (EUR)","€ — אירו (EUR)","€ — אירו (EUR)","€ — אירו (EUR)","€ — אירו (EUR)",,"€ — אירו (EUR)"
+settings.currency_gbp,auto,"£ — British Pound (GBP)","£ — לירה שטרלינג (GBP)","£ — לירה שטרלינג (GBP)","£ — לירה שטרלינג (GBP)","£ — לירה שטרלינג (GBP)",,"£ — לירה שטרלינג (GBP)"
+settings.currency_jpy,auto,"¥ — Japanese Yen (JPY)","¥ — ין יפני (JPY)","¥ — ין יפני (JPY)","¥ — ין יפני (JPY)","¥ — ין יפני (JPY)",,"¥ — ין יפני (JPY)"
+settings.currency_inr,auto,"₹ — Indian Rupee (INR)","₹ — רופי הודי (INR)","₹ — רופי הודי (INR)","₹ — רופי הודי (INR)","₹ — רופי הודי (INR)",,"₹ — רופי הודי (INR)"
+settings.currency_btc,auto,"₿ — Bitcoin (BTC)","₿ — ביטקוין (BTC)","₿ — ביטקוין (BTC)","₿ — ביטקוין (BTC)","₿ — ביטקוין (BTC)",,"₿ — ביטקוין (BTC)"
+settings.time_12h,auto,"12-hour (1:00 PM)","12 שעות (1:00 PM)","12 שעות (1:00 PM)","12 שעות (1:00 PM)","12 שעות (1:00 PM)",,"12 שעות (1:00 PM)"
+settings.time_24h,auto,"24-hour (13:00)","24 שעות (13:00)","24 שעות (13:00)","24 שעות (13:00)","24 שעות (13:00)",,"24 שעות (13:00)"
+settings.choose_calendar,auto,"-- Choose a calendar --","-- בחר לוח שנה --","-- בחר לוח שנה --","-- בחר לוח שנה --","-- בחר לוח שנה --",,"-- בחר לוח שנה --"
+settings.hebrew_lang,auto,"עברית (Hebrew)","עברית (Hebrew)","עברית (Hebrew)","עברית (Hebrew)","עברית (Hebrew)",,"עברית (Hebrew)"
+settings.diff_account,auto,"Different account — sync inactive for you","חשבון אחר — סנכרון לא פעיל עבורך","חשבון אחר — סנכרון לא פעיל עבורך","חשבון אחר — סנכרון לא פעיל עבורך","חשבון אחר — סנכרון לא פעיל עבורך",,"חשבון אחר — סנכרון לא פעיל עבורך"
+settings.sync_note,auto,"Events will only sync to Google Calendar when the designated admin is logged in. Only that account can modify the calendar configuration.","אירועים יסונכרנו ללוח שנה של Google רק כשהמנהל המיועד מחובר. רק חשבון זה יכול לשנות את הגדרות הלוח שנה.","אירועים יסונכרנו ללוח שנה של Google רק כשהמנהל המיועד מחובר. רק חשבון זה יכול לשנות את הגדרות הלוח שנה.","אירועים יסונכרנו ללוח שנה של Google רק כשהמנהל המיועד מחובר. רק חשבון זה יכול לשנות את הגדרות הלוח שנה.","אירועים יסונכרנו ללוח שנה של Google רק כשהמנהל המיועד מחובר. רק חשבון זה יכול לשנות את הגדרות הלוח שנה.",,"אירועים יסונכרנו ללוח שנה של Google רק כשהמנהל המיועד מחובר. רק חשבון זה יכול לשנות את הגדרות הלוח שנה."
+fin.header_teacher,auto,"Teacher","מורה","מורה","מורה","מורה",,"מורה"
+fin.header_position,auto,"Position","תפקיד","תפקיד","תפקיד","תפקיד",,"תפקיד"
+fin.header_rate_type,auto,"Rate Type","סוג תעריף","סוג תעריף","סוג תעריף","סוג תעריף",,"סוג תעריף"
+fin.header_rate,auto,"Rate","תעריף","תעריף","תעריף","תעריף",,"תעריף"
+fin.header_active_hrs,auto,"Active Hours","שעות פעילות","שעות פעילות","שעות פעילות","שעות פעילות",,"שעות פעילות"
+fin.header_canceled_hrs,auto,"Canceled Hours","שעות מבוטלות","שעות מבוטלות","שעות מבוטלות","שעות מבוטלות",,"שעות מבוטלות"
+fin.header_hourly_cost,auto,"Hourly Cost","עלות שעתית","עלות שעתית","עלות שעתית","עלות שעתית",,"עלות שעתית"
+fin.header_oneoff,auto,"One-Off Payments","תשלומים חד-פעמיים","תשלומים חד-פעמיים","תשלומים חד-פעמיים","תשלומים חד-פעמיים",,"תשלומים חד-פעמיים"
+fin.header_global_cost,auto,"Global Cost","עלות גלובלית","עלות גלובלית","עלות גלובלית","עלות גלובלית",,"עלות גלובלית"
+fin.header_total_cost,auto,"Total Cost","עלות כוללת","עלות כוללת","עלות כוללת","עלות כוללת",,"עלות כוללת"
+fin.per_hr,auto,"/hr","/שעה","/שעה","/שעה","/שעה",,"/שעה"
+fin.per_mo,auto,"/mo","/חודש","/חודש","/חודש","/חודש",,"/חודש"
+nav.gantt.subtitle,auto,"Manage semesters & blackouts.","ניהול סמסטרים וחסימות.","ניהול סמסטרים וחסימות.","ניהול סמסטרים וחסימות.","ניהול סמסטרים וחסימות.",,"ניהול סמסטרים וחסימות."
+gantt.blackout_label,auto,"Blackout","חסימה","חסימה","חסימה","חסימה",,"חסימה"
+gantt.no_periods,auto,"No periods defined.","לא הוגדרו תקופות.","לא הוגדרו תקופות.","לא הוגדרו תקופות.","לא הוגדרו תקופות.",,"לא הוגדרו תקופות."
+gantt.edit_period,auto,"Edit Period","עריכת תקופה","עריכת תקופה","עריכת תקופה","עריכת תקופה",,"עריכת תקופה"
+gantt.add_period,auto,"Add Gantt / Blackout Period","הוספת תקופת גנט / חסימה","הוספת תקופת גנט / חסימה","הוספת תקופת גנט / חסימה","הוספת תקופת גנט / חסימה",,"הוספת תקופת גנט / חסימה"
+gantt.blackout_warning,auto,"Caution: Existing events in this range will be hidden.","זהירות: אירועים קיימים בטווח זה יוסתרו.","זהירות: אירועים קיימים בטווח זה יוסתרו.","זהירות: אירועים קיימים בטווח זה יוסתרו.","זהירות: אירועים קיימים בטווח זה יוסתרו.",,"זהירות: אירועים קיימים בטווח זה יוסתרו."
+gantt.save_changes,auto,"Save Changes","שמור שינויים","שמור שינויים","שמור שינויים","שמור שינויים",,"שמור שינויים"
+gantt.create_apply,auto,"Create & Apply","צור והחל","צור והחל","צור והחל","צור והחל",,"צור והחל"
+recurrence.on_day_of_month,auto,"On the {ordinal} of each month","ב-{ordinal} בכל חודש","ב-{ordinal} בכל חודש","ב-{ordinal} בכל חודש","ב-{ordinal} בכל חודש",,"ב-{ordinal} בכל חודש"
+recurrence.on_pos_day_of_month,auto,"On the {pos} {dayName} of each month","ביום {dayName} ה{pos} בכל חודש","ביום {dayName} ה{pos} בכל חודש","ביום {dayName} ה{pos} בכל חודש","ביום {dayName} ה{pos} בכל חודש",,"ביום {dayName} ה{pos} בכל חודש"
+recurrence.ordinal_st,auto,"st","","","","",,""
+recurrence.ordinal_nd,auto,"nd","","","","",,""
+recurrence.ordinal_rd,auto,"rd","","","","",,""
+recurrence.ordinal_th,auto,"th","","","","",,""
+recurrence.pos_1st,auto,"1st","ראשון","ראשון","ראשון","ראשון",,"ראשון"
+recurrence.pos_2nd,auto,"2nd","שני","שני","שני","שני",,"שני"
+recurrence.pos_3rd,auto,"3rd","שלישי","שלישי","שלישי","שלישי",,"שלישי"
+recurrence.pos_4th,auto,"4th","רביעי","רביעי","רביעי","רביעי",,"רביעי"
+recurrence.pos_5th,auto,"5th","חמישי","חמישי","חמישי","חמישי",,"חמישי"
+recurrence.day_sunday,auto,"Sunday","ראשון","ראשון","ראשון","ראשון",,"ראשון"
+recurrence.day_monday,auto,"Monday","שני","שני","שני","שני",,"שני"
+recurrence.day_tuesday,auto,"Tuesday","שלישי","שלישי","שלישי","שלישי",,"שלישי"
+recurrence.day_wednesday,auto,"Wednesday","רביעי","רביעי","רביעי","רביעי",,"רביעי"
+recurrence.day_thursday,auto,"Thursday","חמישי","חמישי","חמישי","חמישי",,"חמישי"
+recurrence.day_friday,auto,"Friday","שישי","שישי","שישי","שישי",,"שישי"
+recurrence.day_saturday,auto,"Saturday","שבת","שבת","שבת","שבת",,"שבת"
+recurrence.after,auto,"After","אחרי","אחרי","אחרי","אחרי",,"אחרי"
+recurrence.edit_series_title,auto,"Edit Recurring Event","עריכת אירוע חוזר","עריכת אירוע חוזר","עריכת אירוע חוזר","עריכת אירוע חוזר",,"עריכת אירוע חוזר"
+recurrence.delete_series_title,auto,"Delete Recurring Event","מחיקת אירוע חוזר","מחיקת אירוע חוזר","מחיקת אירוע חוזר","מחיקת אירוע חוזר",,"מחיקת אירוע חוזר"
+recurrence.restore_series_title,auto,"Restore Recurring Event","שחזור אירוע חוזר","שחזור אירוע חוזר","שחזור אירוע חוזר","שחזור אירוע חוזר",,"שחזור אירוע חוזר"
+recurrence.cancel_series_title,auto,"Cancel Recurring Event","ביטול אירוע חוזר","ביטול אירוע חוזר","ביטול אירוע חוזר","ביטול אירוע חוזר",,"ביטול אירוע חוזר"
+recurrence.series_desc_edit,auto,"This is part of a recurring series. What would you like to edit?","זהו חלק מסדרה חוזרת. מה ברצונך לערוך?","זהו חלק מסדרה חוזרת. מה ברצונך לערוך?","זהו חלק מסדרה חוזרת. מה ברצונך לערוך?","זהו חלק מסדרה חוזרת. מה ברצונך לערוך?",,"זהו חלק מסדרה חוזרת. מה ברצונך לערוך?"
+recurrence.series_desc_delete,auto,"This is part of a recurring series. What would you like to delete?","זהו חלק מסדרה חוזרת. מה ברצונך למחוק?","זהו חלק מסדרה חוזרת. מה ברצונך למחוק?","זהו חלק מסדרה חוזרת. מה ברצונך למחוק?","זהו חלק מסדרה חוזרת. מה ברצונך למחוק?",,"זהו חלק מסדרה חוזרת. מה ברצונך למחוק?"
+recurrence.series_desc_restore,auto,"This is part of a recurring series. What would you like to restore?","זהו חלק מסדרה חוזרת. מה ברצונך לשחזר?","זהו חלק מסדרה חוזרת. מה ברצונך לשחזר?","זהו חלק מסדרה חוזרת. מה ברצונך לשחזר?","זהו חלק מסדרה חוזרת. מה ברצונך לשחזר?",,"זהו חלק מסדרה חוזרת. מה ברצונך לשחזר?"
+recurrence.series_desc_cancel,auto,"This is part of a recurring series. What would you like to cancel?","זהו חלק מסדרה חוזרת. מה ברצונך לבטל?","זהו חלק מסדרה חוזרת. מה ברצונך לבטל?","זהו חלק מסדרה חוזרת. מה ברצונך לבטל?","זהו חלק מסדרה חוזרת. מה ברצונך לבטל?",,"זהו חלק מסדרה חוזרת. מה ברצונך לבטל?"
+recurrence.just_this_one,auto,"Just This One","רק את זה","רק את זה","רק את זה","רק את זה",,"רק את זה"
+recurrence.all_events,auto,"All Events","כל האירועים","כל האירועים","כל האירועים","כל האירועים",,"כל האירועים"
+room.itinerary_equipment,auto,"Itinerary & Equipment","ציוד ומלאי","ציוד ומלאי","ציוד ומלאי","ציוד ומלאי",,"ציוד ומלאי"
+room.empty_state,auto,"No rooms configured. Add one to get started.","לא הוגדרו חדרים. הוסף חדר כדי להתחיל.","לא הוגדרו חדרים. הוסף חדר כדי להתחיל.","לא הוגדרו חדרים. הוסף חדר כדי להתחיל.","לא הוגדרו חדרים. הוסף חדר כדי להתחיל.",,"לא הוגדרו חדרים. הוסף חדר כדי להתחיל."
+lists.add_placeholder,auto,"Add {title}...","הוסף {title}...","הוסף {title}...","הוסף {title}...","הוסף {title}...",,"הוסף {title}..."
+lists.found_items,auto,"Found {count} new unique items.","נמצאו {count} פריטים ייחודיים חדשים.","נמצאו {count} פריטים ייחודיים חדשים.","נמצאו {count} פריטים ייחודיים חדשים.","נמצאו {count} פריטים ייחודיים חדשים.",,"נמצאו {count} פריטים ייחודיים חדשים."
+teach.err_no_position,auto,"Please add at least one position with a name.","נא להוסיף לפחות תפקיד אחד עם שם.","נא להוסיף לפחות תפקיד אחד עם שם.","נא להוסיף לפחות תפקיד אחד עם שם.","נא להוסיף לפחות תפקיד אחד עם שם.",,"נא להוסיף לפחות תפקיד אחד עם שם."
+teach.err_color_taken,auto,"This color is already assigned to another teacher. Please select a unique color.","צבע זה כבר מוקצה למורה אחר. אנא בחר צבע ייחודי.","צבע זה כבר מוקצה למורה אחר. אנא בחר צבע ייחודי.","צבע זה כבר מוקצה למורה אחר. אנא בחר צבע ייחודי.","צבע זה כבר מוקצה למורה אחר. אנא בחר צבע ייחודי.",,"צבע זה כבר מוקצה למורה אחר. אנא בחר צבע ייחודי."
+teach.found_prefix,auto,"Found","נמצאו","נמצאו","נמצאו","נמצאו",,"נמצאו"
+btn.save,auto,"Save","שמור","שמור","שמור","שמור",,"שמור"
+builder.active_badge,auto,"ACTIVE","פעיל","פעיל","פעיל","פעיל",,"פעיל"
+builder.data_filters_desc,auto,"Narrow chart data by specific teachers, positions, tags, or categories","צמצם נתוני תרשים לפי מורים, תפקידים, תגיות או קטגוריות ספציפיות","צמצם נתוני תרשים לפי מורים, תפקידים, תגיות או קטגוריות ספציפיות","צמצם נתוני תרשים לפי מורים, תפקידים, תגיות או קטגוריות ספציפיות","צמצם נתוני תרשים לפי מורים, תפקידים, תגיות או קטגוריות ספציפיות",,"צמצם נתוני תרשים לפי מורים, תפקידים, תגיות או קטגוריות ספציפיות"
+builder.preview_summary,auto,"{events} events · {dim} × {metrics} metric(s) → {viz}","{events} אירועים · {dim} × {metrics} מדד(ים) → {viz}","{events} אירועים · {dim} × {metrics} מדד(ים) → {viz}","{events} אירועים · {dim} × {metrics} מדד(ים) → {viz}","{events} אירועים · {dim} × {metrics} מדד(ים) → {viz}",,"{events} אירועים · {dim} × {metrics} מדד(ים) → {viz}"
+builder.n_events,auto,"({count} events)","({count} אירועים)","({count} אירועים)","({count} אירועים)","({count} אירועים)",,"({count} אירועים)"
+builder.primary_label,auto,"Primary","ראשי","ראשי","ראשי","ראשי",,"ראשי"
+builder.footer_summary,auto,"{dim} × {metrics} metric(s) → {viz}","{dim} × {metrics} מדד(ים) → {viz}","{dim} × {metrics} מדד(ים) → {viz}","{dim} × {metrics} מדד(ים) → {viz}","{dim} × {metrics} מדד(ים) → {viz}",,"{dim} × {metrics} מדד(ים) → {viz}"
+builder.footer_filters,auto," · {count} filter(s)"," · {count} סינון(ים)"," · {count} סינון(ים)"," · {count} סינון(ים)"," · {count} סינון(ים)",," · {count} סינון(ים)"
+sa.err_load_data,auto,"Failed to load data. Make sure rules allow super admin reading.","טעינת נתונים נכשלה. וודא שהכללים מאפשרים קריאה של מנהל-על.","טעינת נתונים נכשלה. וודא שהכללים מאפשרים קריאה של מנהל-על.","טעינת נתונים נכשלה. וודא שהכללים מאפשרים קריאה של מנהל-על.","טעינת נתונים נכשלה. וודא שהכללים מאפשרים קריאה של מנהל-על.",,"טעינת נתונים נכשלה. וודא שהכללים מאפשרים קריאה של מנהל-על."
+sa.err_create_org,auto,"Failed to create organization.","יצירת ארגון נכשלה.","יצירת ארגון נכשלה.","יצירת ארגון נכשלה.","יצירת ארגון נכשלה.",,"יצירת ארגון נכשלה."
+sa.err_delete_org,auto,"Failed to delete organization.","מחיקת ארגון נכשלה.","מחיקת ארגון נכשלה.","מחיקת ארגון נכשלה.","מחיקת ארגון נכשלה.",,"מחיקת ארגון נכשלה."
+sa.err_update_org,auto,"Failed to update organization name.","עדכון שם ארגון נכשל.","עדכון שם ארגון נכשל.","עדכון שם ארגון נכשל.","עדכון שם ארגון נכשל.",,"עדכון שם ארגון נכשל."
+sa.err_migrate,auto,"Failed to migrate organization data.","העברת נתוני ארגון נכשלה.","העברת נתוני ארגון נכשלה.","העברת נתוני ארגון נכשלה.","העברת נתוני ארגון נכשלה.",,"העברת נתוני ארגון נכשלה."
+sa.err_upload_image,auto,"Please upload a valid image file.","נא להעלות קובץ תמונה תקין.","נא להעלות קובץ תמונה תקין.","נא להעלות קובץ תמונה תקין.","נא להעלות קובץ תמונה תקין.",,"נא להעלות קובץ תמונה תקין."
+sa.err_upload_logo,auto,"Failed to upload logo.","העלאת לוגו נכשלה.","העלאת לוגו נכשלה.","העלאת לוגו נכשלה.","העלאת לוגו נכשלה.",,"העלאת לוגו נכשלה."
+sa.err_update_logo,auto,"Failed to update organization with new logo.","עדכון ארגון עם לוגו חדש נכשל.","עדכון ארגון עם לוגו חדש נכשל.","עדכון ארגון עם לוגו חדש נכשל.","עדכון ארגון עם לוגו חדש נכשל.",,"עדכון ארגון עם לוגו חדש נכשל."
+sa.err_assign_user,auto,"Failed to assign user access.","הקצאת גישת משתמש נכשלה.","הקצאת גישת משתמש נכשלה.","הקצאת גישת משתמש נכשלה.","הקצאת גישת משתמש נכשלה.",,"הקצאת גישת משתמש נכשלה."
+sa.err_bulk_upload,auto,"Failed to process bulk upload.","עיבוד העלאה מרובה נכשל.","עיבוד העלאה מרובה נכשל.","עיבוד העלאה מרובה נכשל.","עיבוד העלאה מרובה נכשל.",,"עיבוד העלאה מרובה נכשל."
+sa.err_delete_user,auto,"Failed to delete user access.","מחיקת גישת משתמש נכשלה.","מחיקת גישת משתמש נכשלה.","מחיקת גישת משתמש נכשלה.","מחיקת גישת משתמש נכשלה.",,"מחיקת גישת משתמש נכשלה."
+sa.err_update_role,auto,"Failed to update user role.","עדכון תפקיד משתמש נכשל.","עדכון תפקיד משתמש נכשל.","עדכון תפקיד משתמש נכשל.","עדכון תפקיד משתמש נכשל.",,"עדכון תפקיד משתמש נכשל."
+sa.err_org_exists,auto,"Cannot change ID to {slug} because that organization already exists.","לא ניתן לשנות מזהה ל-{slug} כי ארגון זה כבר קיים.","לא ניתן לשנות מזהה ל-{slug} כי ארגון זה כבר קיים.","לא ניתן לשנות מזהה ל-{slug} כי ארגון זה כבר קיים.","לא ניתן לשנות מזהה ל-{slug} כי ארגון זה כבר קיים.",,"לא ניתן לשנות מזהה ל-{slug} כי ארגון זה כבר קיים."
+sa.confirm_delete_org,auto,"Are you sure you want to delete the entire organization ""{name}""? This will not delete the data within it, but will remove it from the selector list.","האם אתה בטוח שברצונך למחוק את הארגון ""{name}""? פעולה זו לא תמחק את הנתונים שבתוכו, אך תסיר אותו מרשימת הבחירה.","האם אתה בטוח שברצונך למחוק את הארגון ""{name}""? פעולה זו לא תמחק את הנתונים שבתוכו, אך תסיר אותו מרשימת הבחירה.","האם אתה בטוח שברצונך למחוק את הארגון ""{name}""? פעולה זו לא תמחק את הנתונים שבתוכו, אך תסיר אותו מרשימת הבחירה.","האם אתה בטוח שברצונך למחוק את הארגון ""{name}""? פעולה זו לא תמחק את הנתונים שבתוכו, אך תסיר אותו מרשימת הבחירה.",,"האם אתה בטוח שברצונך למחוק את הארגון ""{name}""? פעולה זו לא תמחק את הנתונים שבתוכו, אך תסיר אותו מרשימת הבחירה."
+sa.confirm_migrate,auto,"WARNING: Changing the tenant ID from ""{old}"" to ""{new}"" will migrate all records across the platform. Continue?","אזהרה: שינוי מזהה הדייר מ-""{old}"" ל-""{new}"" יעביר את כל הרשומות בפלטפורמה. להמשיך?","אזהרה: שינוי מזהה הדייר מ-""{old}"" ל-""{new}"" יעביר את כל הרשומות בפלטפורמה. להמשיך?","אזהרה: שינוי מזהה הדייר מ-""{old}"" ל-""{new}"" יעביר את כל הרשומות בפלטפורמה. להמשיך?","אזהרה: שינוי מזהה הדייר מ-""{old}"" ל-""{new}"" יעביר את כל הרשומות בפלטפורמה. להמשיך?",,"אזהרה: שינוי מזהה הדייר מ-""{old}"" ל-""{new}"" יעביר את כל הרשומות בפלטפורמה. להמשיך?"
+sa.confirm_revoke,auto,"Are you sure you want to revoke access for {email}?","האם אתה בטוח שברצונך לבטל גישה ל-{email}?","האם אתה בטוח שברצונך לבטל גישה ל-{email}?","האם אתה בטוח שברצונך לבטל גישה ל-{email}?","האם אתה בטוח שברצונך לבטל גישה ל-{email}?",,"האם אתה בטוח שברצונך לבטל גישה ל-{email}?"
+sa.loading,auto,"Loading super admin data...","טוען נתוני מנהל-על...","טוען נתוני מנהל-על...","טוען נתוני מנהל-על...","טוען נתוני מנהל-על...",,"טוען נתוני מנהל-על..."
+sa.create_tenant,auto,"Create Tenant","צור דייר","צור דייר","צור דייר","צור דייר",,"צור דייר"
+sa.active_orgs,auto,"Active Organizations ({count})","ארגונים פעילים ({count})","ארגונים פעילים ({count})","ארגונים פעילים ({count})","ארגונים פעילים ({count})",,"ארגונים פעילים ({count})"
+sa.role_label,auto,"Role","תפקיד","תפקיד","תפקיד","תפקיד",,"תפקיד"
+sa.csv_instructions,auto,"Paste CSV data. Format:","הדבק נתוני CSV. פורמט:","הדבק נתוני CSV. פורמט:","הדבק נתוני CSV. פורמט:","הדבק נתוני CSV. פורמט:",,"הדבק נתוני CSV. פורמט:"
+sa.csv_role_hint,auto,"(Role defaults to VIEWER if omitted, use ADMIN for admins)","(תפקיד ברירת מחדל הוא צופה אם לא צוין, השתמש ב-ADMIN למנהלים)","(תפקיד ברירת מחדל הוא צופה אם לא צוין, השתמש ב-ADMIN למנהלים)","(תפקיד ברירת מחדל הוא צופה אם לא צוין, השתמש ב-ADMIN למנהלים)","(תפקיד ברירת מחדל הוא צופה אם לא צוין, השתמש ב-ADMIN למנהלים)",,"(תפקיד ברירת מחדל הוא צופה אם לא צוין, השתמש ב-ADMIN למנהלים)"
+sa.process_bulk,auto,"Process Bulk Import","עבד ייבוא מרובה","עבד ייבוא מרובה","עבד ייבוא מרובה","עבד ייבוא מרובה",,"עבד ייבוא מרובה"
+sa.global_roster,auto,"Global Access Roster ({count})","רשימת הרשאות גלובלית ({count})","רשימת הרשאות גלובלית ({count})","רשימת הרשאות גלובלית ({count})","רשימת הרשאות גלובלית ({count})",,"רשימת הרשאות גלובלית ({count})"
+sa.col_email,auto,"Email","דוא""ל","דוא""ל","דוא""ל","דוא""ל",,"דוא""ל"
+sa.col_actions,auto,"Actions","פעולות","פעולות","פעולות","פעולות",,"פעולות"
+sa.test_data_desc,auto,"Populate the current workspace with realistic test teachers, events, rooms, and Gantt blocks for evaluation purposes.","מלא את סביבת העבודה הנוכחית במורים, אירועים, חדרים ובלוקי גאנט מציאותיים למטרות הערכה.","מלא את סביבת העבודה הנוכחית במורים, אירועים, חדרים ובלוקי גאנט מציאותיים למטרות הערכה.","מלא את סביבת העבודה הנוכחית במורים, אירועים, חדרים ובלוקי גאנט מציאותיים למטרות הערכה.","מלא את סביבת העבודה הנוכחית במורים, אירועים, חדרים ובלוקי גאנט מציאותיים למטרות הערכה.",,"מלא את סביבת העבודה הנוכחית במורים, אירועים, חדרים ובלוקי גאנט מציאותיים למטרות הערכה."
+sa.generate_btn,auto,"Generate Test Data","צור נתוני בדיקה","צור נתוני בדיקה","צור נתוני בדיקה","צור נתוני בדיקה",,"צור נתוני בדיקה"
+layout.loading,auto,"Loading...","טוען...","טוען...","טוען...","טוען...",,"טוען..."
+layout.expand_sidebar,auto,"Expand Sidebar","הרחב סרגל צד","הרחב סרגל צד","הרחב סרגל צד","הרחב סרגל צד",,"הרחב סרגל צד"
+layout.collapse_sidebar,auto,"Collapse Sidebar","צמצם סרגל צד","צמצם סרגל צד","צמצם סרגל צד","צמצם סרגל צד",,"צמצם סרגל צד"
+layout.switch_light,auto,"Switch to Light Mode","עבור למצב בהיר","עבור למצב בהיר","עבור למצב בהיר","עבור למצב בהיר",,"עבור למצב בהיר"
+layout.switch_dark,auto,"Switch to Dark Mode","עבור למצב כהה","עבור למצב כהה","עבור למצב כהה","עבור למצב כהה",,"עבור למצב כהה"
+layout.light_mode,auto,"Light Mode","מצב בהיר","מצב בהיר","מצב בהיר","מצב בהיר",,"מצב בהיר"
+layout.dark_mode,auto,"Dark Mode","מצב כהה","מצב כהה","מצב כהה","מצב כהה",,"מצב כהה"
+layout.mobile_access,auto,"Mobile Access","גישה מנייד","גישה מנייד","גישה מנייד","גישה מנייד",,"גישה מנייד"
+layout.copyright,auto,"Copyright Noam Solutions.","זכויות יוצרים Noam Solutions.","זכויות יוצרים Noam Solutions.","זכויות יוצרים Noam Solutions.","זכויות יוצרים Noam Solutions.",,"זכויות יוצרים Noam Solutions."modal_unsaved_changes,Standard modal term,"Unsaved Changes","שינויים שלא נשמרו","שינויים שלא נשמרו","שינויים שלא נשמרו","שינויים שלא נשמרו",,"שינויים שלא נשמרו"
+modal_discard_prompt,Standard modal term,"You have unsaved changes. Would you like to save or discard them?","ישנם שינויים שלא נשמרו. האם ברצונך לשמור או לבטל אותם?","קיימים שינויים שלא נשמרו במערכת. האם ברצונך לבצע שמירה או לוותר על השינויים?","לשמור שינויים או לבטל?","יש שינויים, לשמור או לזרוק? ",,"ישנם שינויים שלא נשמרו. האם ברצונך לשמור או לבטל אותם?"
+common_discard,Standard modal term,"Discard","ביטול שינויים","ביטול שינויים","ביטול","לוותר על שינויים",,"ביטול שינויים"
+btn_sending,Standard sending state,Sending...,שולח...,בביצוע...,שליחה,רגע...,,שולח...
+btn_send,Standard send button,Send,שלח,שלח,שלח,לשלוח,,שלח
+fin_reports,Reports,Reports,דוחות,דוחות נתונים,דוחות,דוחות,,דוחות
+btn_done,Standard done button,Done,סיימתי,בוצע,סימתי,גמרתי,,סיימתי

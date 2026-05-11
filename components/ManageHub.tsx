@@ -1,37 +1,59 @@
 import React, { useState, useEffect } from 'react';
-import { Teacher, Room, ListsState, AppSettings } from '../types';
-import { TeacherManager } from './TeacherManager';
+import { Room, AppSettings, CalendarSubscription, Teacher, CalendarEvent, Student, HoursReport, AdminInboxItem } from '../types';
+import type { ActivityV2 } from '../types/v2';
 import { RoomManager } from './RoomManager';
-import { ManageLists } from './ManageLists';
-import { Users, Home, List, Menu } from 'lucide-react';
+import { ActivityManager } from './ActivityManager';
+import { CalendarSubscriptionManager } from './CalendarSubscriptionManager';
+import { StaffMemberManager } from './StaffMemberManager';
+import { Home, Menu, Layers, Rss, Users } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
 
-type ManageTab = 'teachers' | 'rooms' | 'lists';
+type ManageTab = 'staff' | 'rooms' | 'activities' | 'subscriptions';
 
 interface Props {
-    teachers: Teacher[];
-    setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>;
     rooms: Room[];
     setRooms: React.Dispatch<React.SetStateAction<Room[]>>;
-    lists: ListsState;
-    setLists: React.Dispatch<React.SetStateAction<ListsState>>;
     settings: AppSettings;
+    activities: ActivityV2[];
+    setActivities: React.Dispatch<React.SetStateAction<ActivityV2[]>>;
+    subscriptions: CalendarSubscription[];
+    setSubscriptions: React.Dispatch<React.SetStateAction<CalendarSubscription[]>>;
+    teachers: Teacher[];
+    setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>;
+    events: CalendarEvent[];
+    students: Student[];
+    hoursReports: HoursReport[];
+    setHoursReports: React.Dispatch<React.SetStateAction<HoursReport[]>>;
+    adminInboxItems: AdminInboxItem[];
+    setAdminInboxItems: React.Dispatch<React.SetStateAction<AdminInboxItem[]>>;
     onMobileMenuOpen: () => void;
     initialTab?: ManageTab;
     onTabChange?: (tab: ManageTab) => void;
+    navigateToStaffId?: string | null;
+    onStaffNavigateHandled?: () => void;
 }
 
 export const ManageHub: React.FC<Props> = ({
-    teachers,
-    setTeachers,
     rooms,
     setRooms,
-    lists,
-    setLists,
     settings,
+    activities,
+    setActivities,
+    subscriptions,
+    setSubscriptions,
+    teachers,
+    setTeachers,
+    events,
+    students,
+    hoursReports,
+    setHoursReports,
+    adminInboxItems,
+    setAdminInboxItems,
     onMobileMenuOpen,
-    initialTab = 'teachers',
-    onTabChange
+    initialTab = 'staff',
+    onTabChange,
+    navigateToStaffId,
+    onStaffNavigateHandled,
 }) => {
     const [activeTab, setActiveTab] = useState<ManageTab>(initialTab);
     const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
@@ -40,7 +62,7 @@ export const ManageHub: React.FC<Props> = ({
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const tabFromUrl = params.get('tab') as ManageTab;
-        if (tabFromUrl && ['teachers', 'rooms', 'lists'].includes(tabFromUrl)) {
+        if (tabFromUrl && ['staff', 'rooms', 'activities', 'subscriptions'].includes(tabFromUrl)) {
             setActiveTab(tabFromUrl);
         }
     }, []);
@@ -55,9 +77,10 @@ export const ManageHub: React.FC<Props> = ({
     };
 
     const tabs: { id: ManageTab; label: string; icon: React.ElementType }[] = [
-        { id: 'teachers', label: t('nav.teachers'), icon: Users },
+        { id: 'staff', label: t('nav.staff_members'), icon: Users },
+        { id: 'activities', label: t('nav.activities'), icon: Layers },
         { id: 'rooms', label: t('nav.rooms'), icon: Home },
-        { id: 'lists', label: t('nav.lists'), icon: List },
+        { id: 'subscriptions', label: t('nav.subscriptions'), icon: Rss },
     ];
 
     return (
@@ -107,30 +130,50 @@ export const ManageHub: React.FC<Props> = ({
 
             {/* Content Area */}
             <div className="flex-1 overflow-hidden">
-                {activeTab === 'teachers' && (
-                    <TeacherManager
+                {activeTab === 'staff' && (
+                    <StaffMemberManager
                         teachers={teachers}
                         setTeachers={setTeachers}
-                        lists={lists}
-                        setLists={setLists}
+                        activities={activities}
+                        settings={settings}
+                        hoursReports={hoursReports}
+                        setHoursReports={setHoursReports}
+                        students={students}
+                        adminInboxItems={adminInboxItems}
+                        setAdminInboxItems={setAdminInboxItems}
+                        onMobileMenuOpen={onMobileMenuOpen}
+                        navigateToId={navigateToStaffId}
+                        onNavigateHandled={onStaffNavigateHandled}
+                    />
+                )}
+                {activeTab === 'activities' && (
+                    <ActivityManager
+                        activities={activities}
+                        setActivities={setActivities}
+                        settings={settings}
+                        events={events}
                         onMobileMenuOpen={onMobileMenuOpen}
                         embedded={true}
-                        settings={settings}
                     />
                 )}
                 {activeTab === 'rooms' && (
                     <RoomManager
                         rooms={rooms}
                         setRooms={setRooms}
+                        settings={settings}
                         onMobileMenuOpen={onMobileMenuOpen}
                         embedded={true}
                     />
                 )}
-                {activeTab === 'lists' && (
-                    <ManageLists
-                        lists={lists}
-                        setLists={setLists}
-                        onMobileMenuOpen={onMobileMenuOpen}
+                {activeTab === 'subscriptions' && (
+                    <CalendarSubscriptionManager
+                        subscriptions={subscriptions}
+                        setSubscriptions={setSubscriptions}
+                        teachers={teachers}
+                        rooms={rooms}
+                        activities={activities}
+                        events={events}
+                        settings={settings}
                         embedded={true}
                     />
                 )}

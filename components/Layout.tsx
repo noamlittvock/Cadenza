@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ViewState } from '../types';
-import { Calendar, Users, Home, BarChart3, AlertOctagon, Music, Sun, Moon, ChevronLeft, ChevronRight, Settings, List, Zap, Plus, Menu, Smartphone, Sliders, LineChart } from 'lucide-react';
+import { Calendar, Users, AlertOctagon, Sun, Moon, ChevronLeft, ChevronRight, Settings, Smartphone, Sliders, Mail, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
 import { AppSettings } from '../types';
@@ -14,6 +14,9 @@ interface LayoutProps {
   settings: AppSettings;
   isMobileMenuOpen: boolean;
   setIsMobileMenuOpen: (isOpen: boolean) => void;
+  inboxOpenCount?: number;
+  /** When true, shows lock badges on gated nav items (first admin, gate not cleared) */
+  isGated?: boolean;
 }
 
 const NavItem = ({
@@ -21,22 +24,26 @@ const NavItem = ({
   onClick,
   icon: Icon,
   label,
-  collapsed
+  collapsed,
+  badge,
+  locked,
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ElementType;
   label: string;
   collapsed: boolean;
+  badge?: number;
+  locked?: boolean;
 }) => (
   <button
     onClick={onClick}
     title={collapsed ? label : undefined}
-    className={`flex items-center w-full py-3 rounded-lg text-left ${collapsed ? 'justify-center px-3' : 'px-4 space-x-2'} ${active
-      ? 'bg-blue-600 text-white'
-      : 'text-slate-400 hover:text-white hover:bg-slate-800'
-      }`}
-    style={{ transition: 'padding 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94), background-color 200ms ease' }}
+    className={`relative flex items-center w-full py-2.5 rounded-xl text-start px-4 ${collapsed ? '' : 'space-x-2 rtl:space-x-reverse'} ${active
+      ? 'bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft font-semibold'
+      : 'text-slate-400 hover:text-white hover:bg-white/5 hover:shadow-cadenza-soft'
+      } btn-cadenza`}
+    style={{ transition: 'padding 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}
   >
     <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
       <Icon size={24} />
@@ -47,23 +54,36 @@ const NavItem = ({
         maxWidth: collapsed ? 0 : 200,
         transition: 'opacity 300ms ease, max-width 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
       }}>{label}</span>
+    {badge !== undefined && badge > 0 && (
+      <span className={`bg-amber-500 text-slate-900 text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1 ${collapsed ? 'absolute -top-0.5 -end-0.5' : 'ms-auto'}`}>
+        {badge}
+      </span>
+    )}
+    {locked && (
+      <Lock size={11} className={`text-slate-500 ${collapsed ? 'absolute -top-0.5 -end-0.5' : 'ms-auto'}`} />
+    )}
   </button>
 );
 
-export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, darkMode, toggleDarkMode, settings, isMobileMenuOpen, setIsMobileMenuOpen }) => {
+export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, darkMode, toggleDarkMode, settings, isMobileMenuOpen, setIsMobileMenuOpen, inboxOpenCount, isGated = false }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 1024 : false);
-  const { isAdmin, currentUser, login } = useAuth(); // Moved hook up
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+  const { isAdmin, isSuperAdmin, currentUser, orgId, logout, availableOrgs } = useAuth();
+  const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
+  const isRtl = settings.language === 'he-IL';
+
+  const currentOrg = availableOrgs?.find(o => o.id === orgId);
+  const displayOrgName = currentOrg?.name || (orgId ? orgId.charAt(0).toUpperCase() + orgId.slice(1) : t('layout.loading'));
 
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth < 1024;
+      const mobile = window.innerWidth < 768;
+      const narrow = !mobile && window.innerWidth < 1024;
       setIsMobile(mobile);
       if (mobile) {
         setIsCollapsed(false); // Mobile sidebar is always "full width" when open
-      } else {
-        // Desktop defaults
-        if (!isCollapsed) setIsCollapsed(false);
+      } else if (narrow) {
+        setIsCollapsed(true); // Tablet: auto-collapse to 80px icon strip
       }
     };
 
@@ -74,20 +94,29 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Sync <html lang> with active language so Hebrew is announced to AT correctly,
+  // and so :lang(he) selectors work for any future locale-scoped CSS.
+  useEffect(() => {
+    document.documentElement.lang = isRtl ? 'he' : 'en';
+  }, [isRtl]);
+
   // Redirect Viewers from Admin Pages
   useEffect(() => {
     if (currentUser?.role === 'VIEWER') {
-      const adminViews: ViewState[] = ['GANTT', 'POWER_TOOLS', 'MANAGE', 'SETTINGS', 'FINANCIAL_ANALYSIS'];
+      const adminViews: ViewState[] = ['MANAGE', 'SETTINGS', 'SUPER_ADMIN', 'STAFF_MEMBERS', 'ADMIN_INBOX'];
       if (adminViews.includes(currentView)) {
         setView('CALENDAR');
       }
+    }
+    // Non-superadmin admins cannot access SUPER_ADMIN
+    if (isAdmin && !isSuperAdmin && currentView === 'SUPER_ADMIN') {
+      setView('CALENDAR');
     }
   }, [currentUser, currentView, setView]);
 
 
 
-  const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
-  const isRtl = settings.language === 'he-IL';
+
 
   return (
     <div
@@ -98,7 +127,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-[105] lg:hidden"
+          className="fixed inset-0 bg-black/50 z-[105] md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
@@ -107,11 +136,11 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       <div
         className={`
           sidebar-transition
-          fixed inset-y-0 left-0 z-[110] lg:relative lg:z-50
+          fixed inset-y-0 start-0 z-[110] md:relative md:z-50
           ${isMobile ? 'shadow-2xl' : ''}
-          ${isMobile ? (isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full') : 'translate-x-0'}
-          bg-slate-900 dark:bg-slate-950 text-white flex flex-col shadow-xl 
-          ${isRtl ? 'border-l' : 'border-r'} border-slate-800
+          ${isMobile ? (isMobileMenuOpen ? 'translate-x-0' : (isRtl ? 'translate-x-full' : '-translate-x-full')) : 'translate-x-0'}
+          bg-slate-900/95 backdrop-blur-2xl dark:bg-slate-950/95 text-white flex flex-col shadow-cadenza-deep 
+          border-e ${orgId === 'sandbox' ? 'border-amber-500/50 shadow-amber-500/10' : 'border-white/5 dark:border-slate-800/50'}
           overflow-visible
         `}
         style={{
@@ -120,106 +149,70 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
           willChange: 'width, transform'
         }}
       >
-        <div className={`p-2 flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3 rtl:space-x-reverse'} border-b border-slate-800 h-16 overflow-hidden`}
+        <div className={`p-2 flex items-center ${isCollapsed ? '' : 'space-x-3 rtl:space-x-reverse'} border-b border-slate-800 h-16 overflow-hidden`}
           style={{ transition: 'all 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
-          <div className={`${isCollapsed ? 'p-1 mx-auto' : 'p-2'} bg-blue-500 rounded-lg flex-shrink-0`}
+          <button
+            type="button"
+            onClick={() => { setView('CALENDAR'); setIsMobileMenuOpen(false); }}
+            aria-label={t('nav.calendar')}
+            className="p-1.5 bg-transparent rounded-xl flex-shrink-0 overflow-hidden hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-cadenza-300 transition-opacity"
             style={{ transition: 'all 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
-            <Music size={24} className="text-white" />
-          </div>
-          <div className="overflow-hidden whitespace-nowrap flex flex-col justify-center"
+            <img src="/logo.png?v=3" alt={t('layout.logo_alt')} className="w-12 h-12 object-cover rounded shadow-sm" />
+          </button>
+          <div className="overflow-hidden flex flex-col justify-center flex-1"
             style={{
               opacity: isCollapsed ? 0 : 1,
               maxWidth: isCollapsed ? 0 : 200,
               transition: 'opacity 300ms ease, max-width 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
             }}>
-            <h1 className="text-base font-bold leading-tight">Music Center</h1>
-            <h1 className="text-base font-bold leading-tight">Calendar</h1>
+            <h1 className="text-xs font-bold leading-tight whitespace-nowrap overflow-hidden text-ellipsis text-center min-h-full flex items-center justify-center px-1" title={displayOrgName}>
+              {displayOrgName}
+            </h1>
+            {orgId === 'sandbox' && !isCollapsed && (
+              <div className="mt-1 flex justify-center">
+                <span className="bg-amber-500 text-[10px] font-black px-1.5 py-0.5 rounded text-white animate-pulse">{t('layout.sandbox_badge')}</span>
+              </div>
+            )}
           </div>
           {isMobile && (
-            <button onClick={() => setIsMobileMenuOpen(false)} className="ml-auto p-2 text-slate-400 hover:text-white">
-              <ChevronLeft size={24} />
+            <button onClick={() => setIsMobileMenuOpen(false)} className="ms-auto p-2 text-slate-400 hover:text-white">
+              {isRtl ? <ChevronRight size={24} /> : <ChevronLeft size={24} />}
             </button>
           )}
         </div>
 
-        <nav className="flex-1 p-3 space-y-2 overflow-y-auto overflow-x-hidden pt-4">
-
-
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 truncate overflow-hidden"
-            style={{
-              opacity: isCollapsed ? 0 : 1,
-              maxHeight: isCollapsed ? 0 : 24,
-              marginBottom: isCollapsed ? 0 : 8,
-              transition: 'opacity 200ms ease, max-height 400ms ease, margin-bottom 400ms ease',
-            }}>
-            {t('nav.section.operations')}
-          </div>
-
+        <nav className="flex-1 p-2 space-y-1 overflow-y-auto overflow-x-hidden pt-3">
           <NavItem
-            active={['CALENDAR', 'GANTT', 'POWER_TOOLS'].includes(currentView)}
+            active={currentView === 'CALENDAR'}
             onClick={() => { setView('CALENDAR'); setIsMobileMenuOpen(false); }}
             icon={Calendar}
             label={t('nav.calendar')}
             collapsed={isCollapsed}
+            locked={isGated}
           />
-
-
-
 
           {isAdmin && (
             <>
               {!isMobile && (
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 truncate overflow-hidden"
-                  style={{
-                    opacity: isCollapsed ? 0 : 1,
-                    maxHeight: isCollapsed ? 0 : 24,
-                    marginBottom: isCollapsed ? 0 : 8,
-                    marginTop: isCollapsed ? 0 : 24,
-                    transition: 'opacity 200ms ease, max-height 400ms ease, margin-bottom 400ms ease, margin-top 400ms ease',
-                  }}>
-                  {t('nav.section.admin')}
-                </div>
+                <NavItem
+                  active={currentView === 'ADMIN_INBOX'}
+                  onClick={() => { setView('ADMIN_INBOX'); setIsMobileMenuOpen(false); }}
+                  icon={Mail}
+                  label={t('nav.admin_inbox')}
+                  collapsed={isCollapsed}
+                  badge={inboxOpenCount}
+                />
               )}
 
               {!isMobile && (
                 <NavItem
-                  active={currentView === 'MANAGE'}
+                  active={currentView === 'MANAGE' || currentView === 'STAFF_MEMBERS'}
                   onClick={() => { setView('MANAGE'); setIsMobileMenuOpen(false); }}
                   icon={Sliders}
                   label={t('nav.manage')}
                   collapsed={isCollapsed}
                 />
               )}
-
-
-
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 truncate overflow-hidden"
-                style={{
-                  opacity: isCollapsed ? 0 : 1,
-                  maxHeight: isCollapsed ? 0 : 24,
-                  marginBottom: isCollapsed ? 0 : 8,
-                  marginTop: isCollapsed ? 0 : 24,
-                  transition: 'opacity 200ms ease, max-height 400ms ease, margin-bottom 400ms ease, margin-top 400ms ease',
-                }}>
-                {t('nav.section.analytics')}
-              </div>
-              <NavItem
-                active={currentView === 'FINANCIAL'}
-                onClick={() => { setView('FINANCIAL'); setIsMobileMenuOpen(false); }}
-                icon={BarChart3}
-                label={t('nav.financial')}
-                collapsed={isCollapsed}
-              />
-              <NavItem
-                active={currentView === 'FINANCIAL_ANALYSIS'}
-                onClick={() => { setView('FINANCIAL_ANALYSIS'); setIsMobileMenuOpen(false); }}
-                icon={LineChart}
-                label="Analysis"
-                collapsed={isCollapsed}
-              />
-
-              {/* Separator */}
-              <div className="my-2 mx-3 border-t border-slate-800" />
 
               <NavItem
                 active={currentView === 'SETTINGS'}
@@ -239,43 +232,64 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
           <div className="relative w-full py-4 shrink-0 flex items-center">
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className="absolute right-0 translate-x-1/2 bg-blue-600 hover:bg-blue-500 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-xl transition-transform hover:scale-110 z-50 border-[6px] border-slate-50 dark:border-slate-900"
-              title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+              className={`absolute end-0 ${isRtl ? '-translate-x-1/2' : 'translate-x-1/2'} bg-slate-700 hover:bg-blue-600 text-slate-300 hover:text-white rounded-full w-10 h-10 flex items-center justify-center shadow-cadenza-deep hover:scale-110 z-50 border-4 border-slate-50 dark:border-slate-900 transition-all duration-200 btn-cadenza`}
+              title={isCollapsed ? t('layout.expand_sidebar') : t('layout.collapse_sidebar')}
             >
-              {isCollapsed ? (isRtl ? <ChevronLeft size={24} /> : <ChevronRight size={24} />) : (isRtl ? <ChevronRight size={24} /> : <ChevronLeft size={24} />)}
+              {isCollapsed ? (isRtl ? <ChevronLeft size={20} /> : <ChevronRight size={20} />) : (isRtl ? <ChevronRight size={20} /> : <ChevronLeft size={20} />)}
             </button>
           </div>
         )}
 
         <div className={`p-4 border-t border-slate-800 flex flex-col ${isCollapsed ? 'items-center px-2' : 'items-stretch'}`}>
-
-          <div className="flex flex-col gap-2 w-full mb-4 overflow-hidden"
+          {/* User Profile & Logout */}
+          <div className={`mb-4 overflow-hidden ${isCollapsed ? 'text-center' : 'px-2'}`}
             style={{
-              opacity: isCollapsed ? 0 : 1,
-              maxHeight: isCollapsed ? 0 : 60,
-              marginBottom: isCollapsed ? 0 : 16,
-              transition: 'opacity 200ms ease, max-height 400ms ease, margin-bottom 400ms ease',
+              transition: 'all 500ms ease',
             }}>
-            <div className="flex gap-1 text-xs bg-slate-800 p-1 rounded-lg">
-              <button
-                onClick={() => login('ADMIN')}
-                className={`flex-1 py-1 rounded transition-colors ${currentUser?.role === 'ADMIN' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
-              >
-                Admin
-              </button>
-              <button
-                onClick={() => login('VIEWER')}
-                className={`flex-1 py-1 rounded transition-colors ${currentUser?.role === 'VIEWER' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
-              >
-                Viewer
-              </button>
+            <div className={`flex items-center mb-3 ${isCollapsed ? 'justify-center' : 'space-x-3 rtl:space-x-reverse'}`}>
+              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold overflow-hidden shrink-0">
+                {currentUser?.avatar ? (
+                  <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+                ) : (
+                  currentUser?.name.charAt(0)
+                )}
+              </div>
+              {!isCollapsed && (
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-medium text-white truncate">{currentUser?.name}</span>
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider">{currentUser?.role}</span>
+                </div>
+              )}
             </div>
+
+            {isSuperAdmin && (
+              <button
+                onClick={() => { setView('SUPER_ADMIN'); setIsMobileMenuOpen(false); }}
+                className={`flex items-center justify-center space-x-2 rtl:space-x-reverse py-2 w-full mb-2 rounded-xl btn-cadenza ${currentView === 'SUPER_ADMIN'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                  : 'bg-slate-800/50 hover:bg-slate-700/80 text-slate-300 border border-transparent'
+                  } ${isCollapsed ? 'p-2' : 'px-4'}`}
+                title={t('nav.super_admin')}
+              >
+                <AlertOctagon size={16} />
+                {!isCollapsed && <span className="text-sm font-medium">{t('nav.super_admin')}</span>}
+              </button>
+            )}
+
+            <button
+              onClick={() => logout()}
+              className={`flex items-center justify-center space-x-2 rtl:space-x-reverse py-2 w-full bg-red-950/30 hover:bg-red-900/40 text-red-400 rounded-xl border border-red-900/20 btn-cadenza ${isCollapsed ? 'p-2' : 'px-4'}`}
+              title={t('common.sign_out')}
+            >
+              <Users size={16} />
+              {!isCollapsed && <span className="text-sm font-medium">{t('layout.sign_out')}</span>}
+            </button>
           </div>
 
           <button
             onClick={toggleDarkMode}
-            title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            className={`flex items-center justify-center py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors ${isCollapsed ? 'w-10 h-10 p-0' : 'w-full px-4'}`}
+            title={darkMode ? t('layout.switch_light') : t('layout.switch_dark')}
+            className={`flex items-center justify-center py-2 bg-slate-800/50 hover:bg-slate-700/80 rounded-xl text-slate-300 btn-cadenza ${isCollapsed ? 'w-10 h-10 p-0' : 'w-full px-4'}`}
           >
             <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
@@ -284,9 +298,9 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               style={{
                 opacity: isCollapsed ? 0 : 1,
                 maxWidth: isCollapsed ? 0 : 150,
-                marginLeft: isCollapsed ? 0 : 8,
-                transition: 'opacity 300ms ease, max-width 500ms ease, margin-left 500ms ease',
-              }}>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
+                marginInlineStart: isCollapsed ? 0 : 8,
+                transition: 'opacity 300ms ease, max-width 500ms ease, margin-inline-start 500ms ease',
+              }}>{darkMode ? t('layout.light_mode') : t('layout.dark_mode')}</span>
           </button>
 
           {!isMobile && (
@@ -294,8 +308,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               href="/mobile-access.html"
               target="_blank"
               rel="noopener noreferrer"
-              title={isCollapsed ? "Mobile Access" : undefined}
-              className={`flex items-center justify-center mt-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white transition-colors ${isCollapsed ? 'w-10 h-10 p-0' : 'w-full py-2 px-4'}`}
+              title={isCollapsed ? t('layout.mobile_access') : undefined}
+              className={`flex items-center justify-center mt-2 bg-white/5 hover:bg-white/10 rounded-xl text-slate-300 hover:text-white btn-cadenza ${isCollapsed ? 'w-10 h-10 p-0' : 'w-full py-2 px-4'}`}
             >
               <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
                 <Smartphone size={18} />
@@ -306,26 +320,31 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                   maxWidth: isCollapsed ? 0 : 150,
                   marginLeft: isCollapsed ? 0 : 8,
                   transition: 'opacity 300ms ease, max-width 500ms ease, margin-left 500ms ease',
-                }}>Mobile Access</span>
+                }}>{t('layout.mobile_access_label')}</span>
             </a>
           )}
 
-          <div className="text-xs text-slate-500 text-center mt-2 overflow-hidden"
+          <div className="text-xs text-slate-500 text-center overflow-hidden"
             style={{
               opacity: isCollapsed ? 0 : 1,
-              maxHeight: isCollapsed ? 0 : 24,
-              marginTop: isCollapsed ? 0 : 8,
-              transition: 'opacity 200ms ease, max-height 400ms ease, margin-top 400ms ease',
+              height: 24,
+              marginTop: 8,
+              transition: 'opacity 200ms ease',
             }}>
-            &copy; 2026 Music Center
+            {t('layout.copyright')}
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden bg-slate-100 dark:bg-slate-900 absolute end-0 top-0 bottom-0"
+        style={{
+          width: isMobile ? '100%' : (isCollapsed ? 'calc(100% - 80px)' : 'max(calc(100% - 300px), 75vw)'),
+          transition: 'width 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        }}>
         <main
-          className="flex-1 flex flex-col overflow-hidden bg-slate-100 dark:bg-slate-900 relative"
+          key={currentView}
+          className="flex-1 flex flex-col overflow-hidden relative animate-page-turn h-full w-full"
           style={{ transition: 'background-color 300ms ease-in-out' }}
         >
 
