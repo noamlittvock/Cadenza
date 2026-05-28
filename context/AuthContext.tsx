@@ -119,10 +119,28 @@ const RealAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children })
               // If this is the superadmin, always assign SUPERADMIN role regardless of what's in the doc
               const resolvedRole: UserRole = isSuperAdminUser ? 'SUPERADMIN' : (validDoc.data()?.role || 'VIEWER');
 
-              // Bridge: link Firebase Auth uid to the user's staffMember so security
-              // rules (which gate v2 collections via userProfiles/{uid}) resolve.
-              // Skip for superadmin — isSuperAdmin() rules short-circuit anyway.
+              // Bridge: provision userProfiles/{uid} from access_control so v2
+              // collection reads unlock immediately, then claim/create the staff
+              // record. Order matters — staff queries are denied until userProfile
+              // exists. Skip for superadmin — isSuperAdmin() rules short-circuit.
               if (!isSuperAdminUser) {
+                const nowIso = new Date().toISOString();
+
+                // Step 1: write userProfiles/{firebaseUser.uid} from access_control role.
+                // Rules constrain role/orgId to match access_control, so we can't elevate.
+                try {
+                  await setDoc(doc(db, 'userProfiles', firebaseUser.uid), {
+                    uid: firebaseUser.uid,
+                    orgId: orgSlug,
+                    role: resolvedRole,
+                    staffMemberId: '',
+                  }, { merge: true });
+                } catch (profileErr) {
+                  console.error('[AuthContext] userProfile self-write failed', profileErr);
+                }
+
+                // Step 2: claim or create the staff record. Now that userProfiles
+                // exists, isAuthenticatedForOrgV2() passes and these reads/writes work.
                 try {
                   const staffSnap = await getDocs(query(
                     collection(db, 'staffMembers'),
@@ -130,7 +148,6 @@ const RealAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children })
                     where('email', '==', normalizedEmail),
                     limit(1)
                   ));
-                  const nowIso = new Date().toISOString();
                   if (!staffSnap.empty) {
                     const staffDoc = staffSnap.docs[0];
                     if (staffDoc.data().uid !== firebaseUser.uid) {

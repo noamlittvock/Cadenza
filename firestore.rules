@@ -181,6 +181,22 @@ service cloud.firestore {
       // Allow super admins and users writing their own profile (for first-use flags, onboarding)
       allow write: if isSuperAdmin() || (
         isAuthenticated() && profileId.matches(request.auth.uid + '_.*')
+      ) || (
+        // Self-bootstrap: allow a user to write userProfiles/{their_uid} only when
+        // the new doc's role/orgId match an existing access_control entry. This
+        // unblocks v2 reads on first sign-in without requiring the staffMember
+        // trigger to fire first. Role cannot exceed what access_control grants.
+        isAuthenticated() && profileId == request.auth.uid &&
+        request.resource.data.uid == request.auth.uid &&
+        (
+          (exists(/databases/$(database)/documents/access_control/$(request.auth.token.email + '_' + request.resource.data.orgId)) &&
+           get(/databases/$(database)/documents/access_control/$(request.auth.token.email + '_' + request.resource.data.orgId)).data.allowed == true &&
+           get(/databases/$(database)/documents/access_control/$(request.auth.token.email + '_' + request.resource.data.orgId)).data.role == request.resource.data.role) ||
+          (exists(/databases/$(database)/documents/access_control/$(request.auth.token.email)) &&
+           get(/databases/$(database)/documents/access_control/$(request.auth.token.email)).data.allowed == true &&
+           get(/databases/$(database)/documents/access_control/$(request.auth.token.email)).data.orgId == request.resource.data.orgId &&
+           get(/databases/$(database)/documents/access_control/$(request.auth.token.email)).data.role == request.resource.data.role)
+        )
       );
     }
 
