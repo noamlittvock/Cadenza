@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut, GoogleAuthProvider } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../utils/firebase';
 import { Lock, LogIn, AlertCircle, Loader2, Music } from 'lucide-react';
 
@@ -118,6 +118,47 @@ const RealAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children })
             if (validDoc) {
               // If this is the superadmin, always assign SUPERADMIN role regardless of what's in the doc
               const resolvedRole: UserRole = isSuperAdminUser ? 'SUPERADMIN' : (validDoc.data()?.role || 'VIEWER');
+
+              // Bridge: link Firebase Auth uid to the user's staffMember so security
+              // rules (which gate v2 collections via userProfiles/{uid}) resolve.
+              // Skip for superadmin — isSuperAdmin() rules short-circuit anyway.
+              if (!isSuperAdminUser) {
+                try {
+                  const staffSnap = await getDocs(query(
+                    collection(db, 'staffMembers'),
+                    where('orgId', '==', orgSlug),
+                    where('email', '==', normalizedEmail),
+                    limit(1)
+                  ));
+                  const nowIso = new Date().toISOString();
+                  if (!staffSnap.empty) {
+                    const staffDoc = staffSnap.docs[0];
+                    if (staffDoc.data().uid !== firebaseUser.uid) {
+                      await updateDoc(staffDoc.ref, { uid: firebaseUser.uid, updatedAt: nowIso });
+                    }
+                  } else {
+                    await addDoc(collection(db, 'staffMembers'), {
+                      orgId: orgSlug,
+                      uid: firebaseUser.uid,
+                      email: normalizedEmail,
+                      fullName: firebaseUser.displayName || normalizedEmail,
+                      role: resolvedRole === 'VIEWER' ? 'STAFF' : resolvedRole,
+                      phone: null,
+                      startDate: null,
+                      isArchived: false,
+                      createdAt: nowIso,
+                      updatedAt: nowIso,
+                      isFirstAdmin: resolvedRole === 'ADMIN',
+                      onboardingDismissed: false,
+                      firstUseFlags: { activityHub: false, staffModule: false, eventCreation: false, enrollment: false },
+                      documents: [],
+                    });
+                  }
+                } catch (bridgeErr) {
+                  console.error('[AuthContext] staff bridge failed', bridgeErr);
+                }
+              }
+
               setCurrentUser({
                 id: firebaseUser.uid,
                 name: firebaseUser.displayName || 'User',
