@@ -86,6 +86,7 @@ export interface EventFormV2Props {
   initialEnd?: string;
   // Callbacks
   onSave: (form: EventFormState) => void;
+  onValidityChange?: (valid: boolean) => void;
   // Translation
   t: (key: string) => string;
 }
@@ -117,6 +118,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
   editingEventId, existingFormState,
   isExceptionEdit, initialStart, initialEnd,
   onSave,
+  onValidityChange,
   t,
 }, ref) => {
   const { currentUser } = useAuth();
@@ -315,20 +317,20 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       }
     }
 
-    // PROMPTED name required
-    if (eventNameMode === 'PROMPTED' && !form.name.trim()) {
+    // PROMPTED name is only visible after an activity is selected.
+    if (form.activityId && eventNameMode === 'PROMPTED' && !form.name.trim()) {
       errs.name = t('event.v2.name_placeholder');
     }
 
     // Staff required for DISCIPLINE/PROGRAM
-    if (template === 'DISCIPLINE' || template === 'PROGRAM') {
+    if (form.activityId && (template === 'DISCIPLINE' || template === 'PROGRAM')) {
       if (form.staffParticipants.length === 0) {
         errs.staff = t('event.v2.err_staff_required');
       }
     }
 
     // Org role required for ADMINISTRATIVE
-    if (template === 'ADMINISTRATIVE') {
+    if (form.activityId && template === 'ADMINISTRATIVE') {
       if (form.staffParticipants.length === 0) {
         errs.staff = t('event.v2.err_role_required');
       }
@@ -367,6 +369,20 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
+
+  const isFormValid = useMemo(() => {
+    if (!form.activityId) return false;
+    if (!form.date || !form.startTime || !form.endTime) return false;
+    if (form.endTime <= form.startTime) return false;
+    if (!settings.timeZone) return false;
+    if (eventNameMode === 'PROMPTED' && !form.name.trim()) return false;
+    if ((template === 'DISCIPLINE' || template === 'PROGRAM' || template === 'ADMINISTRATIVE') && form.staffParticipants.length === 0) return false;
+    return true;
+  }, [form.activityId, form.date, form.startTime, form.endTime, form.name, form.staffParticipants.length, settings.timeZone, eventNameMode, template]);
+
+  useEffect(() => {
+    onValidityChange?.(isFormValid);
+  }, [isFormValid, onValidityChange]);
 
   // ─── Save ────────────────────────────────────────────────────────────────
   const handleSave = () => {
@@ -458,7 +474,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
             <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">{walkthroughStep}</div>
             <span className="text-sm text-blue-800 dark:text-blue-200 font-medium">{t(stepKey)}</span>
           </div>
-          <button onClick={dismissWalkthrough} className="text-blue-400 hover:text-blue-600 dark:hover:text-blue-300">
+          <button onClick={dismissWalkthrough} aria-label={t('common.close') || 'Close'} className="text-blue-400 hover:text-blue-600 dark:hover:text-blue-300">
             <X size={16} />
           </button>
         </div>
@@ -479,6 +495,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
         <span className="text-xs text-slate-400">{editingEventId ? t('event.edit') : t('event.new')}</span>
         <button
           onClick={() => setWalkthroughStep(1)}
+          aria-label={t('event.v2.guide_me')}
           className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1"
         >
           <HelpCircle size={12} /> {t('event.v2.guide_me')}
@@ -492,7 +509,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       {showPrefillNotice && (
         <div className="p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center justify-between">
           <span className="text-xs text-amber-700 dark:text-amber-300">{t('event.v2.prefill.notice')}</span>
-          <button onClick={() => setShowPrefillNotice(false)} className="text-amber-400 hover:text-amber-600"><X size={14} /></button>
+          <button onClick={() => setShowPrefillNotice(false)} aria-label={t('common.close') || 'Close'} className="text-amber-400 hover:text-amber-600"><X size={14} /></button>
         </div>
       )}
 
@@ -500,7 +517,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       {Object.keys(errors).length > 0 && (
         <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
           <p className="text-sm font-medium text-red-700 dark:text-red-300 mb-1">
-            {t('event.v2.err_summary_title') || 'Please fix the following before saving:'}
+            {t('event.v2.err_summary_title')}
           </p>
           <ul className="list-disc ms-5 text-xs text-red-600 dark:text-red-400 space-y-0.5">
             {Object.values(errors).map((msg, i) => (
@@ -519,12 +536,20 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
           className={selectCls}
           value={form.activityId}
           onChange={e => handleActivityChange(e.target.value)}
+          aria-invalid={!!errors.activityId}
+          aria-label={t('event.activity')}
         >
           <option value="" disabled>{t('event.v2.select_activity')}</option>
           {activitiesV2.filter(a => !a.isArchived).map(a => (
-            <option key={a.id} value={a.id}>{a.name} ({a.template})</option>
+            <option key={a.id} value={a.id}>{a.name} ({t(`cal.filter.tmpl.${a.template.toLowerCase()}`)})</option>
           ))}
         </select>
+        {activitiesV2.filter(a => !a.isArchived).length === 0 && (
+          <div className="mt-2 rounded-lg border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-900/20 p-3 text-xs text-amber-800 dark:text-amber-200">
+            <p className="font-semibold">{t('event.v2.no_activities_title')}</p>
+            <p className="mt-1">{t('event.v2.no_activities_hint')}</p>
+          </div>
+        )}
         {errors.activityId && <p className={errorCls}>{errors.activityId}</p>}
       </div>
 
@@ -532,7 +557,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       {form.activityId && showL1Field && l1Options.length > 0 && (
         <div>
           <label className={labelCls}>{t('event.v2.select_l1')}</label>
-          <select className={selectCls} value={form.l1Id} onChange={e => setForm(prev => ({ ...prev, l1Id: e.target.value, l2Id: '' }))}>
+          <select className={selectCls} value={form.l1Id} onChange={e => setForm(prev => ({ ...prev, l1Id: e.target.value, l2Id: '' }))} aria-label={t('event.v2.select_l1')}>
             <option value="">{t('event.v2.select_l1')}</option>
             {l1Options.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
@@ -543,7 +568,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
       {form.activityId && showL2Field && l2Options.length > 0 && (
         <div>
           <label className={labelCls}>{t('event.v2.select_l2')}</label>
-          <select className={selectCls} value={form.l2Id} onChange={e => setForm(prev => ({ ...prev, l2Id: e.target.value, staffParticipants: [] }))}>
+          <select className={selectCls} value={form.l2Id} onChange={e => setForm(prev => ({ ...prev, l2Id: e.target.value, staffParticipants: [] }))} aria-label={t('event.v2.select_l2')}>
             <option value="">{t('event.v2.select_l2')}</option>
             {l2Options.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
@@ -570,6 +595,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
                   value={form.name}
                   onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
                   placeholder={selectedActivity ? `${selectedActivity.name} · ${dateLabel}` : t('event.v2.name_placeholder')}
+                  aria-label={t('event.v2.name')}
                 />
               );
             }
@@ -596,6 +622,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
             type="date"
             className={inputCls}
             value={form.date}
+            aria-label={t('event.v2.date')}
             onChange={e => {
               setForm(prev => ({ ...prev, date: e.target.value }));
               if (walkthroughStep === 2) setWalkthroughStep(3);
@@ -610,6 +637,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
             type="time"
             className={inputCls}
             value={form.startTime}
+            aria-label={t('event.v2.start_time')}
             onChange={e => {
               const val = e.target.value;
               setForm(prev => {
@@ -631,6 +659,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
             type="time"
             className={inputCls}
             value={form.endTime}
+            aria-label={t('event.v2.end_time')}
             onChange={e => setForm(prev => ({ ...prev, endTime: e.target.value }))}
           />
           {errors.endTime && <p className={errorCls}>{errors.endTime}</p>}
@@ -649,6 +678,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
             value={form.location}
             onChange={e => setForm(prev => ({ ...prev, location: e.target.value }))}
             placeholder={t('event.v2.location_placeholder')}
+            aria-label={t('event.v2.location')}
           />
         </div>
       )}
@@ -661,6 +691,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
             className={selectCls}
             value={form.roomId}
             onChange={e => setForm(prev => ({ ...prev, roomId: e.target.value }))}
+            aria-label={t('event.v2.room') || 'Room'}
           >
             <option value="">{t('event.v2.no_room') || '— No room —'}</option>
             {rooms.map(r => (
@@ -691,7 +722,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
                     <div>
                       <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{staff?.fullName}</span>
                     </div>
-                    <button onClick={() => removeStaffParticipant(sp.staffMemberId)} className="text-red-400 hover:text-red-600"><X size={14} /></button>
+                    <button onClick={() => removeStaffParticipant(sp.staffMemberId)} aria-label={`${t('btn.remove') || 'Remove'} ${staff?.fullName || ''}`} className="text-red-400 hover:text-red-600"><X size={14} /></button>
                   </div>
                 );
               })}
@@ -703,6 +734,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
                 onChange={e => {
                   if (e.target.value) addStaffParticipant(e.target.value, 'TEACHING');
                 }}
+                aria-label={t('event.v2.add_staff')}
               >
                 <option value="">{t('event.v2.add_staff')}</option>
                 {eligibleStaff
@@ -732,12 +764,12 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
                   <div key={sp.staffMemberId} className="bg-slate-50 dark:bg-slate-800 rounded-lg p-2 mb-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{staff?.fullName}</span>
-                      <button onClick={() => removeStaffParticipant(sp.staffMemberId)} className="text-red-400 hover:text-red-600"><X size={14} /></button>
+                      <button onClick={() => removeStaffParticipant(sp.staffMemberId)} aria-label={`${t('btn.remove') || 'Remove'} ${staff?.fullName || ''}`} className="text-red-400 hover:text-red-600"><X size={14} /></button>
                     </div>
                     {activeRoles.length > 1 && !sp.orgRoleId && (
                       <div className="mt-2">
                         <p className="text-xs text-amber-600 dark:text-amber-400 mb-1">{t('event.v2.multiple_roles')}</p>
-                        <select className={selectCls} value={sp.orgRoleId || ''} onChange={e => setStaffOrgRole(sp.staffMemberId, e.target.value)}>
+                        <select className={selectCls} value={sp.orgRoleId || ''} onChange={e => setStaffOrgRole(sp.staffMemberId, e.target.value)} aria-label={t('event.v2.select_role')}>
                           <option value="">{t('event.v2.select_role')}</option>
                           {activeRoles.map(r => (
                             <option key={r.id} value={r.id}>{r.roleTitle}</option>
@@ -775,6 +807,7 @@ export const EventFormV2 = forwardRef<EventFormV2Handle, EventFormV2Props>(({
                     if (walkthroughStep === 3) setWalkthroughStep(4);
                   }
                 }}
+                aria-label={t('event.v2.add_staff')}
               >
                 <option value="">{t('event.v2.add_staff')}</option>
                 {staffMembers

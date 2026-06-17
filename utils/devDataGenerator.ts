@@ -13,7 +13,7 @@
  * - Hours-report, inbox, and subscription seeds
  */
 
-import { Timestamp } from 'firebase/firestore';
+import { nowTimestamp } from './appTimestamp';
 import {
   Teacher, CalendarEvent, Room, GanttBlock, Student, Guardian,
   AdminInboxItem, HoursReport, HoursEntry, CalendarSubscription,
@@ -245,7 +245,7 @@ export const generateDevRooms = (): Room[] => [
 
 /**
  * Extended type for generated activities — carries L1 group data and legacy
- * fields used by DevTools to seed v2 Firestore collections properly.
+ * fields used by DevTools to seed v2 collections properly.
  */
 export type GeneratedActivity = ActivityV2 & {
   /** Legacy v1.3 fields kept for linkTeachersToActivities seeder */
@@ -256,7 +256,7 @@ export type GeneratedActivity = ActivityV2 & {
 };
 
 export const generateDevActivities = (): GeneratedActivity[] => {
-  const now = Timestamp.now();
+  const now = nowTimestamp();
   const makeSub = (name: string): Subcategory => ({ id: uid(), name, isArchived: false });
 
   const make = (

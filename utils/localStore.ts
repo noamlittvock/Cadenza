@@ -1,8 +1,8 @@
 // ─── Local-mode persistence backend ───────────────────────────────────────────
 // When VITE_LOCAL_MODE=true (or VITE_E2E_AUTH_BYPASS=true for back-compat with
-// existing .env.local), useFirestoreSync/useFirestoreSettings persist to
-// window.localStorage instead of Firestore. Lets dev/QA test functionality
-// without a Firebase project, and survives page reloads + hot-reloads so the
+// existing .env.local), useSupabaseSync/useSupabaseSettings persist to
+// window.localStorage instead of Supabase. Lets dev/QA test functionality
+// without a remote project, and survives page reloads + hot-reloads so the
 // SuperAdmin DevTools can seed and inspect data locally.
 
 export const LOCAL_MODE: boolean =
@@ -33,7 +33,7 @@ function settingsKey(orgId: string, docId: string): string {
 // localStorage 'storage' events only fire in *other* tabs, so we wrap writes
 // with a custom notify() so listeners in the same tab also re-render. A single
 // shared 'storage' listener dispatches by key — avoids one window listener per
-// subscription (we mount many useFirestoreSync hooks per page).
+// subscription (we mount many useSupabaseSync hooks per page).
 
 type Listener = () => void;
 const listeners = new Map<string, Set<Listener>>();

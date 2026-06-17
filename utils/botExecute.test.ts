@@ -3,14 +3,14 @@ import { executeIntent, resolveWindow, type ExecuteContext } from './botExecute'
 import { resolveIntent } from './botResolve';
 import type { CalendarEvent, Teacher, Room, Student } from '../types';
 import type { ActivityV2 } from '../types/v2';
-import { Timestamp } from 'firebase/firestore';
+import { fromDateTimestamp } from './appTimestamp';
 
 // ─── Synthetic org ──────────────────────────────────────────────────────────
 // Anchor everything at a fixed "now" so window math is deterministic.
 // Tuesday, 2026-03-10 at 10:00 local time.
 const NOW = new Date('2026-03-10T10:00:00');
 
-const ts = Timestamp.fromDate(new Date('2026-01-01T00:00:00'));
+const ts = fromDateTimestamp(new Date('2026-01-01T00:00:00'));
 
 const teachers: Teacher[] = [
   { id: 't1', fullName: 'David Levi',  positions: [], positionAssignments: [], tags: [], phone: '', email: '', color: '#fff' },

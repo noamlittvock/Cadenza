@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Timestamp } from 'firebase/firestore';
+import { nowTimestamp } from '../utils/appTimestamp';
 import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, RecurrenceRule, DayOfWeek } from '../types';
 import { generateId } from '../constants';
 import { ChevronLeft, ChevronRight, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronDown, Repeat, Ban, RotateCcw, HelpCircle, Search, Loader2, Sparkles } from 'lucide-react';
@@ -11,7 +11,7 @@ import { EventFormV2, EventFormState, EventFormV2Handle } from './EventFormV2';
 import { TRANSLATIONS } from '../constants';
 import { detectRoomConflicts, getConflictingEventIds } from '../utils/roomConflicts';
 import { ImportExportDropdown } from './ImportExportDropdown';
-import { useFirestoreSync } from '../utils/useFirestoreSync';
+import { useSupabaseSync } from '../utils/useSupabaseSync';
 import {
   ActivityV2, L1Subcategory, L2Subcategory, StaffMemberV2,
   TeachingAssignmentV2, OrgRoleV2, EventV2, EventParticipant, EnrollmentV2, StudentV2, V2_COLLECTIONS,
@@ -86,6 +86,19 @@ const SNAP_MINUTES = 15;
 // Module-level scroll position — survives component re-mounts (sidebar toggle, etc.)
 let savedScrollTop = 7 * PIXELS_PER_HOUR; // Default: scroll to 7 AM
 
+const toDateInputValue = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseDateInputValue = (value: string): Date | null => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const next = new Date(`${value}T12:00:00`);
+  return Number.isNaN(next.getTime()) ? null : next;
+};
+
 // Helper: Find the hour with the most events for smart centering
 const findPeakEventHour = (eventsToCheck: CalendarEvent[], displayDate: Date): number => {
   const dayStart = new Date(displayDate);
@@ -131,14 +144,14 @@ export const CalendarView: React.FC<Props> = ({
   const isCalendarOwner = currentUser?.email?.toLowerCase() === settings.googleCalendarConnectedBy?.toLowerCase();
 
 
-  // ─── v2.0 Firestore hooks (Phase 5) ─────────────────────────────────────
+  // ─── v2.0 Supabase hooks (Phase 5) ──────────────────────────────────────
   // l1Subs, l2Subs, staffMembersV2, studentsV2 are hoisted to App.tsx
   // activities prop is already ActivityV2[] from App.tsx — no redundant sync needed
-  const [teachingAssignmentsV2] = useFirestoreSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
-  const [orgRolesV2] = useFirestoreSync<OrgRoleV2>(V2_COLLECTIONS.orgRoles, []);
-  const [eventsV2, setEventsV2] = useFirestoreSync<EventV2>(V2_COLLECTIONS.events, []);
-  const [eventParticipantsV2, setEventParticipantsV2] = useFirestoreSync<EventParticipant>(V2_COLLECTIONS.eventParticipants, []);
-  const [enrollments] = useFirestoreSync<EnrollmentV2>(V2_COLLECTIONS.enrollments, []);
+  const [teachingAssignmentsV2] = useSupabaseSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
+  const [orgRolesV2] = useSupabaseSync<OrgRoleV2>(V2_COLLECTIONS.orgRoles, []);
+  const [eventsV2, setEventsV2] = useSupabaseSync<EventV2>(V2_COLLECTIONS.events, []);
+  const [eventParticipantsV2, setEventParticipantsV2] = useSupabaseSync<EventParticipant>(V2_COLLECTIONS.eventParticipants, []);
+  const [enrollments] = useSupabaseSync<EnrollmentV2>(V2_COLLECTIONS.enrollments, []);
   const students = studentsV2;
 
   // ─── CSV Import/Export data ──────────────────────────────────────────────
@@ -169,7 +182,7 @@ export const CalendarView: React.FC<Props> = ({
   );
 
   const handleEventImportComplete = useCallback((rows: Record<string, string>[]) => {
-    const now = Timestamp.now();
+    const now = nowTimestamp();
     const newEvents: EventV2[] = rows.map(row => {
       const actId = csvActivityByName[row['activityName']?.trim().toLowerCase() || ''] || '';
       const l2Id = csvL2ByName[row['l2Name']?.trim().toLowerCase() || ''] || null;
@@ -224,6 +237,8 @@ export const CalendarView: React.FC<Props> = ({
   const [recentlySaved, setRecentlySaved] = useState<Set<string>>(new Set());
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const [jumpDateValue, setJumpDateValue] = useState(() => toDateInputValue(currentDate));
+  const [eventFormCanSave, setEventFormCanSave] = useState(false);
 
   // Marquee Drag-to-Select State
   const [marqueeActive, setMarqueeActive] = useState(false);
@@ -269,6 +284,19 @@ export const CalendarView: React.FC<Props> = ({
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
   }, [viewMode, currentDate]);
+
+  useEffect(() => {
+    setJumpDateValue(toDateInputValue(currentDate));
+  }, [currentDate]);
+
+  const commitJumpDate = useCallback((value: string) => {
+    const next = parseDateInputValue(value);
+    if (!next) {
+      setJumpDateValue(toDateInputValue(currentDate));
+      return;
+    }
+    setCurrentDate(next);
+  }, [currentDate, setCurrentDate]);
 
   const DAY_MAP: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
   const DAY_ABBR: DayOfWeek[] = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
@@ -695,19 +723,57 @@ export const CalendarView: React.FC<Props> = ({
   const activeFilterPills = useMemo(() => {
     const pills: Array<{ key: string; label: string; clear: () => void }> = [];
     const fs = filterState;
+    const joinLabels = <T extends string>(values: T[], labels: Record<T, string>) =>
+      values.map(value => labels[value] ?? value).join(', ');
+    const statusLabels = {
+      SCHEDULED: t('cal.filter.status.scheduled'),
+      COMPLETED: t('cal.filter.status.completed'),
+      CANCELLED: t('cal.filter.status.cancelled'),
+      ARCHIVED: t('cal.filter.status.archived'),
+    };
+    const recurrenceLabels = {
+      ALL: t('cal.filter.recurrence.all'),
+      RECURRING: t('cal.filter.recurrence.recurring'),
+      ONE_OFF: t('cal.filter.recurrence.one_off'),
+    };
+    const activityTypeLabels = {
+      ACADEMIC: t('cal.filter.type.academic'),
+      ADMINISTRATIVE: t('cal.filter.type.administrative'),
+      PERFORMANCES: t('cal.filter.type.performances'),
+      SPECIAL_EVENTS: t('cal.filter.type.special_events'),
+    };
+    const templateLabels = {
+      DISCIPLINE: t('cal.filter.tmpl.discipline'),
+      PROGRAM: t('cal.filter.tmpl.program'),
+      ENSEMBLE: t('cal.filter.tmpl.ensemble'),
+      EXTERNAL: t('cal.filter.tmpl.external'),
+      ADMINISTRATIVE: t('cal.filter.tmpl.administrative'),
+    };
+    const assignmentTypeLabels = {
+      TEACHING: t('cal.filter.assign.teaching'),
+      ORG_ROLE: t('cal.filter.assign.org_role'),
+    };
+    const staffRoleLabels = {
+      SUPER_ADMIN: t('cal.filter.role.super_admin'),
+      ADMIN: t('cal.filter.role.admin'),
+      STAFF: t('cal.filter.role.staff'),
+    };
     const defaultStatus = new Set(['SCHEDULED', 'COMPLETED']);
     const stateStatus = new Set(fs.status);
     if (stateStatus.size !== defaultStatus.size || [...stateStatus].some(s => !defaultStatus.has(s as string))) {
-      pills.push({ key: 'status', label: `${t('cal.filter.status.label')}: ${fs.status.join(', ')}`, clear: () => filterSet({ status: ['SCHEDULED', 'COMPLETED'] }) });
+      const statusText = fs.status.length > 0
+        ? joinLabels(fs.status, statusLabels)
+        : t('cal.filter.status.none');
+      pills.push({ key: 'status', label: `${t('cal.filter.status.label')}: ${statusText}`, clear: () => filterSet({ status: ['SCHEDULED', 'COMPLETED'] }) });
     }
     if (fs.recurrence !== 'ALL') {
-      pills.push({ key: 'recurrence', label: `${t('cal.filter.recurrence.label')}: ${fs.recurrence}`, clear: () => filterSet({ recurrence: 'ALL' }) });
+      pills.push({ key: 'recurrence', label: `${t('cal.filter.recurrence.label')}: ${recurrenceLabels[fs.recurrence]}`, clear: () => filterSet({ recurrence: 'ALL' }) });
     }
     if (fs.activityType.length > 0) {
-      pills.push({ key: 'activityType', label: `${t('cal.filter.type.label')}: ${fs.activityType.join(', ')}`, clear: () => filterSet({ activityType: [] }) });
+      pills.push({ key: 'activityType', label: `${t('cal.filter.type.label')}: ${joinLabels(fs.activityType, activityTypeLabels)}`, clear: () => filterSet({ activityType: [] }) });
     }
     if (fs.template.length > 0) {
-      pills.push({ key: 'template', label: `${t('cal.filter.tmpl.label')}: ${fs.template.join(', ')}`, clear: () => filterSet({ template: [] }) });
+      pills.push({ key: 'template', label: `${t('cal.filter.tmpl.label')}: ${joinLabels(fs.template, templateLabels)}`, clear: () => filterSet({ template: [] }) });
     }
     if (fs.activityId.length > 0) {
       const names = fs.activityId.map(id => activityById.get(id)?.name ?? id);
@@ -726,10 +792,10 @@ export const CalendarView: React.FC<Props> = ({
       pills.push({ key: 'staff', label: `${t('cal.filter.staff.label')}: ${names.join(', ')}`, clear: () => filterSet({ staffMemberId: [], assignmentType: [] }) });
     }
     if (fs.assignmentType.length > 0) {
-      pills.push({ key: 'assignmentType', label: `${t('cal.filter.assign.label')}: ${fs.assignmentType.join(', ')}`, clear: () => filterSet({ assignmentType: [] }) });
+      pills.push({ key: 'assignmentType', label: `${t('cal.filter.assign.label')}: ${joinLabels(fs.assignmentType, assignmentTypeLabels)}`, clear: () => filterSet({ assignmentType: [] }) });
     }
     if (fs.staffRole.length > 0) {
-      pills.push({ key: 'staffRole', label: `${t('cal.filter.role.label')}: ${fs.staffRole.join(', ')}`, clear: () => filterSet({ staffRole: [] }) });
+      pills.push({ key: 'staffRole', label: `${t('cal.filter.role.label')}: ${joinLabels(fs.staffRole, staffRoleLabels)}`, clear: () => filterSet({ staffRole: [] }) });
     }
     if (fs.studentId.length > 0) {
       const names = fs.studentId.map(id => studentById.get(id)?.fullName ?? id);
@@ -1064,6 +1130,7 @@ export const CalendarView: React.FC<Props> = ({
       };
     }
     setEditingEvent(newEvent);
+    setEventFormCanSave(false);
     setModalAnchorPosition(anchor ?? null);
     setIsModalOpen(true);
     setDetailItem(null);
@@ -2318,19 +2385,29 @@ export const CalendarView: React.FC<Props> = ({
             {t('cal.today')}
           </button>
 
-          <div className="relative group/tt">
-            <label
-              className="relative h-8 w-8 rounded-lg border bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer flex items-center justify-center"
-            >
-              <CalendarIcon size={16} />
-              <input
-                type="date"
-                aria-label={t('cal.jump_to_date')}
-                value={currentDate.toISOString().split('T')[0]}
-                onChange={(e) => { if (e.target.value) setCurrentDate(new Date(e.target.value + 'T12:00:00')); }}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              />
-            </label>
+          <div className="relative group/tt flex items-center">
+            <CalendarIcon size={14} className="absolute start-2 text-slate-400 pointer-events-none" />
+            <input
+              type="date"
+              aria-label={t('cal.jump_to_date')}
+              value={jumpDateValue}
+              onChange={(e) => {
+                setJumpDateValue(e.target.value);
+                commitJumpDate(e.target.value);
+              }}
+              onInput={(e) => {
+                setJumpDateValue(e.currentTarget.value);
+                commitJumpDate(e.currentTarget.value);
+              }}
+              onBlur={(e) => commitJumpDate(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  commitJumpDate(e.currentTarget.value);
+                }
+              }}
+              className="h-8 w-[9.25rem] rounded-lg border bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 ps-7 pe-2 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+            />
             <span role="tooltip" className="pointer-events-none absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-[11px] font-medium bg-slate-900 dark:bg-slate-700 text-white whitespace-nowrap opacity-0 group-hover/tt:opacity-100 transition-opacity z-50 shadow-lg">
               {t('cal.jump_to_date')}
             </span>
@@ -2374,11 +2451,12 @@ export const CalendarView: React.FC<Props> = ({
               value={filterState.search}
               onChange={(e) => filterSet({ search: e.target.value })}
               placeholder={t('cal.search_placeholder') || 'Search events…'}
+              aria-label={t('cal.search_placeholder') || 'Search events'}
               className="h-8 ps-7 pe-6 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none w-36 transition-all focus:w-48"
             />
             <Search size={12} className="absolute start-2 text-slate-400 pointer-events-none" />
             {filterState.search && (
-              <button onClick={() => filterSet({ search: '' })} className="absolute end-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+              <button onClick={() => filterSet({ search: '' })} aria-label={t('filter.clear') || 'Clear search'} className="absolute end-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 <X size={12} />
               </button>
             )}
@@ -2566,7 +2644,7 @@ export const CalendarView: React.FC<Props> = ({
             <div className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">{detailItem.type === 'EVENT' ? (detailItem.data as CalendarEvent).name : (detailItem.data as GanttBlock).title}</h3>
-                <button onClick={() => setDetailItem(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"><X size={20} /></button>
+                <button onClick={() => setDetailItem(null)} aria-label={t('common.close') || 'Close'} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"><X size={20} /></button>
               </div>
               <div className="space-y-3 mb-6">
                 {detailItem.type === 'EVENT' ? (
@@ -2674,8 +2752,8 @@ export const CalendarView: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => formRef.current?.triggerSave()}
-                disabled={formRef.current?.isSaving}
-                className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium transition-all disabled:opacity-60 flex items-center gap-2"
+                disabled={!eventFormCanSave || formRef.current?.isSaving}
+                className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {formRef.current?.isSaving && <Loader2 size={14} className="animate-spin" />}
                 {t('cal.save_changes')}
@@ -2715,6 +2793,7 @@ export const CalendarView: React.FC<Props> = ({
           initialStart={editingEvent.start}
           initialEnd={editingEvent.end}
           onSave={handleSaveV2}
+          onValidityChange={setEventFormCanSave}
           t={t}
         />
       </Modal>

@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { X, ArrowLeft } from 'lucide-react';
+import { TRANSLATIONS } from '../constants';
 
 export interface SlideOverProps {
   isOpen: boolean;
@@ -16,6 +17,11 @@ export const SlideOver: React.FC<SlideOverProps> = ({
   children,
   width = 'w-[360px]',
 }) => {
+  const t = (key: string): string => {
+    const lang = document.documentElement.lang || 'en-US';
+    return (TRANSLATIONS as any)[lang]?.[key] || (TRANSLATIONS as any)['en-US']?.[key] || key;
+  };
+
   // Escape key closes
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -37,7 +43,7 @@ export const SlideOver: React.FC<SlideOverProps> = ({
         <button
           onClick={onClose}
           className="md:hidden p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 mr-2 rtl:mr-0 rtl:ml-2"
-          aria-label="Back"
+          aria-label={t('btn.back')}
         >
           <ArrowLeft size={18} />
         </button>
@@ -54,7 +60,7 @@ export const SlideOver: React.FC<SlideOverProps> = ({
         <button
           onClick={onClose}
           className="hidden md:flex p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors ml-2 rtl:ml-0 rtl:mr-2"
-          aria-label="Close"
+          aria-label={t('common.close')}
         >
           <X size={20} />
         </button>

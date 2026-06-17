@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Search, Calendar, Users, GraduationCap, Cog, LayoutGrid, Inbox, Wrench, Shield, ListChecks } from 'lucide-react';
+import { Search, Calendar, Users, GraduationCap, Cog, LayoutGrid, Inbox, Wrench, Shield, ListChecks, ListTree } from 'lucide-react';
 import { ViewState, Teacher, Student, CalendarEvent } from '../types';
 import type { CalendarSidebarTab } from '../types/calendarFilters';
 
@@ -30,6 +30,13 @@ const NAV_ICONS: Record<ViewState, React.ReactNode> = {
   MANAGE: <ListChecks className="h-4 w-4" />,
   STAFF_MEMBERS: <Users className="h-4 w-4" />,
   ADMIN_INBOX: <Inbox className="h-4 w-4" />,
+  BLUEPRINT: <ListTree className="h-4 w-4" />,
+  STUDENTS: <Users className="h-4 w-4" />,
+  BILLING: <ListChecks className="h-4 w-4" />,
+  ACADEMICS: <ListTree className="h-4 w-4" />,
+  INVENTORY: <LayoutGrid className="h-4 w-4" />,
+  PAYROLL: <ListChecks className="h-4 w-4" />,
+  ANALYTICS: <LayoutGrid className="h-4 w-4" />,
   SETTINGS: <Cog className="h-4 w-4" />,
   SUPER_ADMIN: <Shield className="h-4 w-4" />,
 };
@@ -39,6 +46,13 @@ const NAV_KEY_BY_VIEW: Record<ViewState, string> = {
   MANAGE: 'bl01_palette.action.manage',
   STAFF_MEMBERS: 'bl01_palette.action.staff_members',
   ADMIN_INBOX: 'bl01_palette.action.admin_inbox',
+  BLUEPRINT: 'bl01_palette.action.blueprint',
+  STUDENTS: 'nav.students',
+  BILLING: 'nav.billing',
+  ACADEMICS: 'nav.academics',
+  INVENTORY: 'nav.inventory',
+  PAYROLL: 'nav.payroll',
+  ANALYTICS: 'nav.analytics',
   SETTINGS: 'bl01_palette.action.settings',
   SUPER_ADMIN: 'bl01_palette.action.super_admin',
 };

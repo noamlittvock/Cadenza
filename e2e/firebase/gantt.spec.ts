@@ -66,6 +66,25 @@ test.describe('Gantt — blackout block visibility (#10)', () => {
   });
 });
 
+// ── QA regression — empty create validates instead of silently returning ─────
+test.describe('Gantt — create validation', () => {
+  test.beforeEach(async ({ page }) => {
+    await loadApp(page);
+    await gotoGanttView(page);
+  });
+
+  test('empty create shows required field errors', async ({ page }) => {
+    await page.getByRole('button', { name: 'Add' }).click();
+    await expect(page.getByRole('dialog', { name: 'Add Gantt / Blackout Period' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Create' }).click();
+
+    await expect(page.getByText('Enter a title.')).toBeVisible();
+    await expect(page.getByText('Choose a start date.')).toBeVisible();
+    await expect(page.getByText('Choose an end date.')).toBeVisible();
+  });
+});
+
 // ── #6 — isHidden events absent from calendar; Gantt bar stays visible ────────
 test.describe('Calendar — isHidden events (#6)', () => {
   test.beforeEach(async ({ page }) => {

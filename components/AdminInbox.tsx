@@ -4,7 +4,7 @@ import { TRANSLATIONS } from '../constants';
 import { Modal } from './Modal';
 import { ConflictResolutionPanel } from './ConflictResolutionPanel';
 import { EventFormV2, EventFormState, EventFormV2Handle } from './EventFormV2';
-import { useFirestoreSync } from '../utils/useFirestoreSync';
+import { useSupabaseSync } from '../utils/useSupabaseSync';
 import { buildUpdatedCalendarEvent, applyEventUpdate } from '../utils/saveEventV2';
 import {
   ActivityV2, L1Subcategory, L2Subcategory, StaffMemberV2,
@@ -149,14 +149,14 @@ export const AdminInbox: React.FC<Props> = ({
   const [viewTeacherId, setViewTeacherId] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
 
-  // v2.0 Firestore hooks for reschedule modal
-  const [activitiesV2] = useFirestoreSync<ActivityV2>(V2_COLLECTIONS.activities, []);
-  const [l1Subs] = useFirestoreSync<L1Subcategory>(V2_COLLECTIONS.l1Subcategories, []);
-  const [l2Subs] = useFirestoreSync<L2Subcategory>(V2_COLLECTIONS.l2Subcategories, []);
-  const [staffMembersV2] = useFirestoreSync<StaffMemberV2>(V2_COLLECTIONS.staffMembers, []);
-  const [teachingAssignmentsV2] = useFirestoreSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
-  const [orgRolesV2] = useFirestoreSync<OrgRoleV2>(V2_COLLECTIONS.orgRoles, []);
-  const [eventParticipantsV2] = useFirestoreSync<EventParticipant>(V2_COLLECTIONS.eventParticipants, []);
+  // v2.0 Supabase hooks for reschedule modal
+  const [activitiesV2] = useSupabaseSync<ActivityV2>(V2_COLLECTIONS.activities, []);
+  const [l1Subs] = useSupabaseSync<L1Subcategory>(V2_COLLECTIONS.l1Subcategories, []);
+  const [l2Subs] = useSupabaseSync<L2Subcategory>(V2_COLLECTIONS.l2Subcategories, []);
+  const [staffMembersV2] = useSupabaseSync<StaffMemberV2>(V2_COLLECTIONS.staffMembers, []);
+  const [teachingAssignmentsV2] = useSupabaseSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
+  const [orgRolesV2] = useSupabaseSync<OrgRoleV2>(V2_COLLECTIONS.orgRoles, []);
+  const [eventParticipantsV2] = useSupabaseSync<EventParticipant>(V2_COLLECTIONS.eventParticipants, []);
 
   const rescheduleFormRef = useRef<EventFormV2Handle>(null);
 

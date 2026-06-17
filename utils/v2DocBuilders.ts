@@ -1,9 +1,7 @@
-// Used by DevTools for both Firestore seeds (Timestamp) and LOCAL_MODE seeds
-// (epoch ms) — both go in the same `createdAt`/`updatedAt` fields, so the
-// builder is generic over the timestamp shape.
+// Used by DevTools for both Supabase and LOCAL_MODE seeds.
 
 import type { Teacher, Student } from '../types';
-import type { Timestamp } from 'firebase/firestore';
+import type { AppTimestamp } from './appTimestamp';
 import type {
     StaffMemberV2,
     StudentV2,
@@ -15,7 +13,7 @@ import type {
 } from '../types/v2';
 import type { GeneratedActivity } from './devDataGenerator';
 
-type SeedTimestamp = Timestamp | number;
+type SeedTimestamp = AppTimestamp;
 
 export interface V2SeedInputs {
     teachers: Teacher[];
@@ -38,7 +36,7 @@ export function buildV2SeedDocs(
     orgId: string,
     now: SeedTimestamp,
 ): V2SeedDocs {
-    const ts = now as Timestamp;
+    const ts = now;
     const staffMembers: StaffMemberV2[] = input.teachers.map(t => ({
         id: t.id,
         orgId,

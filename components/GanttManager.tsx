@@ -27,6 +27,7 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
     color: COLORS[0],
     isBlackout: false
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Blackout Logic: Apply to events in range (HIDE events)
   const applyBlackout = (block: GanttBlock) => {
@@ -68,11 +69,20 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
       setFormData(newBlockData);
       setInitialFormData(newBlockData);
     }
+    setFormErrors({});
     setIsModalOpen(true);
   };
 
   const handleSubmit = () => {
-    if (!formData.title || !formData.startDate || !formData.endDate) return;
+    const nextErrors: Record<string, string> = {};
+    if (!formData.title?.trim()) nextErrors.title = t('gantt.err_title_required');
+    if (!formData.startDate) nextErrors.startDate = t('gantt.err_start_required');
+    if (!formData.endDate) nextErrors.endDate = t('gantt.err_end_required');
+    if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) {
+      nextErrors.endDate = t('gantt.err_end_before_start');
+    }
+    setFormErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     // Logic for Update
     if (editingId) {
@@ -119,6 +129,13 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
       }
     }
   };
+
+  const isFormValid = Boolean(
+    formData.title?.trim() &&
+    formData.startDate &&
+    formData.endDate &&
+    formData.endDate >= formData.startDate
+  );
 
   return (
     <div className="p-4">
@@ -214,7 +231,8 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
             </button>
             <button
               onClick={handleSubmit}
-              className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg"
+              disabled={!isFormValid}
+              className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {editingId ? t('gantt.save_changes') : (formData.isBlackout ? t('gantt.create_apply') : t('btn.create'))}
             </button>
@@ -226,18 +244,25 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.label_title')}</label>
             <input
               type="text"
-              className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+              className={`w-full border ${formErrors.title ? 'border-red-400 dark:border-red-500' : 'border-slate-300 dark:border-slate-700'} bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500`}
               value={formData.title || ''}
-              onChange={e => setFormData({ ...formData, title: e.target.value })}
+              onChange={e => {
+                setFormData({ ...formData, title: e.target.value });
+                setFormErrors(prev => ({ ...prev, title: '' }));
+              }}
               placeholder={t('gantt.name_placeholder')}
+              aria-invalid={!!formErrors.title}
+              aria-describedby={formErrors.title ? 'gantt-title-error' : undefined}
+              aria-label={t('gantt.label_title')}
             />
+            {formErrors.title && <p id="gantt-title-error" className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.title}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.start_date')}</label>
               <DatePicker
                 type="date"
-                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full border ${formErrors.startDate ? 'border-red-400 dark:border-red-500' : 'border-slate-300 dark:border-slate-700'} bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500`}
                 value={formData.startDate ? new Date(formData.startDate).toISOString().split('T')[0] : ''}
                 onChange={e => {
                   const newStart = e.target.value;
@@ -248,14 +273,19 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
                     }
                     return next;
                   });
+                  setFormErrors(prev => ({ ...prev, startDate: '', endDate: '' }));
                 }}
+                aria-invalid={!!formErrors.startDate}
+                aria-describedby={formErrors.startDate ? 'gantt-start-error' : undefined}
+                aria-label={t('gantt.start_date')}
               />
+              {formErrors.startDate && <p id="gantt-start-error" className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.startDate}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('gantt.end_date')}</label>
               <DatePicker
                 type="date"
-                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full border ${formErrors.endDate ? 'border-red-400 dark:border-red-500' : 'border-slate-300 dark:border-slate-700'} bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500`}
                 value={formData.endDate ? new Date(formData.endDate).toISOString().split('T')[0] : ''}
                 onChange={e => {
                   const newEnd = e.target.value;
@@ -266,8 +296,13 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
                     }
                     return next;
                   });
+                  setFormErrors(prev => ({ ...prev, startDate: '', endDate: '' }));
                 }}
+                aria-invalid={!!formErrors.endDate}
+                aria-describedby={formErrors.endDate ? 'gantt-end-error' : undefined}
+                aria-label={t('gantt.end_date')}
               />
+              {formErrors.endDate && <p id="gantt-end-error" className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.endDate}</p>}
             </div>
           </div>
 
@@ -278,6 +313,7 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
                 <button
                   key={c}
                   onClick={() => setFormData({ ...formData, color: c })}
+                  aria-label={t('gantt.color_option').replace('{color}', c)}
                   className={`w-8 h-8 rounded-full border-2 ${formData.color === c ? 'border-slate-800 dark:border-white' : 'border-transparent'}`}
                   style={{ backgroundColor: c }}
                 />
@@ -292,6 +328,7 @@ export const GanttManager: React.FC<Props> = ({ blocks, setBlocks, events, setEv
                 className="w-5 h-5 text-red-600 rounded focus:ring-red-500 border-slate-300 dark:border-slate-600"
                 checked={formData.isBlackout}
                 onChange={e => setFormData({ ...formData, isBlackout: e.target.checked })}
+                aria-label={t('gantt.apply_blackout')}
               />
               <div>
                 <span className="block font-medium text-slate-900 dark:text-white">{t('gantt.apply_blackout')}</span>

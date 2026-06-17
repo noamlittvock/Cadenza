@@ -67,6 +67,7 @@ export const GuideMeButton: React.FC<Props> = ({ steps, settings }) => {
               <button
                 onClick={() => setOpen(false)}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                aria-label={t('common.close')}
               >
                 <X size={16} />
               </button>
@@ -112,7 +113,7 @@ export const GuideMeButton: React.FC<Props> = ({ steps, settings }) => {
                 disabled={activeStep === 0}
                 className="text-xs text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-colors"
               >
-                ← Prev
+                {isRtl ? '' : '← '}{t('guide.prev')}{isRtl ? ' ←' : ''}
               </button>
               <span className="text-xs text-slate-400">
                 {activeStep + 1} / {steps.length}
@@ -122,14 +123,14 @@ export const GuideMeButton: React.FC<Props> = ({ steps, settings }) => {
                   onClick={() => setActiveStep(s => Math.min(steps.length - 1, s + 1))}
                   className="flex items-center gap-1 text-xs text-cadenza-accent font-semibold hover:underline"
                 >
-                  Next <ChevronRight size={12} />
+                  {t('guide.next')} <ChevronRight size={12} />
                 </button>
               ) : (
                 <button
                   onClick={() => setOpen(false)}
                   className="text-xs text-emerald-600 font-semibold hover:underline"
                 >
-                  Done ✓
+                  {t('guide.done')}
                 </button>
               )}
             </div>

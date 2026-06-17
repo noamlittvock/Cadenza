@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Timestamp } from 'firebase/firestore';
+import React, { useState, useMemo, useCallback, useEffect, useRef, useId } from 'react';
+import { nowTimestamp } from '../utils/appTimestamp';
 import { AppSettings, CalendarEvent } from '../types';
 import type {
   ActivityV2, L1Subcategory, L2Subcategory,
@@ -10,7 +10,7 @@ import type {
 import { V2_COLLECTIONS } from '../types/v2';
 import { deriveActivityType } from '../types/v2-compat';
 import { generateId, TRANSLATIONS } from '../constants';
-import { useFirestoreSync } from '../utils/useFirestoreSync';
+import { useSupabaseSync } from '../utils/useSupabaseSync';
 import { useAuth } from '../context/AuthContext';
 import { Modal } from './Modal';
 import {
@@ -357,13 +357,14 @@ export const ActivityManager: React.FC<Props> = ({
   const { currentUser, isSuperAdmin } = useAuth();
   const uid = currentUser?.id || '';
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
+  const templatePickerTitleId = useId();
 
-  // ─── Internal Firestore hooks for v2.0 collections ───────────────────────
-  const [l1Subs, setL1Subs] = useFirestoreSync<L1Subcategory>(V2_COLLECTIONS.l1Subcategories, []);
-  const [l2Subs, setL2Subs] = useFirestoreSync<L2Subcategory>(V2_COLLECTIONS.l2Subcategories, []);
-  const [eventsV2, setEventsV2] = useFirestoreSync<EventV2>(V2_COLLECTIONS.events, []);
-  const [enrollmentsV2, setEnrollmentsV2] = useFirestoreSync<EnrollmentV2>(V2_COLLECTIONS.enrollments, []);
-  const [teachingAssignments, setTeachingAssignments] = useFirestoreSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
+  // ─── Internal Supabase hooks for v2.0 collections ────────────────────────
+  const [l1Subs, setL1Subs] = useSupabaseSync<L1Subcategory>(V2_COLLECTIONS.l1Subcategories, []);
+  const [l2Subs, setL2Subs] = useSupabaseSync<L2Subcategory>(V2_COLLECTIONS.l2Subcategories, []);
+  const [eventsV2, setEventsV2] = useSupabaseSync<EventV2>(V2_COLLECTIONS.events, []);
+  const [enrollmentsV2, setEnrollmentsV2] = useSupabaseSync<EnrollmentV2>(V2_COLLECTIONS.enrollments, []);
+  const [teachingAssignments, setTeachingAssignments] = useSupabaseSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
 
   // ─── UI State ────────────────────────────────────────────────────────────
   const [viewMode, setViewMode] = useListStyle(['table', 'tree', 'grid', 'list']);
@@ -443,6 +444,7 @@ export const ActivityManager: React.FC<Props> = ({
 
   const formSnapshot = () => JSON.stringify({ formName, formTemplate, formModules, formLocation, formEventNameMode });
   const isDirty = formSnapshot() !== initialFormSnapshot;
+  const isActivityFormValid = Boolean(formName.trim() && isSuperAdmin);
 
   const resetForm = useCallback(() => {
     setFormName('');
@@ -514,7 +516,7 @@ export const ActivityManager: React.FC<Props> = ({
     if (!formName.trim()) return;
     if (!isSuperAdmin) return;
 
-    const now = Timestamp.now();
+    const now = nowTimestamp();
     const config = TEMPLATE_CONFIGS[formTemplate];
 
     // Save prefill for next time
@@ -581,7 +583,7 @@ export const ActivityManager: React.FC<Props> = ({
   const confirmArchive = useCallback(() => {
     if (!archiveCascade || !isSuperAdmin) return;
     const { activityId } = archiveCascade;
-    const tsNow = Timestamp.now();
+    const tsNow = nowTimestamp();
     const today = new Date().toISOString().slice(0, 10);
 
     setActivities(prev => prev.map(a =>
@@ -621,7 +623,7 @@ export const ActivityManager: React.FC<Props> = ({
   const handleRestore = useCallback((id: string) => {
     if (!isSuperAdmin) return;
     setActivities(prev => prev.map(a =>
-      a.id === id ? { ...a, isArchived: false, updatedAt: Timestamp.now() } : a
+      a.id === id ? { ...a, isArchived: false, updatedAt: nowTimestamp() } : a
     ));
   }, [isSuperAdmin, setActivities]);
 
@@ -651,7 +653,7 @@ export const ActivityManager: React.FC<Props> = ({
     const count = selectedIds.size;
     if (!window.confirm(t('activities.confirm_bulk_archive').replace('{n}', String(count)))) return;
     const ids = selectedIds;
-    const tsNow = Timestamp.now();
+    const tsNow = nowTimestamp();
     const today = new Date().toISOString().slice(0, 10);
     setActivities(prev => prev.map(a => ids.has(a.id) ? { ...a, isArchived: true, updatedAt: tsNow } : a));
     setEventsV2(prev => prev.map(e =>
@@ -674,7 +676,7 @@ export const ActivityManager: React.FC<Props> = ({
   const handleBulkRestore = useCallback(() => {
     if (!isSuperAdmin || selectedIds.size === 0) return;
     const ids = selectedIds;
-    const tsNow = Timestamp.now();
+    const tsNow = nowTimestamp();
     setActivities(prev => prev.map(a => ids.has(a.id) ? { ...a, isArchived: false, updatedAt: tsNow } : a));
     exitSelectMode();
   }, [isSuperAdmin, selectedIds, setActivities, exitSelectMode]);
@@ -737,7 +739,7 @@ export const ActivityManager: React.FC<Props> = ({
     const existingByName = new Map<string, ActivityV2>(
       activities.map(a => [a.name.trim().toLowerCase(), a]),
     );
-    const now = Timestamp.now();
+    const now = nowTimestamp();
     const updates = new Map<string, Partial<ActivityV2>>();
     const additions: ActivityV2[] = [];
     rows.forEach(row => {
@@ -771,7 +773,7 @@ export const ActivityManager: React.FC<Props> = ({
 
   const handleActivityHierarchyImportComplete = useCallback((rows: Record<string, string>[]) => {
     if (!isSuperAdmin) return;
-    const now = Timestamp.now();
+    const now = nowTimestamp();
 
     const activityByName = new Map<string, ActivityV2>(
       activities.map(a => [a.name.trim().toLowerCase(), a]),
@@ -857,7 +859,7 @@ export const ActivityManager: React.FC<Props> = ({
     if (!value) return;
     const exists = l1Subs.some(l => l.activityId === activityId && !l.isArchived && l.name.toLowerCase() === value.toLowerCase());
     if (exists) return;
-    const now = Timestamp.now();
+    const now = nowTimestamp();
     const newL1: L1Subcategory = {
       id: generateId(), orgId: '', activityId,
       name: value, isArchived: false, createdAt: now, updatedAt: now,
@@ -881,7 +883,7 @@ export const ActivityManager: React.FC<Props> = ({
       l.name.toLowerCase() === input.toLowerCase()
     );
     if (exists) return;
-    const now = Timestamp.now();
+    const now = nowTimestamp();
     const newL2: L2Subcategory = {
       id: generateId(), orgId: '', activityId,
       l1Id, name: input,
@@ -898,7 +900,7 @@ export const ActivityManager: React.FC<Props> = ({
   const archiveL1 = useCallback((id: string) => {
     if (!isSuperAdmin) return;
     const today = new Date().toISOString().slice(0, 10);
-    const tsNow = Timestamp.now();
+    const tsNow = nowTimestamp();
     setL1Subs(prev => prev.map(l => l.id === id ? { ...l, isArchived: true, updatedAt: tsNow } : l));
     // Cascade: descendant L2s under this L1
     setL2Subs(prev => prev.map(l =>
@@ -934,13 +936,13 @@ export const ActivityManager: React.FC<Props> = ({
 
   const restoreL1 = useCallback((id: string) => {
     if (!isSuperAdmin) return;
-    setL1Subs(prev => prev.map(l => l.id === id ? { ...l, isArchived: false, updatedAt: Timestamp.now() } : l));
+    setL1Subs(prev => prev.map(l => l.id === id ? { ...l, isArchived: false, updatedAt: nowTimestamp() } : l));
   }, [isSuperAdmin, setL1Subs]);
 
   const archiveL2 = useCallback((id: string) => {
     if (!isSuperAdmin) return;
     const today = new Date().toISOString().slice(0, 10);
-    const tsNow = Timestamp.now();
+    const tsNow = nowTimestamp();
     setL2Subs(prev => prev.map(l => l.id === id ? { ...l, isArchived: true, updatedAt: tsNow } : l));
     setEventsV2(prev => prev.map(e =>
       e.l2Id === id && e.status === 'SCHEDULED' && e.date >= today
@@ -962,7 +964,7 @@ export const ActivityManager: React.FC<Props> = ({
 
   const restoreL2 = useCallback((id: string) => {
     if (!isSuperAdmin) return;
-    setL2Subs(prev => prev.map(l => l.id === id ? { ...l, isArchived: false, updatedAt: Timestamp.now() } : l));
+    setL2Subs(prev => prev.map(l => l.id === id ? { ...l, isArchived: false, updatedAt: nowTimestamp() } : l));
   }, [isSuperAdmin, setL2Subs]);
 
   // ─── Walkthrough helpers ─────────────────────────────────────────────────
@@ -1198,6 +1200,12 @@ export const ActivityManager: React.FC<Props> = ({
 
   return (
     <div className={`${embedded ? 'h-full overflow-auto' : ''} p-8 max-w-6xl mx-auto`}>
+      {embedded && (
+        <div className="mb-4">
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white">{t('activities.title')}</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{t('activities.subtitle')}</p>
+        </div>
+      )}
       {/* Toolbar */}
       <div className={`flex ${embedded ? 'justify-end' : 'justify-between items-center'} gap-3 mb-6`}>
         {!embedded && (
@@ -1632,10 +1640,11 @@ export const ActivityManager: React.FC<Props> = ({
       {templatePickerOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setTemplatePickerOpen(false)} />
-          <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6 w-full max-w-2xl mx-4">
+          <div role="dialog" aria-modal="true" aria-labelledby={templatePickerTitleId} className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6 w-full max-w-2xl mx-4">
             <div className="flex justify-between items-center mb-5">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-white">{t('activities.choose_template')}</h3>
+              <h3 id={templatePickerTitleId} className="text-lg font-bold text-slate-800 dark:text-white">{t('activities.choose_template')}</h3>
               <button onClick={() => setTemplatePickerOpen(false)}
+                aria-label={t('common.close') || 'Close'}
                 className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
                 <X size={18} />
               </button>
@@ -1731,7 +1740,8 @@ export const ActivityManager: React.FC<Props> = ({
               {t('btn.cancel')}
             </button>
             <button type="button" onClick={(e) => handleSubmit(e as any)}
-              className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg">
+              disabled={!isActivityFormValid}
+              className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
               {t('btn.save')}
             </button>
           </div>
@@ -1768,7 +1778,7 @@ export const ActivityManager: React.FC<Props> = ({
                   {walkthroughStep < walkthroughSteps.length - 1 ? (
                     <button type="button" onClick={() => setWalkthroughStep(s => s + 1)}
                       className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
-                      Next
+                      {t('activities.walkthrough_next')}
                     </button>
                   ) : (
                     <button type="button" onClick={() => { setWalkthroughActive(false); markWalkthroughDone(uid); }}
@@ -1815,6 +1825,7 @@ export const ActivityManager: React.FC<Props> = ({
               value={formName}
               onChange={e => setFormName(e.target.value)}
               placeholder={t('activities.name_placeholder')}
+              aria-label={t('activities.name')}
             />
           </div>
 
@@ -1829,6 +1840,7 @@ export const ActivityManager: React.FC<Props> = ({
               value={formLocation}
               onChange={e => setFormLocation(e.target.value)}
               placeholder={t('activities.location_placeholder')}
+              aria-label={t('activities.location')}
             />
           </div>
 

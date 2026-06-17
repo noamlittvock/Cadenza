@@ -5494,5 +5494,305 @@
   {
     "key": "cal.tab.bot",
     "screen_group": "App"
+  },
+  {
+    "key": "activities.walkthrough_next",
+    "screen_group": "ActivityManager"
+  },
+  {
+    "key": "cal.filter.status.default",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.status.all",
+    "screen_group": "CalendarFilterPanel"
+  },
+  {
+    "key": "cal.filter.status.none",
+    "screen_group": "CalendarView"
+  },
+  {
+    "key": "csv.entity.${entityType.toLowerCase()}",
+    "screen_group": "CsvImportModal"
+  },
+  {
+    "key": "cal.filter.tmpl.${a.template.toLowerCase()}",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.no_activities_title",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "event.v2.no_activities_hint",
+    "screen_group": "EventFormV2"
+  },
+  {
+    "key": "csv.export_empty_notice",
+    "screen_group": "ExportScopeModal"
+  },
+  {
+    "key": "gantt.err_title_required",
+    "screen_group": "GanttManager"
+  },
+  {
+    "key": "gantt.err_start_required",
+    "screen_group": "GanttManager"
+  },
+  {
+    "key": "gantt.err_end_required",
+    "screen_group": "GanttManager"
+  },
+  {
+    "key": "gantt.err_end_before_start",
+    "screen_group": "GanttManager"
+  },
+  {
+    "key": "gantt.color_option",
+    "screen_group": "GanttManager"
+  },
+  {
+    "key": "guide.prev",
+    "screen_group": "GuideMeButton"
+  },
+  {
+    "key": "guide.next",
+    "screen_group": "GuideMeButton"
+  },
+  {
+    "key": "guide.done",
+    "screen_group": "GuideMeButton"
+  },
+  {
+    "key": "csv.download_started",
+    "screen_group": "ImportExportDropdown"
+  },
+  {
+    "key": "csv.export_options",
+    "screen_group": "ImportExportDropdown"
+  },
+  {
+    "key": "blueprint.title",
+    "screen_group": "ConservatoryBlueprint"
+  },
+  {
+    "key": "blueprint.subtitle",
+    "screen_group": "ConservatoryBlueprint"
+  },
+  {
+    "key": "blueprint.metric_features",
+    "screen_group": "ConservatoryBlueprint"
+  },
+  {
+    "key": "blueprint.metric_covered",
+    "screen_group": "ConservatoryBlueprint"
+  },
+  {
+    "key": "blueprint.metric_p0_gaps",
+    "screen_group": "ConservatoryBlueprint"
+  },
+  {
+    "key": "blueprint.metric_embeddings",
+    "screen_group": "ConservatoryBlueprint"
+  },
+  {
+    "key": "blueprint.search_placeholder",
+    "screen_group": "ConservatoryBlueprint"
+  },
+  {
+    "key": "blueprint.domain.${option}",
+    "screen_group": "ConservatoryBlueprint"
+  },
+  {
+    "key": "blueprint.status.${option}",
+    "screen_group": "ConservatoryBlueprint"
+  },
+  {
+    "key": "blueprint.table_feature",
+    "screen_group": "ConservatoryBlueprint"
+  },
+  {
+    "key": "blueprint.table_status",
+    "screen_group": "ConservatoryBlueprint"
+  },
+  {
+    "key": "blueprint.table_data",
+    "screen_group": "ConservatoryBlueprint"
+  },
+  {
+    "key": "blueprint.table_next",
+    "screen_group": "ConservatoryBlueprint"
+  },
+  {
+    "key": "blueprint.status.${node.status}",
+    "screen_group": "ConservatoryBlueprint"
+  },
+  {
+    "key": "blueprint.standards_title",
+    "screen_group": "ConservatoryBlueprint"
+  },
+  {
+    "key": "blueprint.readable_title",
+    "screen_group": "ConservatoryBlueprint"
+  },
+  {
+    "key": "blueprint.sources_title",
+    "screen_group": "ConservatoryBlueprint"
+  },
+  {
+    "key": "nav.blueprint",
+    "screen_group": "Layout"
+  },
+  {
+    "key": "instrument.unknown",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.confirm_retire",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.title",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.subtitle",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.add",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.stat_available",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.stat_on_loan",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.stat_overdue",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.empty_state",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.col_tag",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.col_name",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.col_category",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.col_condition",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.col_status",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.col_holder",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.col_actions",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.cat.${inst.category}",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.cond.${inst.condition}",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.status.${inst.status}",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.checkout",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.return",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.retire",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.edit",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.add_new",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.cat.${c}",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.cond.${c}",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.brand",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.location",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.borrower",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.select_borrower",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "instrument.due_date",
+    "screen_group": "InstrumentManager"
+  },
+  {
+    "key": "nav.inventory",
+    "screen_group": "ManageHub"
+  },
+  {
+    "key": "*",
+    "screen_group": "supabaseSync"
+  },
+  {
+    "key": "data",
+    "screen_group": "supabaseSync"
+  },
+  {
+    "key": "id",
+    "screen_group": "SuperAdmin"
+  },
+  {
+    "key": "Translation deploy is disabled in local mode.",
+    "screen_group": "TranslationManager"
+  },
+  {
+    "key": "id,name,logo_url",
+    "screen_group": "AuthContext"
+  },
+  {
+    "key": "btn.remove",
+    "screen_group": "EventFormV2"
   }
 ]

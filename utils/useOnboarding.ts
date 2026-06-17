@@ -1,17 +1,16 @@
 /**
  * useOnboarding — Phase 11 Onboarding Flow
  *
- * Manages two Firestore documents per login session:
- *   userProfiles/{uid}_{orgId}  — per-user flags (isFirstAdmin, onboardingDismissed, firstUseFlags)
- *   onboardingState/{orgId}     — per-org milestone flags (activitiesCreated, setupGateCleared, …)
+ * Manages two Supabase records per login session:
+ *   user_profiles/{uid}_{orgId} — per-user flags and role lookup
+ *   onboarding_state/{orgId}    — per-org milestone flags
  *
  * Gate rule: isFirstAdmin && !setupGateCleared → hard gate (blocks CALENDAR).
  * SuperAdmin bypasses all gates.
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { doc, onSnapshot, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from './firebase';
+import { getSupabase } from './supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import type { FirstUseFlags } from '../types/v2';
 
@@ -67,90 +66,115 @@ export function useOnboarding(): UseOnboardingResult {
   // ── User Profile (per-user-per-org) ──────────────────────────────────────────
   useEffect(() => {
     if (!uid || !orgId || isSuperAdmin) {
-      // SuperAdmin: immediately dismiss all onboarding
       setOnboardingDismissed(true);
       return;
     }
 
     const profileId = `${uid}_${orgId}`;
-    const profileRef = doc(db, 'userProfiles', profileId);
+    const sb = getSupabase();
+    if (!sb) {
+      setOnboardingDismissed(true);
+      return;
+    }
 
-    // One-time initialization: determine if this is the first admin for the org
     const initProfile = async () => {
       if (profileInitialized.current) return;
       profileInitialized.current = true;
 
-      const profileDoc = await getDoc(profileRef);
-      if (!profileDoc.exists()) {
-        // Check if any OTHER profile already exists for this org
-        const q = query(
-          collection(db, 'userProfiles'),
-          where('orgId', '==', orgId)
-        );
-        const snap = await getDocs(q);
-        const existingOthers = snap.docs.filter(d => d.id !== profileId);
-        const isFirst = existingOthers.length === 0;
+      const { data: existing } = await sb.from('user_profiles').select('*').eq('id', profileId).maybeSingle();
+      if (!existing) {
+        const { count } = await sb
+          .from('user_profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('org_id', orgId);
+        const isFirst = (count ?? 0) === 0;
 
-        await setDoc(profileRef, {
+        await sb.from('user_profiles').upsert({
+          id: profileId,
           uid,
-          orgId,
-          isFirstAdmin: isFirst,
-          onboardingDismissed: false,
-          firstUseFlags: DEFAULT_FLAGS,
-          createdAt: new Date().toISOString(),
-        });
+          org_id: orgId,
+          staff_member_id: '',
+          role: 'ADMIN',
+          is_first_admin: isFirst,
+          onboarding_dismissed: false,
+          first_use_flags: DEFAULT_FLAGS,
+        }, { onConflict: 'id' });
       }
     };
 
-    initProfile();
+    void initProfile();
 
-    // Live listener — reflects updates immediately
-    const unsubscribe = onSnapshot(profileRef, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        setIsFirstAdmin(data.isFirstAdmin ?? false);
-        setOnboardingDismissed(data.onboardingDismissed ?? false);
-        setFirstUseFlags({ ...DEFAULT_FLAGS, ...(data.firstUseFlags ?? {}) });
+    const applyProfile = (data: any | null) => {
+      if (data) {
+        setIsFirstAdmin(data.is_first_admin ?? false);
+        setOnboardingDismissed(data.onboarding_dismissed ?? false);
+        setFirstUseFlags({ ...DEFAULT_FLAGS, ...(data.first_use_flags ?? {}) });
       }
-    });
+    };
 
-    return () => unsubscribe();
+    void sb.from('user_profiles').select('*').eq('id', profileId).maybeSingle()
+      .then(({ data }) => applyProfile(data));
+
+    const channel = sb
+      .channel(`user_profiles:${profileId}`)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'user_profiles', filter: `id=eq.${profileId}` },
+        payload => applyProfile(payload.new))
+      .subscribe();
+
+    return () => { void sb.removeChannel(channel); };
   }, [uid, orgId, isSuperAdmin]);
 
   // ── Org Onboarding State (per-org) ────────────────────────────────────────────
   useEffect(() => {
     if (!orgId) return;
+    const sb = getSupabase();
+    if (!sb) return;
 
-    const orgStateRef = doc(db, 'onboardingState', orgId);
-    const unsubscribe = onSnapshot(orgStateRef, (snap) => {
-      if (snap.exists()) {
-        setOrgOnboardingState(snap.data() as OrgOnboardingState);
-      } else {
-        setOrgOnboardingState(null);
-      }
-    });
+    const applyState = (data: any | null) => {
+      setOrgOnboardingState(data ? {
+        orgId: data.org_id,
+        activitiesCreated: data.activities_created,
+        staffAdded: data.staff_added,
+        firstEventCreated: data.first_event_created,
+        setupGateCleared: data.setup_gate_cleared,
+      } : null);
+    };
 
-    return () => unsubscribe();
+    void sb.from('onboarding_state').select('*').eq('org_id', orgId).maybeSingle()
+      .then(({ data }) => applyState(data));
+
+    const channel = sb
+      .channel(`onboarding_state:${orgId}`)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'onboarding_state', filter: `org_id=eq.${orgId}` },
+        payload => applyState(payload.new))
+      .subscribe();
+
+    return () => { void sb.removeChannel(channel); };
   }, [orgId]);
 
   // ── Mutations ─────────────────────────────────────────────────────────────────
 
   const dismissOnboarding = async () => {
     if (!uid || !orgId) return;
-    await setDoc(
-      doc(db, 'userProfiles', `${uid}_${orgId}`),
-      { onboardingDismissed: true },
-      { merge: true }
-    );
+    await getSupabase()?.from('user_profiles').upsert({
+      id: `${uid}_${orgId}`,
+      uid,
+      org_id: orgId,
+      onboarding_dismissed: true,
+    }, { onConflict: 'id' });
   };
 
   const updateFirstUseFlag = async (key: keyof FirstUseFlags) => {
     if (!uid || !orgId || firstUseFlags[key]) return; // Already flagged — skip
-    await setDoc(
-      doc(db, 'userProfiles', `${uid}_${orgId}`),
-      { firstUseFlags: { [key]: true } },
-      { merge: true }
-    );
+    const next = { ...firstUseFlags, [key]: true };
+    await getSupabase()?.from('user_profiles').upsert({
+      id: `${uid}_${orgId}`,
+      uid,
+      org_id: orgId,
+      first_use_flags: next,
+    }, { onConflict: 'id' });
   };
 
   /**
@@ -178,17 +202,15 @@ export function useOnboarding(): UseOnboardingResult {
 
     if (unchanged) return;
 
-    await setDoc(
-      doc(db, 'onboardingState', orgId),
-      {
-        orgId,
-        activitiesCreated,
-        staffAdded,
-        firstEventCreated,
-        setupGateCleared,
-      },
-      { merge: true }
-    );
+    await getSupabase()?.from('onboarding_state').upsert({
+      id: orgId,
+      org_id: orgId,
+      activities_created: activitiesCreated,
+      staff_added: staffAdded,
+      first_event_created: firstEventCreated,
+      setup_gate_cleared: setupGateCleared,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' });
   };
 
   return {

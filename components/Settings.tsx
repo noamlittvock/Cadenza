@@ -151,6 +151,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
                   value={tempSettings.language}
                   onChange={(e) => handleChange('language', e.target.value)}
+                  aria-label={t('label.default_lang')}
                 >
                   <option value="en-US">{t('settings.english_us')}</option>
                   <option value="he-IL">{t('settings.hebrew_lang')}</option>
@@ -165,6 +166,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
                   value={tempSettings.timeZone}
                   onChange={(e) => handleChange('timeZone', e.target.value)}
+                  aria-label={t('label.timezone')}
                 >
                   <option value={Intl.DateTimeFormat().resolvedOptions().timeZone}>{t('label.system_default')} ({Intl.DateTimeFormat().resolvedOptions().timeZone})</option>
                   <option value="UTC">{t('settings.tz_utc')}</option>
@@ -192,6 +194,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
                   value={tempSettings.dateFormat}
                   onChange={(e) => handleChange('dateFormat', e.target.value)}
+                  aria-label={t('label.date_format')}
                 >
                   <option value="MM/DD/YYYY">{t('settings.date_mmddyyyy')}</option>
                   <option value="DD/MM/YYYY">{t('settings.date_ddmmyyyy')}</option>
@@ -207,6 +210,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
                   value={tempSettings.timeFormat}
                   onChange={(e) => handleChange('timeFormat', e.target.value)}
+                  aria-label={t('label.time_format')}
                 >
                   <option value="12h">{t('settings.time_12h')}</option>
                   <option value="24h">{t('settings.time_24h')}</option>
@@ -232,6 +236,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
                   value={tempSettings.defaultEventDuration}
                   onChange={(e) => handleChange('defaultEventDuration', parseInt(e.target.value) || 60)}
+                  aria-label={t('label.default_duration')}
                 />
               </div>
 
@@ -243,6 +248,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
                   value={tempSettings.weekNumberDisplay}
                   onChange={(e) => handleChange('weekNumberDisplay', e.target.value)}
+                  aria-label={t('label.week_numbers')}
                 >
                   <option value="none">{t('settings.hidden')}</option>
                   <option value="week-number">{t('settings.week_number')}</option>
@@ -267,6 +273,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
                   value={tempSettings.schoolYearStartDate || ''}
                   onChange={(e) => handleChange('schoolYearStartDate', e.target.value)}
+                  aria-label={t('settings.school_year_start')}
                 />
               </div>
               <div>
@@ -278,6 +285,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
                   value={tempSettings.schoolYearEndDate || ''}
                   onChange={(e) => handleChange('schoolYearEndDate', e.target.value)}
+                  aria-label={t('settings.school_year_end')}
                 />
               </div>
               <div>
@@ -290,6 +298,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                   value={tempSettings.schoolYearLabel || ''}
                   onChange={(e) => handleChange('schoolYearLabel', e.target.value)}
                   placeholder="2024-2025"
+                  aria-label={t('settings.school_year_label')}
                 />
                 <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t('settings.school_year_label_desc')}</p>
               </div>
@@ -318,7 +327,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                     {!tempSettings.googleCalendarSyncEnabled && (
                       <p className="text-xs text-blue-500 dark:text-blue-400 mt-1 font-medium flex items-center gap-1">
                         <Download size={12} />
-                        {t('settings.google_import_hint') || 'Connect to import your existing Google Calendar events'}
+                        {t('settings.google_import_hint')}
                       </p>
                     )}
                   </div>
@@ -393,6 +402,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                         className="w-full max-w-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
                         value={tempSettings.googleCalendarId || ""}
                         onChange={(e) => handleChange('googleCalendarId', e.target.value)}
+                        aria-label={t('settings.select_target_cal')}
                       >
                         <option value="" disabled>{t('settings.choose_calendar')}</option>
                         {googleCalendars.map(cal => (
@@ -460,6 +470,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings, onMobileMenuO
                     checked={Boolean(tempSettings.aiAssistantEnabled)}
                     onChange={e => handleChange('aiAssistantEnabled', e.target.checked)}
                     disabled={!isAdmin}
+                    aria-label={t('settings.ai_assistant_title')}
                   />
                   <div className="relative w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-cadenza-primary rounded-full peer peer-checked:bg-cadenza-primary after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full" />
                 </label>

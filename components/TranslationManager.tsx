@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, getDocs, writeBatch, doc } from 'firebase/firestore';
-import { db } from '../utils/firebase';
+import { getSupabase } from '../utils/supabaseClient';
 import { LOCAL_MODE } from '../utils/localStore';
 import { TRANSLATIONS } from '../constants';
 import { TranslationRecord } from '../types/translations';
@@ -52,18 +51,24 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
             setErrorMsg(null);
 
             const dbRecords: Record<string, TranslationRecord> = {};
-            if (LOCAL_MODE) {
-                // No Firestore in local mode — fall through with extracted strings only.
+            const sb = getSupabase();
+            if (LOCAL_MODE || !sb) {
                 setErrorMsg('Local mode: showing extracted strings only. Deploys are disabled.');
             } else {
                 try {
-                    const snapshot = await getDocs(collection(db, 'translations'));
-                    snapshot.forEach(doc => {
-                        dbRecords[doc.id] = doc.data() as TranslationRecord;
+                    const { data, error } = await sb.from('translations').select('*');
+                    if (error) throw error;
+                    (data ?? []).forEach((row: any) => {
+                        dbRecords[row.id] = {
+                            ...row,
+                            he_IL: row.he_il,
+                            auto_translated_he_IL: row.auto_translated_he_il,
+                            last_updated: row.last_updated,
+                        } as TranslationRecord;
                     });
                 } catch (error) {
                     console.error("Failed to load translations from DB", error);
-                    setErrorMsg("Connecting to Firestore failed. Loading locally extracted strings only. Deploys will fail until permissions are resolved.");
+                    setErrorMsg("Connecting to Supabase failed. Loading locally extracted strings only. Deploys will fail until permissions are resolved.");
                 }
             }
 
@@ -157,33 +162,26 @@ export const TranslationManager: React.FC<TranslationManagerProps> = ({ settings
 
     const handleDeploy = async () => {
         if (LOCAL_MODE) {
-            alert('Translation deploy is disabled in local mode (no Firestore project).');
+            alert('Translation deploy is disabled in local mode.');
             return;
         }
         setDeploying(true);
         try {
-            const batch = writeBatch(db);
-            let count = 0;
-            const chunks = [];
-            let currentBatch = writeBatch(db);
-
-            Object.values(liveData).forEach((record: TranslationRecord) => {
-                const docRef = doc(db, 'translations', record.key);
-                currentBatch.set(docRef, record);
-                count++;
-
-                if (count === 490) { // Firestore batch limit is 500
-                    chunks.push(currentBatch);
-                    currentBatch = writeBatch(db);
-                    count = 0;
-                }
-            });
-
-            if (count > 0) chunks.push(currentBatch);
-
-            for (const b of chunks) {
-                await b.commit();
-            }
+            const sb = getSupabase();
+            if (!sb) throw new Error('Supabase is not configured');
+            const rows = Object.values(liveData).map((record: TranslationRecord) => ({
+                id: record.key,
+                key: record.key,
+                original_english: record.original_english,
+                screen_group: record.screen_group,
+                status: record.status,
+                he_il: record.he_IL,
+                auto_translated_he_il: record.auto_translated_he_IL,
+                manual_override: record.manual_override,
+                last_updated: record.last_updated,
+            }));
+            const { error } = await sb.from('translations').upsert(rows, { onConflict: 'id' });
+            if (error) throw error;
 
             alert(t('tm.deploy_success'));
         } catch (error) {

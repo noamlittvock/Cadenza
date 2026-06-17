@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
-import { db } from '../utils/firebase';
+import { getSupabase } from '../utils/supabaseClient';
+import { fetchCollectionItems, patchCollectionItem } from '../utils/supabaseSync';
 import {
   HoursReport, HoursEntry, HoursEntryType, CalendarEvent, Teacher, Activity,
   AppSettings
@@ -58,20 +58,22 @@ export const TeacherHoursForm: React.FC<Props> = ({ token }) => {
     const loadData = async () => {
       try {
         // Find the HoursReport by token
-        const reportsQuery = query(
-          collection(db, 'hoursReports'),
-          where('token', '==', token)
-        );
-        const reportSnap = await getDocs(reportsQuery);
+        const sb = getSupabase();
+        if (!sb) throw new Error('Supabase is not configured');
+        const { data: reportRow, error: reportError } = await sb
+          .from('hours_reports')
+          .select('*')
+          .filter('data->>token', 'eq', token)
+          .maybeSingle();
+        if (reportError) throw reportError;
 
-        if (reportSnap.empty) {
+        if (!reportRow) {
           setError('hours.form_invalid_token');
           setLoading(false);
           return;
         }
 
-        const reportDoc = reportSnap.docs[0];
-        const reportData = { id: reportDoc.id, ...reportDoc.data() } as HoursReport;
+        const reportData = { id: reportRow.id, orgId: reportRow.org_id, ...(reportRow.data ?? {}) } as HoursReport;
 
         if (reportData.status === 'SUBMITTED' || reportData.status === 'REVIEWED') {
           setReport(reportData);
@@ -84,13 +86,9 @@ export const TeacherHoursForm: React.FC<Props> = ({ token }) => {
         const orgId = reportData.orgId;
 
         // Build absence-reason autocomplete pool from prior submitted reports in this org
-        const orgReportsSnap = await getDocs(query(
-          collection(db, 'hoursReports'),
-          where('orgId', '==', orgId),
-        ));
+        const orgReports = await fetchCollectionItems<HoursReport>(orgId, 'hoursReports');
         const seenReasons = new Set<string>();
-        orgReportsSnap.docs.forEach(d => {
-          const data = d.data() as HoursReport;
+        orgReports.forEach(data => {
           (data.reportedEntries || []).forEach((entry: HoursEntry) => {
             const r = entry.absenceReason?.trim();
             if (r) seenReasons.add(r);
@@ -99,24 +97,13 @@ export const TeacherHoursForm: React.FC<Props> = ({ token }) => {
         setAbsenceReasonSuggestions([...seenReasons].sort());
 
         // Load staff member
-        const staffQuery = query(
-          collection(db, 'teachers'),
-          where('orgId', '==', orgId)
-        );
-        const staffSnap = await getDocs(staffQuery);
-        const staff = staffSnap.docs
-          .map(d => ({ id: d.id, ...d.data() } as Teacher))
+        const staff = (await fetchCollectionItems<Teacher>(orgId, 'teachers'))
           .find(s => s.id === reportData.staffMemberId);
 
         if (staff) setStaffMember(staff);
 
         // Load events for the period
-        const eventsQuery = query(
-          collection(db, 'events'),
-          where('orgId', '==', orgId)
-        );
-        const eventsSnap = await getDocs(eventsQuery);
-        const allEvents = eventsSnap.docs.map(d => ({ id: d.id, ...d.data() } as CalendarEvent));
+        const allEvents = await fetchCollectionItems<CalendarEvent>(orgId, 'events');
 
         // Filter events for the staff member and period, exclude PARKED/CANCELED/ARCHIVED
         const periodEvents = allEvents.filter(ev => {
@@ -144,20 +131,16 @@ export const TeacherHoursForm: React.FC<Props> = ({ token }) => {
         setResponses(initialResponses);
 
         // Load activities
-        const activitiesQuery = query(
-          collection(db, 'activities'),
-          where('orgId', '==', orgId)
-        );
-        const activitiesSnap = await getDocs(activitiesQuery);
-        setActivities(activitiesSnap.docs.map(d => ({ id: d.id, ...d.data() } as Activity)));
+        setActivities(await fetchCollectionItems<Activity>(orgId, 'activities'));
 
         // Load org settings (absence reasons are now free-text per-entry, no shared catalog)
-        const configSnap = await getDocs(collection(db, 'system_configs'));
-        configSnap.docs.forEach(d => {
-          if (d.id.endsWith('_settings')) {
-            setSettings(d.data() as AppSettings);
-          }
-        });
+        const { data: settingsRow } = await sb
+          .from('system_configs')
+          .select('data')
+          .eq('org_id', orgId)
+          .eq('doc_id', 'settings')
+          .maybeSingle();
+        if (settingsRow?.data) setSettings(settingsRow.data as AppSettings);
 
         setLoading(false);
       } catch (err) {
@@ -242,8 +225,7 @@ export const TeacherHoursForm: React.FC<Props> = ({ token }) => {
     });
 
     try {
-      const reportRef = doc(db, 'hoursReports', report.id);
-      await updateDoc(reportRef, {
+      await patchCollectionItem<HoursReport>(report.orgId, 'hoursReports', report.id, {
         reportedEntries: entries,
         status: 'SUBMITTED',
         submittedAt: new Date().toISOString(),

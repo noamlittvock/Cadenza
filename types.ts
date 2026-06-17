@@ -328,8 +328,11 @@ export interface HoursReport {
 
 // --- Admin Inbox (Phase 8) ---
 
-export type AdminInboxItemType = 'NOTIFICATION';
-export type AdminInboxItemStatus = 'OPEN' | 'DONE';
+// `NOTIFICATION` is the legacy notice item; `APPROVAL_REQUEST` carries an
+// approve/reject decision (operational requests, registration intake, etc.).
+export type AdminInboxItemType = 'NOTIFICATION' | 'APPROVAL_REQUEST';
+// `OPEN`/`DONE` remain for notices; `APPROVED`/`REJECTED` are decision outcomes.
+export type AdminInboxItemStatus = 'OPEN' | 'DONE' | 'APPROVED' | 'REJECTED';
 
 export interface AdminInboxItem {
   id: string;
@@ -344,9 +347,29 @@ export interface AdminInboxItem {
   markedDoneAt?: string;
   markedDoneBy?: string;
   autoResolvedReason?: 'CONFLICT_CLEARED';
+  // Approval workflow (APPROVAL_REQUEST items)
+  requestedBy?: string;
+  decidedBy?: string;
+  decidedAt?: string;
+  decisionNote?: string;
 }
 
-export type ViewState = 'CALENDAR' | 'MANAGE' | 'SETTINGS' | 'SUPER_ADMIN' | 'STAFF_MEMBERS' | 'ADMIN_INBOX';
+// Native operator surfaces. Blueprint hubs (Forte-informed) are dense, tabbed,
+// admin-gated views that sit alongside the existing calendar-first shell.
+export type ViewState =
+  | 'CALENDAR'
+  | 'MANAGE'
+  | 'SETTINGS'
+  | 'SUPER_ADMIN'
+  | 'STAFF_MEMBERS'
+  | 'ADMIN_INBOX'
+  | 'BLUEPRINT'
+  | 'STUDENTS'
+  | 'BILLING'
+  | 'ACADEMICS'
+  | 'INVENTORY'
+  | 'PAYROLL'
+  | 'ANALYTICS';
 
 // ─── v2.0 Type Re-exports ────────────────────────────────────────────────────
 // Canonical v2.0 types from the Cadenza v2.0 Final spec (Section 05).

@@ -5,7 +5,7 @@
  * + the same React-state arrays the rest of the app uses. Output: a typed
  * QueryResult that the wrap step will turn into a sentence.
  *
- * No Firestore reads happen here — this layer is the contract that makes
+ * No backend reads happen here — this layer is the contract that makes
  * the answer correct. If the data isn't already in memory, we don't
  * fabricate it.
  */

@@ -47,7 +47,13 @@ export const ImportExportDropdown: React.FC<Props> = ({
   const [open, setOpen] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+
+  const flashFeedback = (message: string) => {
+    setFeedback(message);
+    window.setTimeout(() => setFeedback(null), 3500);
+  };
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -63,6 +69,7 @@ export const ImportExportDropdown: React.FC<Props> = ({
     setOpen(false);
     const csv = generateTemplate(entityType);
     downloadCSV(csv, `${entityType.toLowerCase()}_template.csv`);
+    flashFeedback(t('csv.download_started'));
   };
 
   return (
@@ -103,7 +110,7 @@ export const ImportExportDropdown: React.FC<Props> = ({
               onClick={() => { setOpen(false); setShowExport(true); }}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             >
-              <Download size={15} className="text-green-500" /> {t('csv.export')}
+              <Download size={15} className="text-green-500" /> {t('csv.export_options')}
             </button>
             <div className="border-t border-slate-100 dark:border-slate-700" />
             <button
@@ -112,6 +119,11 @@ export const ImportExportDropdown: React.FC<Props> = ({
             >
               <FileDown size={15} className="text-slate-400" /> {t('csv.template')}
             </button>
+          </div>
+        )}
+        {feedback && (
+          <div className="absolute end-0 top-full mt-2 w-52 rounded-lg border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-300 shadow-lg z-20">
+            {feedback}
           </div>
         )}
       </div>
@@ -134,6 +146,7 @@ export const ImportExportDropdown: React.FC<Props> = ({
           activityNames={activityNames}
           settings={settings}
           onClose={() => setShowExport(false)}
+          onExportComplete={() => flashFeedback(t('csv.download_started'))}
         />
       )}
     </>

@@ -11,14 +11,11 @@
  * ("thinking…" → "looking up…" → "answering…").
  */
 
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { getApp } from 'firebase/app';
+import { getSupabase } from './supabaseClient';
 import type { ExecuteContext } from './botExecute';
 import type { QueryIntent, QueryResult, ResolvedRefs, BotTurn } from '../types/botQuery';
 import { resolveIntent } from './botResolve';
 import { executeIntent } from './botExecute';
-
-const FUNCTIONS_REGION = 'us-central1';
 
 type Stage = BotTurn['stage'];
 
@@ -32,6 +29,79 @@ export interface AskBotResult {
 interface DistillResponse { intent: QueryIntent; }
 interface WrapResponse { answer: string; }
 
+function inferTime(question: string): QueryIntent['timeRange'] {
+  const q = question.toLowerCase();
+  if (q.includes('tomorrow')) return { relativeHint: 'tomorrow' };
+  if (q.includes('next week')) return { relativeHint: 'next_week' };
+  if (q.includes('week')) return { relativeHint: 'this_week' };
+  if (q.includes('month')) return { relativeHint: 'this_month' };
+  const time = q.match(/\b([01]?\d|2[0-3])(?::([0-5]\d))?\b/);
+  return { relativeHint: 'today', timeOfDay: time ? `${time[1].padStart(2, '0')}:${time[2] ?? '00'}` : undefined };
+}
+
+function fallbackDistill(question: string): QueryIntent {
+  const q = question.toLowerCase();
+  const intent: QueryIntent['intent'] =
+    q.includes('free') && q.includes('room') ? 'find_free_room' :
+    q.includes('conflict') || q.includes('double') ? 'check_conflicts' :
+    q.includes('how many') || q.includes('count') ? 'count_events' :
+    q.includes('next') ? 'next_event' :
+    q.includes('who teaches') ? 'who_teaches' :
+    q.includes('what') && (q.includes('today') || q.includes('tomorrow') || q.includes('friday')) ? 'list_for_day' :
+    q.includes('schedule') || q.includes('teach') ? 'lookup_schedule' :
+    'unknown';
+  return { intent, entityRefs: {}, timeRange: inferTime(question) };
+}
+
+function fallbackWrap(result: QueryResult): string {
+  if (result.kind === 'name_not_found') return `I could not find that ${result.missingEntity}.`;
+  if (result.kind === 'no_results') return result.message || 'I did not find anything for that request.';
+  if (result.kind === 'count') return `${result.count ?? 0} event${result.count === 1 ? '' : 's'}${result.windowLabel ? ` in ${result.windowLabel}` : ''}.`;
+  if (result.kind === 'room_availability') {
+    const free = (result.rooms || []).filter(r => r.isFree).map(r => r.roomName);
+    return free.length ? `Free rooms: ${free.join(', ')}.` : 'No rooms are free for that time.';
+  }
+  if (result.kind === 'people_list') {
+    const names = (result.people || []).map(p => p.name);
+    return names.length ? names.join(', ') : 'No matching people found.';
+  }
+  if (result.events?.length) {
+    return result.events.map(e => `${e.name} (${new Date(e.start).toLocaleString()})`).join('\n');
+  }
+  if (result.conflicts?.length) {
+    return result.conflicts.map(c => `${c.roomName}: ${c.eventNames.join(', ')}`).join('\n');
+  }
+  return result.message || 'I can answer schedule, room, conflict, and staff questions from loaded Cadenza data.';
+}
+
+async function invokeDistill(question: string): Promise<QueryIntent> {
+  const sb = getSupabase();
+  if (sb) {
+    try {
+      const { data, error } = await sb.functions.invoke<DistillResponse>('bot-distill', { body: { question } });
+      if (!error && data?.intent) return data.intent;
+    } catch (err) {
+      console.warn('[botClient] bot-distill edge function unavailable; using local fallback.', err);
+    }
+  }
+  return fallbackDistill(question);
+}
+
+async function invokeWrap(question: string, intent: QueryIntent, result: QueryResult, locale: string): Promise<string> {
+  const sb = getSupabase();
+  if (sb) {
+    try {
+      const { data, error } = await sb.functions.invoke<WrapResponse>('bot-wrap', {
+        body: { question, intent, result, lang: locale },
+      });
+      if (!error && data?.answer) return data.answer;
+    } catch (err) {
+      console.warn('[botClient] bot-wrap edge function unavailable; using local fallback.', err);
+    }
+  }
+  return fallbackWrap(result);
+}
+
 /**
  * Run the full pipeline for a single question. The caller passes the same
  * teachers/rooms/students/activities/events arrays the rest of the app
@@ -43,17 +113,9 @@ export async function askBot(
   ctx: Omit<ExecuteContext, 'now'>,
   onStage?: (stage: Stage) => void,
 ): Promise<AskBotResult> {
-  const fns = getFunctions(getApp(), FUNCTIONS_REGION);
-  const distill = httpsCallable<{ question: string }, DistillResponse>(fns, 'botDistill');
-  const wrap = httpsCallable<
-    { question: string; intent: QueryIntent; result: QueryResult; lang: string },
-    WrapResponse
-  >(fns, 'botWrap');
-
   // Stage 1: distill
   onStage?.('distilling');
-  const distillRes = await distill({ question });
-  const intent = distillRes.data?.intent;
+  const intent = await invokeDistill(question);
   if (!intent || typeof intent !== 'object' || !('intent' in intent)) {
     throw new Error('bot.error_distill_invalid');
   }
@@ -68,8 +130,7 @@ export async function askBot(
 
   // Stage 4: wrap
   onStage?.('wrapping');
-  const wrapRes = await wrap({ question, intent, result, lang: locale });
-  const answer = wrapRes.data?.answer || '';
+  const answer = await invokeWrap(question, intent, result, locale);
   if (!answer) throw new Error('bot.error_wrap_empty');
 
   onStage?.('done');

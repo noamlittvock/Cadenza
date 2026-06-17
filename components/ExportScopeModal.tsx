@@ -1,10 +1,10 @@
 /**
  * ExportScopeModal — Phase 12 export scope selector.
  * Shown before every CSV export. Lets user filter by date range, activity, archived status.
- * Client-side only — no Firestore write.
+ * Client-side only — no remote write.
  */
 
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { AppSettings } from '../types';
 import type { ImportEntityType } from '../types/v2';
 import { TRANSLATIONS } from '../constants';
@@ -19,12 +19,17 @@ interface Props {
   activityNames?: string[];
   settings: AppSettings;
   onClose: () => void;
+  onExportComplete?: (count: number) => void;
 }
 
 export const ExportScopeModal: React.FC<Props> = ({
-  entityType, data, activityNames = [], settings, onClose,
+  entityType, data, activityNames = [], settings, onClose, onExportComplete,
 }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
+  const formatCount = (key: string, count: number) =>
+    t(key).replace('{{n}}', String(count)).replace('{n}', String(count));
+  const entityLabel = t(`csv.entity.${entityType.toLowerCase()}`);
+  const titleId = useId();
 
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -64,24 +69,25 @@ export const ExportScopeModal: React.FC<Props> = ({
     if (filtered.length === 0) {
       // Headers-only file with inline notice
       const headersOnly = generateExportCSV(entityType, []);
-      downloadCSV(headersOnly + '\n# No records match the selected scope.', filename);
+      downloadCSV(`${headersOnly}\n# ${t('csv.export_empty_notice')}`, filename);
     } else {
       downloadCSV(csv, filename);
     }
+    onExportComplete?.(filtered.length);
     onClose();
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700">
+      <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700">
 
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
           <div>
-            <h2 className="text-base font-bold text-slate-900 dark:text-white">{t('csv.export_scope')}</h2>
-            <p className="text-xs text-slate-500 mt-0.5">{entityType.replace('_', ' ')}</p>
+            <h2 id={titleId} className="text-base font-bold text-slate-900 dark:text-white">{t('csv.export_scope')}</h2>
+            <p className="text-xs text-slate-500 mt-0.5">{entityLabel}</p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+          <button onClick={onClose} aria-label={t('common.close') || 'Close'} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
             <X size={20} />
           </button>
         </div>
@@ -96,12 +102,14 @@ export const ExportScopeModal: React.FC<Props> = ({
                   type="date"
                   value={dateFrom}
                   onChange={e => setDateFrom(e.target.value)}
+                  aria-label={`${t('csv.date_range')} ${settings.language === 'he-IL' ? 'התחלה' : 'from'}`}
                   className="border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <input
                   type="date"
                   value={dateTo}
                   onChange={e => setDateTo(e.target.value)}
+                  aria-label={`${t('csv.date_range')} ${settings.language === 'he-IL' ? 'סיום' : 'to'}`}
                   className="border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -114,6 +122,7 @@ export const ExportScopeModal: React.FC<Props> = ({
               <select
                 value={activityFilter}
                 onChange={e => setActivityFilter(e.target.value)}
+                aria-label={t('csv.activity_filter')}
                 className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="ALL">{t('csv.all_activities')}</option>
@@ -128,6 +137,7 @@ export const ExportScopeModal: React.FC<Props> = ({
                 type="checkbox"
                 checked={includeArchived}
                 onChange={e => setIncludeArchived(e.target.checked)}
+                aria-label={t('csv.include_archived')}
                 className="rounded"
               />
               <span className="text-sm text-slate-700 dark:text-slate-300">{t('csv.include_archived')}</span>
@@ -136,7 +146,7 @@ export const ExportScopeModal: React.FC<Props> = ({
 
           {/* Preview count */}
           <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3 text-sm text-slate-600 dark:text-slate-400">
-            {t('csv.will_export').replace('{n}', String(applyFilters().length))} records
+            {formatCount('csv.will_export', applyFilters().length)}
           </div>
         </div>
 

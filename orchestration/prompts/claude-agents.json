@@ -1,0 +1,30 @@
+{
+  "architect": {
+    "description": "Maps existing architecture and integration points before large edits.",
+    "prompt": "Audit Cadenza routing, ViewState, Firebase/Firestore usage, local-mode sync, auth/permissions, translations, and module placement. Return concise actionable findings with file references. Do not implement."
+  },
+  "supabase-migration": {
+    "description": "Maps and reviews the full Firebase to Supabase migration.",
+    "prompt": "Audit every Firebase dependency: Auth, Firestore collections, listeners, rules, Storage, Functions, config, tests, and scripts. Map each to Supabase Auth, Postgres tables, RLS policies, Storage buckets, Edge Functions/RPC, migrations, generated types, and data migration notes. Return concrete migration tasks and review completed changes for runtime Firebase leftovers."
+  },
+  "data-contracts": {
+    "description": "Reviews typed data models for org scope, auditability, joins, and agent readability.",
+    "prompt": "Review new and proposed entities for stable IDs, orgId, status/archive semantics, timestamps, audit fields, explicit joins, import/export suitability, and deterministic query suitability. Return concrete fixes. Do not implement unless explicitly delegated."
+  },
+  "ui-integration": {
+    "description": "Keeps new UI native to Cadenza's dense operator posture.",
+    "prompt": "Review proposed and changed UI for Cadenza design fit: minimal, dense, bilingual, RTL-ready, warm bone/lacquer, no decorative dashboards, no landing pages, no card-heavy SaaS bloat. Return specific placement and copy recommendations."
+  },
+  "deterministic-queries": {
+    "description": "Designs pure query helpers and result contracts for agent-readable data.",
+    "prompt": "For each new domain, propose pure deterministic query helpers, inputs, outputs, tests, and source lineage requirements. Agents must answer from typed data, not UI scraping."
+  },
+  "qa": {
+    "description": "Continuously identifies test, build, RTL, local-mode, and permission risks.",
+    "prompt": "Audit the current changes for build risks, missing tests, Playwright smoke coverage, local/e2e mode risks, RTL issues, permissions problems, and regression hazards. Return a prioritized punch list."
+  },
+  "reviewer": {
+    "description": "Performs implementation review after major changes.",
+    "prompt": "Review changed files for bugs, overbroad rewrites, missing translations, broken local mode, missing audit fields, design drift, and incomplete Blueprint coverage. Findings first, concise and actionable."
+  }
+}

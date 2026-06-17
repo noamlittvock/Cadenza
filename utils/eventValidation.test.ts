@@ -73,6 +73,18 @@ describe('validateEventForm', () => {
     expect(fieldKeys(errors)).toContain('name');
   });
 
+  it('does not require hidden name or staff fields before an activity is selected', () => {
+    const errors = validateEventForm({
+      ...validBase,
+      activityId: '',
+      name: '',
+      staffParticipantCount: 0,
+    });
+    expect(fieldKeys(errors)).toContain('activityId');
+    expect(fieldKeys(errors)).not.toContain('name');
+    expect(fieldKeys(errors)).not.toContain('staff');
+  });
+
   it('does not require name when eventNameMode is AUTO', () => {
     const errors = validateEventForm({ ...validBase, eventNameMode: 'AUTO', name: '' });
     expect(fieldKeys(errors)).not.toContain('name');
@@ -178,4 +190,3 @@ describe('detectOverlappingAssignments', () => {
     expect(overlaps).toHaveLength(0);
   });
 });
-

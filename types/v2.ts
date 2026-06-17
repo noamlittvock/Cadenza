@@ -8,7 +8,7 @@
  * Types unique to v2.0 use their canonical name from Section 03 (Glossary).
  */
 
-import { Timestamp } from 'firebase/firestore';
+import type { AppTimestamp } from '../utils/appTimestamp';
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
@@ -126,8 +126,8 @@ export interface ActivityV2 {
   location: string | null;
   eventNameMode: EventNameMode;
   isArchived: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: AppTimestamp;
+  updatedAt: AppTimestamp;
 }
 
 /** Section 05 — l1Subcategories/{l1Id} */
@@ -137,8 +137,8 @@ export interface L1Subcategory {
   activityId: string;
   name: string;
   isArchived: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: AppTimestamp;
+  updatedAt: AppTimestamp;
 }
 
 /** Section 05 — l2Subcategories/{l2Id} */
@@ -149,8 +149,8 @@ export interface L2Subcategory {
   l1Id: string | null;
   name: string;
   isArchived: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: AppTimestamp;
+  updatedAt: AppTimestamp;
 }
 
 /** Section 05 — staffMembers/{staffId} */
@@ -164,8 +164,8 @@ export interface StaffMemberV2 {
   phone: string | null;
   startDate: string | null;
   isArchived: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: AppTimestamp;
+  updatedAt: AppTimestamp;
   // Onboarding fields
   isFirstAdmin: boolean;
   onboardingDismissed: boolean;
@@ -188,8 +188,8 @@ export interface TeachingAssignmentV2 {
   startDate: string; // ISO date
   endDate: string | null;
   isArchived: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: AppTimestamp;
+  updatedAt: AppTimestamp;
 }
 
 /** Section 05 — orgRoles/{orgRoleId} */
@@ -201,8 +201,8 @@ export interface OrgRoleV2 {
   startDate: string;
   endDate: string | null;
   isArchived: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: AppTimestamp;
+  updatedAt: AppTimestamp;
 }
 
 /** Section 05 — students/{studentId} */
@@ -221,8 +221,8 @@ export interface StudentV2 {
   email: string | null;
   address: string | null;
   isArchived: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: AppTimestamp;
+  updatedAt: AppTimestamp;
   documents: DocumentEntry[];
 }
 
@@ -236,8 +236,8 @@ export interface EnrollmentV2 {
   startDate: string;
   endDate: string | null;
   status: EnrollmentStatus;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: AppTimestamp;
+  updatedAt: AppTimestamp;
 }
 
 /** Section 05 — events/{eventId} */
@@ -257,8 +257,8 @@ export interface EventV2 {
   recurringGroupId: string | null;
   status: EventStatus;
   notes: string | null;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: AppTimestamp;
+  updatedAt: AppTimestamp;
 }
 
 /** Section 05 — eventParticipants/{participantId} (STAFF only) */
@@ -271,7 +271,7 @@ export interface EventParticipant {
   teachingAssignmentId?: string | null;
   orgRoleId?: string | null;
   notes?: string | null;
-  createdAt: Timestamp;
+  createdAt: AppTimestamp;
 }
 
 /** Section 05 — importSessions/{sessionId} */
@@ -286,8 +286,8 @@ export interface ImportSession {
   importedRows: number;
   skippedRows: number;
   rowResults: ImportRowResult[];
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: AppTimestamp;
+  updatedAt: AppTimestamp;
 }
 
 /** Section 05 — onboardingState/{orgId} */
@@ -303,16 +303,14 @@ export interface OnboardingState {
 export interface OrgSettingsV2 {
   orgId: string;
   timezone: string; // IANA timezone identifier
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: AppTimestamp;
+  updatedAt: AppTimestamp;
 }
 
-// ─── Firestore Role Lookup (implementation detail for security rules) ────────
+// ─── Supabase Role Lookup ───────────────────────────────────────────────────
 
 /**
- * userProfiles/{uid} — lookup collection for Firestore security rules.
- * Document ID = Firebase Auth uid.
- * Kept in sync by Cloud Function trigger on staffMembers writes.
+ * user_profiles rows map Supabase Auth users to org roles.
  */
 export interface UserProfile {
   uid: string;

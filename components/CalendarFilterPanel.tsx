@@ -92,6 +92,64 @@ function ChipRow<T extends string>({ options, selected, onChange }: ChipRowProps
   );
 }
 
+function StatusChipRow({ options, selected, onChange, t }: ChipRowProps<EventStatus> & { t: (key: string) => string }) {
+  const allStatuses = options.map(opt => opt.value);
+  const defaultStatuses: EventStatus[] = ['SCHEDULED', 'COMPLETED'];
+  const toggle = (v: EventStatus) => {
+    if (isStatusDefault(selected) || selected.length === 0) {
+      onChange([v]);
+      return;
+    }
+    if (selected.includes(v)) {
+      const next = selected.filter(s => s !== v);
+      onChange(next.length > 0 ? next : defaultStatuses);
+      return;
+    }
+    onChange([...selected, v]);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1.5">
+        {options.map(opt => {
+          const active = selected.includes(opt.value);
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => toggle(opt.value)}
+              aria-pressed={active}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors border ${
+                active
+                  ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700'
+                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500'
+              }`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex flex-wrap gap-1">
+        <button
+          type="button"
+          onClick={() => onChange(defaultStatuses)}
+          className="px-2 py-0.5 rounded text-[10px] font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800"
+        >
+          {t('cal.filter.status.default')}
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(allStatuses)}
+          className="px-2 py-0.5 rounded text-[10px] font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800"
+        >
+          {t('cal.filter.status.all')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 interface ChecklistProps {
   options: { value: string; label: string }[];
   selected: string[];
@@ -252,10 +310,11 @@ export const CalendarFilterPanel: React.FC<Props> = ({
             <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
               {t('cal.filter.status.label')}
             </p>
-            <ChipRow
+            <StatusChipRow
               options={ALL_STATUSES}
               selected={state.status as EventStatus[]}
               onChange={v => onChange({ status: v })}
+              t={t}
             />
           </div>
           <div className="space-y-1.5 pt-1">

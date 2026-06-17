@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ViewState } from '../types';
-import { Calendar, Users, AlertOctagon, Sun, Moon, ChevronLeft, ChevronRight, Settings, Smartphone, Sliders, Mail, Lock } from 'lucide-react';
+import { Calendar, Users, AlertOctagon, Sun, Moon, ChevronLeft, ChevronRight, Settings, Smartphone, Sliders, Mail, Lock, ListTree } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
 import { AppSettings } from '../types';
@@ -103,7 +103,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
   // Redirect Viewers from Admin Pages
   useEffect(() => {
     if (currentUser?.role === 'VIEWER') {
-      const adminViews: ViewState[] = ['MANAGE', 'SETTINGS', 'SUPER_ADMIN', 'STAFF_MEMBERS', 'ADMIN_INBOX'];
+      const adminViews: ViewState[] = ['MANAGE', 'SETTINGS', 'SUPER_ADMIN', 'STAFF_MEMBERS', 'ADMIN_INBOX', 'BLUEPRINT'];
       if (adminViews.includes(currentView)) {
         setView('CALENDAR');
       }
@@ -203,6 +203,14 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                   badge={inboxOpenCount}
                 />
               )}
+
+              <NavItem
+                active={currentView === 'BLUEPRINT'}
+                onClick={() => { setView('BLUEPRINT'); setIsMobileMenuOpen(false); }}
+                icon={ListTree}
+                label={t('nav.blueprint')}
+                collapsed={isCollapsed}
+              />
 
               {!isMobile && (
                 <NavItem
@@ -306,8 +314,11 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
           {!isMobile && (
             <a
               href="/mobile-access.html"
-              target="_blank"
-              rel="noopener noreferrer"
+              onClick={(event) => {
+                event.preventDefault();
+                window.location.assign('/mobile-access.html');
+              }}
+              aria-label={t('layout.mobile_access_label')}
               title={isCollapsed ? t('layout.mobile_access') : undefined}
               className={`flex items-center justify-center mt-2 bg-white/5 hover:bg-white/10 rounded-xl text-slate-300 hover:text-white btn-cadenza ${isCollapsed ? 'w-10 h-10 p-0' : 'w-full py-2 px-4'}`}
             >

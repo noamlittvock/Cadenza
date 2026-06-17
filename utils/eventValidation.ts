@@ -54,20 +54,20 @@ export function validateEventForm(input: EventFormInput): ValidationError[] {
     }
   }
 
-  // PROMPTED name required
-  if (input.eventNameMode === 'PROMPTED' && !input.name.trim()) {
+  // PROMPTED name is only visible after an activity has been selected.
+  if (input.activityId && input.eventNameMode === 'PROMPTED' && !input.name.trim()) {
     errors.push({ field: 'name', messageKey: 'event.v2.name_placeholder' });
   }
 
   // Staff required for DISCIPLINE/PROGRAM
-  if (input.template === 'DISCIPLINE' || input.template === 'PROGRAM') {
+  if (input.activityId && (input.template === 'DISCIPLINE' || input.template === 'PROGRAM')) {
     if (input.staffParticipantCount === 0) {
       errors.push({ field: 'staff', messageKey: 'event.v2.err_staff_required' });
     }
   }
 
   // Org role required for ADMINISTRATIVE
-  if (input.template === 'ADMINISTRATIVE') {
+  if (input.activityId && input.template === 'ADMINISTRATIVE') {
     if (input.staffParticipantCount === 0) {
       errors.push({ field: 'staff', messageKey: 'event.v2.err_role_required' });
     }

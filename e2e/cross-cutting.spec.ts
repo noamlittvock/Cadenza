@@ -4,7 +4,7 @@
  * QA checklist items #70, #72.
  *
  * Runs in the `ui` project (VITE_E2E_AUTH_BYPASS=true, port 3000).
- * No Firebase emulator required — pure rendering checks.
+ * No external backend required — pure rendering checks.
  *
  * Live tests:
  *   #70 — No JS console errors while navigating through all major views
@@ -25,16 +25,6 @@ test('#70 no JavaScript console errors while navigating all major views', async 
 
     // Filter known benign browser quirks
     if (text.includes('ResizeObserver loop')) return;
-
-    // Filter Firebase/Firestore connectivity errors — expected in UI bypass mode
-    // (no emulator running; Firestore SDK may attempt and fail silently)
-    if (
-      text.toLowerCase().includes('firebase') ||
-      text.toLowerCase().includes('firestore') ||
-      text.includes('FirebaseError') ||
-      text.includes('PERMISSION_DENIED') ||
-      text.includes('UNAUTHENTICATED')
-    ) return;
 
     errors.push(text);
   });

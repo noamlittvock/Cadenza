@@ -3,9 +3,8 @@ import { loadApp, gotoView } from './helpers/navigate';
 
 /**
  * Admin Inbox — pure UI tier.
- * Tests #28–32 require inbox items to be present. In bypass mode (no Firebase),
- * the inbox starts empty. Tests here verify UI structure and empty states.
- * Data-dependent modal tests (#28–31) are covered in the firebase tier.
+ * In local bypass mode the inbox starts empty. Tests here verify UI structure
+ * and empty states.
  */
 test.describe('Admin Inbox — UI structure', () => {
   test.beforeEach(async ({ page }) => {
@@ -38,12 +37,12 @@ test.describe('Admin Inbox — UI structure', () => {
     await expect(toggle).toBeVisible();
   });
 
-  // #28–31: require data — deferred to e2e/firebase/admin-inbox.spec.ts
+  // #28–31: require seeded data.
   test.skip('#28 teacher detail modal shows avatar / contact / positions / tags', async () => {});
   test.skip('#29 Go to full profile navigates to Staff Manager', async () => {});
   test.skip('#30 STUDENT task view button opens student detail modal', async () => {});
   test.skip('#31 student detail modal shows guardian and notes', async () => {});
 
-  // #32 — Full end-to-end mark done requires seeded data (firebase tier)
-  test.skip('#32 mark done / mark resolved (requires seeded data — firebase tier)', async () => {});
+  // #32 — Full end-to-end mark done requires seeded data.
+  test.skip('#32 mark done / mark resolved (requires seeded data)', async () => {});
 });

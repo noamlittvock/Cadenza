@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { writeBatch, doc, getDocs, deleteDoc, collection, query, where, Timestamp } from 'firebase/firestore';
-import { db } from '../utils/firebase';
 import { LOCAL_MODE, writeCollection } from '../utils/localStore';
+import { deleteCollectionItems, upsertCollectionItems } from '../utils/supabaseSync';
+import { nowTimestamp } from '../utils/appTimestamp';
 import { buildV2SeedDocs } from '../utils/v2DocBuilders';
 import { useAuth } from '../context/AuthContext';
 import { useDevSimulation, ROLE_PRESETS } from '../context/DevSimulationContext';
@@ -123,20 +123,12 @@ export const DevTools: React.FC<DevToolsProps> = ({
       setAdminInboxItems?.([]);
       setHoursReports?.([]);
 
-      setTemplateProgress({ pct: 20, label: 'Clearing Firestore collections…' });
+      setTemplateProgress({ pct: 20, label: 'Clearing Supabase collections…' });
 
-      // 1b. Wipe v2 Firestore collections so StaffMemberManager shows fresh data
-      // Wrapped in its own try/catch — Firestore errors here are non-fatal
-      // Skipped in LOCAL_MODE: no Firestore project, the writeBatch would hang.
+      // 1b. Wipe v2 collections so StaffMemberManager shows fresh data.
       if (orgId && !LOCAL_MODE) {
         try {
-          const wipeV2Col = async (colName: string) => {
-            const snap = await getDocs(query(collection(db, colName), where('orgId', '==', orgId)));
-            if (snap.empty) return;
-            const b = writeBatch(db);
-            snap.docs.forEach(d => b.delete(d.ref));
-            await b.commit();
-          };
+          const wipeV2Col = async (colName: string) => deleteCollectionItems(orgId, colName);
           await Promise.all([
             wipeV2Col(V2_COLLECTIONS.staffMembers),
             wipeV2Col(V2_COLLECTIONS.teachingAssignments),
@@ -148,11 +140,10 @@ export const DevTools: React.FC<DevToolsProps> = ({
             wipeV2Col(V2_COLLECTIONS.l2Subcategories),
             wipeV2Col(V2_COLLECTIONS.events),
             wipeV2Col(V2_COLLECTIONS.eventParticipants),
-            // system_configs single-doc settings
-            deleteDoc(doc(db, 'system_configs', `${orgId}_lists`)),
+            deleteCollectionItems(orgId, 'systemConfigs', [`${orgId}_lists`]),
           ]);
-        } catch (firestoreErr) {
-          console.warn('v2 Firestore wipe failed (non-fatal):', firestoreErr);
+        } catch (remoteErr) {
+          console.warn('v2 Supabase wipe failed (non-fatal):', remoteErr);
         }
       }
 
@@ -182,15 +173,14 @@ export const DevTools: React.FC<DevToolsProps> = ({
 
       setTemplateProgress({ pct: 80, label: 'Seeding staff & student records…' });
 
-      // 3b. Seed V2 collections. Build doc shapes once, then commit through the
-      // appropriate transport: writeBatch in Firestore mode (with merge:true via
-      // the SDK's batch.set), writeCollection in LOCAL_MODE. Both branches use
-      // the same builder so the shapes can't drift.
+      // 3b. Seed V2 collections. Build doc shapes once, then commit through
+      // Supabase or LOCAL_MODE. Both branches use the same builder so shapes
+      // cannot drift.
       if (orgId) {
         const seedDocs = buildV2SeedDocs(
           { teachers: data.teachers, students: data.students, activities: data.activities as GeneratedActivity[] },
           orgId,
-          LOCAL_MODE ? Date.now() : Timestamp.now(),
+          nowTimestamp(),
         );
 
         if (LOCAL_MODE) {
@@ -202,16 +192,12 @@ export const DevTools: React.FC<DevToolsProps> = ({
           writeCollection(orgId, V2_COLLECTIONS.teachingAssignments, seedDocs.teachingAssignments);
           writeCollection(orgId, V2_COLLECTIONS.enrollments, seedDocs.enrollments);
         } else {
-          // Non-fatal if Firestore rules reject — wrap each commit independently
-          // so a partial failure doesn't strand the whole template.
           const commitBatch = async (
             collectionName: string,
             docs: { id: string }[],
           ) => {
             if (docs.length === 0) return;
-            const batch = writeBatch(db);
-            docs.forEach(d => batch.set(doc(db, collectionName, d.id), d as any));
-            await batch.commit();
+            await upsertCollectionItems(orgId, collectionName, docs);
           };
           try {
             await commitBatch(V2_COLLECTIONS.staffMembers, seedDocs.staffMembers);
@@ -221,8 +207,8 @@ export const DevTools: React.FC<DevToolsProps> = ({
             await commitBatch(V2_COLLECTIONS.l2Subcategories, seedDocs.l2Subcategories);
             await commitBatch(V2_COLLECTIONS.teachingAssignments, seedDocs.teachingAssignments);
             await commitBatch(V2_COLLECTIONS.enrollments, seedDocs.enrollments);
-          } catch (firestoreErr) {
-            console.warn('v2 Firestore seed failed (non-fatal):', firestoreErr);
+          } catch (remoteErr) {
+            console.warn('v2 Supabase seed failed (non-fatal):', remoteErr);
           }
         }
       }
@@ -658,11 +644,6 @@ export const DevTools: React.FC<DevToolsProps> = ({
                   if (!window.confirm(t('sa.migration_backfill_confirm').replace('{count}', String(migrationReport.matched.length)))) return;
                   setMigrationRunning(true);
                   try {
-                    const batch = writeBatch(db);
-                    migrationReport.matched.forEach(m => {
-                      batch.update(doc(db, 'calendarEvents', m.id), { activityId: m.activityId });
-                    });
-                    await batch.commit();
                     const idMap = new Map(migrationReport.matched.map(m => [m.id, m.activityId]));
                     setEvents(prev => prev.map(evt => {
                       const aid = idMap.get(evt.id);

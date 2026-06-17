@@ -75,10 +75,11 @@ export const ColumnFilterDropdown: React.FC<Props> = ({
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder={t('filter.search')}
+            aria-label={t('filter.search')}
             className="w-full px-2 py-1.5 pr-7 text-xs border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded outline-none focus:ring-1 focus:ring-blue-500"
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+            <button onClick={() => setSearch('')} aria-label={t('filter.clear') || 'Clear search'} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
               <X size={12} />
             </button>
           )}

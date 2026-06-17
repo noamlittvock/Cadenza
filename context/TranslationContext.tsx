@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { collection, onSnapshot, query } from 'firebase/firestore';
-import { db } from '../utils/firebase';
+import { getSupabase } from '../utils/supabaseClient';
 import { TranslationRecord } from '../types/translations';
 
 interface TranslationContextType {
@@ -15,24 +14,41 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const q = query(collection(db, 'translations'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const sb = getSupabase();
+        if (!sb) {
+            setLoading(false);
+            return;
+        }
+
+        const load = async () => {
+            const { data, error } = await sb.from('translations').select('*');
+            if (error) {
+                console.error("Translation sync error", error);
+                setLoading(false);
+                return;
+            }
             const dict: Record<string, string> = {};
-            snapshot.forEach((doc) => {
-                const data = doc.data() as TranslationRecord;
-                if (data.status !== 'untranslated' && data.he_IL) {
-                    // The doc ID should be the key
-                    dict[data.key || doc.id] = data.he_IL;
+            (data ?? []).forEach((row: any) => {
+                const record = {
+                    ...row,
+                    he_IL: row.he_il,
+                    original_english: row.original_english,
+                } as TranslationRecord;
+                if (record.status !== 'untranslated' && record.he_IL) {
+                    dict[record.key || row.id] = record.he_IL;
                 }
             });
             setLiveTranslations(dict);
             setLoading(false);
-        }, (error) => {
-            console.error("Translation sync error", error);
-            setLoading(false);
-        });
+        };
+        void load();
 
-        return () => unsubscribe();
+        const channel = sb
+            .channel('translations')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'translations' }, () => { void load(); })
+            .subscribe();
+
+        return () => { void sb.removeChannel(channel); };
     }, []);
 
     return (

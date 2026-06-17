@@ -1,7 +1,7 @@
 /**
  * saveEventV2 — Shared utility for applying EventFormState to CalendarEvent state.
  *
- * Used by both CalendarView (full pipeline + Google sync + v2 Firestore)
+ * Used by both CalendarView (full pipeline + Google sync + v2 Supabase)
  * and ConflictResolutionPanel (lightweight: just CalendarEvent state for auto-resolution).
  */
 

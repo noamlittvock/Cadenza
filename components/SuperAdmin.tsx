@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc, writeBatch, getDoc, where } from 'firebase/firestore';
 import { LOCAL_MODE } from '../utils/localStore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../utils/firebase';
+import { DOCUMENTS_BUCKET, getSupabase } from '../utils/supabaseClient';
+import { COLLECTION_TO_TABLE } from '../utils/supabaseSync';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
 import { AppSettings, CalendarEvent, Teacher, Room, Student } from '../types';
@@ -26,6 +25,21 @@ interface AccessRecord {
     role: 'ADMIN' | 'VIEWER';
     orgId: string;
 }
+
+const mapOrgRow = (row: any): Organization => ({
+    id: row.id,
+    name: row.name,
+    createdAt: row.created_at || row.createdAt || '',
+    logoUrl: row.logo_url || row.logoUrl || undefined,
+});
+
+const mapAccessRow = (row: any): AccessRecord => ({
+    id: row.id,
+    email: row.email,
+    allowed: row.allowed,
+    role: row.role,
+    orgId: row.org_id || row.orgId,
+});
 
 interface SuperAdminProps {
     onWipeData?: () => void;
@@ -92,9 +106,8 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
         );
     }
 
-    // In LOCAL_MODE there's no Firestore project. Org/user/role/translation
-    // mutations all hit Firestore directly (no useFirestoreSync), so the only
-    // sensible behaviour is to short-circuit them with a clear message.
+    // In LOCAL_MODE there is no remote Supabase project. Org/user/role/translation
+    // mutations need the shared backend, so keep them disabled with a clear message.
     const guardLocalMode = (action: string): boolean => {
         if (LOCAL_MODE) {
             setErrorMsg(`${action} is disabled in local mode.`);
@@ -107,8 +120,6 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
     const loadData = async () => {
         setLoading(true);
         setErrorMsg(null);
-        // LOCAL_MODE has no Firestore project — orgs/access_control aren't
-        // editable here. Show an empty list so the tabs stay responsive.
         if (LOCAL_MODE) {
             setOrganizations([]);
             setAccessRecords([]);
@@ -116,13 +127,16 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
             return;
         }
         try {
-            const orgsSnap = await getDocs(collection(db, 'organizations'));
-            const orgsData = orgsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Organization));
-            setOrganizations(orgsData);
-
-            const accessSnap = await getDocs(collection(db, 'access_control'));
-            const accessData = accessSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as AccessRecord));
-            setAccessRecords(accessData);
+            const sb = getSupabase();
+            if (!sb) throw new Error('Supabase is not configured');
+            const [{ data: orgRows, error: orgErr }, { data: accessRows, error: accessErr }] = await Promise.all([
+                sb.from('organizations').select('*').order('name'),
+                sb.from('access_control').select('*').order('email'),
+            ]);
+            if (orgErr) throw orgErr;
+            if (accessErr) throw accessErr;
+            setOrganizations((orgRows ?? []).map(mapOrgRow));
+            setAccessRecords((accessRows ?? []).map(mapAccessRow));
         } catch (err) {
             console.error("Error loading super admin data", err);
             setErrorMsg(t('sa.err_load_data'));
@@ -144,10 +158,14 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
         const safeSlug = newOrgSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
 
         try {
-            await setDoc(doc(db, 'organizations', safeSlug), {
+            const sb = getSupabase();
+            if (!sb) throw new Error('Supabase is not configured');
+            const { error } = await sb.from('organizations').upsert({
+                id: safeSlug,
                 name: newOrgName,
-                createdAt: new Date().toISOString()
-            });
+                updated_at: new Date().toISOString(),
+            }, { onConflict: 'id' });
+            if (error) throw error;
             setNewOrgSlug('');
             setNewOrgName('');
             loadData(); // Reload to show new
@@ -160,7 +178,10 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
         if (!window.confirm(t('sa.confirm_delete_org').replace('{name}', name))) return;
         if (guardLocalMode('Org management')) return;
         try {
-            await deleteDoc(doc(db, 'organizations', slug));
+            const sb = getSupabase();
+            if (!sb) throw new Error('Supabase is not configured');
+            const { error } = await sb.from('organizations').delete().eq('id', slug);
+            if (error) throw error;
             loadData();
         } catch (err) {
             setErrorMsg(t('sa.err_delete_org'));
@@ -174,7 +195,13 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
 
         if (oldSlug === newSlug) {
             try {
-                await updateDoc(doc(db, 'organizations', oldSlug), { name: editOrgName });
+                const sb = getSupabase();
+                if (!sb) throw new Error('Supabase is not configured');
+                const { error } = await sb.from('organizations').update({
+                    name: editOrgName,
+                    updated_at: new Date().toISOString(),
+                }).eq('id', oldSlug);
+                if (error) throw error;
                 setEditingOrgId(null);
                 loadData();
             } catch (err) {
@@ -187,62 +214,42 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
 
         setLoading(true);
         try {
-            const existingDest = await getDoc(doc(db, 'organizations', newSlug));
-            if (existingDest.exists()) {
+            const sb = getSupabase();
+            if (!sb) throw new Error('Supabase is not configured');
+            const { data: existingDest } = await sb.from('organizations').select('id').eq('id', newSlug).maybeSingle();
+            if (existingDest) {
                 setErrorMsg(t('sa.err_org_exists').replace('{slug}', newSlug));
                 setLoading(false);
                 return;
             }
 
-            const migrationOps: { ref: any, type: 'set' | 'update' | 'delete', data?: any }[] = [];
+            const { data: oldOrg } = await sb.from('organizations').select('*').eq('id', oldSlug).maybeSingle();
+            await sb.from('organizations').upsert({
+                ...(oldOrg ?? {}),
+                id: newSlug,
+                name: editOrgName,
+                updated_at: new Date().toISOString(),
+            }, { onConflict: 'id' });
+            await sb.from('organizations').delete().eq('id', oldSlug);
 
-            const oldOrgDoc = await getDoc(doc(db, 'organizations', oldSlug));
-            if (oldOrgDoc.exists()) {
-                migrationOps.push({ ref: doc(db, 'organizations', newSlug), type: 'set', data: { ...oldOrgDoc.data(), name: editOrgName } });
-                migrationOps.push({ ref: doc(db, 'organizations', oldSlug), type: 'delete' });
+            const { data: accessDocs, error: accessErr } = await sb.from('access_control').select('*').eq('org_id', oldSlug);
+            if (accessErr) throw accessErr;
+            if (accessDocs?.length) {
+                const nextRows = accessDocs.map((row: any) => ({
+                    ...row,
+                    id: `${row.email}_${newSlug}`,
+                    org_id: newSlug,
+                    updated_at: new Date().toISOString(),
+                }));
+                const { error: upsertErr } = await sb.from('access_control').upsert(nextRows, { onConflict: 'id' });
+                if (upsertErr) throw upsertErr;
+                await sb.from('access_control').delete().eq('org_id', oldSlug);
             }
 
-            const oldSettings = await getDoc(doc(db, 'app_settings', oldSlug));
-            if (oldSettings.exists()) {
-                migrationOps.push({ ref: doc(db, 'app_settings', newSlug), type: 'set', data: oldSettings.data() });
-                migrationOps.push({ ref: doc(db, 'app_settings', oldSlug), type: 'delete' });
-            }
-
-            const oldLists = await getDoc(doc(db, 'app_lists', oldSlug));
-            if (oldLists.exists()) {
-                migrationOps.push({ ref: doc(db, 'app_lists', newSlug), type: 'set', data: oldLists.data() });
-                migrationOps.push({ ref: doc(db, 'app_lists', oldSlug), type: 'delete' });
-            }
-
-            const accessQ = query(collection(db, 'access_control'), where("orgId", "==", oldSlug));
-            const accessDocs = await getDocs(accessQ);
-            accessDocs.forEach(d => {
-                const data = d.data();
-                const newId = `${data.email}_${newSlug}`;
-                migrationOps.push({ ref: doc(db, 'access_control', newId), type: 'set', data: { ...data, orgId: newSlug } });
-                migrationOps.push({ ref: d.ref, type: 'delete' });
-            });
-
-            const collectionsToMigrate = ['teachers', 'events', 'rooms', 'gantt_blocks'];
-            for (const colName of collectionsToMigrate) {
-                const colQ = query(collection(db, colName), where("orgId", "==", oldSlug));
-                const colDocs = await getDocs(colQ);
-                colDocs.forEach(d => {
-                    migrationOps.push({ ref: d.ref, type: 'update', data: { orgId: newSlug } });
-                });
-            }
-
-            // Batch writes (max 500 per batch)
-            const chunkSize = 400;
-            for (let i = 0; i < migrationOps.length; i += chunkSize) {
-                const chunk = migrationOps.slice(i, i + chunkSize);
-                const batch = writeBatch(db);
-                chunk.forEach(op => {
-                    if (op.type === 'set') batch.set(op.ref, op.data);
-                    if (op.type === 'update') batch.update(op.ref, op.data);
-                    if (op.type === 'delete') batch.delete(op.ref);
-                });
-                await batch.commit();
+            await sb.from('system_configs').update({ org_id: newSlug }).eq('org_id', oldSlug);
+            const tableNames = Array.from(new Set(Object.values(COLLECTION_TO_TABLE).map(spec => spec.table)));
+            for (const table of tableNames) {
+                await sb.from(table).update({ org_id: newSlug }).eq('org_id', oldSlug);
             }
 
             setEditingOrgId(null);
@@ -264,31 +271,24 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
         setUploadingOrgId(orgId);
         setErrorMsg(null);
 
-        const storageRef = ref(storage, `organizations/${orgId}/logo`);
-        const uploadTask = uploadBytesResumable(storageRef, file);
-
-        uploadTask.on(
-            'state_changed',
-            null, // Could add progress bar here
-            (error) => {
-                console.error("Upload failed", error);
-                setErrorMsg(t('sa.err_upload_logo'));
-                setUploadingOrgId(null);
-            },
-            async () => {
-                try {
-                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                    await updateDoc(doc(db, 'organizations', orgId), {
-                        logoUrl: downloadURL
-                    });
-                    loadData();
-                } catch (err) {
-                    setErrorMsg(t('sa.err_update_logo'));
-                } finally {
-                    setUploadingOrgId(null);
-                }
-            }
-        );
+        try {
+            const sb = getSupabase();
+            if (!sb) throw new Error('Supabase is not configured');
+            const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const path = `${orgId}/logos/${Date.now()}_${safeName}`;
+            const { error: uploadError } = await sb.storage.from(DOCUMENTS_BUCKET).upload(path, file, { upsert: true });
+            if (uploadError) throw uploadError;
+            const { data, error: signedError } = await sb.storage.from(DOCUMENTS_BUCKET).createSignedUrl(path, 60 * 60 * 24 * 365);
+            if (signedError) throw signedError;
+            const { error: updateError } = await sb.from('organizations').update({ logo_url: data.signedUrl }).eq('id', orgId);
+            if (updateError) throw updateError;
+            loadData();
+        } catch (err) {
+            console.error("Upload failed", err);
+            setErrorMsg(t('sa.err_upload_logo'));
+        } finally {
+            setUploadingOrgId(null);
+        }
     };
 
     const handleCreateUser = async (e: React.FormEvent) => {
@@ -298,13 +298,17 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
         const compositeId = `${normalizedEmail}_${newUserOrgId}`;
 
         try {
-            await setDoc(doc(db, 'access_control', compositeId), {
+            const sb = getSupabase();
+            if (!sb) throw new Error('Supabase is not configured');
+            const { error } = await sb.from('access_control').upsert({
+                id: compositeId,
                 email: normalizedEmail,
                 allowed: true,
                 role: newUserRole,
-                orgId: newUserOrgId,
-                createdAt: new Date().toISOString()
-            });
+                org_id: newUserOrgId,
+                updated_at: new Date().toISOString(),
+            }, { onConflict: 'id' });
+            if (error) throw error;
             setNewUserEmail('');
             loadData();
         } catch (err) {
@@ -318,29 +322,35 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
         const lines = bulkCsvData.split('\n');
         setLoading(true);
 
-        const promises = lines.map(line => {
-            if (!line.trim()) return Promise.resolve();
+        const rows = lines.map(line => {
+            if (!line.trim()) return null;
             const parts = line.split(',').map(s => s.trim());
             const email = parts[0];
             const orgId = parts[1];
             const roleStr = parts[2];
 
-            if (!email || !orgId) return Promise.resolve();
+            if (!email || !orgId) return null;
             const normalizedEmail = email.toLowerCase();
             const role = (roleStr?.toUpperCase() === 'ADMIN') ? 'ADMIN' : 'VIEWER';
             const compositeId = `${normalizedEmail}_${orgId}`;
 
-            return setDoc(doc(db, 'access_control', compositeId), {
+            return {
+                id: compositeId,
                 email: normalizedEmail,
                 allowed: true,
                 role: role,
-                orgId: orgId,
-                createdAt: new Date().toISOString()
-            });
-        });
+                org_id: orgId,
+                updated_at: new Date().toISOString(),
+            };
+        }).filter(Boolean);
 
         try {
-            await Promise.all(promises);
+            const sb = getSupabase();
+            if (!sb) throw new Error('Supabase is not configured');
+            if (rows.length) {
+                const { error } = await sb.from('access_control').upsert(rows, { onConflict: 'id' });
+                if (error) throw error;
+            }
             setBulkCsvData('');
             setIsBulkMode(false);
             loadData();
@@ -354,7 +364,10 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
         if (!window.confirm(t('sa.confirm_revoke').replace('{email}', email))) return;
         if (guardLocalMode('User access management')) return;
         try {
-            await deleteDoc(doc(db, 'access_control', recordId));
+            const sb = getSupabase();
+            if (!sb) throw new Error('Supabase is not configured');
+            const { error } = await sb.from('access_control').delete().eq('id', recordId);
+            if (error) throw error;
             loadData();
         } catch (err) {
             setErrorMsg(t('sa.err_delete_user'));
@@ -364,7 +377,10 @@ export const SuperAdmin: React.FC<SuperAdminProps> = ({
     const handleUpdateRole = async (recordId: string, newRole: 'ADMIN' | 'VIEWER') => {
         if (guardLocalMode('Role updates')) return;
         try {
-            await updateDoc(doc(db, 'access_control', recordId), { role: newRole });
+            const sb = getSupabase();
+            if (!sb) throw new Error('Supabase is not configured');
+            const { error } = await sb.from('access_control').update({ role: newRole }).eq('id', recordId);
+            if (error) throw error;
 
             // Optimistically update local state
             setAccessRecords(prev => prev.map(r => r.id === recordId ? { ...r, role: newRole } : r));

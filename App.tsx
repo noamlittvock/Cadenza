@@ -9,11 +9,10 @@ const t = (key: string) => {
   const lang = document.documentElement.lang || 'en-US';
   return (TRANSLATIONS as any)[lang]?.[key] || (TRANSLATIONS as any)['en-US']?.[key] || key;
 };
-import { writeBatch, getDocs, collection, query, where, doc, deleteDoc } from 'firebase/firestore';
-import { db } from './utils/firebase';
 import { LOCAL_MODE, clearOrgLocalData } from './utils/localStore';
+import { deleteCollectionItems } from './utils/supabaseSync';
 import { V2_COLLECTIONS } from './types/v2';
-import { useFirestoreSync, useFirestoreSettings } from './utils/useFirestoreSync';
+import { useSupabaseSync, useSupabaseSettings } from './utils/useSupabaseSync';
 import { useOnboarding } from './utils/useOnboarding';
 import { detectRoomConflicts } from './utils/roomConflicts';
 import { ImportedGoogleEvent } from './utils/googleCalendarSync';
@@ -25,6 +24,7 @@ import { GanttManager } from './components/GanttManager';
 import { PowerTools } from './components/PowerTools';
 import { Settings } from './components/Settings';
 import { ManageHub } from './components/ManageHub';
+import { ConservatoryBlueprint } from './components/ConservatoryBlueprint';
 import { SuperAdmin } from './components/SuperAdmin';
 import { AdminInbox } from './components/AdminInbox';
 import { OnboardingChecklist } from './components/OnboardingChecklist';
@@ -39,6 +39,14 @@ import { DevSimulationBanner } from './components/DevSimulationBanner';
 import { ScenarioBanner } from './components/ScenarioBanner';
 import { CommandPalette } from './components/CommandPalette';
 import { BotChatPanel } from './components/BotChatPanel';
+
+const MANAGE_TABS = new Set(['staff', 'rooms', 'activities', 'subscriptions', 'inventory']);
+
+const initialViewFromUrl = (): ViewState => {
+  if (typeof window === 'undefined') return 'CALENDAR';
+  const tab = new URLSearchParams(window.location.search).get('tab');
+  return tab && MANAGE_TABS.has(tab) ? 'MANAGE' : 'CALENDAR';
+};
 
 
 interface ErrorBoundaryProps {
@@ -94,7 +102,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 function AppContent() {
   const { currentUser, login, isAdmin, isSuperAdmin } = useEffectiveAuth();
   const { orgId } = useAuth();
-  const [currentView, setCurrentView] = useState<ViewState>('CALENDAR');
+  const [currentView, setCurrentView] = useState<ViewState>(initialViewFromUrl);
   const onboarding = useEffectiveOnboarding();
   const { simulatedDate } = useDevSimulation();
   const { liveTranslations } = useTranslation();
@@ -110,25 +118,25 @@ function AppContent() {
     return isDark;
   });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  // Core State (Cloud Database via Firestore)
-  const [teachers, setTeachers] = useFirestoreSync<Teacher>('teachers', []);
-  const [rooms, setRooms] = useFirestoreSync<Room>('rooms', []);
-  const [events, setEvents] = useFirestoreSync<CalendarEvent>('events', []);
-  const [ganttBlocks, setGanttBlocks] = useFirestoreSync<GanttBlock>('ganttBlocks', []);
-  const [activities, setActivities] = useFirestoreSync<ActivityV2>('activities', []);
-  const [students, setStudents] = useFirestoreSync<Student>('students', []);
-  const [calendarSubscriptions, setCalendarSubscriptions] = useFirestoreSync<CalendarSubscription>('calendarSubscriptions', []);
-  const [hoursReports, setHoursReports] = useFirestoreSync<HoursReport>('hoursReports', []);
-  const [adminInboxItems, setAdminInboxItems] = useFirestoreSync<AdminInboxItem>('adminInboxItems', []);
+  // Core State (Supabase/local sync)
+  const [teachers, setTeachers] = useSupabaseSync<Teacher>('teachers', []);
+  const [rooms, setRooms] = useSupabaseSync<Room>('rooms', []);
+  const [events, setEvents] = useSupabaseSync<CalendarEvent>('events', []);
+  const [ganttBlocks, setGanttBlocks] = useSupabaseSync<GanttBlock>('ganttBlocks', []);
+  const [activities, setActivities] = useSupabaseSync<ActivityV2>('activities', []);
+  const [students, setStudents] = useSupabaseSync<Student>('students', []);
+  const [calendarSubscriptions, setCalendarSubscriptions] = useSupabaseSync<CalendarSubscription>('calendarSubscriptions', []);
+  const [hoursReports, setHoursReports] = useSupabaseSync<HoursReport>('hoursReports', []);
+  const [adminInboxItems, setAdminInboxItems] = useSupabaseSync<AdminInboxItem>('adminInboxItems', []);
   // Seed initial language from localStorage so first render matches the persisted state
   // and the useEffect below doesn't flip <html lang/dir> away from what index.tsx pre-applied.
-  // useFirestoreSettings reads its initial value once at mount, so a plain inline call is enough.
+  // useSupabaseSettings reads its initial value once at mount, so a plain inline call is enough.
   const savedLang = typeof window !== 'undefined' ? localStorage.getItem('language') : null;
   const initialSettings: AppSettings =
     savedLang === 'he-IL' || savedLang === 'en-US'
       ? { ...INITIAL_SETTINGS, language: savedLang }
       : INITIAL_SETTINGS;
-  const [settings, setSettings] = useFirestoreSettings<AppSettings>('settings', initialSettings);
+  const [settings, setSettings] = useSupabaseSettings<AppSettings>('settings', initialSettings);
 
   // QA Scenario State
   const [activeScenario, setActiveScenario] = useState<import('./utils/testTemplates').QAScenario | null>(null);
@@ -160,10 +168,10 @@ function AppContent() {
   }, [events]);
 
   // v2 collections needed by CalendarFilterPanel (hoisted to avoid prop-drilling)
-  const [l1Subs] = useFirestoreSync<L1Subcategory>(V2_COLLECTIONS.l1Subcategories, []);
-  const [l2Subs] = useFirestoreSync<L2Subcategory>(V2_COLLECTIONS.l2Subcategories, []);
-  const [staffMembersV2] = useFirestoreSync<StaffMemberV2>(V2_COLLECTIONS.staffMembers, []);
-  const [studentsV2] = useFirestoreSync<StudentV2>(V2_COLLECTIONS.students, []);
+  const [l1Subs] = useSupabaseSync<L1Subcategory>(V2_COLLECTIONS.l1Subcategories, []);
+  const [l2Subs] = useSupabaseSync<L2Subcategory>(V2_COLLECTIONS.l2Subcategories, []);
+  const [staffMembersV2] = useSupabaseSync<StaffMemberV2>(V2_COLLECTIONS.staffMembers, []);
+  const [studentsV2] = useSupabaseSync<StudentV2>(V2_COLLECTIONS.students, []);
 
   // Persistent Calendar State
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -196,6 +204,15 @@ function AppContent() {
     localStorage.setItem('language', settings.language);
   }, [settings.language, isRtl]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (currentView === 'MANAGE' || currentView === 'STAFF_MEMBERS') return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('tab')) return;
+    url.searchParams.delete('tab');
+    window.history.replaceState({}, '', url.toString());
+  }, [currentView]);
+
   // Dark Mode Effect - persist to localStorage and apply class
   useEffect(() => {
     localStorage.setItem('darkMode', String(darkMode));
@@ -213,7 +230,7 @@ function AppContent() {
     if (conflicts.length > 50) {
       console.warn(
         `[conflict-detection] ${conflicts.length} active room conflicts detected across ${events.length} events. ` +
-        `Investigate: stale events in Firestore, mass-overlap dataset, or duplicate event IDs.`
+        `Investigate: stale events, mass-overlap dataset, or duplicate event IDs.`
       );
     }
 
@@ -603,6 +620,13 @@ function AppContent() {
             onStaffNavigateHandled={() => setNavigateToStaffId(null)}
           />
         );
+      case 'BLUEPRINT':
+        return (
+          <ConservatoryBlueprint
+            settings={settings}
+            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+          />
+        );
       case 'SUPER_ADMIN':
         return (
           <SuperAdmin
@@ -629,13 +653,7 @@ function AppContent() {
                 if (LOCAL_MODE && orgId) {
                   clearOrgLocalData(orgId);
                 } else if (orgId) {
-                  const wipeCol = async (colName: string) => {
-                    const snap = await getDocs(query(collection(db, colName), where('orgId', '==', orgId)));
-                    if (snap.empty) return;
-                    const b = writeBatch(db);
-                    snap.docs.forEach(d => b.delete(d.ref));
-                    await b.commit();
-                  };
+                  const wipeCol = async (colName: string) => deleteCollectionItems(orgId, colName);
                   try {
                     await Promise.all([
                       // v1.3 collections
@@ -657,7 +675,7 @@ function AppContent() {
                       wipeCol(V2_COLLECTIONS.l2Subcategories),
                     ]);
                   } catch (err) {
-                    console.warn('[onWipeData] Firestore wipe error (non-fatal):', err);
+                    console.warn('[onWipeData] Supabase wipe error (non-fatal):', err);
                   }
                 }
             }}

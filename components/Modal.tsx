@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { X, AlertTriangle } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
 
@@ -34,11 +34,36 @@ export const Modal: React.FC<ModalProps> = ({
         return (TRANSLATIONS as any)[lang]?.[key] || (TRANSLATIONS as any)['en-US']?.[key] || key;
     };
     const [showConfirm, setShowConfirm] = useState(false);
+    const titleId = useId();
+    const dialogRef = useRef<HTMLDivElement>(null);
+    const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && isOpen && !showConfirm) {
                 handleCloseRequest();
+            }
+            if (e.key === 'Tab' && isOpen) {
+                const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                );
+                if (!focusable || focusable.length === 0) {
+                    e.preventDefault();
+                    dialogRef.current?.focus();
+                    return;
+                }
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                } else if (dialogRef.current && !dialogRef.current.contains(document.activeElement)) {
+                    e.preventDefault();
+                    first.focus();
+                }
             }
         };
         if (isOpen) {
@@ -46,6 +71,20 @@ export const Modal: React.FC<ModalProps> = ({
         }
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, showConfirm, isDirty]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        const focusable = dialogRef.current?.querySelector<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        window.setTimeout(() => {
+            (focusable ?? dialogRef.current)?.focus();
+        }, 0);
+        return () => {
+            previouslyFocusedRef.current?.focus();
+        };
+    }, [isOpen]);
 
     // Compute anchor-based positioning (wide screens only)
     const anchorStyle = React.useMemo<React.CSSProperties | undefined>(() => {
@@ -101,6 +140,11 @@ export const Modal: React.FC<ModalProps> = ({
             onClick={handleBackdropClick}
         >
             <div
+                ref={dialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={title ? titleId : undefined}
+                tabIndex={-1}
                 className={`bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh] relative ${anchorStyle ? '' : `w-full ${maxWidth}`} ${className}`}
                 style={anchorStyle}
             >
@@ -108,9 +152,9 @@ export const Modal: React.FC<ModalProps> = ({
                 {!hideHeader && (
                     <div className="flex justify-between items-center p-6 border-b border-slate-200 dark:border-slate-800">
                         {title && typeof title === 'string' ? (
-                            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">{title}</h3>
+                            <h3 id={titleId} className="text-xl font-bold text-slate-800 dark:text-slate-100">{title}</h3>
                         ) : (
-                            title ? title : <div />
+                            title ? <div id={titleId}>{title}</div> : <div />
                         )}
                         <button
                             onClick={handleCloseRequest}
@@ -144,7 +188,7 @@ export const Modal: React.FC<ModalProps> = ({
 
             {showConfirm && (
                 <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-sm w-full p-6 border border-slate-200 dark:border-slate-700">
+                    <div role="dialog" aria-modal="true" className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-sm w-full p-6 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-center gap-3 text-amber-600 dark:text-amber-500 mb-4">
                             <AlertTriangle size={24} />
                             <h3 className="text-lg font-bold">{t('modal_unsaved_changes') || 'Unsaved Changes'}</h3>

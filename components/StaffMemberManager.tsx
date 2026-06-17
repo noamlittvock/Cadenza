@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Timestamp } from 'firebase/firestore';
+import { nowTimestamp } from '../utils/appTimestamp';
 import { Teacher, AppSettings, HoursReport, Student, AdminInboxItem } from '../types';
 import { buildActivityMap, getActivityName } from '../utils/activityLookup';
 import type {
@@ -12,7 +12,7 @@ import { TEMPLATE_RULES } from '../utils/activityTemplateRules';
 import { ImportExportDropdown } from './ImportExportDropdown';
 import { V2_COLLECTIONS } from '../types/v2';
 import { generateId, TRANSLATIONS } from '../constants';
-import { useFirestoreSync } from '../utils/useFirestoreSync';
+import { useSupabaseSync } from '../utils/useSupabaseSync';
 import { useAuth } from '../context/AuthContext';
 import { Modal } from './Modal';
 import {
@@ -103,14 +103,14 @@ export const StaffMemberManager: React.FC<Props> = ({
   const { currentUser, isSuperAdmin, isAdmin, orgId } = useAuth();
 
   // ─── v2.0 Internal collections ──────────────────────────────────────────
-  const [staffMembers, setStaffMembers] = useFirestoreSync<StaffMemberV2>(V2_COLLECTIONS.staffMembers, []);
-  const [rawAssignments, setAssignments] = useFirestoreSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
+  const [staffMembers, setStaffMembers] = useSupabaseSync<StaffMemberV2>(V2_COLLECTIONS.staffMembers, []);
+  const [rawAssignments, setAssignments] = useSupabaseSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
   const assignments = useMemo(() => rawAssignments.map(migrateLegacyAssignment), [rawAssignments]);
-  const [orgRoles, setOrgRoles] = useFirestoreSync<OrgRoleV2>(V2_COLLECTIONS.orgRoles, []);
-  const [l1Subcategories] = useFirestoreSync<L1Subcategory>(V2_COLLECTIONS.l1Subcategories, []);
-  const [l2Subcategories] = useFirestoreSync<L2Subcategory>(V2_COLLECTIONS.l2Subcategories, []);
-  const [eventsV2] = useFirestoreSync<EventV2>(V2_COLLECTIONS.events, []);
-  const [eventParticipantsV2, setEventParticipantsV2] = useFirestoreSync<EventParticipant>(V2_COLLECTIONS.eventParticipants, []);
+  const [orgRoles, setOrgRoles] = useSupabaseSync<OrgRoleV2>(V2_COLLECTIONS.orgRoles, []);
+  const [l1Subcategories] = useSupabaseSync<L1Subcategory>(V2_COLLECTIONS.l1Subcategories, []);
+  const [l2Subcategories] = useSupabaseSync<L2Subcategory>(V2_COLLECTIONS.l2Subcategories, []);
+  const [eventsV2] = useSupabaseSync<EventV2>(V2_COLLECTIONS.events, []);
+  const [eventParticipantsV2, setEventParticipantsV2] = useSupabaseSync<EventParticipant>(V2_COLLECTIONS.eventParticipants, []);
 
   const activityMap = useMemo(() => buildActivityMap(activities), [activities]);
 
@@ -414,7 +414,7 @@ export const StaffMemberManager: React.FC<Props> = ({
   }, [l2Subcategories]);
 
   const handleStaffImportComplete = useCallback((rows: Record<string, string>[]) => {
-    const now = Timestamp.now();
+    const now = nowTimestamp();
     const newStaff: StaffMemberV2[] = rows.map(row => ({
       id: generateId(), orgId: orgId || '',
       uid: '',
@@ -434,7 +434,7 @@ export const StaffMemberManager: React.FC<Props> = ({
   }, [orgId, setStaffMembers]);
 
   const handleAssignmentImportComplete = useCallback((rows: Record<string, string>[]) => {
-    const now = Timestamp.now();
+    const now = nowTimestamp();
     const newAssignments: TeachingAssignmentV2[] = rows.map(row => {
       const activityId = csvActivityByName[row['activityName']?.trim().toLowerCase() || ''] || '';
       const l1Raw = row['l1Name']?.trim();
@@ -525,7 +525,7 @@ export const StaffMemberManager: React.FC<Props> = ({
     if (!formName.trim()) { setStaffError(t('staff.v2.name_required')); return false; }
     if (!formEmail.trim()) { setStaffError(t('staff.v2.email_required')); return false; }
 
-    const now = Timestamp.now();
+    const now = nowTimestamp();
 
     if (editingStaffId) {
       // Edit — check role change permission
@@ -591,7 +591,7 @@ export const StaffMemberManager: React.FC<Props> = ({
   const confirmArchiveStaff = useCallback(() => {
     if (!archiveCascadeStaffId) return;
     const today = new Date().toISOString().slice(0, 10);
-    const tsNow = Timestamp.now();
+    const tsNow = nowTimestamp();
 
     // Archive the staff member
     setStaffMembers(prev => prev.map(s => s.id === archiveCascadeStaffId
@@ -614,7 +614,7 @@ export const StaffMemberManager: React.FC<Props> = ({
   const handleRestoreStaff = useCallback((staffId: string) => {
     if (!canWrite) return;
     setStaffMembers(prev => prev.map(s => s.id === staffId
-      ? { ...s, isArchived: false, updatedAt: Timestamp.now() } : s));
+      ? { ...s, isArchived: false, updatedAt: nowTimestamp() } : s));
   }, [canWrite, setStaffMembers]);
 
   // ─── Teaching Assignment CRUD ───────────────────────────────────────────
@@ -688,7 +688,7 @@ export const StaffMemberManager: React.FC<Props> = ({
       return false;
     }
 
-    const now = Timestamp.now();
+    const now = nowTimestamp();
 
     if (editingAssignmentId) {
       setAssignments(prev => prev.map(a => a.id === editingAssignmentId ? {
@@ -721,7 +721,7 @@ export const StaffMemberManager: React.FC<Props> = ({
   const toggleAssignmentArchive = useCallback((id: string, archive: boolean) => {
     if (!canWrite) return;
     setAssignments(prev => prev.map(a => a.id === id
-      ? { ...a, isArchived: archive, updatedAt: Timestamp.now() } : a));
+      ? { ...a, isArchived: archive, updatedAt: nowTimestamp() } : a));
   }, [canWrite, setAssignments]);
 
   // ─── Org Role CRUD ──────────────────────────────────────────────────────
@@ -748,7 +748,7 @@ export const StaffMemberManager: React.FC<Props> = ({
     if (!orFormTitle.trim()) { setOrgRoleError(t('staff.v2.role_title')); return false; }
     if (!orFormStartDate) { setOrgRoleError(t('staff.v2.date_start_required')); return false; }
 
-    const now = Timestamp.now();
+    const now = nowTimestamp();
 
     if (editingOrgRoleId) {
       setOrgRoles(prev => prev.map(r => r.id === editingOrgRoleId ? {
@@ -772,7 +772,7 @@ export const StaffMemberManager: React.FC<Props> = ({
   const toggleOrgRoleArchive = useCallback((id: string, archive: boolean) => {
     if (!canWrite) return;
     setOrgRoles(prev => prev.map(r => r.id === id
-      ? { ...r, isArchived: archive, updatedAt: Timestamp.now() } : r));
+      ? { ...r, isArchived: archive, updatedAt: nowTimestamp() } : r));
   }, [canWrite, setOrgRoles]);
 
   // ─── Document update ───────────────────────────────────────────────────
@@ -780,7 +780,7 @@ export const StaffMemberManager: React.FC<Props> = ({
   const handleStaffDocumentsUpdate = useCallback((documents: import('../types/v2').DocumentEntry[]) => {
     if (!selectedStaffId) return;
     setStaffMembers(prev => prev.map(s => s.id === selectedStaffId
-      ? { ...s, documents, updatedAt: Timestamp.now() } : s));
+      ? { ...s, documents, updatedAt: nowTimestamp() } : s));
   }, [selectedStaffId, setStaffMembers]);
 
   // ─── Wizard helpers ────────────────────────────────────────────────────
@@ -837,7 +837,7 @@ export const StaffMemberManager: React.FC<Props> = ({
     const conflict = findOverlapConflict(candidate, wizardAssignments, l2Subcategories);
     if (conflict) { setAssignmentError(formatOverlapError(conflict.conflicting)); return; }
 
-    const now = Timestamp.now();
+    const now = nowTimestamp();
     const newAssignment: TeachingAssignmentV2 = {
       id: generateId(), orgId, staffMemberId: selectedStaffId,
       scope: candidate.scope,
@@ -856,7 +856,7 @@ export const StaffMemberManager: React.FC<Props> = ({
     if (!orFormTitle.trim()) { setOrgRoleError(t('staff.v2.role_title')); return; }
     if (!orFormStartDate) { setOrgRoleError(t('staff.v2.date_start_required')); return; }
 
-    const now = Timestamp.now();
+    const now = nowTimestamp();
     const newRole: OrgRoleV2 = {
       id: generateId(), orgId, staffMemberId: selectedStaffId,
       roleTitle: orFormTitle.trim(), startDate: orFormStartDate,
@@ -1308,18 +1308,18 @@ export const StaffMemberManager: React.FC<Props> = ({
                     {walkthroughStep > 1 && (
                       <button onClick={() => setWalkthroughStep(walkthroughStep - 1)}
                         className="text-xs px-3 py-1 border border-blue-300 dark:border-blue-700 rounded text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40">
-                        Back
+                        {t('staff.v2.wizard.back')}
                       </button>
                     )}
                     {walkthroughStep < walkthroughSteps.length ? (
                       <button onClick={() => setWalkthroughStep(walkthroughStep + 1)}
                         className="text-xs px-3 py-1 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded">
-                        Next
+                        {t('staff.v2.wizard.next')}
                       </button>
                     ) : (
                       <button onClick={() => setWalkthroughStep(null)}
                         className="text-xs px-3 py-1 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded">
-                        Done
+                        {t('staff.v2.wizard.done')}
                       </button>
                     )}
                   </div>
@@ -1331,12 +1331,12 @@ export const StaffMemberManager: React.FC<Props> = ({
                 <>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.full_name')}</label>
-                    <input type="text" value={formName} onChange={e => setFormName(e.target.value)}
+                    <input type="text" value={formName} onChange={e => setFormName(e.target.value)} aria-label={t('staff.full_name')}
                       className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.email')}</label>
-                    <input type="email" value={formEmail} onChange={e => setFormEmail(e.target.value)}
+                    <input type="email" value={formEmail} onChange={e => setFormEmail(e.target.value)} aria-label={t('staff.email')}
                       className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
                   </div>
                 </>
@@ -1373,7 +1373,7 @@ export const StaffMemberManager: React.FC<Props> = ({
               {(walkthroughStep === null || walkthroughStep >= 3) && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.phone')}</label>
-                  <input type="tel" value={formPhone} onChange={e => setFormPhone(e.target.value)}
+                  <input type="tel" value={formPhone} onChange={e => setFormPhone(e.target.value)} aria-label={t('staff.phone')}
                     className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
                 </div>
               )}
@@ -1382,7 +1382,7 @@ export const StaffMemberManager: React.FC<Props> = ({
               {(walkthroughStep === null || walkthroughStep >= 3) && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staff.v2.start_date_work')}</label>
-                  <input type="date" value={formStartDate} onChange={e => setFormStartDate(e.target.value)}
+                  <input type="date" value={formStartDate} onChange={e => setFormStartDate(e.target.value)} aria-label={t('staff.v2.start_date_work')}
                     className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" />
                 </div>
               )}

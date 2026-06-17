@@ -5,10 +5,11 @@ import { RoomManager } from './RoomManager';
 import { ActivityManager } from './ActivityManager';
 import { CalendarSubscriptionManager } from './CalendarSubscriptionManager';
 import { StaffMemberManager } from './StaffMemberManager';
-import { Home, Menu, Layers, Rss, Users } from 'lucide-react';
+import { InstrumentManager } from './InstrumentManager';
+import { Home, Menu, Layers, Rss, Users, Guitar } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
 
-type ManageTab = 'staff' | 'rooms' | 'activities' | 'subscriptions';
+type ManageTab = 'staff' | 'rooms' | 'activities' | 'subscriptions' | 'inventory';
 
 interface Props {
     rooms: Room[];
@@ -62,7 +63,7 @@ export const ManageHub: React.FC<Props> = ({
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const tabFromUrl = params.get('tab') as ManageTab;
-        if (tabFromUrl && ['staff', 'rooms', 'activities', 'subscriptions'].includes(tabFromUrl)) {
+        if (tabFromUrl && ['staff', 'rooms', 'activities', 'subscriptions', 'inventory'].includes(tabFromUrl)) {
             setActiveTab(tabFromUrl);
         }
     }, []);
@@ -80,6 +81,7 @@ export const ManageHub: React.FC<Props> = ({
         { id: 'staff', label: t('nav.staff_members'), icon: Users },
         { id: 'activities', label: t('nav.activities'), icon: Layers },
         { id: 'rooms', label: t('nav.rooms'), icon: Home },
+        { id: 'inventory', label: t('nav.inventory'), icon: Guitar },
         { id: 'subscriptions', label: t('nav.subscriptions'), icon: Rss },
     ];
 
@@ -161,6 +163,15 @@ export const ManageHub: React.FC<Props> = ({
                         rooms={rooms}
                         setRooms={setRooms}
                         settings={settings}
+                        onMobileMenuOpen={onMobileMenuOpen}
+                        embedded={true}
+                    />
+                )}
+                {activeTab === 'inventory' && (
+                    <InstrumentManager
+                        settings={settings}
+                        students={students}
+                        teachers={teachers}
                         onMobileMenuOpen={onMobileMenuOpen}
                         embedded={true}
                     />

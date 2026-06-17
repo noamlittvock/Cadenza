@@ -2,10 +2,11 @@ import React, { useRef } from 'react';
 
 interface DatePickerProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'> {
     type?: 'date' | 'datetime-local';
+    blurOnChange?: boolean;
 }
 
 export const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
-    ({ type = 'date', onChange, ...props }, forwardedRef) => {
+    ({ type = 'date', onChange, blurOnChange = false, ...props }, forwardedRef) => {
         const internalRef = useRef<HTMLInputElement>(null);
 
         // Merge forwarded ref and internal ref
@@ -22,8 +23,7 @@ export const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
             if (onChange) {
                 onChange(e);
             }
-            // Instantly blur the input so the native date picker popover closes
-            if (internalRef.current) {
+            if (blurOnChange && internalRef.current) {
                 internalRef.current.blur();
             }
         };

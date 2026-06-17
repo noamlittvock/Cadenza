@@ -1,13 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { onAuthStateChanged, signInWithPopup, signOut, GoogleAuthProvider } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
-import { auth, googleProvider, db } from '../utils/firebase';
+import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { getSupabase } from '../utils/supabaseClient';
+import { fetchCollectionItems, upsertCollectionItems } from '../utils/supabaseSync';
+import { generateId } from '../constants';
+import { nowTimestamp } from '../utils/appTimestamp';
+import type { StaffMemberV2, StaffRole } from '../types/v2';
 import { Lock, LogIn, AlertCircle, Loader2, Music } from 'lucide-react';
 
 export type UserRole = 'SUPERADMIN' | 'ADMIN' | 'VIEWER';
 
 interface User {
   id: string;
+  uid: string;
   name: string;
   email: string;
   role: UserRole;
@@ -19,6 +23,20 @@ interface OrgInfo {
   id: string;
   name: string;
   logoUrl?: string;
+}
+
+interface OrgRow {
+  id: string;
+  name: string;
+  logo_url?: string | null;
+}
+
+interface AccessRecordRow {
+  id: string;
+  email: string;
+  allowed: boolean;
+  role: 'ADMIN' | 'VIEWER';
+  org_id: string;
 }
 
 interface AuthContextType {
@@ -42,18 +60,17 @@ export const useAuth = () => {
   return context;
 };
 
-// Superadmin email – has access to all tenants, sandbox, and superadmin tools
-// This is hardcoded and not editable through any UI. Firebase is the only place this could ever change.
+// Superadmin email - has access to all tenants, sandbox, and superadmin tools.
 const SUPERADMIN_EMAIL = 'noam.littvock@gmail.com';
 
 // ─── E2E Auth Bypass ─────────────────────────────────────────────────────────
-// When VITE_E2E_AUTH_BYPASS=true (set via .env.e2e), skip all Firebase auth
+// When VITE_E2E_AUTH_BYPASS=true (set via .env.e2e), skip external auth
 // and inject a mock SuperAdmin user so Playwright tests can run without OAuth.
 const E2EAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathParts = window.location.pathname.split('/').filter(Boolean);
   const mockOrgId = pathParts[0] || 'test-org';
   const mockValue: AuthContextType = {
-    currentUser: { id: 'e2e-uid', name: 'E2E Admin', email: 'e2e@cadenza.test', role: 'SUPERADMIN', orgId: mockOrgId },
+    currentUser: { id: 'e2e-uid', uid: 'e2e-uid', name: 'E2E Admin', email: 'e2e@cadenza.test', role: 'SUPERADMIN', orgId: mockOrgId },
     isAdmin: true,
     isSuperAdmin: true,
     orgId: mockOrgId,
@@ -87,254 +104,269 @@ const RealAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children })
   const pathParts = window.location.pathname.split('/').filter(Boolean);
   const orgSlug = pathParts[0] || null;
 
+  const fallbackOrgName = (slug: string) => slug.charAt(0).toUpperCase() + slug.slice(1);
+  const toOrgInfo = (org: OrgRow | null | undefined, slug: string): OrgInfo => ({
+    id: slug,
+    name: org?.name || fallbackOrgName(slug),
+    logoUrl: org?.logo_url || undefined,
+  });
+  const displayNameFor = (user: SupabaseUser, fallbackEmail: string) =>
+    (user.user_metadata?.full_name as string | undefined) ||
+    (user.user_metadata?.name as string | undefined) ||
+    fallbackEmail;
+  const avatarFor = (user: SupabaseUser) =>
+    (user.user_metadata?.avatar_url as string | undefined) ||
+    (user.user_metadata?.picture as string | undefined) ||
+    undefined;
+
+  const fetchOrg = async (slug: string): Promise<OrgRow | null> => {
+    const sb = getSupabase();
+    if (!sb) return null;
+    const { data, error } = await sb.from('organizations').select('id,name,logo_url').eq('id', slug).maybeSingle();
+    if (error) console.error('[AuthContext] organization lookup failed', error);
+    return (data as OrgRow | null) ?? null;
+  };
+
+  const upsertOrg = async (slug: string, name = fallbackOrgName(slug)) => {
+    const sb = getSupabase();
+    if (!sb) return;
+    const { error } = await sb.from('organizations').upsert({
+      id: slug,
+      name,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' });
+    if (error) console.error('[AuthContext] organization upsert failed', error);
+  };
+
+  const fetchAccessById = async (id: string): Promise<AccessRecordRow | null> => {
+    const sb = getSupabase();
+    if (!sb) return null;
+    const { data, error } = await sb.from('access_control').select('*').eq('id', id).maybeSingle();
+    if (error) console.error('[AuthContext] access lookup failed', error);
+    return (data as AccessRecordRow | null) ?? null;
+  };
+
+  const fetchAccessForEmail = async (email: string): Promise<AccessRecordRow[]> => {
+    const sb = getSupabase();
+    if (!sb) return [];
+    const { data, error } = await sb.from('access_control').select('*').eq('email', email).eq('allowed', true);
+    if (error) {
+      console.error('[AuthContext] access list failed', error);
+      return [];
+    }
+    return (data ?? []) as AccessRecordRow[];
+  };
+
+  const upsertAccess = async (email: string, slug: string, role: 'ADMIN' | 'VIEWER') => {
+    const sb = getSupabase();
+    if (!sb) return;
+    const { error } = await sb.from('access_control').upsert({
+      id: `${email}_${slug}`,
+      email,
+      allowed: true,
+      role,
+      org_id: slug,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' });
+    if (error) console.error('[AuthContext] access upsert failed', error);
+  };
+
+  const upsertOrgMember = async (
+    slug: string,
+    userId: string,
+    role: 'SUPER_ADMIN' | 'ADMIN' | 'STAFF' | 'VIEWER',
+    staffMemberId = '',
+  ) => {
+    const sb = getSupabase();
+    if (!sb) return;
+    const { error } = await sb.from('org_members').upsert({
+      user_id: userId,
+      org_id: slug,
+      staff_member_id: staffMemberId,
+      role,
+    }, { onConflict: 'user_id,org_id' });
+    if (error) console.error('[AuthContext] org member upsert failed', error);
+  };
+
+  const provisionStaff = async (slug: string, user: SupabaseUser, email: string, role: UserRole): Promise<string> => {
+    const now = nowTimestamp();
+    const staffRole: StaffRole = role === 'VIEWER' ? 'STAFF' : 'ADMIN';
+    const staff = await fetchCollectionItems<StaffMemberV2>(slug, 'staffMembers');
+    const existing = staff.find(s => s.email.toLowerCase() === email);
+    const staffMemberId = existing?.id ?? generateId();
+    const next: StaffMemberV2 = {
+      ...(existing ?? {
+        id: staffMemberId,
+        orgId: slug,
+        uid: user.id,
+        role: staffRole,
+        fullName: displayNameFor(user, email),
+        email,
+        phone: null,
+        startDate: null,
+        isArchived: false,
+        createdAt: now,
+        isFirstAdmin: role === 'ADMIN',
+        onboardingDismissed: false,
+        firstUseFlags: { activityHub: false, staffModule: false, eventCreation: false, enrollment: false },
+        documents: [],
+      }),
+      uid: user.id,
+      role: staffRole,
+      updatedAt: now,
+    };
+    await upsertCollectionItems(slug, 'staffMembers', [next]);
+    await upsertOrgMember(slug, user.id, staffRole, staffMemberId);
+
+    const sb = getSupabase();
+    if (sb) {
+      const { error } = await sb.from('user_profiles').upsert({
+        id: `${user.id}_${slug}`,
+        uid: user.id,
+        org_id: slug,
+        staff_member_id: staffMemberId,
+        role: staffRole,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+      if (error) console.error('[AuthContext] user profile upsert failed', error);
+    }
+    return staffMemberId;
+  };
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser?.email) {
-        const normalizedEmail = firebaseUser.email.toLowerCase().trim();
-        const SUPERADMIN_EMAIL_NORMALIZED = SUPERADMIN_EMAIL.toLowerCase().trim();
-        const isSuperAdminUser = normalizedEmail === SUPERADMIN_EMAIL_NORMALIZED;
+    let cancelled = false;
+    const sb = getSupabase();
+    if (!sb) {
+      setErrorMsg('Supabase is not configured for this deployment.');
+      setLoading(false);
+      return;
+    }
 
-        try {
-          if (orgSlug) {
-            // SCENARIO A: User is trying to access a specific organization URL
-            // First check the new composite ID format (email_orgSlug)
-            const compositeId = `${normalizedEmail}_${orgSlug}`;
-            const compositeDocRef = doc(db, 'access_control', compositeId);
-            const compositeDoc = await getDoc(compositeDocRef);
+    const applySession = async (session: Session | null) => {
+      const supaUser = session?.user ?? null;
+      if (session?.provider_token) {
+        setGoogleAccessToken(session.provider_token);
+        sessionStorage.setItem('gcal_token', session.provider_token);
+      }
 
-            // Backup check for legacy documents (where ID is exactly the email)
-            const legacyDocRef = doc(db, 'access_control', normalizedEmail);
-            const legacyDoc = await getDoc(legacyDocRef);
+      if (!supaUser?.email) {
+        setCurrentUser(null);
+        setAvailableOrgs(null);
+        setLoading(false);
+        return;
+      }
 
-            let validDoc = null;
-            if (compositeDoc.exists() && compositeDoc.data()?.allowed === true && compositeDoc.data()?.orgId === orgSlug) {
-              validDoc = compositeDoc;
-            } else if (legacyDoc.exists() && legacyDoc.data()?.allowed === true && legacyDoc.data()?.orgId === orgSlug) {
-              validDoc = legacyDoc;
+      const normalizedEmail = supaUser.email.toLowerCase().trim();
+      const isSuperAdminUser = normalizedEmail === SUPERADMIN_EMAIL.toLowerCase().trim();
+      const baseUser = {
+        id: supaUser.id,
+        uid: supaUser.id,
+        name: displayNameFor(supaUser, normalizedEmail),
+        email: supaUser.email,
+        avatar: avatarFor(supaUser),
+      };
+
+      try {
+        if (orgSlug) {
+          const composite = await fetchAccessById(`${normalizedEmail}_${orgSlug}`);
+          const legacy = await fetchAccessById(normalizedEmail);
+          const valid = [composite, legacy].find(r => r?.allowed && r.org_id === orgSlug) ?? null;
+
+          if (valid || isSuperAdminUser) {
+            const resolvedRole: UserRole = isSuperAdminUser ? 'SUPERADMIN' : (valid?.role ?? 'VIEWER');
+            if (isSuperAdminUser) {
+              await upsertOrgMember(orgSlug, supaUser.id, 'SUPER_ADMIN');
+              await upsertOrg(orgSlug);
+              await upsertAccess(normalizedEmail, orgSlug, 'ADMIN');
+            } else {
+              await provisionStaff(orgSlug, supaUser, normalizedEmail, resolvedRole);
             }
 
-            console.log("Auth Check:", { email: normalizedEmail, orgSlug, docExists: !!validDoc });
-
-            if (validDoc) {
-              // If this is the superadmin, always assign SUPERADMIN role regardless of what's in the doc
-              const resolvedRole: UserRole = isSuperAdminUser ? 'SUPERADMIN' : (validDoc.data()?.role || 'VIEWER');
-
-              // Bridge: provision userProfiles/{uid} from access_control so v2
-              // collection reads unlock immediately, then claim/create the staff
-              // record. Order matters — staff queries are denied until userProfile
-              // exists. Skip for superadmin — isSuperAdmin() rules short-circuit.
-              if (!isSuperAdminUser) {
-                const nowIso = new Date().toISOString();
-
-                // Step 1: write userProfiles/{firebaseUser.uid} from access_control role.
-                // Rules constrain role/orgId to match access_control, so we can't elevate.
-                try {
-                  await setDoc(doc(db, 'userProfiles', firebaseUser.uid), {
-                    uid: firebaseUser.uid,
-                    orgId: orgSlug,
-                    role: resolvedRole,
-                    staffMemberId: '',
-                  }, { merge: true });
-                } catch (profileErr) {
-                  console.error('[AuthContext] userProfile self-write failed', profileErr);
-                }
-
-                // Step 2: claim or create the staff record. Now that userProfiles
-                // exists, isAuthenticatedForOrgV2() passes and these reads/writes work.
-                try {
-                  const staffSnap = await getDocs(query(
-                    collection(db, 'staffMembers'),
-                    where('orgId', '==', orgSlug),
-                    where('email', '==', normalizedEmail),
-                    limit(1)
-                  ));
-                  if (!staffSnap.empty) {
-                    const staffDoc = staffSnap.docs[0];
-                    if (staffDoc.data().uid !== firebaseUser.uid) {
-                      await updateDoc(staffDoc.ref, { uid: firebaseUser.uid, updatedAt: nowIso });
-                    }
-                  } else {
-                    await addDoc(collection(db, 'staffMembers'), {
-                      orgId: orgSlug,
-                      uid: firebaseUser.uid,
-                      email: normalizedEmail,
-                      fullName: firebaseUser.displayName || normalizedEmail,
-                      role: resolvedRole === 'VIEWER' ? 'STAFF' : resolvedRole,
-                      phone: null,
-                      startDate: null,
-                      isArchived: false,
-                      createdAt: nowIso,
-                      updatedAt: nowIso,
-                      isFirstAdmin: resolvedRole === 'ADMIN',
-                      onboardingDismissed: false,
-                      firstUseFlags: { activityHub: false, staffModule: false, eventCreation: false, enrollment: false },
-                      documents: [],
-                    });
-                  }
-                } catch (bridgeErr) {
-                  console.error('[AuthContext] staff bridge failed', bridgeErr);
-                }
-              }
-
-              setCurrentUser({
-                id: firebaseUser.uid,
-                name: firebaseUser.displayName || 'User',
-                email: firebaseUser.email,
-                role: resolvedRole,
-                avatar: firebaseUser.photoURL || undefined,
-                orgId: orgSlug
-              });
+            const org = await fetchOrg(orgSlug);
+            if (!cancelled) {
+              setCurrentUser({ ...baseUser, role: resolvedRole, orgId: orgSlug });
+              setAvailableOrgs([toOrgInfo(org, orgSlug)]);
               setErrorMsg(null);
-            } else if (isSuperAdminUser) {
-              // Superadmin Automatic Bypass & Provisioning
-              await setDoc(compositeDocRef, {
-                email: normalizedEmail,
-                allowed: true,
-                role: 'ADMIN',
-                orgId: orgSlug,
-                createdAt: new Date().toISOString()
-              }, { merge: true });
-
-              setCurrentUser({
-                id: firebaseUser.uid,
-                name: firebaseUser.displayName || 'Super Administrator',
-                email: firebaseUser.email,
-                role: 'SUPERADMIN',
-                avatar: firebaseUser.photoURL || undefined,
-                orgId: orgSlug
-              });
-
-              await setDoc(doc(db, 'organizations', orgSlug), {
-                name: orgSlug.charAt(0).toUpperCase() + orgSlug.slice(1),
-                createdAt: new Date().toISOString()
-              }, { merge: true });
-
-              setErrorMsg(null);
-            } else {
-              await signOut(auth);
+            }
+          } else {
+            await sb.auth.signOut();
+            if (!cancelled) {
               setCurrentUser(null);
               setErrorMsg(`Your account does not have access to the '${orgSlug}' workspace.`);
             }
+          }
+        } else {
+          let orgSlugs: string[] = [];
+          if (isSuperAdminUser) {
+            const { data, error } = await sb.from('organizations').select('id');
+            if (error) console.error('[AuthContext] organization list failed', error);
+            orgSlugs = (data ?? []).map((r: { id: string }) => r.id);
+            if (!orgSlugs.includes('sandbox')) orgSlugs.push('sandbox');
+          } else {
+            const records = await fetchAccessForEmail(normalizedEmail);
+            orgSlugs = records.map(r => r.org_id);
+          }
 
-            if (validDoc || isSuperAdminUser) {
-              try {
-                const oDoc = await getDoc(doc(db, 'organizations', orgSlug));
-                const orgName = oDoc.exists() ? oDoc.data().name : orgSlug.charAt(0).toUpperCase() + orgSlug.slice(1);
-                const orgLogo = oDoc.exists() ? oDoc.data().logoUrl : undefined;
-                setAvailableOrgs([{ id: orgSlug, name: orgName, logoUrl: orgLogo }]);
-              } catch (e) {
-                console.error("Failed to load organization metadata", e);
-                setAvailableOrgs([{ id: orgSlug, name: orgSlug.charAt(0).toUpperCase() + orgSlug.slice(1) }]);
-              }
+          orgSlugs = [...new Set(orgSlugs)];
+          if (orgSlugs.length === 0 && !isSuperAdminUser) {
+            if (!cancelled) {
+              setErrorMsg('No workspaces found for your account.');
+              setAvailableOrgs([]);
             }
           } else {
-            // SCENARIO B: User is at the root ("Gateway")
-            let myOrgsRaw: string[] = [];
-
-            if (isSuperAdminUser) {
-              // Superadmin: Get ALL organizations + sandbox
-              const allOrgsSnap = await getDocs(collection(db, 'organizations'));
-              myOrgsRaw = allOrgsSnap.docs.map(d => d.id);
-
-              // Ensure sandbox is always available for superadmin
-              if (!myOrgsRaw.includes('sandbox')) myOrgsRaw.push('sandbox');
-            } else {
-              // Regular users: only see orgs they have explicit access to
-              const q = query(
-                collection(db, 'access_control'),
-                where('email', '==', normalizedEmail),
-                where('allowed', '==', true)
-              );
-              const querySnapshot = await getDocs(q);
-              myOrgsRaw = querySnapshot.docs.map(d => d.data().orgId);
-
-              // Also check for a legacy record (where ID is just the email)
-              const legacyDoc = await getDoc(doc(db, 'access_control', normalizedEmail));
-              if (legacyDoc.exists() && legacyDoc.data().allowed && legacyDoc.data().orgId) {
-                myOrgsRaw.push(legacyDoc.data().orgId);
-              }
-            }
-
-            // Deduplicate slugs
-            myOrgsRaw = [...new Set(myOrgsRaw)];
-
-            if (myOrgsRaw.length === 0 && !isSuperAdminUser) {
-              setErrorMsg("No workspaces found for your account.");
-              setAvailableOrgs([]);
-            } else {
-              // Fetch organization names
-              const orgsWithNames: OrgInfo[] = [];
-              for (const slug of myOrgsRaw) {
-                const oDoc = await getDoc(doc(db, 'organizations', slug));
-                orgsWithNames.push({
-                  id: slug,
-                  name: oDoc.exists() ? oDoc.data().name : slug,
-                  logoUrl: oDoc.exists() ? oDoc.data().logoUrl : undefined
-                });
-              }
-
+            const orgsWithNames = await Promise.all(orgSlugs.map(async slug => toOrgInfo(await fetchOrg(slug), slug)));
+            if (!cancelled) {
               setAvailableOrgs(orgsWithNames);
-
-              // Set a "root" user profile for the selector UI
-              setCurrentUser({
-                id: firebaseUser.uid,
-                name: firebaseUser.displayName || 'Authorized User',
-                email: firebaseUser.email,
-                role: isSuperAdminUser ? 'SUPERADMIN' : 'VIEWER',
-                avatar: firebaseUser.photoURL || undefined,
-                orgId: '' // No org active yet
-              });
-
-              // Superadmin: always ensure sandbox environment is in the list
-              if (isSuperAdminUser) {
-                setAvailableOrgs(prev => {
-                  const existing = prev || [];
-                  if (!existing.find(o => o.id === 'sandbox')) {
-                    return [...existing, { id: 'sandbox', name: 'Sandbox (Dev)', logoUrl: undefined }];
-                  }
-                  return existing;
-                });
-              }
+              setCurrentUser({ ...baseUser, role: isSuperAdminUser ? 'SUPERADMIN' : 'VIEWER', orgId: '' });
+              setErrorMsg(null);
             }
           }
-        } catch (error) {
-          console.error("Auth Error:", error);
-          setErrorMsg("Error verifying access permissions.");
         }
-      } else {
-        setCurrentUser(null);
-        setAvailableOrgs(null);
+      } catch (error) {
+        console.error('Auth Error:', error);
+        if (!cancelled) setErrorMsg('Error verifying access permissions.');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setLoading(false);
+    };
+
+    void sb.auth.getSession().then(({ data }) => applySession(data.session));
+    const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
+      void applySession(session);
     });
 
-    return () => unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [orgSlug]);
 
   const login = async () => {
     setErrorMsg(null);
     setLoading(true);
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-
-      // Capture the Google Access Token for Calendar operations
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      if (credential && credential.accessToken) {
-        setGoogleAccessToken(credential.accessToken);
-        sessionStorage.setItem('gcal_token', credential.accessToken);
-      }
-
-    } catch (err: any) {
-      console.error(err);
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setErrorMsg("Failed to sign in. Please try again.");
-      }
+    const sb = getSupabase();
+    if (!sb) {
+      setErrorMsg('Supabase is not configured for this deployment.');
+      setLoading(false);
+      return;
+    }
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.href,
+        scopes: 'openid email profile https://www.googleapis.com/auth/calendar.events',
+      },
+    });
+    if (error) {
+      console.error(error);
+      setErrorMsg('Failed to sign in. Please try again.');
       setLoading(false);
     }
   };
 
   const logout = async () => {
-    await signOut(auth);
+    const sb = getSupabase();
+    await sb?.auth.signOut();
     setGoogleAccessToken(null);
     sessionStorage.removeItem('gcal_token');
     if (orgSlug) {

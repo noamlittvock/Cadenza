@@ -56,19 +56,21 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name) return;
+    if (!formData.name?.trim()) return;
 
     if (editingId) {
       setRooms(prev => prev.map(r => r.id === editingId ? { ...r, ...formData } as Room : r));
     } else {
       setRooms(prev => [...prev, {
         id: generateId(),
-        name: formData.name!,
+        name: formData.name.trim(),
         itinerary: formData.itinerary || ''
       }]);
     }
     setIsModalOpen(false);
   };
+
+  const isRoomFormValid = Boolean(formData.name?.trim());
 
   const filteredRooms = useMemo(() => {
     const base = rooms.filter(r => {
@@ -116,6 +118,12 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
 
   return (
     <div className={`${embedded ? 'h-full overflow-auto' : ''} p-8 max-w-6xl mx-auto`}>
+      {embedded && (
+        <div className="mb-4">
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white">{t('room.title')}</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{t('room.subtitle')}</p>
+        </div>
+      )}
       {!embedded && (
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-3">
@@ -381,6 +389,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
               value={formData.name || ''}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
               placeholder={t('room.name_placeholder')}
+              aria-label={t('label.room_name')}
             />
           </div>
           <div>
@@ -390,6 +399,7 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
               value={formData.itinerary || ''}
               onChange={e => setFormData({ ...formData, itinerary: e.target.value })}
               placeholder={t('room.details_placeholder')}
+              aria-label={t('room.itinerary_desc')}
             />
           </div>
           <div className="flex justify-end space-x-3 rtl:space-x-reverse mt-6">
@@ -402,7 +412,8 @@ export const RoomManager: React.FC<Props> = ({ rooms, setRooms, settings, onMobi
             </button>
             <button
               type="submit"
-              className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg"
+              disabled={!isRoomFormValid}
+              className="px-4 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {t('btn.save')}
             </button>

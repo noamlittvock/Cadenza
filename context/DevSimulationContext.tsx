@@ -127,7 +127,7 @@ export const useEffectiveOnboarding = (): UseOnboardingResult => {
     isFirstAdmin: simulatedRole.isFirstAdmin,
     setupGateCleared: simulatedRole.setupGateCleared,
     onboardingDismissed: simulatedRole.onboardingDismissed,
-    // No-ops to prevent Firestore writes during simulation
+    // No-ops to prevent remote writes during simulation
     dismissOnboarding: noopAsync,
     updateFirstUseFlag: noopAsync as (key: keyof FirstUseFlags) => Promise<void>,
     syncOrgMilestones: noopAsync as (counts: { activities: number; teachers: number; students: number; events: number }) => Promise<void>,

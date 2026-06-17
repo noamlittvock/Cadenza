@@ -2,18 +2,18 @@
  * CsvImportModal — Phase 12 three-step CSV import wizard.
  * Step 1: Upload & column mapping
  * Step 2: Row review (duplicates, auto-create preview, per-row toggles)
- * Step 3: Confirm & results (writes ImportSession to Firestore)
+ * Step 3: Confirm & results (writes ImportSession to Supabase)
  */
 
-import React, { useState, useRef } from 'react';
-import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../utils/firebase';
+import React, { useState, useRef, useId } from 'react';
 import { LOCAL_MODE } from '../utils/localStore';
+import { addCollectionItem, patchCollectionItem } from '../utils/supabaseSync';
+import { nowTimestamp } from '../utils/appTimestamp';
 import { useAuth } from '../context/AuthContext';
 import { AppSettings } from '../types';
-import type { ImportEntityType, ImportRowResult, DuplicateAction } from '../types/v2';
+import type { ImportEntityType, ImportRowResult, DuplicateAction, ImportSession } from '../types/v2';
 import { V2_COLLECTIONS } from '../types/v2';
-import { TRANSLATIONS } from '../constants';
+import { generateId, TRANSLATIONS } from '../constants';
 import {
   Upload, ChevronRight, Check, X, AlertTriangle, Info,
   SkipForward, RefreshCw, Loader2,
@@ -59,6 +59,7 @@ export const CsvImportModal: React.FC<Props> = ({
 }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
   const { currentUser, orgId } = useAuth();
+  const titleId = useId();
 
   // Step state
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -193,13 +194,15 @@ export const CsvImportModal: React.FC<Props> = ({
     const errors = errorCount;
 
     try {
-      // LOCAL_MODE skips the Firestore audit trail (importSessions) because
-      // addDoc/updateDoc hang forever without a Firestore project. Rows still
-      // flow through onImportComplete and persist via useFirestoreSync.
-      const sessionRef = LOCAL_MODE ? null : await addDoc(
-        collection(db, V2_COLLECTIONS.importSessions),
-        {
-          orgId,
+      // LOCAL_MODE skips the persisted audit trail (importSessions). Rows still
+      // flow through onImportComplete and persist via useSupabaseSync.
+      const now = nowTimestamp();
+      const sessionId = generateId();
+      const canPersistSession = !LOCAL_MODE && Boolean(orgId);
+      if (canPersistSession) {
+        await addCollectionItem<ImportSession>(orgId!, V2_COLLECTIONS.importSessions, {
+          id: sessionId,
+          orgId: orgId!,
           createdBy: currentUser?.uid || '',
           entityType,
           status: 'IMPORTING',
@@ -208,20 +211,20 @@ export const CsvImportModal: React.FC<Props> = ({
           importedRows: 0,
           skippedRows: 0,
           rowResults: [],
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        },
-      );
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
 
       onImportComplete(rowsToImport.map(r => r.mapped));
 
-      if (sessionRef) {
-        await updateDoc(doc(db, V2_COLLECTIONS.importSessions, sessionRef.id), {
+      if (canPersistSession) {
+        await patchCollectionItem<ImportSession>(orgId!, V2_COLLECTIONS.importSessions, sessionId, {
           status: errors > 0 ? 'COMPLETED_WITH_ERRORS' : 'COMPLETED',
           importedRows: imported,
           skippedRows: skipped,
           rowResults,
-          updatedAt: serverTimestamp(),
+          updatedAt: nowTimestamp(),
         });
       }
 
@@ -238,6 +241,9 @@ export const CsvImportModal: React.FC<Props> = ({
   // ─── Render ──────────────────────────────────────────────────────────────
 
   const stepLabel = ['', 'csv.step_upload', 'csv.step_review', 'csv.step_confirm'];
+  const formatCount = (key: string, count: number) =>
+    t(key).replace('{{n}}', String(count)).replace('{n}', String(count));
+  const entityLabel = t(`csv.entity.${entityType.toLowerCase()}`);
 
   const statusBadge = (status: ReviewRow['status'], enabled: boolean) => {
     if (!enabled) return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400">SKIP</span>;
@@ -252,13 +258,13 @@ export const CsvImportModal: React.FC<Props> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col border border-slate-200 dark:border-slate-700">
+      <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col border border-slate-200 dark:border-slate-700">
 
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700 shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-              {t('csv.import_title')} — {entityType.replace('_', ' ')}
+            <h2 id={titleId} className="text-lg font-bold text-slate-900 dark:text-white">
+              {t('csv.import_title')} — {entityLabel}
             </h2>
             <div className="flex items-center gap-3 mt-1">
               {[1, 2, 3].map(s => (
@@ -272,7 +278,7 @@ export const CsvImportModal: React.FC<Props> = ({
               ))}
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+          <button onClick={onClose} aria-label={t('common.close') || 'Close'} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
             <X size={20} />
           </button>
         </div>
@@ -292,7 +298,7 @@ export const CsvImportModal: React.FC<Props> = ({
                   {fileName || t('csv.drop_file')}
                 </span>
                 <span className="text-xs text-slate-400 mt-1">.csv files only</span>
-                <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleFile} />
+                <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleFile} aria-label={t('csv.import_title')} />
               </label>
 
               {uploadError && (
@@ -312,6 +318,7 @@ export const CsvImportModal: React.FC<Props> = ({
                         <select
                           value={columnMapping[col] || ''}
                           onChange={e => setColumnMapping(prev => ({ ...prev, [col]: e.target.value }))}
+                          aria-label={`${t('csv.column_mapping')} ${col}`}
                           className="flex-1 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
                         >
                           <option value="">{t('csv.not_mapped')}</option>
@@ -354,7 +361,7 @@ export const CsvImportModal: React.FC<Props> = ({
                 <table className="w-full text-xs">
                   <thead className="bg-slate-50 dark:bg-slate-800">
                     <tr>
-                      <th className="p-3 w-8 text-start"><input type="checkbox" checked={reviewRows.every(r => r.enabled || r.status === 'ERROR')} onChange={e => setReviewRows(prev => prev.map(r => r.status === 'ERROR' ? r : { ...r, enabled: e.target.checked }))} /></th>
+                      <th className="p-3 w-8 text-start"><input type="checkbox" aria-label={t('activities.select_all') || 'Select all'} checked={reviewRows.every(r => r.enabled || r.status === 'ERROR')} onChange={e => setReviewRows(prev => prev.map(r => r.status === 'ERROR' ? r : { ...r, enabled: e.target.checked }))} /></th>
                       <th className="p-3 text-start text-slate-500 font-medium">Row</th>
                       <th className="p-3 text-start text-slate-500 font-medium">Status</th>
                       <th className="p-3 text-start text-slate-500 font-medium">Data</th>
@@ -370,6 +377,7 @@ export const CsvImportModal: React.FC<Props> = ({
                             checked={row.enabled}
                             disabled={row.status === 'ERROR'}
                             onChange={() => toggleRow(row.index)}
+                            aria-label={`Row ${row.index + 1}`}
                           />
                         </td>
                         <td className="p-3 text-slate-500">{row.index + 1}</td>
@@ -388,6 +396,7 @@ export const CsvImportModal: React.FC<Props> = ({
                             <select
                               value={row.duplicateAction}
                               onChange={e => setDuplicateAction(row.index, e.target.value as DuplicateAction)}
+                              aria-label={`Duplicate action for row ${row.index + 1}`}
                               className="border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 rounded px-2 py-1 text-[10px] outline-none"
                             >
                               <option value="SKIP">Skip</option>
@@ -478,7 +487,7 @@ export const CsvImportModal: React.FC<Props> = ({
               disabled={validCount === 0}
               className="px-5 py-2 btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
             >
-              {t('csv.import_n').replace('{n}', String(validCount))} <Check size={16} />
+              {formatCount('csv.import_n', validCount)} <Check size={16} />
             </button>
           )}
 

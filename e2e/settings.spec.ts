@@ -37,9 +37,8 @@ test.describe('Settings — language switch', () => {
     await expect(saveBtn).toBeVisible({ timeout: 5_000 });
     await saveBtn.click();
 
-    // After save, the Hebrew nav label for Settings should appear somewhere
-    // The nav item for Settings would now be in Hebrew: 'הגדרות'
-    await expect(page.getByText(/הגדרות/)).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+    await expect(page.getByRole('heading', { name: 'הגדרות', exact: true })).toBeVisible({ timeout: 5_000 });
   });
 
   test('#27 cancel discards the language change', async ({ page }) => {
