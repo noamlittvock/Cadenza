@@ -69,7 +69,13 @@ Non-negotiable rules:
 - D-16 is ACCEPTED for P0: guardian/contact data stays in
   `families.guardians[]` jsonb. Do not normalize guardian/contact identity or
   reopen that decision.
-- D-17-D-27 remain parked. Do not build packet sections marked `BLOCKED ON D-xx`
+- D-17 is ACCEPTED: lesson attendance uses one `lesson_records` row per
+  `(eventId, studentId)`; group lessons are multiple rows sharing one `eventId`;
+  existing-event preparation/materialization must be explicit teacher/admin setup
+  or preparation, not silent event-open materialization; prepared rows start
+  `UNMARKED`/`PENDING` and must not silently mark attendance, completion, or
+  lesson outcomes.
+- D-18-D-27 remain parked. Do not build packet sections marked `BLOCKED ON D-xx`
   until the matching decision is answered and the packet/decision log are updated.
 - Route/palette rule: a command-palette destination must route to a real surface
   or alias onto one. Public token routes do not get sidebar or command-palette
