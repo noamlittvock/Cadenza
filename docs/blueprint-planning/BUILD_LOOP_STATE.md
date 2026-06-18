@@ -35,6 +35,25 @@ The target is eventually `implemented`, but do not mark this build complete unti
 D-17 is answered and recorded, all non-blocked workflow pieces are shipped, live
 RLS passes against a real Supabase project, and the status-policy bar holds.
 
+## Current Handoff Snapshot - 2026-06-18
+
+- Branch `blueprint-supabase` was committed and pushed at
+  `37ad4df` (`Implement registration intake and attendance workflows`) after the
+  D-17-safe attendance work and public-registration intake work.
+- Worktree was clean after that push; generated `.build-loop/` logs are now
+  ignored by `.gitignore`.
+- The next queue unit is `D-17 answer intake`. Do not run the build loop again
+  without a real Noam answer, because it has already rechecked the same blocker
+  three times.
+- If Noam answers D-17, the next single iteration should only update
+  `decision-log.md` and `packets/lesson-details-attendance.md` with the accepted
+  group row/status-container and materialization model. Materialization/backfill
+  implementation is the following unit.
+- Existing-row attendance read/mark/worklist/history, Hebrew/RTL/mobile,
+  Playwright, full Vitest, typecheck, and live RLS gates have already passed for
+  the D-17-safe workflow. Re-run the relevant gates after any D-17 materialization
+  code changes.
+
 ## Locked Build Decisions
 
 - D-05: Event canonical write-model is `EventV2`; legacy `CalendarEvent` remains
@@ -278,24 +297,26 @@ outcomes must stay unconfirmed until a teacher/admin explicitly confirms them.
 ## Completion Checklist (all required before BUILD COMPLETE)
 
 - [ ] D-17 is answered, recorded in `decision-log.md`, and reflected in the packet.
-- [ ] Attendance defaults reduce work without inventing facts: no silent
+- [x] Attendance defaults reduce work without inventing facts: no silent
   present/completed/outcome marking occurs without teacher/admin confirmation.
-- [ ] Attendance remains a Calendar contextual panel; no new sidebar or
+- [x] Attendance remains a Calendar contextual panel; no new sidebar or
   command-palette destination was added.
-- [ ] Event conversion uses `utils/canonicalAdapters.ts`; no second inline
+- [x] Event conversion uses `utils/canonicalAdapters.ts`; no second inline
   `CalendarEvent`/`EventV2` conversion was added.
-- [ ] Teacher can mark only own lesson rows; admin can override; other-teacher,
+- [x] Teacher can mark only own lesson rows; admin can override; other-teacher,
   cross-org, finance/plain-member, and anon write paths are denied as applicable.
-- [ ] Event -> mark attendance -> student lesson history and unmarked counter
+- [x] Event -> mark attendance -> student lesson history and unmarked counter
   workflow is implemented with retained status semantics.
-- [ ] Hebrew/RTL event panel/worklist states are covered.
-- [ ] Teacher attendance marking works at 390x844 mobile.
+- [x] Hebrew/RTL event panel/worklist states are covered.
+- [x] Teacher attendance marking works at 390x844 mobile.
 - [x] RLS-LIVE passed against a real project for the attendance workflow.
-- [ ] Playwright attendance smoke passed.
-- [ ] `npm run typecheck -- --diagnostics` passes.
-- [ ] `npx vitest run --reporter=dot` passes.
-- [ ] No D-18-D-27 blocked section was implemented without a decision update.
-- [ ] No git staging, commit, branch, or push was performed.
+- [x] Playwright attendance smoke passed.
+- [x] `npm run typecheck -- --diagnostics` passes.
+- [x] `npx vitest run --reporter=dot` passes.
+- [x] No D-18-D-27 blocked section was implemented without a decision update.
+- [x] No unauthorized git staging, commit, branch, or push was performed. The
+  later commit/push at `37ad4df` was explicitly requested by Noam outside the
+  autonomous build-loop iteration.
 
 ## Next Unit
 

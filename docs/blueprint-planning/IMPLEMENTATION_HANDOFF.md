@@ -24,7 +24,12 @@ guardian identity until a later explicit decision.
 **Phase C update — 2026-06-18:** `student-family-files` and
 `public-registration-intake` are implemented. The next build-loop target is
 `lesson-details-attendance`; D-17 is still unanswered and blocks group lesson
-materialization/backfill and final implemented promotion.
+materialization/backfill and final implemented promotion. The D-17-safe
+attendance workflow for existing `lesson_records` rows is complete and pushed at
+`37ad4df`: Calendar event detail panel, teacher/admin existing-row marking,
+unmarked worklist, student lesson history, Hebrew/RTL/mobile checks, Playwright
+smoke, full Vitest/typecheck, and live RLS all passed. The next agent should not
+continue without Noam's D-17 answer.
 
 ## Orientation (read in this order)
 

@@ -1,5 +1,16 @@
 # Cadenza Blueprint — Next-Session Handoff
 
+> **Current update — 2026-06-18:** This file is historical for the Phase B
+> handoff. For the active loop, read
+> [`BUILD_LOOP_STATE.md`](BUILD_LOOP_STATE.md) and
+> [`NEXT_AGENT_LOOP.md`](NEXT_AGENT_LOOP.md) first. Branch `blueprint-supabase`
+> was committed and pushed at `37ad4df` (`Implement registration intake and
+> attendance workflows`). The active target is `lesson-details-attendance`, and
+> the next queue unit is blocked on Noam's D-17 answer: one lesson row per
+> event/student vs event-level attendance container, plus lazy vs batch/admin vs
+> explicit setup materialization. Do not run another loop iteration without that
+> answer.
+
 Date: 2026-06-17 · Branch: `blueprint-supabase` · Repo:
 `/Users/noamlitt/Documents/Cadenza Forte`
 
