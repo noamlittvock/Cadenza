@@ -3,8 +3,8 @@
 Date: 2026-06-17  ·  Branch: `blueprint-supabase`  ·  Repo: `/Users/noamlitt/Documents/Cadenza Forte`
 
 You are continuing a planned implementation. Pass 0 (planning infra) and the five
-P0 packet specs are done. **D-01–D-16 plus D-STATUS/D-STATUS-2 are accepted or
-implemented working decisions** (locked below). D-17–D-27 are parked Noam questions
+P0 packet specs are done. **D-01–D-17 plus D-STATUS/D-STATUS-2 are accepted or
+implemented working decisions** (locked below). D-18–D-27 are parked Noam questions
 surfaced by packet conversion/migration planning; do not choose their outcomes in
 implementation. Build against the locked decisions and resolve any parked question
 before building the packet section marked `BLOCKED ON D-xx`.
@@ -16,20 +16,22 @@ the adapter path, so D-04/D-05 are resolved as **adapter, not rename**:
 `utils/canonicalAdapters.ts` is the single legacy↔V2 conversion seam (pure,
 bidirectional, tested in `canonicalAdapters.test.ts`). No wide rename, no UI rewire,
 no data migration (persistence stays HYBRID jsonb; D-15 holds). The cross-cutting
-adapter/RLS foundations are unblocked; packet-local D-17–D-27 questions still gate
+adapter/RLS foundations are unblocked; packet-local D-18–D-27 questions still gate
 the affected packet sections noted below. **D-16 is now accepted for P0:** keep
 guardian/contact data in `families.guardians[]` jsonb and defer normalized
 guardian identity until a later explicit decision.
 
 **Phase C update — 2026-06-18:** `student-family-files` and
-`public-registration-intake` are implemented. The next build-loop target is
-`lesson-details-attendance`; D-17 is still unanswered and blocks group lesson
-materialization/backfill and final implemented promotion. The D-17-safe
-attendance workflow for existing `lesson_records` rows is complete and pushed at
-`37ad4df`: Calendar event detail panel, teacher/admin existing-row marking,
-unmarked worklist, student lesson history, Hebrew/RTL/mobile checks, Playwright
-smoke, full Vitest/typecheck, and live RLS all passed. The next agent should not
-continue without Noam's D-17 answer.
+`public-registration-intake` are implemented. The current build-loop target is
+`lesson-details-attendance`. The D-17-safe attendance workflow for existing
+`lesson_records` rows is complete and pushed at `37ad4df`: Calendar event detail
+panel, teacher/admin existing-row marking, unmarked worklist, student lesson
+history, Hebrew/RTL/mobile checks, Playwright smoke, full Vitest/typecheck, and
+live RLS all passed. D-17 is now accepted: group lessons use one
+`lesson_records` row per `(eventId, studentId)`, with event-level views derived
+from rows; existing-event preparation/materialization must be explicit
+teacher/admin setup or preparation and must start rows unconfirmed. The next
+build-loop unit is BACKFILL/materialization for that accepted model.
 
 ## Orientation (read in this order)
 
@@ -91,7 +93,7 @@ allow and mark affected sections `BLOCKED ON D-xx`.
 
 | ID | Question |
 |---|---|
-| D-17 | Lesson group record/materialization model: one `lesson_records` row per event/student vs event-level embedded statuses, and lazy vs batch materialization. |
+| D-17 | ACCEPTED: lesson group model is one `lesson_records` row per event/student; group lessons share one `eventId`; no embedded event-level attendance container; existing-event preparation/materialization must be explicit teacher/admin setup or preparation, with rows starting unconfirmed. |
 | D-18 | HoursReport↔HoursEntry consolidation model. |
 | D-19 | Payroll rate source order and when the rate is stamped. |
 | D-20 | Ledger currency policy: single-currency invariant vs explicit multi-currency ledger. |
@@ -119,7 +121,7 @@ allow and mark affected sections `BLOCKED ON D-xx`.
 7. ✅ **student-family-files** (keystone — most modules link to it; use current
    `families.guardians[]` jsonb per accepted D-16).
 8. ✅ **public-registration-intake** (depends on 7 as conversion target; D-07/D-14 ready from Phase B). Extend `approveIntakeRecord` from student-only → student+family+enrollment+agreement-request+inbox-history, transactionally; guardian/contact data uses current `families.guardians[]` jsonb per accepted D-16.
-9. **lesson-details-attendance** (next; Calendar event-detail panel; mobile-reachable marking; group/materialization model is BLOCKED ON D-17).
+9. **lesson-details-attendance** (current; Calendar event-detail panel and mobile-reachable existing-row marking are built; next is explicit teacher/admin preparation/materialization per accepted D-17).
 10. **payroll-salaries-hours** (teacher self-report; consolidation is BLOCKED ON D-18 and rate stamping is BLOCKED ON D-19).
 11. **payments-charges** (Finance top-level view + gated student/family ledger tab; currency policy is BLOCKED ON D-20).
 
@@ -162,6 +164,6 @@ of the actual primary workflow. Update the `forteTree` node status + packet head
   separate question of *whether/when* to migrate the app's runtime state + HYBRID
   persistence off legacy `Student`/`CalendarEvent` onto V2 is still deferred (D-15);
   needs Noam before any such migration.
-- D-17–D-27 are parked in the planning loop and must be answered before building
+- D-18–D-27 are parked in the planning loop and must be answered before building
   their blocked packet sections.
 - Final placement of `PAYROLL` (Manage tab vs Finance sub-view) and `ACADEMICS` (Academic Hub tier) when those modules are built.

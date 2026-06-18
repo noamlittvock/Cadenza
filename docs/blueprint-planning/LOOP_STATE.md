@@ -59,11 +59,10 @@ questions in NEEDS NOAM.
 
 ## Next unit
 - Planning queue and completion checklist are complete. Next work starts from
-  `IMPLEMENTATION_HANDOFF.md` and `IMPLEMENTATION_ROADMAP.md`, with D-17-D-27
+  `IMPLEMENTATION_HANDOFF.md` and `IMPLEMENTATION_ROADMAP.md`, with D-18-D-27
   still parked for Noam before blocked packet sections are built.
 
 ## NEEDS NOAM (parking lot - loop never decides these)
-- D-17: Confirm whether group lessons are multiple `lesson_records` rows sharing one `eventId` (one row per event/student) or an event-level attendance record with embedded student statuses, and choose lazy-on-open vs batch materialization for existing events.
 - D-18: Should legacy `hours_reports` become a period header for normalized `hours_entries`, be migrated into `hours_entries` and retired, or remain as a parallel reporting surface?
 - D-19: What is the payroll rate resolution order (teaching assignment, org role, manual override, other), and is the rate stamped at teacher submit, admin approve, or payment close?
 - D-20: Should the ledger enforce a single currency per family/org, or explicitly support multi-currency balances and statements?
@@ -139,4 +138,11 @@ questions in NEEDS NOAM.
 - iteration 27 - completion gate: fixed the tracked `utils/canonicalAdapters.test.ts:131` type assertion by converting through `unknown`, preserving the lossy-field runtime check while making the TypeScript gate clean; no planning scope, packet scope, or parked Noam question changed.
   Verification: generated checklist checks found 22 feature-tree modules, 16 non-native packets, no missing packets, no roadmap omissions, no unresolved decisions outside NEEDS NOAM, and no OPEN packet marker without `BLOCKED ON D-xx`. `npm run typecheck -- --diagnostics` passed and `npx vitest run --reporter=dot` passed (11 files, 155 passed, 4 todo).
 - post-loop decision update - D-16 accepted for the P0 build path after Noam agreed to the recommendation: continue using `families.guardians[]` jsonb for guardian/contact data and defer normalized guardian identity to a future explicit decision.
-  Verification: planning remains complete; D-17-D-27 stay in NEEDS NOAM.
+  Verification: planning remains complete; D-17-D-27 stayed in NEEDS NOAM at
+  that time.
+- post-loop decision update - D-17 accepted for lesson-details-attendance after
+  Noam confirmed the proposed model: one `lesson_records` row per event/student,
+  group lessons as rows sharing one `eventId`, explicit teacher/admin
+  preparation/materialization only, and prepared rows starting unconfirmed.
+  Verification: implementation loop state and active packet now carry the
+  accepted model; D-18-D-27 remain in NEEDS NOAM.

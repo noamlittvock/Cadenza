@@ -35,7 +35,7 @@ What is real today (do not re-plan as if greenfield):
 |---|---|---|
 | 0 — Planning setup | this folder: index, template, status policy, decision log, role-matrix template, route/nav policy | ✅ done |
 | 1 — P0 product definition | [`packets/`](packets/): registration, student/family, lesson attendance, payments, payroll | ✅ drafted — decision-log prerequisites resolved |
-| 2 — Security/data/conversion | role matrices, canonicalization decisions, migration deltas, conversion semantics | ✅ complete for resolved P0 decisions; parked D-17–D-27 questions remain in NEEDS NOAM |
+| 2 — Security/data/conversion | role matrices, canonicalization decisions, migration deltas, conversion semantics | ✅ complete for resolved P0 decisions; parked D-18–D-27 questions remain in NEEDS NOAM |
 | 3 — P1/P2 module definition | packets for 11 currently unpacketized non-native nodes | ✅ drafted |
 | 4 — Implementation roadmap | [`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md): sequenced epics, ticket slices, test plans, live-Supabase RLS markers | ✅ drafted |
 

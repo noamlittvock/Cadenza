@@ -3,8 +3,8 @@
 Status: `planned` (per `features/forteTree.ts`) -> target `implemented`.
 Priority: p1
 Owner-decisions still blocking this packet: source-specific report packs are
-**BLOCKED ON D-17** for grouped attendance materialization, **BLOCKED ON D-18** and **BLOCKED ON D-19** for
-payroll period/rate semantics, **BLOCKED ON D-20** for currency-specific finance
+**BLOCKED ON D-18** and **BLOCKED ON D-19** for payroll period/rate semantics,
+**BLOCKED ON D-20** for currency-specific finance
 reports, **BLOCKED ON D-21** for absence/day-off side-effect reports, **BLOCKED
 ON D-22** for richer assessment/document-delivery reports, **BLOCKED ON D-23** for
 public event/program exposure reports, **BLOCKED ON D-24** for consent revocation
@@ -16,7 +16,9 @@ unblocked by accepted D-08, D-09, D-15, and D-16. Guardian/contact reports may
 use `families.guardians[]` jsonb only after student-family source authorization
 exists.
 Current accepted prerequisites: **D-08** (finance capability), **D-09**
-(reports are admin/finance only initially), and **D-15** (packet-local backfill).
+(reports are admin/finance only initially), **D-15** (packet-local backfill), and
+**D-17** (attendance reports use one `lesson_records` row per event/student after
+lesson attendance ships).
 
 ## Current State (ground truth, with file refs)
 - Existing UI: no dedicated reports/analytics product surface. `ViewState.ANALYTICS`
@@ -115,7 +117,8 @@ Current accepted prerequisites: **D-08** (finance capability), **D-09**
   mutate source records. Reports must never bypass source-table RLS or the
   D-08/D-09 access limits by reading a broader row set on behalf of finance or
   members.
-- Open schema decisions: grouped attendance reports are **BLOCKED ON D-17**; legacy
+- Open schema decisions: grouped attendance reports use accepted D-17
+  `lesson_records` rows after lesson attendance ships; legacy
   `hours_reports`/normalized `hours_entries` report semantics are **BLOCKED ON
   D-18**; payroll rate and stamped amount reports are **BLOCKED ON D-19**;
   multi-currency balance/statement reports are **BLOCKED ON D-20**; absence/day
@@ -209,7 +212,7 @@ Required RLS refinements/tests:
   saved operational reports after their own packets ship.
 - Blocked by: student-family-files for authoritative student/family links and
   guardian/contact source authorization through the accepted D-16 jsonb path;
-  lesson-details-attendance and **BLOCKED ON D-17** for attendance reports;
+  lesson-details-attendance for attendance reports using accepted D-17 rows;
   payroll-salaries-hours, **BLOCKED ON D-18**, and **BLOCKED ON D-19** for payroll reports;
   payments-charges and **BLOCKED ON D-20** for finance/currency reports; rooms-
   absence-requests and **BLOCKED ON D-21** for absence impact reports; exams-

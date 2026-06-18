@@ -1,14 +1,18 @@
 # Lesson Details And Attendance  (`lesson-details-attendance`)
 
 Status: gap → planned (this packet)  ·  Priority: p0
-Owner-decisions still blocking this packet: **D-17** (group-lesson record and
-materialization model). Current accepted prerequisites: **D-05** (canonical event
-adapter) and **D-06** (teacher self-write with admin approval gate) are implemented
+Owner-decisions still blocking this packet: none for the current P0 attendance
+materialization path. Accepted prerequisites: **D-05** (canonical event adapter),
+**D-06** (teacher self-write with admin approval gate), and **D-17** (one lesson
+row per event/student with explicit preparation) are implemented/accepted
 foundation, not open blockers.
 
 ## Current State (ground truth)
-- Existing UI: none. Calendar exists (native, source of truth: "no event = no pay"). No attendance marking surface, no per-event lesson detail panel for attendance.
-- Existing schema: `lesson_records` (normalized, `0002`) — fields `eventId, studentId, staffMemberId, attendance, completion, repertoire[], homework, makeupOfLessonId`. **Already one row per (event, student)** (carries both eventId + studentId), but D-17 still needs Noam confirmation before this becomes the productized group-lesson rule. `events` (core hybrid, v1+v2 docs), `event_participants` (core). Type duplication: `CalendarEvent` vs `EventV2` (D-05); Blueprint dataEntities reference `EventV2`/`StaffMemberV2`/`StudentV2`.
+- Existing UI: Calendar event detail now includes D-17-safe attendance for
+  existing `lesson_records`: read/mark controls, unmarked worklist, student
+  lesson history links, Hebrew/RTL, and 390x844 mobile coverage. Remaining P0
+  work is materialization/preparation for existing events per accepted D-17.
+- Existing schema: `lesson_records` (normalized, `0002`) — fields `eventId, studentId, staffMemberId, attendance, completion, repertoire[], homework, makeupOfLessonId`. D-17 ACCEPTED: one row per `(event, student)`. Group lessons are multiple `lesson_records` sharing one `eventId`; event-level attendance views are derived from row counts/statuses. `events` (core hybrid, v1+v2 docs), `event_participants` (core). Type duplication: `CalendarEvent` vs `EventV2` (D-05); Blueprint dataEntities reference `EventV2`/`StaffMemberV2`/`StudentV2`.
 - Existing query helpers (implemented + tested): `listStudentLessonHistory`, `listUnmarkedAttendance` (attendance=UNMARKED, optional cutoff), `summarizeLessonCompletion` (totals + completionRate).
 - Existing tests: `utils/blueprintQueries.test.ts` covers all three. No attendance-marking **workflow/UI** tests.
 - Feature-tree declared queries: `listStudentLessonHistory`, `listUnmarkedAttendance`, `summarizeLessonCompletion` — implemented.
@@ -31,16 +35,20 @@ foundation, not open blockers.
 
 ## Data Contract
 - Primary record: `LessonRecord` / `lesson_records`.
-- **D-17 — group lesson model:** `lesson_records` is already one row per
-  (event, student). Group lessons can be represented as multiple `lesson_records`
-  sharing one `eventId`, with the event-level view derived from row counts/statuses,
-  but the loop cannot confirm this without Noam. Event-level embedded-status
-  alternatives and lazy-vs-batch materialization are **BLOCKED ON D-17**.
+- **D-17 — group lesson model:** ACCEPTED 2026-06-18. `lesson_records` is one row
+  per `(event, student)`. Group lessons are represented by multiple
+  `lesson_records` sharing one `eventId`, with event-level attendance summaries
+  derived from those rows. Do not add an event-level embedded-status container.
+- **D-17 — materialization model:** existing-event row preparation/materialization
+  must be an explicit teacher/admin setup or preparation action. Do not
+  materialize silently on event open. Do not batch-generate rows without an
+  explicit admin action and audit trail.
 - **Attendance default principle:** defaults should reduce work, not invent facts.
   The system may prepare rows from schedule/roster facts and offer low-friction
   actions such as "all present" or "mark exceptions", but it must not silently
   mark attendance, completion, or lesson outcomes without an explicit
-  teacher/admin confirmation.
+  teacher/admin confirmation. Prepared rows start unconfirmed:
+  `attendance=UNMARKED` and `completion=PENDING`.
 - Linked: event (canonical per D-05), student/enrollment, teacher, room.
 - Required: eventId, studentId, status, markedBy, markedAt.
 - Derived: unmarked counter, completed-hours for payroll.
@@ -49,10 +57,10 @@ foundation, not open blockers.
   updates `LessonRecord` rows against an event converted through `eventToV2` /
   `eventToMinimal` at the module boundary; it never rewrites HYBRID `events`.
   Teacher writes are row-scoped to own lesson rows, while payroll approval remains
-  in `hours_entries`. Existing-event materialization strategy is **BLOCKED ON D-17**.
-- Schema decisions / parked items: D-17 controls group-lesson row shape and
-  materialization. Exact payable-hours derivation is deferred to the payroll packet
-  where D-18/D-19 apply.
+  in `hours_entries`. Existing-event materialization follows accepted D-17:
+  explicit teacher/admin preparation only, no silent event-open materialization.
+- Schema decisions / parked items: Exact payable-hours derivation is deferred to
+  the payroll packet where D-18/D-19 apply.
 
 ## UX Placement (per route-nav-policy)
 - Home: **contextual panel in Calendar event detail** (tier 3) — primary entry. Plus a cross-cutting "unmarked attendance" worklist (small surface, could live in Admin Inbox or a Calendar-adjacent panel).
@@ -88,10 +96,10 @@ Required RLS refinements/tests:
 - Data migration: D-15 ACCEPTED — packet-local generation/backfill of
   `lesson_records` for existing events; no global `CalendarEvent` → `EventV2`
   persistence rewrite. Existing HYBRID events pass through `eventToV2` at module
-  boundaries. Lazy-on-open vs batch materialization is **BLOCKED ON D-17** and
-  must be settled before ship.
+  boundaries. Per accepted D-17, generation/backfill must be explicit
+  teacher/admin preparation, not silent event-open materialization.
 
 ## Dependencies
 - Blocks: payroll-salaries-hours (hours from attendance), reports-analytics.
-- Blocked by: **D-17** confirmation; student-family-files (student links).
-  D-05/D-06 are accepted/implemented prerequisites, not open blockers.
+- Blocked by: student-family-files (student links) is implemented. D-05/D-06 are
+  accepted/implemented prerequisites, and D-17 is accepted for this P0 path.

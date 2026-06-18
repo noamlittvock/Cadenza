@@ -3,8 +3,8 @@
 Status: `planned` (per `features/forteTree.ts`) -> target `implemented`.
 Priority: p1
 Owner-decisions still blocking this packet: source-specific dashboard cards and
-rollups are **BLOCKED ON D-17** for grouped attendance counters, **BLOCKED ON D-18** and
-**BLOCKED ON D-19** for pending-hours/payroll semantics, **BLOCKED ON D-20** for
+rollups are **BLOCKED ON D-18** and **BLOCKED ON D-19** for
+pending-hours/payroll semantics, **BLOCKED ON D-20** for
 finance/currency work, **BLOCKED ON D-21** for absence/day-off operational
 impact, **BLOCKED ON D-22** for assessment/document-delivery work, **BLOCKED ON
 D-23** for public event/program exposure and endpoint health, **BLOCKED ON
@@ -19,7 +19,8 @@ source authorization exists.
 Current accepted prerequisites: **D-01** (no new top-level route beyond current
 policy), **D-02** (dead-end palette entries stay hidden until routed), **D-05**
 (event adapter), **D-08** (finance capability), **D-09** (reports admin/finance
-only), and **D-15** (packet-local backfill only).
+only), **D-15** (packet-local backfill only), and **D-17** (attendance counters
+use one `lesson_records` row per event/student after lesson attendance ships).
 
 ## Current State (ground truth)
 - Existing UI: no dedicated operations dashboard. `components/AdminInbox.tsx` is
@@ -138,8 +139,8 @@ only), and **D-15** (packet-local backfill only).
   module authorization through a broad security-definer query. Quick actions
   mutate only the owning source record through that source module's accepted
   conversion/status path.
-- Open schema decisions: grouped attendance/unmarked counts are **BLOCKED ON
-  D-17**; legacy `hours_reports` vs normalized `hours_entries` pending-card
+- Open schema decisions: grouped attendance/unmarked counts use accepted D-17
+  `lesson_records` rows after lesson attendance ships; legacy `hours_reports` vs normalized `hours_entries` pending-card
   semantics are **BLOCKED ON D-18**; payroll amount/rate variance cards are
   **BLOCKED ON D-19**; finance balance/payment work and currency-sensitive cards
   are **BLOCKED ON D-20**; absence/day-off operational-impact cards are

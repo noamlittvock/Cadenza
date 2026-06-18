@@ -2,9 +2,10 @@
 
 Status: `planned` (per `features/forteTree.ts`) -> target `implemented`.
 Priority: p1
-Owner-decisions still blocking this packet: **BLOCKED ON D-17** for
-group-attendance record materialization. Core roster/program management is
-otherwise unblocked by current accepted decisions.
+Owner-decisions still blocking this packet: none for grouped attendance record
+shape. D-17 is accepted: grouped attendance uses one `lesson_records` row per
+event/student with explicit teacher/admin preparation. Core roster/program
+management is otherwise unblocked by current accepted decisions.
 Current accepted prerequisites: **D-01** (no new top-level route by default),
 **D-04** (canonical student adapter), and **D-15** (packet-local backfill).
 
@@ -40,7 +41,8 @@ Current accepted prerequisites: **D-01** (no new top-level route by default),
   roster payloads by default because those payloads expose student personal data.
 - Write access: admins create/edit/archive activities, enrollments, and teaching
   assignments. Teachers do not edit rosters in v1; attendance marking belongs to
-  the lesson-attendance packet and is **BLOCKED ON D-17** for grouped events.
+  the lesson-attendance packet and uses the accepted D-17 row model for grouped
+  events.
 - Public/token access: none. This module does not create a public school-program
   intake, registration, or partner-facing surface.
 - See embedded role matrix below.
@@ -61,8 +63,9 @@ Current accepted prerequisites: **D-01** (no new top-level route by default),
   edits preserve historical enrollment rows.
 - Status transitions: `ActivityV2.isArchived: false -> true -> false`;
   `EnrollmentV2.status: ACTIVE -> ARCHIVED`; `TeachingAssignmentV2.isArchived:
-  false -> true -> false`. Attendance/completion status for grouped sessions is
-  **BLOCKED ON D-17**.
+  false -> true -> false`. Attendance/completion status for grouped sessions
+  follows the accepted D-17 lesson-row model once the lesson-attendance packet
+  materialization path ships.
 - Archive/delete: no hard delete for activities, enrollments, or teaching
   assignments after linked lessons, finance, reports, or events exist. Use archive
   states and keep historical links visible.
@@ -71,7 +74,7 @@ Current accepted prerequisites: **D-01** (no new top-level route by default),
   writing. Exports exclude finance data.
 - Cross-links: program detail opens ActivityManager, Student detail, Staff
   assignment detail, Calendar filtered by activity/L2, lesson-attendance records
-  once **D-17** is resolved, payments/charges by enrollment, exams/certificates,
+  using accepted D-17 grouped rows, payments/charges by enrollment, exams/certificates,
   and reports.
 
 ## Data Contract
@@ -100,11 +103,12 @@ Current accepted prerequisites: **D-01** (no new top-level route by default),
   derives rosters with the existing deterministic helpers. Student data crosses
   module boundaries through the accepted D-04 adapter/projection seam; no global
   Student persistence migration is part of this packet. Grouped lesson attendance
-  and any batch/lazy lesson-record materialization are **BLOCKED ON D-17**.
-- Open schema decisions: grouped program attendance becoming lesson records is
-  **BLOCKED ON D-17**. No new partner-school identity/contact model is introduced
-  in this packet; v1 school-program identity stays on `ActivityV2` name/location
-  and hierarchy fields.
+  uses the accepted D-17 lesson-row model; materialization remains owned by the
+  lesson-attendance packet's explicit teacher/admin preparation path.
+- Open schema decisions: no grouped-attendance schema decision remains after
+  accepted D-17. No new partner-school identity/contact model is introduced in
+  this packet; v1 school-program identity stays on `ActivityV2` name/location and
+  hierarchy fields.
 
 ## UX Placement (obey route-nav-policy.md)
 - Home: **Manage tab / Activity-program area**. The module should be a filtered
@@ -131,7 +135,7 @@ Current accepted prerequisites: **D-01** (no new top-level route by default),
 | Create | ✓ | ✓ | — | — | — | — | Current admin-write policy is acceptable for activity/enrollment/assignment creation. |
 | Edit | ✓ | ✓ | — | — | — | — | Admin-only edits to activity metadata, roster membership, and teaching assignments. |
 | Status transition (non-financial) | ✓ | ✓ | — | — | — | — | Admin archives/restores activities, enrollments, and assignments; no teacher roster status changes in v1. |
-| Status transition (payroll/finance-affecting) | — | — | — | — | — | — | No direct finance/payroll transition in this module; grouped attendance/payroll side effects are **BLOCKED ON D-17** and downstream payroll packets. |
+| Status transition (payroll/finance-affecting) | — | — | — | — | — | — | No direct finance/payroll transition in this module; grouped attendance uses accepted D-17 lesson rows, while payroll side effects remain in downstream payroll packets. |
 | Archive/delete | ✓ | ✓ | — | — | — | — | Archive only; no hard delete once linked records exist. |
 | Export | ✓ | ✓ | — | — | — | — | Admin-only roster/program export because rows contain student data. |
 | Public submit/sign | — | — | — | — | — | — | No public/tokenized surface. |
@@ -168,16 +172,16 @@ Required RLS refinements/tests:
   activities and existing `EnrollmentV2` rows, become the initial rosters. Backfill
   should validate missing students/staff/L2 links and archive or flag bad rows;
   do not create a global Student/Event migration or a duplicate roster table.
-  Attendance backfill/materialization for existing grouped events is
-  **BLOCKED ON D-17**.
+  Attendance backfill/materialization for existing grouped events follows
+  accepted D-17 and remains owned by the lesson-attendance packet's explicit
+  preparation path.
 
 ## Dependencies
-- Blocks: lesson-details-attendance for grouped roster context after **D-17**,
+- Blocks: lesson-details-attendance for grouped roster context,
   payments-charges for per-enrollment charge lines, exams-certificates-report-cards,
   concert-programs-events, reports-analytics, and year-rollover-setup roster carry
   forward.
 - Blocked by: student-family-files for authoritative student/family links;
   staff-teacher-management and activity-program-tree native spines; roster RLS
-  refinement for assigned-teacher access; **BLOCKED ON D-17** for grouped
-  attendance materialization. D-01/D-04/D-15 are accepted prerequisites, not open
-  blockers.
+  refinement for assigned-teacher access. D-01/D-04/D-15/D-17 are accepted
+  prerequisites, not open blockers.

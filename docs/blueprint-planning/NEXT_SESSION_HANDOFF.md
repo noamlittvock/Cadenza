@@ -5,11 +5,10 @@
 > [`BUILD_LOOP_STATE.md`](BUILD_LOOP_STATE.md) and
 > [`NEXT_AGENT_LOOP.md`](NEXT_AGENT_LOOP.md) first. Branch `blueprint-supabase`
 > was committed and pushed at `37ad4df` (`Implement registration intake and
-> attendance workflows`). The active target is `lesson-details-attendance`, and
-> the next queue unit is blocked on Noam's D-17 answer: one lesson row per
-> event/student vs event-level attendance container, plus lazy vs batch/admin vs
-> explicit setup materialization. Do not run another loop iteration without that
-> answer.
+> attendance workflows`). The active target is `lesson-details-attendance`; D-17
+> is now accepted as one `lesson_records` row per event/student, explicit
+> teacher/admin preparation/materialization only, and prepared rows start
+> unconfirmed. The next queue unit is BACKFILL/materialization.
 
 Date: 2026-06-17 · Branch: `blueprint-supabase` · Repo:
 `/Users/noamlitt/Documents/Cadenza Forte`
@@ -49,7 +48,7 @@ The next gate is **Phase C**: building the first P0 module
 wired at a real write boundary. Planning later parked D-16–D-27 Noam questions
 for packet-local conversion/migration gaps; Noam has since accepted D-16 for the
 P0 build path: use `families.guardians[]` jsonb for guardian/contact data and
-defer normalized guardian identity. D-17–D-27 remain parked; resolve those before
+defer normalized guardian identity. D-18–D-27 remain parked; resolve those before
 building any packet section marked `BLOCKED ON D-xx`.
 
 ---
@@ -295,7 +294,7 @@ blueprint planning work.
 - Finance policies allow finance capability holders to write ledger rows. If Noam
   wants adjustment approval or voiding to be admin-only later, refine those
   transitions in a follow-up migration.
-- D-17–D-27 are parked planning questions for lesson materialization, payroll
+- D-18–D-27 are parked planning questions for payroll
   consolidation, payroll rate stamping, ledger currency policy, operational
   request calendar mutation rules, Academic Hub assessment/document pipeline
   scope, concert public program exposure, agreement consent withdrawal/revocation

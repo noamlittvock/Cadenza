@@ -1,8 +1,8 @@
 # Cross-Module Decision Log
 
-> **STATUS — 2026-06-18:** D-01–D-16, D-STATUS, and D-STATUS-2 are **ACCEPTED or
+> **STATUS — 2026-06-18:** D-01–D-17, D-STATUS, and D-STATUS-2 are **ACCEPTED or
 > IMPLEMENTED working decisions** for implementation; the concrete locked form is
-> in [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md). D-17–D-27 are newly
+> in [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md). D-18–D-27 are newly
 > surfaced packet questions with no accepted default; they are parked in
 > [`LOOP_STATE.md`](LOOP_STATE.md) NEEDS NOAM and must stay marked `BLOCKED ON D-xx`
 > where they affect a packet.
@@ -21,8 +21,8 @@
 > holds. The seam is additive foundation the P0 modules write/read through.
 
 Decisions that span more than one module. Packets cite these IDs rather than
-re-deciding. D-01–D-16 have recommended defaults or explicit Noam confirmations
-that are now accepted per the banner above; D-17–D-27 intentionally have no
+re-deciding. D-01–D-17 have recommended defaults or explicit Noam confirmations
+that are now accepted per the banner above; D-18–D-27 intentionally have no
 default and are parked for Noam.
 
 Legend: 🔴 blocks a P0 packet · 🟡 blocks P1/P2 · ⚪ infra/cleanup
@@ -241,9 +241,18 @@ For attendance, completeness must not become a human data-entry ritual. A defaul
 may prefill or prepare rows from schedule/roster facts, but it must not silently
 mark attendance, completion, or lesson outcomes that a teacher/admin has not
 confirmed.
-**Blocks:** lesson-details-attendance, payroll-salaries-hours, reports-analytics.
-**State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
-sections are marked **BLOCKED ON D-17**.
+**Accepted model:** one `lesson_records` row per `(eventId, studentId)`. Group
+lessons are multiple lesson rows sharing the same `eventId`, and event-level
+attendance views are derived from those rows. Existing events should not
+materialize rows silently on event open; row preparation/materialization must be
+an explicit teacher/admin setup or preparation action. Prepared rows may be
+created from real schedule/roster facts, but their starting state remains
+unconfirmed (`attendance=UNMARKED`, `completion=PENDING`) until a teacher/admin
+explicitly confirms attendance, completion, or lesson outcomes.
+**Impacts:** lesson-details-attendance, payroll-salaries-hours, reports-analytics.
+**State:** ACCEPTED 2026-06-18 — confirmed by Noam in the Blueprint loop. This
+unblocks the lesson-details-attendance materialization/backfill unit, subject to
+the explicit-preparation/no-silent-outcomes rule above.
 
 ### D-18 — HoursReport / HoursEntry consolidation  🔴
 **Q:** Does legacy `hours_reports` become a period header for normalized

@@ -30,7 +30,7 @@ BUILD COMPLETE
 Continue Phase C with the next roadmap packet: `lesson-details-attendance`.
 
 Build the attendance slice around Calendar event details and teacher mobile
-marking without deciding the still-parked D-17 group/materialization model.
+marking using the accepted D-17 group/materialization model.
 The target is eventually `implemented`, but do not mark this build complete until
 D-17 is answered and recorded, all non-blocked workflow pieces are shipped, live
 RLS passes against a real Supabase project, and the status-policy bar holds.
@@ -42,13 +42,14 @@ RLS passes against a real Supabase project, and the status-policy bar holds.
   D-17-safe attendance work and public-registration intake work.
 - Worktree was clean after that push; generated `.build-loop/` logs are now
   ignored by `.gitignore`.
-- The next queue unit is `D-17 answer intake`. Do not run the build loop again
-  without a real Noam answer, because it has already rechecked the same blocker
-  three times.
-- If Noam answers D-17, the next single iteration should only update
-  `decision-log.md` and `packets/lesson-details-attendance.md` with the accepted
-  group row/status-container and materialization model. Materialization/backfill
-  implementation is the following unit.
+- D-17 is now answered and recorded: use one `lesson_records` row per
+  `(eventId, studentId)`, derive event-level attendance views from shared
+  `eventId` rows, and prepare/materialize existing-event rows only through an
+  explicit teacher/admin setup or preparation action. Prepared rows start
+  `attendance=UNMARKED` and `completion=PENDING`; no silent attendance,
+  completion, or lesson outcome marking.
+- The next queue unit is `BACKFILL/materialization`; implement packet-local row
+  preparation for existing events according to accepted D-17.
 - Existing-row attendance read/mark/worklist/history, Hebrew/RTL/mobile,
   Playwright, full Vitest, typecheck, and live RLS gates have already passed for
   the D-17-safe workflow. Re-run the relevant gates after any D-17 materialization
@@ -65,15 +66,15 @@ RLS passes against a real Supabase project, and the status-policy bar holds.
   row-scoped teacher policies for `lesson_records` and `hours_entries`.
 - D-15: packet-local backfill only. There is no global `CalendarEvent` ->
   `EventV2` persistence migration in this build.
-- D-17: lesson group record/materialization model has no accepted default.
-  Existing schema points to one `lesson_records` row per `(event, student)`, but
-  the loop must not choose that as the product rule, add production batch/lazy
-  materialization, or promote the packet until Noam answers D-17 and the packet
-  and decision log are updated.
-- D-17 product principle from Noam: defaults should reduce work, not invent
-  facts. Attendance rows may be prepared from real schedule/roster data, but the
-  system must not silently mark attendance, completion, or lesson outcomes without
-  teacher/admin confirmation.
+- D-17: ACCEPTED 2026-06-18. Use one `lesson_records` row per
+  `(eventId, studentId)`. Group lessons are multiple rows sharing one `eventId`;
+  event-level attendance views are derived from those rows. Existing-event row
+  preparation/materialization must be explicit teacher/admin setup or preparation,
+  not silent event-open materialization. Attendance rows may be prepared from real
+  schedule/roster data, but prepared rows start unconfirmed
+  (`attendance=UNMARKED`, `completion=PENDING`) and the system must not silently
+  mark attendance, completion, or lesson outcomes without teacher/admin
+  confirmation.
 - D-18-D-27 remain parked. Do not build packet sections marked `BLOCKED ON D-xx`
   until the matching decision is answered and the packet/decision log are updated.
 
@@ -88,24 +89,20 @@ RLS passes against a real Supabase project, and the status-policy bar holds.
   own rows, admin overrides, unmarked attendance worklist, student lesson
   history, Hebrew/RTL labels, and retained status/history semantics where the
   current schema supports them.
-- Blocked workflows until D-17: deciding group lesson row shape, creating a
-  productized materialization strategy for existing events, packet-local
-  generation/backfill of `lesson_records`, and any implemented-status promotion
-  that depends on those semantics.
+- Remaining workflows after D-17: productized explicit preparation/materialization
+  for existing events, then final status promotion if the completion checklist
+  still holds.
 
-## D-17 Question For Noam
+## D-17 Accepted Decision
 
-D-17 remains unanswered as of 2026-06-18. Exact question to resolve before any
-materialization/backfill work:
-
-For `lesson-details-attendance`, should group lessons be represented as multiple
-`lesson_records` rows sharing one `eventId` (one row per event/student), or as a
-single event-level attendance record with embedded per-student statuses? For
-existing events, should rows/status containers be materialized lazily on event
-open or teacher action, generated in a batch/admin job, or created only through
-an explicit admin setup action? In every option, prepared defaults may use
-schedule/roster facts to reduce work, but attendance, completion, and lesson
-outcomes must stay unconfirmed until a teacher/admin explicitly confirms them.
+D-17 was answered by Noam on 2026-06-18. Group lessons use multiple
+`lesson_records` rows sharing one `eventId`, one row per event/student. Do not
+introduce an event-level embedded per-student attendance container. Existing
+events should get rows/status containers through an explicit teacher/admin setup
+or preparation action, not silently on event open. Batch/admin preparation is
+allowed only when explicitly initiated by an admin and audited. Prepared defaults
+may use schedule/roster facts to reduce work, but attendance, completion, and
+lesson outcomes stay unconfirmed until a teacher/admin explicitly confirms them.
 
 ## Baseline Known Findings - 2026-06-18
 
@@ -196,12 +193,11 @@ outcomes must stay unconfirmed until a teacher/admin explicitly confirms them.
   smoke yet; the eventual spec should seed events/students/lessonRecords, open a
   Calendar event, mark attendance, and verify the unmarked count plus student
   history at desktop, Hebrew/RTL, and 390x844 mobile.
-- D-17 blocked seams: do not implement or imply a product rule for group lesson
-  row shape; do not create lazy-on-open or batch materialization/backfill for
-  existing events; do not synthesize lesson rows from rosters/schedules beyond
-  explicit existing rows; do not silently mark attendance, completion, or lesson
-  outcomes; do not promote `lesson-details-attendance` to `implemented` or mark
-  BACKFILL/RLS-LIVE/PW-SMOKE complete until D-17 is answered and recorded.
+- D-17 accepted seams: implement explicit teacher/admin preparation for
+  `lesson_records` rows; do not create lazy-on-open silent materialization; do
+  not synthesize attendance/completion/outcomes beyond unconfirmed prepared rows;
+  do not promote `lesson-details-attendance` to `implemented` until
+  BACKFILL/materialization is complete and gates are rerun as needed.
 
 ## Non-Negotiable Guardrails
 
@@ -280,14 +276,14 @@ outcomes must stay unconfirmed until a teacher/admin explicitly confirms them.
 
 ### Stage 3 - D-17-Blocked Materialization And Promotion
 
-- [ ] D-17 answer intake: after Noam answers D-17, update `decision-log.md` and
+- [x] D-17 answer intake: after Noam answers D-17, update `decision-log.md` and
   `packets/lesson-details-attendance.md` with the accepted group row/status
   container and materialization model before any blocked implementation work.
 - [ ] BACKFILL/materialization: only after D-17 is accepted, implement packet-local
-  generation/backfill for existing events if required by that decision. This is
-  where lazy-on-open, teacher-action preparation, batch/admin generation, or any
-  event-level embedded-status model may be implemented according to the accepted
-  D-17 answer.
+  generation/backfill for existing events according to the accepted D-17 answer:
+  explicit teacher/admin row preparation for one `lesson_records` row per
+  event/student. Do not add lazy-on-open silent materialization or an event-level
+  embedded-status model.
 - [ ] Status promotion: only after D-17 is accepted, every queue unit is complete,
   and every completion checklist item below is true, update
   `features/forteTree.ts` and the `lesson-details-attendance` packet header to
@@ -296,7 +292,7 @@ outcomes must stay unconfirmed until a teacher/admin explicitly confirms them.
 
 ## Completion Checklist (all required before BUILD COMPLETE)
 
-- [ ] D-17 is answered, recorded in `decision-log.md`, and reflected in the packet.
+- [x] D-17 is answered, recorded in `decision-log.md`, and reflected in the packet.
 - [x] Attendance defaults reduce work without inventing facts: no silent
   present/completed/outcome marking occurs without teacher/admin confirmation.
 - [x] Attendance remains a Calendar contextual panel; no new sidebar or
@@ -320,9 +316,10 @@ outcomes must stay unconfirmed until a teacher/admin explicitly confirms them.
 
 ## Next Unit
 
-- D-17 answer intake: after Noam answers D-17, update `decision-log.md` and
-  `packets/lesson-details-attendance.md` with the accepted group row/status
-  container and materialization model before any blocked implementation work.
+- BACKFILL/materialization: implement packet-local explicit teacher/admin
+  preparation for existing events according to accepted D-17. Do not silently
+  materialize on event open, and keep prepared rows unconfirmed until
+  teacher/admin action.
 
 ## Setup Notes For Next Agent
 
@@ -494,3 +491,25 @@ outcomes must stay unconfirmed until a teacher/admin explicitly confirms them.
   the group lesson row/status-container and materialization model. Queue state
   remains unticked; no implementation, materialization, promotion, git write
   operation, or test run was performed.
+- 2026-06-18 D-17 answer intake accepted: Noam confirmed the proposed D-17 model:
+  one `lesson_records` row per `(eventId, studentId)`, group lessons represented
+  by multiple rows sharing one `eventId`, no event-level embedded attendance
+  container, and existing-event preparation/materialization only through explicit
+  teacher/admin setup or preparation action. Prepared rows may use real
+  schedule/roster facts but start unconfirmed (`attendance=UNMARKED`,
+  `completion=PENDING`) and must not silently mark attendance, completion, or
+  lesson outcomes. Changed files: `docs/blueprint-planning/decision-log.md`,
+  `docs/blueprint-planning/packets/lesson-details-attendance.md`,
+  `docs/blueprint-planning/BUILD_LOOP_STATE.md`,
+  `docs/blueprint-planning/NEXT_AGENT_LOOP.md`,
+  `docs/blueprint-planning/IMPLEMENTATION_HANDOFF.md`,
+  `docs/blueprint-planning/NEXT_SESSION_HANDOFF.md`,
+  `docs/blueprint-planning/LOOP_STATE.md`,
+  `docs/blueprint-planning/IMPLEMENTATION_ROADMAP.md`,
+  `docs/blueprint-planning/README.md`,
+  `docs/blueprint-planning/packets/ensembles-theory-school-programs.md`,
+  `docs/blueprint-planning/packets/reports-analytics.md`, and
+  `docs/blueprint-planning/packets/operations-command-center.md`.
+  Verification: `git diff --check` passed;
+  `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
+  passed (19 files, 212 passed, 1 skipped).
