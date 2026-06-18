@@ -1,7 +1,6 @@
 # Student And Family Files  (`student-family-files`)
 
-Status: `embedded` (per `features/forteTree.ts` + **D-STATUS-2**) → target
-`implemented`.  ·  Priority: p0
+Status: `implemented` (per `features/forteTree.ts`).  ·  Priority: p0
 Owner-decisions still blocking this packet: none.
 Current accepted prerequisites: **D-03** (Family first-class editable), **D-04**
 (canonical student adapter), **D-15** (backfill, recorded below), and **D-16**

@@ -150,18 +150,22 @@ describe('Phase B RLS refinements', () => {
     expect(hoursInsert).not.toMatch(/APPROVED|PAID/i);
     expect(hoursUpdate).not.toMatch(/APPROVED|PAID/i);
   });
+
+  it('narrows Student/Family reads to admin, finance, or teacher own roster', () => {
+    const studentsRead = policySql('students', 'students_read');
+    const familiesRead = policySql('families', 'families_read');
+
+    expect(SQL).toMatch(/function\s+public\.app_can_read_student\s*\(/i);
+    expect(SQL).toMatch(/function\s+public\.app_can_read_family\s*\(/i);
+    expect(SQL).toMatch(/from\s+public\.enrollments\s+e[\s\S]*join\s+public\.teaching_assignments\s+ta/i);
+    expect(SQL).toMatch(/jsonb_array_elements[\s\S]*p_student_data->'assignments'/i);
+    expect(studentsRead).toMatch(/public\.app_can_read_student\(org_id,\s*id,\s*data\)/i);
+    expect(familiesRead).toMatch(/public\.app_can_read_family\(org_id,\s*student_ids\)/i);
+    expect(studentsRead).not.toMatch(/app_is_org_member/i);
+    expect(familiesRead).not.toMatch(/app_is_org_member/i);
+  });
 });
 
-// ── Deferred: enforcement under real authenticated roles ─────────────────────
-// The checks above prove the policies are DEFINED. Verifying they are ENFORCED
-// (a STAFF member cannot write; an anon user cannot read; cross-org reads return
-// nothing) requires signing in real Supabase auth users against a live test
-// instance — not the VITE_LOCAL_MODE / VITE_E2E_AUTH_BYPASS path. Registered here
-// so the gap is visible in the suite until a Supabase test project is wired up
-// (IMPLEMENTATION_HANDOFF.md "RLS tested with real authenticated roles").
-describe('RLS enforcement under real roles (needs live Supabase test instance)', () => {
-  it.todo('member can SELECT own-org rows; non-member gets zero rows');
-  it.todo('STAFF (non-admin) INSERT/UPDATE/DELETE is rejected by default write policy');
-  it.todo('ADMIN can write own-org rows but not another org’s');
-  it.todo('anonymous/public role cannot read any tenant table');
-});
+// Enforcement under real authenticated roles lives in utils/rlsLive.test.ts.
+// That suite signs in actual Supabase users and skips with an explicit env-var
+// message when the live test project credentials are absent.

@@ -6,7 +6,8 @@ export const BASE_URL = `http://localhost:3000/${TEST_ORG}`;
 /** Map of ViewState → English nav label as rendered by the app */
 const NAV_LABELS: Record<string, string> = {
   CALENDAR: 'Smart Calendar',
-  STAFF_MEMBERS: 'Staff Members',
+  STUDENTS: 'Students',
+  STAFF_MEMBERS: 'Manage',
   MANAGE: 'Manage',
   ADMIN_INBOX: 'Inbox',
   SETTINGS: 'Settings',
@@ -19,7 +20,8 @@ const NAV_LABELS: Record<string, string> = {
  */
 export async function gotoView(page: Page, view: string): Promise<void> {
   const label = NAV_LABELS[view] ?? view;
-  await page.getByRole('button', { name: label }).click();
+  const scope = view === 'SUPER_ADMIN' ? page : page.locator('nav').first();
+  await scope.getByRole('button', { name: label }).click();
   // Brief settle time for React state update
   await page.waitForTimeout(200);
 }

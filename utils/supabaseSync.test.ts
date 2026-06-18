@@ -72,6 +72,107 @@ describe('HYBRID mapping (jsonb document under `data`)', () => {
   });
 });
 
+describe('Student/Family packet mapping contracts', () => {
+  it('maps students as HYBRID rows without converting the legacy Student document', () => {
+    const studentSpec = tableSpecFor('students');
+    const legacyStudent = {
+      id: 'stu_1',
+      orgId: 'ignored-client-org',
+      fullName: 'Dana Cohen',
+      profileStatus: 'ACTIVE',
+      currentGrade: 7,
+      guardians: [
+        { id: 'g1', fullName: 'Ron Cohen', phone: '050-2222222', isPrimary: true },
+        { id: 'g2', fullName: 'Mia Cohen', email: 'mia@example.com', isPrimary: false },
+      ],
+      nestedLegacyKey: { startTime: '09:00', snake_key: 'preserved' },
+    };
+
+    const row = appToRow(studentSpec, 'org_1', legacyStudent);
+    expect(row).toEqual({
+      id: 'stu_1',
+      org_id: 'org_1',
+      data: {
+        fullName: 'Dana Cohen',
+        profileStatus: 'ACTIVE',
+        currentGrade: 7,
+        guardians: [
+          { id: 'g1', fullName: 'Ron Cohen', phone: '050-2222222', isPrimary: true },
+          { id: 'g2', fullName: 'Mia Cohen', email: 'mia@example.com', isPrimary: false },
+        ],
+        nestedLegacyKey: { startTime: '09:00', snake_key: 'preserved' },
+      },
+    });
+
+    expect(rowToApp(studentSpec, row)).toEqual({ ...legacyStudent, orgId: 'org_1' });
+  });
+
+  it('maps families as NORMALIZED rows while preserving guardians[] jsonb and student links', () => {
+    const familySpec = tableSpecFor('families');
+    const family = {
+      id: 'fam_1',
+      orgId: 'ignored-client-org',
+      name: 'Cohen-Levi',
+      guardians: [
+        {
+          id: 'guardian_1',
+          fullName: 'Ron Cohen',
+          relationship: 'PARENT',
+          phone: '050-2222222',
+          email: 'ron@example.com',
+          isPrimary: true,
+        },
+        {
+          id: 'guardian_2',
+          fullName: 'Mia Levi',
+          relationship: 'GUARDIAN',
+          phone: null,
+          email: 'mia@example.com',
+          isPrimary: false,
+        },
+      ],
+      studentIds: ['stu_1', 'stu_2'],
+      primaryContactGuardianId: 'guardian_1',
+      billingNotes: 'Pays annually',
+      isArchived: false,
+      createdAt: '2026-06-18T10:00:00.000Z',
+      updatedAt: '2026-06-18T11:00:00.000Z',
+      createdBy: 'user_admin',
+      updatedBy: undefined,
+    };
+
+    const row = appToRow(familySpec, 'org_1', family);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'fam_1',
+      name: 'Cohen-Levi',
+      guardians: family.guardians,
+      student_ids: ['stu_1', 'stu_2'],
+      primary_contact_guardian_id: 'guardian_1',
+      billing_notes: 'Pays annually',
+      is_archived: false,
+      created_at: '2026-06-18T10:00:00.000Z',
+      updated_at: '2026-06-18T11:00:00.000Z',
+      created_by: 'user_admin',
+    });
+    expect('updated_by' in row).toBe(false);
+
+    expect(rowToApp(familySpec, row)).toEqual({
+      id: 'fam_1',
+      orgId: 'org_1',
+      name: 'Cohen-Levi',
+      guardians: family.guardians,
+      studentIds: ['stu_1', 'stu_2'],
+      primaryContactGuardianId: 'guardian_1',
+      billingNotes: 'Pays annually',
+      isArchived: false,
+      createdAt: '2026-06-18T10:00:00.000Z',
+      updatedAt: '2026-06-18T11:00:00.000Z',
+      createdBy: 'user_admin',
+    });
+  });
+});
+
 describe('NORMALIZED mapping (real snake_case columns, nested jsonb)', () => {
   it('rowToApp converts top-level columns snake→camel and leaves nested jsonb intact', () => {
     const row = {

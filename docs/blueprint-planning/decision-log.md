@@ -54,7 +54,9 @@ locked in [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md) and
 allowlist (`routing.ts`), anti-drift coverage (`routing.test.ts`), palette
 filtering (`CommandPalette.tsx`), and the `INVENTORY → Manage?tab=inventory`
 alias. `STUDENTS`, `BILLING`, `ACADEMICS`, `PAYROLL`, and `ANALYTICS` stay hidden
-until their route and packet ship together.
+until their route and packet ship together. 2026-06-18 route-shell update:
+`STUDENTS` is now routed as the Student/Family top-level shell and palette-visible;
+`BILLING`, `ACADEMICS`, `PAYROLL`, and `ANALYTICS` remain hidden.
 
 ### D-03 — Family as first-class record  🔴
 **Q:** Is `Family` a real editable source-of-truth table now, or a grouping

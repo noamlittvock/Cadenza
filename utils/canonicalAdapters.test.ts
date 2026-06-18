@@ -136,6 +136,31 @@ describe('studentToV2', () => {
     expect(LOSSY_STUDENT_FIELDS).toContain('assignments');
     expect(LOSSY_STUDENT_FIELDS).toContain('guardians[1+]');
   });
+
+  it('defines the Student workspace write-boundary shape without family or guardian identity persistence', () => {
+    const v = studentToV2(makeStudent({
+      id: 'stu_family_linked',
+      orgId: 'org_1',
+      guardians: [
+        { id: 'guardian_primary', fullName: 'Primary Parent', phone: '050-1111111', address: 'Family home' },
+        { id: 'guardian_secondary', fullName: 'Secondary Parent', phone: '050-2222222' },
+      ],
+    })) as StudentV2 & Record<string, unknown>;
+
+    expect(v).toMatchObject({
+      id: 'stu_family_linked',
+      orgId: 'org_1',
+      fullName: 'Dana Cohen',
+      parentName: 'Primary Parent',
+      parentPhone: '050-1111111',
+      address: 'Family home',
+      grade: '7',
+      isArchived: false,
+    });
+    expect(v.familyId).toBeUndefined();
+    expect(v.guardians).toBeUndefined();
+    expect(v.assignments).toBeUndefined();
+  });
 });
 
 describe('student minimal projections', () => {

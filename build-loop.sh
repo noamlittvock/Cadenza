@@ -11,6 +11,7 @@ LOG_DIR="${BUILD_LOOP_LOG_DIR:-.build-loop}"
 MAX_ITERS="${MAX_ITERS:-40}"
 CODEX_BIN="${CODEX_BIN:-codex}"
 CODEX_SANDBOX="${CODEX_SANDBOX:-workspace-write}"
+CODEX_REASONING_EFFORT="${CODEX_REASONING_EFFORT:-high}"
 
 case "$MAX_ITERS" in
   ''|*[!0-9]*)
@@ -51,22 +52,37 @@ Non-negotiable rules:
   required by the current queue unit.
 - Preserve unrelated dirty work. Do NOT commit, stage, branch, push, or run any
   git write operation.
+- D-07 is ACCEPTED for public writes: public unauthenticated submissions must go
+  through a Supabase Edge Function or tightly scoped token into quarantined
+  records. Never add broad anon INSERT/SELECT/UPDATE/DELETE policies on org
+  tables.
+- D-14 is ACCEPTED: public/tokenized surfaces must use the `public_endpoints`
+  registry/control plane before launch.
+- Consent is mandatory for public data-collection surfaces. Do not add a config
+  path that bypasses explicit consent/setup capture.
 - D-16 is ACCEPTED for P0: guardian/contact data stays in
   `families.guardians[]` jsonb. Do not normalize guardian/contact identity or
   reopen that decision.
 - D-17-D-27 remain parked. Do not build packet sections marked `BLOCKED ON D-xx`
   until the matching decision is answered and the packet/decision log are updated.
 - Route/palette rule: a command-palette destination must route to a real surface
-  or alias onto one. When routing `STUDENTS`, update App routing, `routing.ts`,
-  sidebar, translations, and route/palette tests together.
+  or alias onto one. Public token routes do not get sidebar or command-palette
+  entries.
 - UI must match the existing app language: dense operator workflows, warm paper
   workspace, dark espresso sidebar, bordeaux/navy accents, compact headers,
   segmented controls, 8px-radius panels/cards, lucide icons, no marketing page.
-- Use existing app patterns and helpers. Use `utils/canonicalAdapters.ts` for
-  Student legacy/V2 conversion; do not add a second inline Student conversion.
+- Use existing app patterns and helpers. Public submit must create only
+  quarantined intake; live Student/Family/Enrollment records are created only by
+  an admin-approved conversion. Use `utils/canonicalAdapters.ts` for Student
+  legacy/V2 conversion; do not add a second inline Student conversion.
 - If live Supabase credentials are absent, add env-gated RLS tests that skip with
   a clear message, record the exact env vars in BUILD_LOOP_STATE.md, and do not
   mark RLS-LIVE or BUILD COMPLETE until those tests run against a real project.
+- Never print or record secret values. Do not run `printenv`, `env`, `set`, or
+  `cat .env*` when live credentials may be present. Check environment readiness
+  with presence-only output such as `VAR=set` or `VAR=missing`; docs and logs may
+  name required variables but must never include tokens, passwords, service-role
+  keys, anon keys, or access tokens.
 
 Verification:
 - Run the most focused relevant tests for the unit.
@@ -95,7 +111,10 @@ for ((i=1; i<=MAX_ITERS; i++)); do
   before="$(shasum "$STATE" | awk '{print $1}')"
   last_message="$LOG_DIR/iter-$i.last.md"
 
-  codex_args=(--ask-for-approval never)
+  codex_args=(
+    --ask-for-approval never
+    -c "model_reasoning_effort=\"$CODEX_REASONING_EFFORT\""
+  )
   if [ -n "${CODEX_MODEL:-}" ]; then
     codex_args+=(--model "$CODEX_MODEL")
   fi

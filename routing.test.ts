@@ -24,7 +24,7 @@ const ALL_VIEWS: ViewState[] = [
 
 // Views deliberately NOT routed today (fall through to `app.not_found`). INVENTORY
 // is unrouted as a top-level view but reachable via the Manage?tab=inventory alias.
-const UNROUTED_HIDDEN: ViewState[] = ['STUDENTS', 'BILLING', 'ACADEMICS', 'PAYROLL', 'ANALYTICS'];
+const UNROUTED_HIDDEN: ViewState[] = ['BILLING', 'ACADEMICS', 'PAYROLL', 'ANALYTICS'];
 
 /**
  * Derive the set of views `App.tsx` actually routes, straight from its source:
@@ -58,6 +58,11 @@ describe('routing: routed-views allowlist', () => {
     // INVENTORY is intentionally not a top-level route either.
     expect(ROUTED_VIEWS.has('INVENTORY')).toBe(false);
   });
+
+  it('routes STUDENTS as a real top-level destination', () => {
+    expect(ROUTED_VIEWS.has('STUDENTS')).toBe(true);
+    expect(isPaletteVisible('STUDENTS')).toBe(true);
+  });
 });
 
 describe('routing: palette visibility (D-02)', () => {
@@ -71,7 +76,7 @@ describe('routing: palette visibility (D-02)', () => {
     }
   });
 
-  it('hides the five dead-end views from the palette', () => {
+  it('hides the remaining dead-end views from the palette', () => {
     for (const v of UNROUTED_HIDDEN) {
       expect(isPaletteVisible(v)).toBe(false);
     }

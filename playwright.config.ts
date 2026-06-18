@@ -29,7 +29,10 @@ export default defineConfig({
       url: 'http://localhost:3000',
       reuseExistingServer: true,
       timeout: 60_000,
-      env: {},
+      env: {
+        VITE_E2E_AUTH_BYPASS: 'true',
+        VITE_LOCAL_MODE: 'true',
+      },
     },
   ],
 });

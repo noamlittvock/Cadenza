@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronRight, ChevronLeft, X, Filter, Zap, List, Sparkles } from 'lucide-react';
 import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, Student, CalendarSubscription, HoursReport, AdminInboxItem } from './types';
 import type { ActivityV2, L1Subcategory, L2Subcategory, StaffMemberV2, StudentV2 } from './types/v2';
+import type { Family } from './types/blueprint';
+import { BLUEPRINT_COLLECTIONS } from './types/blueprint';
 import type { CalendarSidebarTab } from './types/calendarFilters';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, TRANSLATIONS, migrateTeacher, generateId } from './constants';
 
@@ -27,6 +29,7 @@ import { ManageHub } from './components/ManageHub';
 import { ConservatoryBlueprint } from './components/ConservatoryBlueprint';
 import { SuperAdmin } from './components/SuperAdmin';
 import { AdminInbox } from './components/AdminInbox';
+import { StudentFamilyWorkspace } from './components/StudentFamilyWorkspace';
 import { OnboardingChecklist } from './components/OnboardingChecklist';
 
 import { TeacherHoursForm } from './components/TeacherHoursForm';
@@ -124,7 +127,8 @@ function AppContent() {
   const [events, setEvents] = useSupabaseSync<CalendarEvent>('events', []);
   const [ganttBlocks, setGanttBlocks] = useSupabaseSync<GanttBlock>('ganttBlocks', []);
   const [activities, setActivities] = useSupabaseSync<ActivityV2>('activities', []);
-  const [students, setStudents] = useSupabaseSync<Student>('students', []);
+  const [students, setStudents, studentsLoading] = useSupabaseSync<Student>('students', []);
+  const [families, setFamilies, familiesLoading] = useSupabaseSync<Family>(BLUEPRINT_COLLECTIONS.families, []);
   const [calendarSubscriptions, setCalendarSubscriptions] = useSupabaseSync<CalendarSubscription>('calendarSubscriptions', []);
   const [hoursReports, setHoursReports] = useSupabaseSync<HoursReport>('hoursReports', []);
   const [adminInboxItems, setAdminInboxItems] = useSupabaseSync<AdminInboxItem>('adminInboxItems', []);
@@ -627,6 +631,23 @@ function AppContent() {
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
           />
         );
+      case 'STUDENTS':
+        return (
+          <StudentFamilyWorkspace
+            settings={settings}
+            students={students}
+            families={families}
+            activities={activities}
+            setStudents={setStudents}
+            setFamilies={setFamilies}
+            orgId={orgId}
+            actorId={currentUser?.id ?? null}
+            canViewFinance={isAdmin || isSuperAdmin}
+            studentsLoading={studentsLoading}
+            familiesLoading={familiesLoading}
+            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+          />
+        );
       case 'SUPER_ADMIN':
         return (
           <SuperAdmin
@@ -644,6 +665,7 @@ function AppContent() {
                 setEvents([]);
                 setGanttBlocks([]);
                 setStudents([]);
+                setFamilies([]);
                 setActivities([]);
                 setAdminInboxItems([]);
                 setHoursReports([]);
@@ -669,6 +691,7 @@ function AppContent() {
                       wipeCol(V2_COLLECTIONS.teachingAssignments),
                       wipeCol(V2_COLLECTIONS.orgRoles),
                       wipeCol(V2_COLLECTIONS.students),
+                      wipeCol(BLUEPRINT_COLLECTIONS.families),
                       wipeCol(V2_COLLECTIONS.enrollments),
                       wipeCol(V2_COLLECTIONS.activities),
                       wipeCol(V2_COLLECTIONS.l1Subcategories),

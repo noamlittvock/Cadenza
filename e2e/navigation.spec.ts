@@ -10,13 +10,12 @@ test.describe('Navigation — routing, sidebar, dark mode, mobile', () => {
   test('#11 all nav items are visible', async ({ page }) => {
     const labels = [
       'Smart Calendar',
-      'Staff Members',
       'Students',
+      'Blueprint',
       'Manage',
       'Inbox',
       'Settings',
       'Super Admin',
-      'Documents',
     ];
     for (const label of labels) {
       await expect(page.getByRole('button', { name: label })).toBeVisible();
@@ -26,7 +25,7 @@ test.describe('Navigation — routing, sidebar, dark mode, mobile', () => {
   // #12 — Clicking nav items switches views without crashing
   test('#12 clicking nav items switches views', async ({ page }) => {
     const views = [
-      'STAFF_MEMBERS',
+      'STUDENTS',
       'MANAGE',
       'ADMIN_INBOX',
       'SETTINGS',
@@ -38,7 +37,42 @@ test.describe('Navigation — routing, sidebar, dark mode, mobile', () => {
       await gotoView(page, view);
       // Nav must still be present (no crash/unmount)
       await expect(page.locator('nav').first()).toBeVisible();
+      await expect(page.getByText('Not found')).not.toBeVisible();
     }
+  });
+
+  test('#12b Students opens the Student/Family route shell', async ({ page }) => {
+    await gotoView(page, 'STUDENTS');
+    await expect(page.getByTestId('student-family-workspace')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Student/Family Files' })).toBeVisible();
+    await expect(page.getByPlaceholder('Search by student, family, guardian, phone, or email...')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'New student' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'New family' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Families' })).toBeVisible();
+    await expect(page.getByText('No students yet')).toBeVisible();
+    await page.getByRole('button', { name: 'New student' }).click();
+    await expect(page.getByRole('dialog', { name: 'New student file' })).toBeVisible();
+    await page.getByLabel('Student name').fill('Dana Cohen');
+    await page.getByLabel('Family name').fill('Cohen Family');
+    await page.getByPlaceholder('Guardian name').fill('Ron Cohen');
+    await page.getByPlaceholder('Phone').fill('050-1111111');
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByRole('dialog', { name: 'New student file' })).not.toBeVisible();
+    await expect(page.getByText('Dana Cohen').first()).toBeVisible();
+    await page.getByText('Dana Cohen').first().click();
+    await expect(page.getByTestId('student-family-detail-panel')).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Profile' })).toHaveAttribute('aria-selected', 'true');
+    await page.getByRole('tab', { name: 'Guardians' }).click();
+    await expect(page.getByText('Ron Cohen')).toBeVisible();
+    await page.getByRole('tab', { name: 'Enrollments' }).click();
+    await expect(page.getByText('No enrollments linked')).toBeVisible();
+    await page.getByRole('tab', { name: 'Finance' }).click();
+    await expect(page.getByText('Finance source not connected')).toBeVisible();
+    await page.getByRole('tab', { name: 'Documents' }).click();
+    await expect(page.getByText('No documents')).toBeVisible();
+    await page.getByRole('button', { name: 'Families' }).click();
+    await expect(page.getByPlaceholder('Search by family, guardian, student, phone, or email...')).toBeVisible();
+    await expect(page.getByText('Cohen Family').first()).toBeVisible();
   });
 
   // #13 — Sidebar collapses and expands (desktop)

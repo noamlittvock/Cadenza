@@ -32,7 +32,7 @@ const NAV_ICONS: Record<ViewState, React.ReactNode> = {
   STAFF_MEMBERS: <Users className="h-4 w-4" />,
   ADMIN_INBOX: <Inbox className="h-4 w-4" />,
   BLUEPRINT: <ListTree className="h-4 w-4" />,
-  STUDENTS: <Users className="h-4 w-4" />,
+  STUDENTS: <GraduationCap className="h-4 w-4" />,
   BILLING: <ListChecks className="h-4 w-4" />,
   ACADEMICS: <ListTree className="h-4 w-4" />,
   INVENTORY: <LayoutGrid className="h-4 w-4" />,
@@ -177,7 +177,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         label: s.fullName,
         icon: <GraduationCap className="h-4 w-4" />,
         onSelect: () => {
-          setCurrentView('MANAGE');
+          setCurrentView('STUDENTS');
           onClose();
         },
       }));

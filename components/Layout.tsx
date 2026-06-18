@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ViewState } from '../types';
-import { Calendar, Users, AlertOctagon, Sun, Moon, ChevronLeft, ChevronRight, Settings, Smartphone, Sliders, Mail, Lock, ListTree } from 'lucide-react';
+import { Calendar, Users, AlertOctagon, Sun, Moon, ChevronLeft, ChevronRight, Settings, Smartphone, Sliders, Mail, Lock, ListTree, GraduationCap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
 import { AppSettings } from '../types';
@@ -209,6 +209,14 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 onClick={() => { setView('BLUEPRINT'); setIsMobileMenuOpen(false); }}
                 icon={ListTree}
                 label={t('nav.blueprint')}
+                collapsed={isCollapsed}
+              />
+
+              <NavItem
+                active={currentView === 'STUDENTS'}
+                onClick={() => { setView('STUDENTS'); setIsMobileMenuOpen(false); }}
+                icon={GraduationCap}
+                label={t('nav.students')}
                 collapsed={isCollapsed}
               />
 

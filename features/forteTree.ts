@@ -280,7 +280,7 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
   {
     id: 'student-family-files',
     domain: 'people',
-    status: 'embedded',
+    status: 'implemented',
     priority: 'p0',
     label: 'Students and family files',
     labelHe: 'תלמידים ותיקי משפחה',
@@ -289,9 +289,9 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
     industryStandard:
       'Student and guardian data must support minors, family billing context, enrollment history, and document retention.',
     cadenzaFit:
-      'Cadenza has Student and StudentV2 types, guardian fields, documents, filters, and dev data; the missing piece is a first-class minimal Student/Family surface.',
+      'Cadenza now has a first-class Student/Family workspace over the Student and Family records, with guardian, family, document, roster, and archive context.',
     nextStep:
-      'Expose a Students tab or route that reads existing student collections and treats family as a lightweight grouping layer.',
+      'Use the Students route as the source workspace for downstream intake, attendance, finance, agreements, and reporting links.',
     dataEntities: ['Student', 'StudentV2', 'Guardian', 'DocumentEntry', 'EnrollmentV2'],
     deterministicQueries: ['findStudentByName', 'listStudentsByGuardian', 'listStudentEnrollments'],
     embeddingText:
