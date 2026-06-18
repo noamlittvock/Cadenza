@@ -44,10 +44,11 @@ const DOMAINS: Array<ForteTreeDomain | 'all'> = [
   'agent',
 ];
 
-const STATUSES: Array<ForteTreeStatus | 'all'> = ['all', 'native', 'embedded', 'planned', 'gap'];
+const STATUSES: Array<ForteTreeStatus | 'all'> = ['all', 'native', 'implemented', 'embedded', 'planned', 'gap'];
 
 const STATUS_ICON: Record<ForteTreeStatus, React.ReactNode> = {
   native: <CheckCircle2 size={14} />,
+  implemented: <ShieldCheck size={14} />,
   embedded: <Database size={14} />,
   planned: <Clock3 size={14} />,
   gap: <AlertTriangle size={14} />,
@@ -55,6 +56,7 @@ const STATUS_ICON: Record<ForteTreeStatus, React.ReactNode> = {
 
 const STATUS_CLASS: Record<ForteTreeStatus, string> = {
   native: 'bg-ok-50 text-ok-700 border-ok-200 dark:bg-ok-900/30 dark:text-ok-200 dark:border-ok-700',
+  implemented: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-700',
   embedded: 'bg-info-50 text-info-700 border-info-200 dark:bg-info-900/30 dark:text-info-200 dark:border-info-700',
   planned: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-700',
   gap: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-200 dark:border-red-700',
@@ -77,7 +79,9 @@ export const ConservatoryBlueprint: React.FC<ConservatoryBlueprintProps> = ({
     text: search,
   }), [domain, search, status]);
   const embeddingRecords = useMemo(() => buildForteEmbeddingRecords(), []);
-  const coveragePercent = Math.round((coverage.nativeOrEmbedded / Math.max(coverage.total, 1)) * 100);
+  // Productized = fully or partially shipped surfaces: native + embedded + implemented.
+  const productized = coverage.byStatus.native + coverage.byStatus.embedded + coverage.byStatus.implemented;
+  const coveragePercent = Math.round((productized / Math.max(coverage.total, 1)) * 100);
 
   return (
     <div

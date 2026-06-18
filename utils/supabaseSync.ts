@@ -11,8 +11,8 @@
 
 import { getSupabase } from './supabaseClient';
 
-type Mode = 'HYBRID' | 'NORMALIZED';
-interface TableSpec { table: string; mode: Mode; }
+export type Mode = 'HYBRID' | 'NORMALIZED';
+export interface TableSpec { table: string; mode: Mode; }
 
 /** camelCase collection name → Postgres table + storage mode. */
 export const COLLECTION_TO_TABLE: Record<string, TableSpec> = {
@@ -50,6 +50,8 @@ export const COLLECTION_TO_TABLE: Record<string, TableSpec> = {
   payments: { table: 'payments', mode: 'NORMALIZED' },
   adjustments: { table: 'adjustments', mode: 'NORMALIZED' },
   balanceSnapshots: { table: 'balance_snapshots', mode: 'NORMALIZED' },
+  rolloverRuns: { table: 'rollover_runs', mode: 'NORMALIZED' },
+  publicEndpoints: { table: 'public_endpoints', mode: 'NORMALIZED' },
   agreementTemplates: { table: 'agreement_templates', mode: 'NORMALIZED' },
   agreementAcceptances: { table: 'agreement_acceptances', mode: 'NORMALIZED' },
   instruments: { table: 'instruments', mode: 'NORMALIZED' },
@@ -68,23 +70,22 @@ export function tableSpecFor(collectionName: string): TableSpec {
 const camelToSnake = (k: string) => k.replace(/[A-Z]/g, c => `_${c.toLowerCase()}`);
 const snakeToCamel = (k: string) => k.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 
-function rowToApp(spec: TableSpec, row: Record<string, unknown>): Record<string, unknown> {
+// Exported for unit tests (supabaseSync.test.ts). Pure; no Supabase dependency.
+export function rowToApp(spec: TableSpec, row: Record<string, unknown>): Record<string, unknown> {
   if (spec.mode === 'HYBRID') {
     const data = (row.data as Record<string, unknown>) ?? {};
     return { id: row.id, orgId: row.org_id, ...data };
   }
+  // NORMALIZED: snake→camel for every top-level column (org_id/created_at/updated_at
+  // included); nested object/array values are jsonb and pass through untouched.
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(row)) {
-    if (k === 'org_id' || k === 'created_at' || k === 'updated_at') {
-      out[snakeToCamel(k)] = v;
-    } else {
-      out[snakeToCamel(k)] = v;
-    }
+    out[snakeToCamel(k)] = v;
   }
   return out;
 }
 
-function appToRow(spec: TableSpec, orgId: string, item: Record<string, unknown>): Record<string, unknown> {
+export function appToRow(spec: TableSpec, orgId: string, item: Record<string, unknown>): Record<string, unknown> {
   if (spec.mode === 'HYBRID') {
     const { id, orgId: _omit, ...rest } = item as Record<string, unknown> & { id: string };
     return { id, org_id: orgId, data: rest };

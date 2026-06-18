@@ -83,6 +83,8 @@ provides the React state hook.
 | `payments` | `payments` | listPaymentsByFamily |
 | `adjustments` | `adjustments` | listOpenBalances |
 | `balanceSnapshots` | `balance_snapshots` | balance history |
+| `rolloverRuns` | `rollover_runs` | rollover audit history |
+| `publicEndpoints` | `public_endpoints` | token registry for public surfaces |
 | `agreementTemplates` | `agreement_templates` | listUnsignedAgreements |
 | `agreementAcceptances` | `agreement_acceptances` | getAgreementHistory, findAgreementByEnrollment |
 | `instruments` | `instruments` | listAvailableInstruments |

@@ -8,7 +8,7 @@ export type ForteTreeDomain =
   | 'platform'
   | 'agent';
 
-export type ForteTreeStatus = 'native' | 'embedded' | 'planned' | 'gap';
+export type ForteTreeStatus = 'native' | 'embedded' | 'planned' | 'gap' | 'implemented';
 
 export type ForteTreePriority = 'p0' | 'p1' | 'p2';
 
@@ -604,7 +604,10 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
   {
     id: 'instrument-inventory',
     domain: 'resources',
-    status: 'gap',
+    // D-STATUS: promoted gap → implemented. Meets the implemented bar (catalog,
+    // checkout/return, counters, Supabase mapping, RTL smoke) and the feature-tree
+    // consistency check is green (features/forteTree.consistency.test.ts).
+    status: 'implemented',
     priority: 'p1',
     label: 'Instrument inventory',
     labelHe: 'אינוונטר כלי נגינה',

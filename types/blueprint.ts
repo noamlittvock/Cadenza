@@ -302,6 +302,51 @@ export interface BalanceSnapshot extends BlueprintBase {
   currency: string;
 }
 
+// ─── Year rollover / public endpoint foundation ─────────────────────────────
+
+export type RolloverRunStatus = 'PREVIEWED' | 'APPLIED' | 'FAILED' | 'CANCELLED';
+
+/** Auditable record of a school-year rollover preview/apply operation. */
+export interface RolloverRun extends BlueprintBase {
+  fromYearLabel: string;
+  toYearLabel: string;
+  status: RolloverRunStatus;
+  preview: Record<string, unknown>;
+  plan: Record<string, unknown>;
+  result: Record<string, unknown>;
+  warnings: string[];
+  startedAt: IsoTimestamp | null;
+  appliedAt: IsoTimestamp | null;
+  failedAt: IsoTimestamp | null;
+  errorMessage: string | null;
+}
+
+export type PublicEndpointKind =
+  | 'REGISTRATION_INTAKE'
+  | 'AGREEMENT_ACCEPTANCE'
+  | 'CALENDAR_SUBSCRIPTION'
+  | 'HOURS_REPORT'
+  | 'OTHER';
+
+export type PublicEndpointStatus = 'DISABLED' | 'ACTIVE' | 'REVOKED' | 'EXPIRED';
+
+/**
+ * Token registry for public surfaces. The raw token is never stored; only
+ * `tokenHash` is persisted.
+ */
+export interface PublicEndpoint extends BlueprintBase {
+  kind: PublicEndpointKind;
+  label: string;
+  tokenHash: string;
+  status: PublicEndpointStatus;
+  scopes: string[];
+  targetId: string | null;
+  consentAgreementId: string | null;
+  expiresAt: IsoTimestamp | null;
+  lastUsedAt: IsoTimestamp | null;
+  revokedAt: IsoTimestamp | null;
+}
+
 // ─── Agreements / consent ────────────────────────────────────────────────────
 
 export type AgreementKind =
@@ -479,6 +524,8 @@ export const BLUEPRINT_COLLECTIONS = {
   payments: 'payments',
   adjustments: 'adjustments',
   balanceSnapshots: 'balanceSnapshots',
+  rolloverRuns: 'rolloverRuns',
+  publicEndpoints: 'publicEndpoints',
   agreementTemplates: 'agreementTemplates',
   agreementAcceptances: 'agreementAcceptances',
   instruments: 'instruments',

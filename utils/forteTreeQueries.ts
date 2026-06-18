@@ -49,7 +49,9 @@ const DOMAIN_ORDER: ForteTreeDomain[] = [
   'agent',
 ];
 
-const STATUS_ORDER: ForteTreeStatus[] = ['native', 'embedded', 'planned', 'gap'];
+// Completeness order (most → least productized) — drives byStatus seeding and
+// node sort. `implemented` sits with `native` as a fully-productized tier.
+const STATUS_ORDER: ForteTreeStatus[] = ['native', 'implemented', 'embedded', 'planned', 'gap'];
 
 function normalize(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, ' ');

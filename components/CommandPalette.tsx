@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Search, Calendar, Users, GraduationCap, Cog, LayoutGrid, Inbox, Wrench, Shield, ListChecks, ListTree } from 'lucide-react';
 import { ViewState, Teacher, Student, CalendarEvent } from '../types';
 import type { CalendarSidebarTab } from '../types/calendarFilters';
+import { isPaletteVisible, VIEW_ALIASES } from '../routing';
 
 interface CommandPaletteProps {
   open: boolean;
@@ -103,15 +104,39 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   const q = query.trim().toLowerCase();
 
-  // Build the navigate section (always shown; filtered by label)
+  // Navigate to a view, resolving palette aliases (e.g. INVENTORY →
+  // Manage?tab=inventory). The Manage tab is selected via the `?tab=` URL param,
+  // which ManageHub reads on mount — so this routes correctly when coming from
+  // any other view. (Already being on Manage is the lone edge case; navigating
+  // there from elsewhere is the palette's job.)
+  const navigateToView = useCallback((view: ViewState) => {
+    const alias = VIEW_ALIASES[view];
+    if (alias) {
+      if (alias.manageTab && typeof window !== 'undefined') {
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', alias.manageTab);
+        window.history.replaceState({}, '', url.toString());
+      }
+      setCurrentView(alias.view);
+    } else {
+      setCurrentView(view);
+    }
+  }, [setCurrentView]);
+
+  // Build the navigate section (always shown; filtered by label). Only views that
+  // route to a real surface (or alias onto one) are listed — see routing.ts /
+  // route-nav-policy.md (D-02). This is what keeps the palette from offering
+  // dead-end destinations that land on Not Found.
   const navResults = useMemo<PaletteResult[]>(() => {
-    const viewItems: PaletteResult[] = (Object.keys(NAV_KEY_BY_VIEW) as ViewState[]).map(view => ({
-      id: `nav:${view}`,
-      kind: 'navigate',
-      label: t(NAV_KEY_BY_VIEW[view]),
-      icon: NAV_ICONS[view] ?? <Calendar className="h-4 w-4" />,
-      onSelect: () => { setCurrentView(view); onClose(); },
-    }));
+    const viewItems: PaletteResult[] = (Object.keys(NAV_KEY_BY_VIEW) as ViewState[])
+      .filter(isPaletteVisible)
+      .map(view => ({
+        id: `nav:${view}`,
+        kind: 'navigate',
+        label: t(NAV_KEY_BY_VIEW[view]),
+        icon: NAV_ICONS[view] ?? <Calendar className="h-4 w-4" />,
+        onSelect: () => { navigateToView(view); onClose(); },
+      }));
     const sidebarItems: PaletteResult[] = SIDEBAR_ENTRIES.map(entry => ({
       id: entry.id,
       kind: 'navigate',
@@ -122,7 +147,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     const all = [...viewItems, ...sidebarItems];
     if (!q) return all;
     return all.filter(r => r.label.toLowerCase().includes(q));
-  }, [q, t, setCurrentView, setSidebarTab, onClose]);
+  }, [q, t, navigateToView, setCurrentView, setSidebarTab, onClose]);
 
   const staffResults = useMemo<PaletteResult[]>(() => {
     if (!q) return [];
