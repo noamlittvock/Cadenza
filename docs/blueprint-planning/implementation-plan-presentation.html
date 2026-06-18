@@ -1,0 +1,2262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cadenza Blueprint Implementation Plan</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f4efe6;
+      --paper-2: #ede5d6;
+      --line: #ded2bb;
+      --line-strong: #c8bba2;
+      --ink: #3a2e22;
+      --ink-mid: #5a4a38;
+      --muted: #8b7c66;
+      --espresso: #1e1812;
+      --espresso-2: #100c08;
+      --navy: #3c5170;
+      --navy-2: #2e3f58;
+      --navy-soft: #dce3ee;
+      --brand: #6e1a1a;
+      --brand-2: #561414;
+      --brand-soft: #ebcfc8;
+      --sage: #4f7843;
+      --sage-soft: #d6e5cc;
+      --amber: #85601a;
+      --amber-soft: #efddb1;
+      --danger: #9a3e18;
+      --danger-soft: #f4d2c2;
+      --white: #fffaf2;
+      --shadow: 0 18px 42px -18px rgba(58, 46, 34, 0.3);
+      --shadow-soft: 0 8px 22px -14px rgba(58, 46, 34, 0.35);
+      --radius: 8px;
+      --slide-max: 1180px;
+      --sidebar: 288px;
+      --font: "DM Sans", "Heebo", "Avenir Next", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--paper);
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(30, 24, 18, 0.03) 1px, transparent 1px) 0 0 / 44px 44px,
+        linear-gradient(180deg, rgba(30, 24, 18, 0.025) 1px, transparent 1px) 0 0 / 44px 44px,
+        var(--paper);
+      letter-spacing: 0;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .deck {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: var(--sidebar) minmax(0, 1fr);
+    }
+
+    .toc {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 18px 16px;
+      background: linear-gradient(180deg, rgba(16, 12, 8, 0.98), rgba(30, 24, 18, 0.96));
+      color: var(--paper-2);
+      border-right: 1px solid rgba(237, 229, 214, 0.08);
+      overflow: auto;
+    }
+
+    .brand-block {
+      display: grid;
+      grid-template-columns: 52px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      padding: 0 2px 18px;
+      border-bottom: 1px solid rgba(237, 229, 214, 0.12);
+    }
+
+    .brand-block img {
+      width: 52px;
+      height: 52px;
+      border-radius: 8px;
+      object-fit: cover;
+      box-shadow: 0 8px 22px -12px rgba(0, 0, 0, 0.8);
+      background: var(--paper);
+    }
+
+    .brand-kicker {
+      margin: 0 0 4px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--line-strong);
+    }
+
+    .brand-title {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.25;
+      font-weight: 800;
+      color: var(--white);
+    }
+
+    .toc nav {
+      display: grid;
+      gap: 5px;
+      margin-top: 18px;
+    }
+
+    .toc a {
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr);
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 7px 9px;
+      border-radius: 8px;
+      color: var(--line-strong);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .toc a:hover,
+    .toc a:focus {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.06);
+      outline: none;
+    }
+
+    .toc a.active {
+      color: #fff;
+      background: radial-gradient(circle at 68% 22%, #8b2424 0%, #561414 100%);
+      box-shadow: 0 4px 20px -12px rgba(0, 0, 0, 0.8);
+    }
+
+    .toc-index {
+      width: 24px;
+      height: 24px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid rgba(237, 229, 214, 0.18);
+      border-radius: 999px;
+      font-size: 11px;
+      color: inherit;
+    }
+
+    .toc-foot {
+      margin-top: 22px;
+      padding: 14px 10px;
+      border: 1px solid rgba(237, 229, 214, 0.1);
+      border-radius: 8px;
+      color: var(--line-strong);
+      font-size: 12px;
+      line-height: 1.45;
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .toc-foot strong {
+      color: var(--white);
+    }
+
+    .content {
+      min-width: 0;
+    }
+
+    .slide {
+      min-height: 100vh;
+      padding: 48px clamp(22px, 4vw, 68px);
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid rgba(200, 187, 162, 0.55);
+    }
+
+    .slide-inner {
+      width: min(var(--slide-max), 100%);
+      margin: 0 auto;
+    }
+
+    .slide-topline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 28px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 750;
+      border: 1px solid var(--line);
+      color: var(--ink-mid);
+      background: rgba(255, 250, 242, 0.72);
+      white-space: nowrap;
+    }
+
+    .badge.brand {
+      color: var(--brand-2);
+      border-color: var(--brand-soft);
+      background: #f5e6e2;
+    }
+
+    .badge.navy {
+      color: var(--navy-2);
+      border-color: var(--navy-soft);
+      background: #f0f3f8;
+    }
+
+    .badge.sage {
+      color: #324b29;
+      border-color: #b6cfa8;
+      background: var(--sage-soft);
+    }
+
+    .badge.amber {
+      color: #4f3815;
+      border-color: #dec07f;
+      background: var(--amber-soft);
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 980px;
+      font-size: clamp(42px, 7vw, 86px);
+      line-height: 0.95;
+      font-weight: 900;
+      color: var(--espresso);
+    }
+
+    h2 {
+      margin: 0;
+      max-width: 920px;
+      font-size: clamp(31px, 4.6vw, 58px);
+      line-height: 1;
+      font-weight: 900;
+      color: var(--espresso);
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      line-height: 1.2;
+      font-weight: 850;
+      color: var(--espresso);
+    }
+
+    .lede {
+      max-width: 850px;
+      margin: 18px 0 0;
+      font-size: clamp(18px, 2.1vw, 25px);
+      line-height: 1.35;
+      color: var(--ink-mid);
+      font-weight: 520;
+    }
+
+    .body-text {
+      margin: 0;
+      color: var(--ink-mid);
+      font-size: 15px;
+      line-height: 1.55;
+      font-weight: 500;
+    }
+
+    .tight {
+      line-height: 1.35;
+    }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid.four {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .card {
+      background: rgba(255, 250, 242, 0.82);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .card.dark {
+      color: var(--paper-2);
+      background: linear-gradient(180deg, #2a2218, #1e1812);
+      border-color: rgba(237, 229, 214, 0.12);
+    }
+
+    .card.dark h3,
+    .card.dark .metric,
+    .card.dark .mini-title {
+      color: var(--white);
+    }
+
+    .card.dark .body-text,
+    .card.dark .mini-copy,
+    .card.dark .small {
+      color: var(--line-strong);
+    }
+
+    .metric {
+      margin: 0 0 4px;
+      font-size: 38px;
+      line-height: 1;
+      font-weight: 900;
+      color: var(--espresso);
+    }
+
+    .metric-label {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 750;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 0.94fr) minmax(420px, 1.06fr);
+      gap: 28px;
+      align-items: center;
+    }
+
+    .section-label {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 850;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .callout {
+      margin-top: 22px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(237, 229, 214, 0.7);
+      color: var(--ink-mid);
+      font-size: 15px;
+      line-height: 1.45;
+      font-weight: 620;
+    }
+
+    .callout strong {
+      color: var(--espresso);
+    }
+
+    .app-frame {
+      background: var(--espresso);
+      border: 1px solid rgba(16, 12, 8, 0.4);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .app-window {
+      display: grid;
+      grid-template-columns: 184px 1fr;
+      min-height: 430px;
+      background: #f8f5ef;
+    }
+
+    .mock-sidebar {
+      padding: 12px 10px;
+      background: linear-gradient(180deg, #100c08, #1e1812);
+      color: var(--paper-2);
+    }
+
+    .mock-logo {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 9px;
+      align-items: center;
+      padding: 0 0 12px;
+      border-bottom: 1px solid rgba(237, 229, 214, 0.12);
+      margin-bottom: 12px;
+    }
+
+    .mock-logo img {
+      width: 34px;
+      height: 34px;
+      border-radius: 7px;
+      object-fit: cover;
+      background: var(--paper);
+    }
+
+    .mock-logo span {
+      font-size: 11px;
+      font-weight: 850;
+      line-height: 1.15;
+      color: var(--white);
+    }
+
+    .mock-nav {
+      display: grid;
+      gap: 6px;
+    }
+
+    .mock-nav-item {
+      display: grid;
+      grid-template-columns: 20px 1fr auto;
+      gap: 7px;
+      align-items: center;
+      min-height: 34px;
+      padding: 7px 8px;
+      border-radius: 8px;
+      color: var(--line-strong);
+      font-size: 11px;
+      font-weight: 760;
+    }
+
+    .mock-nav-item.active {
+      color: #fff;
+      background: radial-gradient(circle at 68% 22%, #8b2424 0%, #561414 100%);
+      box-shadow: 0 6px 16px -12px rgba(0, 0, 0, 0.8);
+    }
+
+    .mock-nav-item.future {
+      color: #f8efd8;
+      background: rgba(133, 96, 26, 0.18);
+      border: 1px solid rgba(222, 192, 127, 0.22);
+    }
+
+    .mock-nav-item.hidden {
+      opacity: 0.52;
+      border: 1px dashed rgba(237, 229, 214, 0.14);
+    }
+
+    .mock-main {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      background: #f4efe6;
+    }
+
+    .mock-header {
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 10px 14px;
+      background: rgba(255, 250, 242, 0.9);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .segmented {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper-2);
+      max-width: 100%;
+    }
+
+    .segmented span {
+      min-height: 28px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 9px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .segmented span.active {
+      color: var(--navy);
+      background: var(--white);
+      box-shadow: 0 3px 10px -8px rgba(58, 46, 34, 0.4);
+    }
+
+    .mock-content {
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(210px, 0.9fr) minmax(260px, 1.2fr);
+      gap: 12px;
+      padding: 14px;
+      min-height: 0;
+    }
+
+    .mock-panel {
+      min-height: 0;
+      background: rgba(255, 250, 242, 0.72);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .mock-panel-head {
+      min-height: 44px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .mock-panel-title {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 900;
+      color: var(--espresso);
+    }
+
+    .mock-search {
+      width: 110px;
+      height: 24px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+    }
+
+    .mock-list {
+      display: grid;
+      gap: 0;
+    }
+
+    .mock-row {
+      display: grid;
+      grid-template-columns: 28px 1fr auto;
+      gap: 9px;
+      align-items: center;
+      min-height: 54px;
+      padding: 9px 12px;
+      border-bottom: 1px solid rgba(222, 210, 187, 0.65);
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--navy-soft);
+      color: var(--navy-2);
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .row-title {
+      margin: 0 0 3px;
+      font-size: 12px;
+      font-weight: 850;
+      color: var(--espresso);
+    }
+
+    .row-copy {
+      margin: 0;
+      font-size: 10px;
+      color: var(--muted);
+      font-weight: 650;
+    }
+
+    .state-pill {
+      min-width: 48px;
+      text-align: center;
+      padding: 4px 6px;
+      border-radius: 999px;
+      font-size: 9px;
+      font-weight: 900;
+      text-transform: uppercase;
+      background: var(--sage-soft);
+      color: #324b29;
+    }
+
+    .mock-detail {
+      padding: 14px;
+    }
+
+    .profile-head {
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .profile-head .avatar {
+      width: 56px;
+      height: 56px;
+      font-size: 18px;
+      background: #f5e6e2;
+      color: var(--brand);
+    }
+
+    .profile-title {
+      margin: 0 0 4px;
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--espresso);
+    }
+
+    .tab-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 0 0 14px;
+    }
+
+    .tab-row span {
+      min-height: 28px;
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 9px;
+      border-radius: 7px;
+      font-size: 10px;
+      font-weight: 850;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: rgba(255, 250, 242, 0.8);
+    }
+
+    .tab-row span.active {
+      color: var(--navy);
+      background: var(--navy-soft);
+      border-color: #b7c4d8;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .info-tile {
+      min-height: 78px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(237, 229, 214, 0.48);
+    }
+
+    .info-tile strong {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--espresso);
+      font-size: 12px;
+    }
+
+    .info-tile span {
+      display: block;
+      color: var(--ink-mid);
+      font-size: 11px;
+      line-height: 1.35;
+      font-weight: 600;
+    }
+
+    .current-state-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 18px;
+      align-items: stretch;
+      margin-top: 26px;
+    }
+
+    .state-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .state-item {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(255, 250, 242, 0.72);
+    }
+
+    .state-icon {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      color: #fff;
+      background: var(--navy);
+    }
+
+    .state-icon.brand {
+      background: var(--brand);
+    }
+
+    .state-icon.sage {
+      background: var(--sage);
+    }
+
+    .state-icon.amber {
+      background: var(--amber);
+    }
+
+    .state-title {
+      margin: 0 0 3px;
+      color: var(--espresso);
+      font-size: 15px;
+      font-weight: 850;
+    }
+
+    .state-copy {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      font-weight: 620;
+    }
+
+    .status-chip {
+      padding: 5px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: var(--paper);
+      white-space: nowrap;
+    }
+
+    .status-chip.good {
+      color: #324b29;
+      border-color: #b6cfa8;
+      background: var(--sage-soft);
+    }
+
+    .status-chip.wait {
+      color: #4f3815;
+      border-color: #dec07f;
+      background: var(--amber-soft);
+    }
+
+    .status-chip.risk {
+      color: #5c2410;
+      border-color: #eba983;
+      background: var(--danger-soft);
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 26px;
+    }
+
+    .flow-step {
+      position: relative;
+      min-height: 150px;
+      padding: 14px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(255, 250, 242, 0.82);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .flow-step::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      right: -10px;
+      width: 10px;
+      height: 2px;
+      background: var(--line-strong);
+    }
+
+    .flow-step:last-child::after {
+      display: none;
+    }
+
+    .flow-num {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      background: var(--espresso);
+      color: var(--paper);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .flow-step h3 {
+      font-size: 15px;
+    }
+
+    .mini-copy {
+      margin: 0;
+      color: var(--ink-mid);
+      font-size: 12px;
+      line-height: 1.4;
+      font-weight: 560;
+    }
+
+    .feature-map {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 26px;
+    }
+
+    .feature-column {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 250, 242, 0.78);
+      overflow: hidden;
+    }
+
+    .feature-head {
+      min-height: 50px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .feature-head h3 {
+      font-size: 15px;
+      margin: 0;
+    }
+
+    .feature-body {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+    }
+
+    .feature-pill {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      border: 1px solid rgba(222, 210, 187, 0.85);
+      border-radius: 8px;
+      background: rgba(244, 239, 230, 0.85);
+      color: var(--ink-mid);
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    .feature-pill strong {
+      color: var(--espresso);
+    }
+
+    .stage-board {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 26px;
+    }
+
+    .stage-row {
+      display: grid;
+      grid-template-columns: 110px minmax(220px, 0.75fr) minmax(0, 1.25fr) 180px;
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .stage-cell {
+      min-height: 78px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 250, 242, 0.76);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .stage-id {
+      color: var(--brand);
+      font-size: 13px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .stage-title {
+      margin: 0 0 5px;
+      color: var(--espresso);
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .stage-copy {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      font-weight: 620;
+    }
+
+    .gate-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 22px;
+    }
+
+    .gate {
+      min-height: 36px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(255, 250, 242, 0.82);
+      color: var(--ink-mid);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .gate svg {
+      flex: none;
+      color: var(--brand);
+    }
+
+    .ux-rules {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 26px;
+    }
+
+    .rule {
+      min-height: 150px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 250, 242, 0.78);
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: 12px;
+      align-content: start;
+    }
+
+    .rule-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: var(--navy-soft);
+      color: var(--navy);
+    }
+
+    .rule h3 {
+      font-size: 16px;
+    }
+
+    .diagram {
+      margin-top: 26px;
+      display: grid;
+      grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .stack-layer {
+      padding: 14px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(255, 250, 242, 0.82);
+    }
+
+    .stack-layer h3 {
+      margin-bottom: 5px;
+      font-size: 15px;
+    }
+
+    .architecture {
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid rgba(237, 229, 214, 0.12);
+      background: linear-gradient(180deg, #2a2218, #1e1812);
+      color: var(--paper-2);
+      box-shadow: var(--shadow);
+    }
+
+    .arch-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .arch-node {
+      min-height: 92px;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(237, 229, 214, 0.13);
+      background: rgba(255, 255, 255, 0.045);
+    }
+
+    .arch-node strong {
+      display: block;
+      margin-bottom: 5px;
+      color: #fffaf2;
+      font-size: 13px;
+    }
+
+    .arch-node span {
+      display: block;
+      color: var(--line-strong);
+      font-size: 12px;
+      line-height: 1.4;
+      font-weight: 560;
+    }
+
+    .decision-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .decision {
+      min-height: 118px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 250, 242, 0.76);
+    }
+
+    .decision strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--brand);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .decision span {
+      display: block;
+      color: var(--ink-mid);
+      font-size: 12px;
+      line-height: 1.38;
+      font-weight: 580;
+    }
+
+    .team-lens {
+      margin-top: 26px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .lens {
+      padding: 18px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(255, 250, 242, 0.8);
+    }
+
+    .lens h3 {
+      color: var(--brand);
+    }
+
+    .lens ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+      color: var(--ink-mid);
+      font-size: 13px;
+      line-height: 1.45;
+      font-weight: 580;
+    }
+
+    .lens li + li {
+      margin-top: 6px;
+    }
+
+    .brief-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 250, 242, 0.78);
+      margin-top: 24px;
+    }
+
+    .brief-table th,
+    .brief-table td {
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .brief-table th {
+      color: var(--espresso);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      background: rgba(237, 229, 214, 0.78);
+    }
+
+    .brief-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .brief-table td {
+      color: var(--ink-mid);
+      font-weight: 580;
+    }
+
+    .brief-table strong {
+      color: var(--espresso);
+    }
+
+    .mobile-demo {
+      width: min(300px, 100%);
+      margin: 0 auto;
+      border: 8px solid var(--espresso);
+      border-radius: 28px;
+      background: var(--paper);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .mobile-demo .mock-header {
+      min-height: 48px;
+      padding: 8px 10px;
+    }
+
+    .mobile-demo .mock-content {
+      display: block;
+      padding: 10px;
+    }
+
+    .mobile-demo .mock-panel {
+      margin-bottom: 10px;
+    }
+
+    .mobile-demo .mock-row {
+      min-height: 50px;
+    }
+
+    .mobile-caption {
+      max-width: 300px;
+      margin: 12px auto 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      font-weight: 650;
+    }
+
+    .small {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      font-weight: 600;
+    }
+
+    .progress {
+      position: fixed;
+      z-index: 40;
+      left: var(--sidebar);
+      right: 0;
+      top: 0;
+      height: 4px;
+      background: rgba(222, 210, 187, 0.65);
+    }
+
+    .progress-bar {
+      width: 0;
+      height: 100%;
+      background: linear-gradient(90deg, var(--brand), var(--navy));
+      transition: width 120ms linear;
+    }
+
+    .print-button {
+      position: fixed;
+      z-index: 45;
+      right: 18px;
+      bottom: 18px;
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      color: #fff;
+      background: var(--brand);
+      box-shadow: var(--shadow);
+      cursor: pointer;
+    }
+
+    .print-button:hover,
+    .print-button:focus {
+      background: var(--brand-2);
+      outline: 2px solid rgba(110, 26, 26, 0.22);
+      outline-offset: 3px;
+    }
+
+    .icon {
+      width: 18px;
+      height: 18px;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    .icon svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    @media (max-width: 1180px) {
+      :root {
+        --sidebar: 236px;
+      }
+
+      .split,
+      .current-state-grid,
+      .diagram {
+        grid-template-columns: 1fr;
+      }
+
+      .flow,
+      .feature-map,
+      .grid.four {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .stage-row {
+        grid-template-columns: 90px 1fr;
+      }
+
+      .stage-row .stage-cell:nth-child(3),
+      .stage-row .stage-cell:nth-child(4) {
+        grid-column: span 1;
+      }
+
+      .decision-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 820px) {
+      .deck {
+        display: block;
+      }
+
+      .toc {
+        position: static;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid rgba(237, 229, 214, 0.12);
+      }
+
+      .toc nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .toc-foot {
+        display: none;
+      }
+
+      .progress {
+        left: 0;
+      }
+
+      .slide {
+        min-height: auto;
+        padding: 38px 18px;
+      }
+
+      .grid.two,
+      .grid.three,
+      .grid.four,
+      .flow,
+      .feature-map,
+      .ux-rules,
+      .team-lens,
+      .decision-grid,
+      .arch-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-step::after {
+        display: none;
+      }
+
+      .app-window {
+        grid-template-columns: 1fr;
+      }
+
+      .mock-sidebar {
+        display: none;
+      }
+
+      .mock-content {
+        grid-template-columns: 1fr;
+      }
+
+      .stage-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media print {
+      body {
+        background: var(--paper);
+      }
+
+      .deck {
+        display: block;
+      }
+
+      .toc,
+      .progress,
+      .print-button {
+        display: none;
+      }
+
+      .slide {
+        min-height: 100vh;
+        break-after: page;
+        padding: 38px;
+      }
+
+      .card,
+      .app-frame,
+      .stage-cell,
+      .feature-column,
+      .rule,
+      .decision,
+      .lens {
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" aria-hidden="true"><div class="progress-bar" id="progressBar"></div></div>
+  <button class="print-button" type="button" onclick="window.print()" aria-label="Print presentation">
+    <span class="icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M6 9V2h12v7" />
+        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+        <path d="M6 14h12v8H6z" />
+      </svg>
+    </span>
+  </button>
+
+  <div class="deck">
+    <aside class="toc" aria-label="Presentation agenda">
+      <div class="brand-block">
+        <img src="../../public/logo.png" alt="Cadenza logo" />
+        <div>
+          <p class="brand-kicker">Blueprint</p>
+          <p class="brand-title">Implementation plan briefing</p>
+        </div>
+      </div>
+      <nav id="tocNav">
+        <a href="#slide-1" class="active"><span class="toc-index">1</span><span>Executive frame</span></a>
+        <a href="#slide-2"><span class="toc-index">2</span><span>Current state</span></a>
+        <a href="#slide-3"><span class="toc-index">3</span><span>Product gap</span></a>
+        <a href="#slide-4"><span class="toc-index">4</span><span>Feature plan</span></a>
+        <a href="#slide-5"><span class="toc-index">5</span><span>Stage plan</span></a>
+        <a href="#slide-6"><span class="toc-index">6</span><span>First release</span></a>
+        <a href="#slide-7"><span class="toc-index">7</span><span>UI integration</span></a>
+        <a href="#slide-8"><span class="toc-index">8</span><span>UX principles</span></a>
+        <a href="#slide-9"><span class="toc-index">9</span><span>Architecture gates</span></a>
+        <a href="#slide-10"><span class="toc-index">10</span><span>Decisions</span></a>
+        <a href="#slide-11"><span class="toc-index">11</span><span>Operating model</span></a>
+        <a href="#slide-12"><span class="toc-index">12</span><span>Next action</span></a>
+      </nav>
+      <div class="toc-foot">
+        <strong>Source of truth</strong><br />
+        This briefing summarizes `IMPLEMENTATION_ROADMAP.md`, module packets,
+        route/nav policy, and status policy after the planning loop reached
+        `PLANNING COMPLETE`.
+      </div>
+    </aside>
+
+    <main class="content">
+      <section class="slide" id="slide-1">
+        <div class="slide-inner">
+          <div class="slide-topline">
+            <span class="badge brand">Board readout</span>
+            <span class="badge navy">All-hands context</span>
+            <span class="badge sage">Developer brief</span>
+            <span class="badge amber">Product plan</span>
+          </div>
+          <h1>Cadenza Blueprint moves from planning to staged product delivery.</h1>
+          <p class="lede">
+            The platform now has the schema, deterministic helper layer, route policy,
+            packet specs, and implementation roadmap. The next phase is not another
+            audit. It is a controlled release sequence that turns backend coverage into
+            first-class operator workflows.
+          </p>
+          <div class="grid four" style="margin-top: 30px;">
+            <div class="card">
+              <p class="metric">22</p>
+              <p class="metric-label">Feature-tree modules</p>
+            </div>
+            <div class="card">
+              <p class="metric">16</p>
+              <p class="metric-label">Packeted non-native modules</p>
+            </div>
+            <div class="card">
+              <p class="metric">6</p>
+              <p class="metric-label">Native app spines retained</p>
+            </div>
+            <div class="card">
+              <p class="metric">5</p>
+              <p class="metric-label">Required release gates</p>
+            </div>
+          </div>
+          <div class="callout">
+            <strong>Board-level takeaway:</strong> the plan protects scope, risk, and
+            user experience by shipping keystone modules first, leaving unresolved
+            product-policy questions parked, and requiring real RLS plus workflow
+            smoke tests before a module becomes implemented.
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" id="slide-2">
+        <div class="slide-inner">
+          <div class="slide-topline">
+            <span class="badge navy">Current app state</span>
+            <span class="badge">Runtime: Supabase</span>
+            <span class="badge sage">Planning complete</span>
+          </div>
+          <h2>The current app is calendar-first, operational, and partially productized.</h2>
+          <p class="lede">
+            Cadenza already has strong native surfaces and data foundations. The gap is
+            turning Blueprint coverage into usable module workflows without cluttering
+            the shell or exposing incomplete routes.
+          </p>
+          <div class="current-state-grid">
+            <div class="app-frame" aria-label="Current app shell mockup">
+              <div class="app-window">
+                <aside class="mock-sidebar">
+                  <div class="mock-logo">
+                    <img src="../../public/logo.png" alt="" />
+                    <span>Cadenza Forte<br />Operations</span>
+                  </div>
+                  <div class="mock-nav">
+                    <div class="mock-nav-item active"><span>Cal</span><span>Calendar</span><span></span></div>
+                    <div class="mock-nav-item"><span>In</span><span>Admin Inbox</span><span>7</span></div>
+                    <div class="mock-nav-item"><span>Bl</span><span>Blueprint</span><span></span></div>
+                    <div class="mock-nav-item"><span>Mg</span><span>Manage</span><span></span></div>
+                    <div class="mock-nav-item"><span>St</span><span>Settings</span><span></span></div>
+                    <div class="mock-nav-item hidden"><span>Su</span><span>Students</span><span>hidden</span></div>
+                    <div class="mock-nav-item hidden"><span>Fi</span><span>Finance</span><span>hidden</span></div>
+                    <div class="mock-nav-item hidden"><span>An</span><span>Reports</span><span>hidden</span></div>
+                  </div>
+                </aside>
+                <section class="mock-main">
+                  <div class="mock-header">
+                    <div class="segmented">
+                      <span class="active">Day</span>
+                      <span>Week</span>
+                      <span>Resources</span>
+                      <span>Tools</span>
+                    </div>
+                    <span class="status-chip good">Routed</span>
+                  </div>
+                  <div class="mock-content">
+                    <div class="mock-panel">
+                      <div class="mock-panel-head">
+                        <p class="mock-panel-title">Operational sources</p>
+                        <span class="mock-search"></span>
+                      </div>
+                      <div class="mock-list">
+                        <div class="mock-row">
+                          <span class="avatar">C</span>
+                          <div><p class="row-title">Calendar</p><p class="row-copy">Source of truth for events</p></div>
+                          <span class="state-pill">Native</span>
+                        </div>
+                        <div class="mock-row">
+                          <span class="avatar">M</span>
+                          <div><p class="row-title">Manage</p><p class="row-copy">Staff, rooms, activities, inventory</p></div>
+                          <span class="state-pill">Native</span>
+                        </div>
+                        <div class="mock-row">
+                          <span class="avatar">B</span>
+                          <div><p class="row-title">Blueprint</p><p class="row-copy">Coverage and planning dashboard</p></div>
+                          <span class="state-pill">Plan</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="mock-panel">
+                      <div class="mock-panel-head">
+                        <p class="mock-panel-title">Current product reality</p>
+                        <span class="status-chip wait">Not CRUD</span>
+                      </div>
+                      <div class="mock-detail">
+                        <div class="profile-head">
+                          <span class="avatar">BP</span>
+                          <div>
+                            <p class="profile-title">Blueprint Dashboard</p>
+                            <p class="row-copy">Useful for coverage, not a module workflow.</p>
+                          </div>
+                        </div>
+                        <div class="info-grid">
+                          <div class="info-tile"><strong>Implemented</strong><span>Instrument Inventory is the substantial productized Blueprint module.</span></div>
+                          <div class="info-tile"><strong>Native</strong><span>Calendar, staff, rooms, activities, settings, inbox, import/export.</span></div>
+                          <div class="info-tile"><strong>Hidden</strong><span>Students, Billing, Payroll, Analytics stay hidden until routed.</span></div>
+                          <div class="info-tile"><strong>Backend</strong><span>Schema and deterministic helpers are ahead of product UI.</span></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+            <div class="state-list">
+              <div class="state-item">
+                <span class="state-icon sage">
+                  <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></span>
+                </span>
+                <div>
+                  <p class="state-title">Backend foundation is real</p>
+                  <p class="state-copy">Supabase migrations, RLS foundation, deterministic query helpers, and adapter tests are in place.</p>
+                </div>
+                <span class="status-chip good">Ready</span>
+              </div>
+              <div class="state-item">
+                <span class="state-icon brand">
+                  <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h10"/></svg></span>
+                </span>
+                <div>
+                  <p class="state-title">Blueprint is a planning surface</p>
+                  <p class="state-copy">It shows coverage and intent. It is not the final product home for modules.</p>
+                </div>
+                <span class="status-chip wait">Plan</span>
+              </div>
+              <div class="state-item">
+                <span class="state-icon">
+                  <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18v14H3z"/><path d="M8 5v14"/></svg></span>
+                </span>
+                <div>
+                  <p class="state-title">Shell has a clear design language</p>
+                  <p class="state-copy">Dark sidebar, warm paper workspace, compact headers, segmented controls, and dense operational surfaces.</p>
+                </div>
+                <span class="status-chip good">Use it</span>
+              </div>
+              <div class="state-item">
+                <span class="state-icon amber">
+                  <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span>
+                </span>
+                <div>
+                  <p class="state-title">Routes are intentionally conservative</p>
+                  <p class="state-copy">Unrouted views stay hidden from the palette until they render real surfaces.</p>
+                </div>
+                <span class="status-chip wait">Guarded</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" id="slide-3">
+        <div class="slide-inner">
+          <div class="slide-topline">
+            <span class="badge brand">Strategic gap</span>
+            <span class="badge navy">Backend ahead of UI</span>
+          </div>
+          <h2>The gap is not data availability. It is productized workflow, security proof, and route confidence.</h2>
+          <div class="grid three" style="margin-top: 28px;">
+            <div class="card">
+              <h3>Workflow gap</h3>
+              <p class="body-text">Several modules have schema, types, or helpers, but operators do not yet have list, detail, create, edit, status, and cross-link workflows.</p>
+            </div>
+            <div class="card">
+              <h3>Security proof gap</h3>
+              <p class="body-text">Uniform RLS and static migration checks are not enough. Each shipped module needs real authenticated-role tests and cross-org denial.</p>
+            </div>
+            <div class="card">
+              <h3>Navigation gap</h3>
+              <p class="body-text">The app must avoid dead-end destinations. Students, Finance, and Reports enter the shell only when their routes and primary surfaces exist.</p>
+            </div>
+          </div>
+          <div class="flow" aria-label="From current state to implemented product">
+            <div class="flow-step">
+              <div class="flow-num">1</div>
+              <h3>Packet spec</h3>
+              <p class="mini-copy">Build only from the module packet. Blocked sections remain parked.</p>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">2</div>
+              <h3>Surface</h3>
+              <p class="mini-copy">Add route, tab, panel, or token page according to route policy.</p>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">3</div>
+              <h3>Workflow</h3>
+              <p class="mini-copy">Ship list, search, detail, create, edit, empty, loading, error states.</p>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">4</div>
+              <h3>Security</h3>
+              <p class="mini-copy">Prove real role behavior, scoped access, and cross-org denial.</p>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">5</div>
+              <h3>Status</h3>
+              <p class="mini-copy">Promote only when packet, tree, tests, RTL, and smoke are green.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" id="slide-4">
+        <div class="slide-inner">
+          <div class="slide-topline">
+            <span class="badge navy">Planned added features</span>
+            <span class="badge">16 packeted modules</span>
+            <span class="badge amber">Blocked sections gated by Noam decisions</span>
+          </div>
+          <h2>The roadmap adds product modules around existing app spines, not a second app inside the app.</h2>
+          <div class="feature-map">
+            <div class="feature-column">
+              <div class="feature-head">
+                <h3>P0 core operations</h3>
+                <span class="status-chip good">First</span>
+              </div>
+              <div class="feature-body">
+                <div class="feature-pill"><strong>Students and Families</strong><span>top-level</span></div>
+                <div class="feature-pill"><strong>Public Registration</strong><span>token/edge</span></div>
+                <div class="feature-pill"><strong>Lesson Attendance</strong><span>calendar panel</span></div>
+                <div class="feature-pill"><strong>Payroll and Hours</strong><span>self-report</span></div>
+                <div class="feature-pill"><strong>Payments and Charges</strong><span>finance route</span></div>
+              </div>
+            </div>
+            <div class="feature-column">
+              <div class="feature-head">
+                <h3>P1 product depth</h3>
+                <span class="status-chip wait">Next</span>
+              </div>
+              <div class="feature-body">
+                <div class="feature-pill"><strong>Agreements and Consent</strong><span>signing</span></div>
+                <div class="feature-pill"><strong>Programs and Ensembles</strong><span>rosters</span></div>
+                <div class="feature-pill"><strong>Exams and Certificates</strong><span>records</span></div>
+                <div class="feature-pill"><strong>Rooms and Absences</strong><span>inbox</span></div>
+                <div class="feature-pill"><strong>Inventory Hardening</strong><span>drawer</span></div>
+              </div>
+            </div>
+            <div class="feature-column">
+              <div class="feature-head">
+                <h3>P1/P2 intelligence</h3>
+                <span class="status-chip">After sources</span>
+              </div>
+              <div class="feature-body">
+                <div class="feature-pill"><strong>Calendar Website Integrations</strong><span>tokens</span></div>
+                <div class="feature-pill"><strong>Year Rollover</strong><span>setup</span></div>
+                <div class="feature-pill"><strong>Reports Analytics</strong><span>route</span></div>
+                <div class="feature-pill"><strong>Operations Command Center</strong><span>inbox</span></div>
+                <div class="feature-pill"><strong>Teacher Evaluation HR</strong><span>P2</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="callout">
+            <strong>Product rule:</strong> reports and dashboards come after their source
+            modules. They must not infer data authorization or reveal counts from modules
+            that have not shipped their own access rules.
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" id="slide-5">
+        <div class="slide-inner">
+          <div class="slide-topline">
+            <span class="badge brand">Implementation stages</span>
+            <span class="badge navy">Keystone-first</span>
+          </div>
+          <h2>The staged plan protects the graph: people first, then intake, then money and attendance.</h2>
+          <div class="stage-board">
+            <div class="stage-row">
+              <div class="stage-cell"><span class="stage-id">Stage 0</span></div>
+              <div class="stage-cell"><p class="stage-title">Release gates</p><p class="stage-copy">Live RLS harness, mapping tests, route sync, status policy enforcement.</p></div>
+              <div class="stage-cell"><p class="stage-title">Why it comes first</p><p class="stage-copy">Every later module depends on being able to prove role behavior and route correctness.</p></div>
+              <div class="stage-cell"><span class="status-chip good">Foundation</span></div>
+            </div>
+            <div class="stage-row">
+              <div class="stage-cell"><span class="stage-id">Stage 1</span></div>
+              <div class="stage-cell"><p class="stage-title">Students and Families</p><p class="stage-copy">Top-level Students route, family records, guardian tabs, enrollment and document links.</p></div>
+              <div class="stage-cell"><p class="stage-title">Strategic value</p><p class="stage-copy">Creates the link target for registration, lessons, finance, agreements, inventory, reports, and operations cards.</p></div>
+              <div class="stage-cell"><span class="status-chip good">First PR track</span></div>
+            </div>
+            <div class="stage-row">
+              <div class="stage-cell"><span class="stage-id">Stage 2</span></div>
+              <div class="stage-cell"><p class="stage-title">Registration intake</p><p class="stage-copy">Consent-gated public submit, Admin Inbox review, duplicate suggestions, approval graph.</p></div>
+              <div class="stage-cell"><p class="stage-title">Strategic value</p><p class="stage-copy">Turns public demand into controlled internal records without broad anonymous table writes.</p></div>
+              <div class="stage-cell"><span class="status-chip wait">After students</span></div>
+            </div>
+            <div class="stage-row">
+              <div class="stage-cell"><span class="stage-id">Stage 3</span></div>
+              <div class="stage-cell"><p class="stage-title">Attendance, payroll, finance</p><p class="stage-copy">Calendar detail attendance, teacher hours, admin approval, family ledger and Finance route.</p></div>
+              <div class="stage-cell"><p class="stage-title">Strategic value</p><p class="stage-copy">Closes the operational loop from lesson delivery to staff payment and family balances.</p></div>
+              <div class="stage-cell"><span class="status-chip risk">D-17 to D-20</span></div>
+            </div>
+            <div class="stage-row">
+              <div class="stage-cell"><span class="stage-id">Stage 4</span></div>
+              <div class="stage-cell"><p class="stage-title">P1/P2 modules</p><p class="stage-copy">Agreements, programs, assessments, rooms, integrations, rollover, reports, command center, HR.</p></div>
+              <div class="stage-cell"><p class="stage-title">Strategic value</p><p class="stage-copy">Adds depth after the core source records and access policies are trustworthy.</p></div>
+              <div class="stage-cell"><span class="status-chip">Sequenced</span></div>
+            </div>
+          </div>
+          <div class="gate-strip" aria-label="Release gate markers">
+            <span class="gate"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>RLS-LIVE</span>
+            <span class="gate"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></span>PW-SMOKE</span>
+            <span class="gate"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M9 9h6v6H9z"/></svg></span>RTL-MOBILE</span>
+            <span class="gate"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></span>MAP-UNIT</span>
+            <span class="gate"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span>BACKFILL</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" id="slide-6">
+        <div class="slide-inner">
+          <div class="slide-topline">
+            <span class="badge navy">First release look</span>
+            <span class="badge sage">Student-family-files</span>
+            <span class="badge">Top-level Students</span>
+          </div>
+          <h2>The first module should feel like a native Cadenza operator surface on day one.</h2>
+          <p class="lede">
+            It adds Students as a high-frequency workspace, not a marketing page and not
+            a detached admin form. The first release gives operators a dense student list,
+            family source-of-truth records, guardian search, and cross-links into lessons,
+            finance, documents, agreements, and history.
+          </p>
+          <div class="current-state-grid">
+            <div class="app-frame" aria-label="Planned students workspace mockup">
+              <div class="app-window">
+                <aside class="mock-sidebar">
+                  <div class="mock-logo">
+                    <img src="../../public/logo.png" alt="" />
+                    <span>Cadenza Forte<br />Operations</span>
+                  </div>
+                  <div class="mock-nav">
+                    <div class="mock-nav-item"><span>Cal</span><span>Calendar</span><span></span></div>
+                    <div class="mock-nav-item active"><span>Su</span><span>Students</span><span></span></div>
+                    <div class="mock-nav-item"><span>In</span><span>Admin Inbox</span><span>7</span></div>
+                    <div class="mock-nav-item"><span>Bl</span><span>Blueprint</span><span></span></div>
+                    <div class="mock-nav-item"><span>Mg</span><span>Manage</span><span></span></div>
+                    <div class="mock-nav-item"><span>St</span><span>Settings</span><span></span></div>
+                    <div class="mock-nav-item future"><span>Fi</span><span>Finance</span><span>next</span></div>
+                  </div>
+                </aside>
+                <section class="mock-main">
+                  <div class="mock-header">
+                    <div class="segmented">
+                      <span class="active">Students</span>
+                      <span>Families</span>
+                      <span>Archived</span>
+                    </div>
+                    <span class="status-chip good">Routed</span>
+                  </div>
+                  <div class="mock-content">
+                    <div class="mock-panel">
+                      <div class="mock-panel-head">
+                        <p class="mock-panel-title">Student lookup</p>
+                        <span class="mock-search"></span>
+                      </div>
+                      <div class="mock-list">
+                        <div class="mock-row">
+                          <span class="avatar">DC</span>
+                          <div><p class="row-title">Dana Cohen</p><p class="row-copy">Cohen family · Piano · active</p></div>
+                          <span class="state-pill">Active</span>
+                        </div>
+                        <div class="mock-row">
+                          <span class="avatar">YR</span>
+                          <div><p class="row-title">Yael Rosen</p><p class="row-copy">Rosen family · Violin · active</p></div>
+                          <span class="state-pill">Active</span>
+                        </div>
+                        <div class="mock-row">
+                          <span class="avatar">AL</span>
+                          <div><p class="row-title">Ari Levi</p><p class="row-copy">Levi family · Theory · inactive</p></div>
+                          <span class="status-chip wait">Hold</span>
+                        </div>
+                        <div class="mock-row">
+                          <span class="avatar">NS</span>
+                          <div><p class="row-title">Noa Shalev</p><p class="row-copy">Guardian match · cello</p></div>
+                          <span class="state-pill">Active</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="mock-panel">
+                      <div class="mock-panel-head">
+                        <p class="mock-panel-title">Student detail</p>
+                        <span class="status-chip">Family source</span>
+                      </div>
+                      <div class="mock-detail">
+                        <div class="profile-head">
+                          <span class="avatar">DC</span>
+                          <div>
+                            <p class="profile-title">Dana Cohen</p>
+                            <p class="row-copy">Cohen family · guardian: Miriam Cohen · active</p>
+                          </div>
+                        </div>
+                        <div class="tab-row">
+                          <span class="active">Profile</span>
+                          <span>Guardians</span>
+                          <span>Enrollments</span>
+                          <span>Lessons</span>
+                          <span>Finance</span>
+                          <span>Docs</span>
+                          <span>Agreements</span>
+                        </div>
+                        <div class="info-grid">
+                          <div class="info-tile"><strong>Family</strong><span>Editable first-class record with siblings and primary contact.</span></div>
+                          <div class="info-tile"><strong>Enrollment</strong><span>Links to activities, lessons, attendance, and reports.</span></div>
+                          <div class="info-tile"><strong>Finance gate</strong><span>Balance data visible only through D-08 finance rules.</span></div>
+                          <div class="info-tile"><strong>Adapter seam</strong><span>StudentV2 at the UI boundary, legacy HYBRID persistence behind it.</span></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+            <div>
+              <div class="mobile-demo" aria-label="Mobile student lookup mockup">
+                <div class="mock-header">
+                  <div class="segmented">
+                    <span class="active">Students</span>
+                    <span>Families</span>
+                  </div>
+                </div>
+                <div class="mock-content">
+                  <div class="mock-panel">
+                    <div class="mock-panel-head">
+                      <p class="mock-panel-title">Lookup</p>
+                      <span class="mock-search"></span>
+                    </div>
+                    <div class="mock-list">
+                      <div class="mock-row">
+                        <span class="avatar">DC</span>
+                        <div><p class="row-title">Dana Cohen</p><p class="row-copy">Guardian: Miriam Cohen</p></div>
+                        <span></span>
+                      </div>
+                      <div class="mock-row">
+                        <span class="avatar">YR</span>
+                        <div><p class="row-title">Yael Rosen</p><p class="row-copy">Teacher roster result</p></div>
+                        <span></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mock-panel">
+                    <div class="mock-detail">
+                      <div class="tab-row"><span class="active">Profile</span><span>Lessons</span><span>Docs</span></div>
+                      <div class="info-tile"><strong>Mobile scope</strong><span>Read-oriented lookup and profile, not dense finance administration.</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p class="mobile-caption">Mobile is intentionally scoped: teachers and operators get lookup/profile access where the packet declares mobile value.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" id="slide-7">
+        <div class="slide-inner">
+          <div class="slide-topline">
+            <span class="badge brand">UI integration</span>
+            <span class="badge navy">No dead-end nav</span>
+          </div>
+          <h2>Integration follows the existing shell: high-frequency routes, low-frequency tabs, contextual panels.</h2>
+          <div class="ux-rules">
+            <div class="rule">
+              <span class="rule-icon"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18"/><path d="M3 12h18"/><path d="M3 19h18"/></svg></span></span>
+              <div>
+                <h3>Top-level routes earn sidebar space</h3>
+                <p class="body-text">Students and Finance are planned top-level additions because they are daily operator surfaces. Reports gets a route only when the reports workspace ships.</p>
+              </div>
+            </div>
+            <div class="rule">
+              <span class="rule-icon"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v14H4z"/><path d="M4 10h16"/></svg></span></span>
+              <div>
+                <h3>Manage remains configuration territory</h3>
+                <p class="body-text">Inventory stays as `Manage?tab=inventory`. Future lower-frequency setup surfaces should use tabs rather than adding sidebar items.</p>
+              </div>
+            </div>
+            <div class="rule">
+              <span class="rule-icon"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></span></span>
+              <div>
+                <h3>Context stays near source records</h3>
+                <p class="body-text">Attendance lives on Calendar event detail. Requests resolve through Admin Inbox. Dashboards drill into source modules instead of duplicating them.</p>
+              </div>
+            </div>
+            <div class="rule">
+              <span class="rule-icon"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 1 7 0l1 1a5 5 0 0 1-7 7l-1-1"/><path d="M14 11a5 5 0 0 1-7 0l-1-1a5 5 0 0 1 7-7l1 1"/></svg></span></span>
+              <div>
+                <h3>Public routes are scoped and tokenized</h3>
+                <p class="body-text">Registration and signing are not sidebar pages. They use consent-gated public/token routes backed by `public_endpoints` and edge functions.</p>
+              </div>
+            </div>
+          </div>
+          <table class="brief-table" aria-label="Route integration table">
+            <thead>
+              <tr><th>Surface</th><th>Current behavior</th><th>Planned change</th><th>UX consequence</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Students</strong></td>
+                <td>ViewState exists but is hidden and unrouted.</td>
+                <td>Add real route, sidebar item, and palette visibility.</td>
+                <td>Daily student lookup and family work no longer hides inside other modules.</td>
+              </tr>
+              <tr>
+                <td><strong>Finance</strong></td>
+                <td>`BILLING` exists but is hidden.</td>
+                <td>Reuse `BILLING` as Finance when payments-charges ships.</td>
+                <td>Ledger operations become first-class without adding a new enum.</td>
+              </tr>
+              <tr>
+                <td><strong>Inventory</strong></td>
+                <td>Alias to `Manage?tab=inventory`.</td>
+                <td>Keep alias, harden detail and loan workflows.</td>
+                <td>Preserves existing mental model for lower-frequency resource management.</td>
+              </tr>
+              <tr>
+                <td><strong>Analytics</strong></td>
+                <td>Hidden until routed.</td>
+                <td>Route only when reports-analytics workspace ships.</td>
+                <td>Prevents reports from appearing before source authorization is ready.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="slide" id="slide-8">
+        <div class="slide-inner">
+          <div class="slide-topline">
+            <span class="badge navy">UX consistency</span>
+            <span class="badge">Existing design language</span>
+          </div>
+          <h2>The implementation should feel dense, calm, and operational.</h2>
+          <p class="lede">
+            Cadenza is an operator tool, not a marketing site. New modules should reuse
+            the existing shell patterns and avoid ornamental layouts, oversized heroes,
+            and one-off component language.
+          </p>
+          <div class="team-lens">
+            <div class="lens">
+              <h3>Visual language</h3>
+              <ul>
+                <li>Warm paper workspace with espresso sidebar.</li>
+                <li>Bordeaux for brand emphasis, navy for action and selected state.</li>
+                <li>8px-radius cards, panels, drawers, and repeated items.</li>
+                <li>Compact headers and segmented controls for views and modes.</li>
+              </ul>
+            </div>
+            <div class="lens">
+              <h3>Interaction language</h3>
+              <ul>
+                <li>Icon-led controls for tools, search, filters, route actions.</li>
+                <li>Tabs for record sections, menus for option sets, toggles for binary state.</li>
+                <li>Dense list-detail layouts for scanning and repeated work.</li>
+                <li>Mobile scope declared per workflow, not inherited accidentally.</li>
+              </ul>
+            </div>
+            <div class="lens">
+              <h3>Product language</h3>
+              <ul>
+                <li>Every page shows real work first: queues, records, histories, status.</li>
+                <li>Empty states explain what is absent and provide the next valid action.</li>
+                <li>Blocked sections stay visibly gated in planning, not half-built in UI.</li>
+                <li>Reports and dashboards expose only authorized source data.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="callout">
+            <strong>Design bar:</strong> every module should be usable by an admin on a
+            large operator display, readable in Hebrew/RTL, and stable at 390x844 for
+            workflows that have a real mobile user.
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" id="slide-9">
+        <div class="slide-inner">
+          <div class="slide-topline">
+            <span class="badge brand">Architecture and risk</span>
+            <span class="badge navy">Developer brief</span>
+          </div>
+          <h2>The technical plan is additive: use the adapter seam, prove RLS, avoid global rewrites.</h2>
+          <div class="diagram">
+            <div class="stack">
+              <div class="stack-layer">
+                <h3>UI write boundary</h3>
+                <p class="mini-copy">New Student module uses canonical `StudentV2` at the UI boundary.</p>
+              </div>
+              <div class="stack-layer">
+                <h3>Adapter seam</h3>
+                <p class="mini-copy">`utils/canonicalAdapters.ts` owns legacy to V2 conversion. No second copy.</p>
+              </div>
+              <div class="stack-layer">
+                <h3>Persistence reality</h3>
+                <p class="mini-copy">Legacy HYBRID student documents remain in place. No global Student/Event migration in this phase.</p>
+              </div>
+              <div class="stack-layer">
+                <h3>Supabase authorization</h3>
+                <p class="mini-copy">Modules must pass real-role RLS tests before implemented status.</p>
+              </div>
+            </div>
+            <div class="architecture">
+              <p class="section-label" style="color: var(--line-strong);">Release gates</p>
+              <div class="arch-grid">
+                <div class="arch-node"><strong>RLS-LIVE</strong><span>Admin, teacher/member, finance, anon where relevant, plus cross-org denial.</span></div>
+                <div class="arch-node"><strong>MAP-UNIT</strong><span>Deterministic helpers, adapter boundaries, and Supabase camel/snake mapping.</span></div>
+                <div class="arch-node"><strong>PW-SMOKE</strong><span>Primary workflow smoke: create, review, approve, post, or mark real module actions.</span></div>
+                <div class="arch-node"><strong>RTL-MOBILE</strong><span>Hebrew labels, RTL layout, and module-declared mobile viewport checks.</span></div>
+                <div class="arch-node"><strong>BACKFILL</strong><span>Packet-local migration only. No broad persistence rewrite under cover of a feature PR.</span></div>
+                <div class="arch-node"><strong>Status sync</strong><span>Packet header and `features/forteTree.ts` status move together only after all gates pass.</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="callout">
+            <strong>Risk posture:</strong> the roadmap treats schema readiness as necessary
+            but insufficient. Product status changes require role-safe persistence,
+            workflow tests, route correctness, and localized UI verification.
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" id="slide-10">
+        <div class="slide-inner">
+          <div class="slide-topline">
+            <span class="badge amber">Decision parking lot</span>
+            <span class="badge">Do not decide in implementation</span>
+          </div>
+          <h2>D-17 through D-27 remain product-policy gates, not engineering TODOs to guess through.</h2>
+          <p class="lede">
+            D-16 is now accepted for the P0 path: use `families.guardians[]` jsonb
+            for guardian/contact data and defer normalized guardian identity.
+            Implementation can proceed on unblocked paths, but it must not ship
+            packet sections that depend on the remaining parked decisions.
+          </p>
+          <div class="decision-grid">
+            <div class="decision"><strong>D-17</strong><span>Group lesson record model and materialization strategy.</span></div>
+            <div class="decision"><strong>D-18 / D-19</strong><span>Hours report consolidation plus payroll rate source and stamp timing.</span></div>
+            <div class="decision"><strong>D-20</strong><span>Single-currency invariant vs explicit multi-currency ledger.</span></div>
+            <div class="decision"><strong>D-21</strong><span>Absence, day-off, and extra teaching day side effects.</span></div>
+            <div class="decision"><strong>D-22 / D-23</strong><span>Assessment document pipeline plus public concert/program exposure and consent.</span></div>
+            <div class="decision"><strong>D-24 / D-25</strong><span>Consent revocation and instrument deposit/refund semantics.</span></div>
+            <div class="decision"><strong>D-26 / D-27</strong><span>HR evaluation privacy plus rollover grade and recurring-event copy rules.</span></div>
+          </div>
+          <table class="brief-table">
+            <thead>
+              <tr><th>How to handle a blocked section</th><th>Implementation behavior</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>Blocked in packet</strong></td><td>Leave it out of the feature slice. Do not silently pick a default.</td></tr>
+              <tr><td><strong>Decision answered</strong></td><td>Update `decision-log.md`, the affected packet section, tests, and the implementation plan if sequence changes.</td></tr>
+              <tr><td><strong>Module mostly shippable</strong></td><td>Ship unblocked workflows, but do not mark the module `implemented` if its implemented bar depends on the blocked section.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="slide" id="slide-11">
+        <div class="slide-inner">
+          <div class="slide-topline">
+            <span class="badge brand">Operating model</span>
+            <span class="badge navy">Board + product + engineering</span>
+          </div>
+          <h2>Each release slice should answer three audiences at once.</h2>
+          <div class="team-lens">
+            <div class="lens">
+              <h3>Board view</h3>
+              <ul>
+                <li>Which business capability becomes usable?</li>
+                <li>Which risks are retired or intentionally deferred?</li>
+                <li>Which blocked decisions still constrain the roadmap?</li>
+              </ul>
+            </div>
+            <div class="lens">
+              <h3>All-hands view</h3>
+              <ul>
+                <li>What changes for operators in the app shell?</li>
+                <li>Where should teams look for the new workflow?</li>
+                <li>How does it stay consistent with current Cadenza behavior?</li>
+              </ul>
+            </div>
+            <div class="lens">
+              <h3>Developer view</h3>
+              <ul>
+                <li>Which packet section is in scope?</li>
+                <li>Which RLS, mapping, smoke, RTL, and backfill gates are required?</li>
+                <li>Which adapter and route policies must not be bypassed?</li>
+              </ul>
+            </div>
+          </div>
+          <table class="brief-table">
+            <thead>
+              <tr><th>Slice artifact</th><th>Purpose</th><th>Exit condition</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Packet</strong></td>
+                <td>Defines users, data, workflows, role matrix, UX placement, and blocked decisions.</td>
+                <td>No implementation starts outside the packet scope.</td>
+              </tr>
+              <tr>
+                <td><strong>PR plan</strong></td>
+                <td>Names the smallest shippable workflow and the exact gates.</td>
+                <td>Reviewers can tell what is deliberately excluded.</td>
+              </tr>
+              <tr>
+                <td><strong>Verification bundle</strong></td>
+                <td>Typecheck, Vitest, RLS-live, Playwright smoke, RTL/mobile evidence.</td>
+                <td>Module status can be promoted only after all required evidence exists.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="slide" id="slide-12">
+        <div class="slide-inner">
+          <div class="slide-topline">
+            <span class="badge sage">Recommended next action</span>
+            <span class="badge brand">Start implementation</span>
+          </div>
+          <h2>Open the first implementation slice: Students and Families.</h2>
+          <p class="lede">
+            The next PR should route `STUDENTS`, unhide it in the command palette only
+            after the route renders, and ship the first usable Student/Family workspace
+            against the accepted adapter and family contracts.
+          </p>
+          <div class="grid two" style="margin-top: 28px;">
+            <div class="card dark">
+              <p class="section-label" style="color: var(--line-strong);">First PR scope</p>
+              <h3>Build the Students surface</h3>
+              <p class="body-text">Route, sidebar entry, command palette visibility, list/search, family records, student detail tabs, create/edit, and initial links to enrollments, lessons, finance gate, docs, and agreements.</p>
+            </div>
+            <div class="card">
+              <p class="section-label">Out of scope until answered</p>
+              <h3>Guardian normalization</h3>
+              <p class="body-text">D-16 is accepted for P0: ship with `families.guardians[]` jsonb. Do not add normalized guardian/contact identity unless Noam reopens that as a later migration.</p>
+            </div>
+          </div>
+          <div class="flow" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
+            <div class="flow-step">
+              <div class="flow-num">A</div>
+              <h3>Harness</h3>
+              <p class="mini-copy">Create or extend live RLS fixtures for admin, teacher, finance, member, and cross-org denial.</p>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">B</div>
+              <h3>Route</h3>
+              <p class="mini-copy">Add `STUDENTS` route and sync `ROUTED_VIEWS`, sidebar, translations, and palette visibility.</p>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">C</div>
+              <h3>Workflow</h3>
+              <p class="mini-copy">Build list/detail/create/edit with family and guardian search backed by packet-defined helpers.</p>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">D</div>
+              <h3>Evidence</h3>
+              <p class="mini-copy">Run typecheck, Vitest, RLS-live, Playwright smoke, RTL, and mobile checks before status promotion.</p>
+            </div>
+          </div>
+          <div class="callout">
+            <strong>Decision for leadership:</strong> confirm whether to begin with the
+            RLS-live harness as a small infrastructure PR, or include that harness in
+            the first Student/Family implementation PR.
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const links = Array.from(document.querySelectorAll('#tocNav a'));
+    const sections = links
+      .map((link) => document.querySelector(link.getAttribute('href')))
+      .filter(Boolean);
+    const progressBar = document.getElementById('progressBar');
+
+    function updateProgress() {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const pct = scrollHeight > 0 ? Math.min(100, Math.max(0, (scrollTop / scrollHeight) * 100)) : 0;
+      progressBar.style.width = pct + '%';
+
+      let activeIndex = 0;
+      sections.forEach((section, index) => {
+        const rect = section.getBoundingClientRect();
+        if (rect.top <= window.innerHeight * 0.42) {
+          activeIndex = index;
+        }
+      });
+
+      links.forEach((link, index) => {
+        link.classList.toggle('active', index === activeIndex);
+      });
+    }
+
+    document.addEventListener('scroll', updateProgress, { passive: true });
+    window.addEventListener('resize', updateProgress);
+    updateProgress();
+  </script>
+</body>
+</html>

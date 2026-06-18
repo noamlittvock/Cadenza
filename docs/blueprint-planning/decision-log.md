@@ -1,11 +1,11 @@
 # Cross-Module Decision Log
 
-> **STATUS — 2026-06-17:** All recommended defaults below are **ACCEPTED as working
-> decisions** for implementation; the concrete locked form is in
-> [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md). The per-entry text is kept
-> for rationale and may be revisited only if implementation surfaces a conflict
-> (update both files if so). D-04 (canonical student rename) needs a final confirm
-> from Noam before a wide refactor.
+> **STATUS — 2026-06-18:** D-01–D-16, D-STATUS, and D-STATUS-2 are **ACCEPTED or
+> IMPLEMENTED working decisions** for implementation; the concrete locked form is
+> in [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md). D-17–D-27 are newly
+> surfaced packet questions with no accepted default; they are parked in
+> [`LOOP_STATE.md`](LOOP_STATE.md) NEEDS NOAM and must stay marked `BLOCKED ON D-xx`
+> where they affect a packet.
 
 > **PHASE B step 5 — 2026-06-17:** The full `0004` path was selected: create
 > `rollover_runs`, create inert/admin-only `public_endpoints`, add a `finance`
@@ -21,7 +21,9 @@
 > holds. The seam is additive foundation the P0 modules write/read through.
 
 Decisions that span more than one module. Packets cite these IDs rather than
-re-deciding. Each has a *recommended default* — now accepted per the banner above.
+re-deciding. D-01–D-16 have recommended defaults or explicit Noam confirmations
+that are now accepted per the banner above; D-17–D-27 intentionally have no
+default and are parked for Noam.
 
 Legend: 🔴 blocks a P0 packet · 🟡 blocks P1/P2 · ⚪ infra/cleanup
 
@@ -33,7 +35,11 @@ Registration / Finance / Reports / Academic Hub become top-level sidebar views?
 **Recommended default:** Top-level views for the few high-traffic daily surfaces
 (Students, Finance); Manage tabs for lower-frequency config-like modules. Resolve
 together with [`route-nav-policy.md`](route-nav-policy.md).
-**Blocks:** every P0 packet's UX Placement. **State:** OPEN.
+**Blocks:** every P0 packet's UX Placement. **State:** ACCEPTED 2026-06-17 —
+locked in [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md) and
+[`route-nav-policy.md`](route-nav-policy.md): top-level Students + Finance only;
+lower-frequency modules stay in Manage/contextual/public tiers unless the route
+policy is amended.
 
 ### D-02 — Dead-end command-palette entries  🔴
 **Q:** STUDENTS, BILLING, ACADEMICS, INVENTORY, PAYROLL, ANALYTICS are in
@@ -42,7 +48,13 @@ Hide them, route to shells, or route into Manage tabs?
 **Recommended default:** Hide until each module's packet ships, then unhide as it
 lands (palette entry and route ship together). INVENTORY routes to
 `Manage?tab=inventory` immediately. Detail in route-nav-policy.
-**Blocks:** route-nav-policy, every packet. **State:** OPEN.
+**Blocks:** route-nav-policy, every packet. **State:** ✅ IMPLEMENTED 2026-06-17 —
+locked in [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md) and
+[`route-nav-policy.md`](route-nav-policy.md). Phase A added the routed-view
+allowlist (`routing.ts`), anti-drift coverage (`routing.test.ts`), palette
+filtering (`CommandPalette.tsx`), and the `INVENTORY → Manage?tab=inventory`
+alias. `STUDENTS`, `BILLING`, `ACADEMICS`, `PAYROLL`, and `ANALYTICS` stay hidden
+until their route and packet ship together.
 
 ### D-03 — Family as first-class record  🔴
 **Q:** Is `Family` a real editable source-of-truth table now, or a grouping
@@ -51,7 +63,12 @@ overlay deferred until finance/registration need it?
 (D-07-FIN), and guardian/sibling grouping all converge on it; deferring forces
 rework. Table exists (`families`).
 **Blocks:** student-family-files, public-registration-intake, payments-charges.
-**State:** OPEN.
+**State:** ACCEPTED 2026-06-17 - locked in
+[`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md): `families` is already a
+normalized table and the student-family module productizes it as an editable
+source-of-truth record. Conversion and finance packets may depend on `familyId`;
+D-07 public consent/write path and D-07-FIN ledger ownership remain separate
+decisions.
 
 ### D-04 — Canonical Student type  🔴
 **Q:** Legacy `Student`, `StudentV2`, or a compatibility adapter going forward?
@@ -97,14 +114,24 @@ anon RLS policy, Edge Function, or app-mediated token route?
 a quarantined `registration_intake` row — never a broad anon INSERT policy on org
 tables. **Consent rule:** any such endpoint requires an explicit consent/setup
 flow; no config may bypass it.
-**Blocks:** public-registration-intake, agreements-consent, D-14. **State:** OPEN.
+**Blocks:** public-registration-intake, agreements-consent, D-14. **State:**
+ACCEPTED 2026-06-18 — locked in
+[`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md): public writes must use a
+Supabase Edge Function or tightly scoped token route into quarantined
+`registration_intake`; never broad anon inserts into org tables. `0004` only
+creates the inert/admin-only `public_endpoints` registry, so implementation still
+must add the explicit consent/setup flow and controlled write path before any
+public surface activates.
 
 ### D-07-FIN — Finance ledger canonical owner  🔴
 **Q:** Are charges/payments/balances family-led, student-led, enrollment-led, or
 mixed? Schema allows all; workflows need one canonical rule.
 **Recommended default:** Family-led ledger (charges/payments roll up to a family
 account) with per-enrollment charge line items. Aligns with D-03.
-**Blocks:** payments-charges, payroll? no — finance only. **State:** OPEN.
+**Blocks:** payments-charges, payroll? no — finance only. **State:** ACCEPTED
+2026-06-18 — locked in [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md):
+family-led ledger with per-enrollment charge line items; canonical aggregation
+key is `familyId`.
 
 ### D-08 — Non-admin finance visibility  🔴
 **Q:** What can non-admin staff see of payments/charges/balances?
@@ -117,27 +144,42 @@ ledger table access narrowed to admin or `finance`.
 ### D-09 — Reports visibility  🟡
 **Q:** Reports available to all members or only admin/finance?
 **Recommended default:** Admin/finance only initially; per-report scoping later.
-**Blocks:** reports-analytics. **State:** OPEN.
+**Blocks:** reports-analytics. **State:** ACCEPTED 2026-06-18 — reconciled
+with [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md): reports are
+admin/finance-only initially, with per-report scoping deferred to the
+`reports-analytics` packet. No general-member analytics access ships by default.
 
 ### D-10 — Balance snapshots  🔴
 **Q:** Persist balance snapshots transactionally on every ledger mutation, or
 generate on demand as report output?
 **Recommended default:** Compute-on-demand for live balance; persist periodic
 snapshots only for history/audit (`balance_snapshots` exists for the latter).
-**Blocks:** payments-charges. **State:** OPEN.
+**Blocks:** payments-charges. **State:** ACCEPTED 2026-06-18 — reconciled with
+[`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md): live balances are
+computed on demand from charges, payments, and adjustments; `balance_snapshots`
+are persisted only as periodic/audit history, not transactionally updated as the
+source of truth for current balance.
 
 ### D-11 — Agreement signature capture  🟡
 **Q:** Typed e-signature, uploaded PDF, or both?
 **Recommended default:** Both — typed acceptance for the common path, PDF upload
 for countersigned/legacy docs; `agreement_acceptances` records either.
-**Blocks:** agreements-consent. **State:** OPEN.
+**Blocks:** agreements-consent. **State:** ACCEPTED 2026-06-18 — reconciled with
+[`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md): agreements support both
+typed e-signature and PDF upload, and `agreement_acceptances` records either
+capture form. Public/tokenized agreement signing still inherits the accepted D-07
+controlled-write and explicit consent/setup requirements; this decision does not
+activate an unauthenticated signing surface by itself.
 
 ### D-12 — Year rollover mutation model  🟡
 **Q:** Does rollover mutate existing records, or create next-year records while
 preserving prior-year history?
 **Recommended default:** Create next-year records; never mutate prior-year.
 History is non-negotiable for a ledger-grade tool.
-**Blocks:** year-rollover-setup. **State:** OPEN.
+**Blocks:** year-rollover-setup. **State:** ACCEPTED 2026-06-18 — reconciled
+with [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md): rollover creates
+next-year records while preserving prior-year history, and must not mutate
+prior-year student, enrollment, schedule, ledger, or agreement records in place.
 
 ### D-13 — Rollover audit entity  🟡
 **Q:** Add a persisted `rollover_runs` audit entity (current helpers are pure
@@ -161,7 +203,174 @@ implemented in `0004` as inert/admin-only `public_endpoints` with no anon policy
 modules go live?
 **Recommended default:** Define per-module backfill in each packet; no global
 migration until canonical types (D-04/D-05) settle.
-**Blocks:** every packet's "Data migration" acceptance. **State:** OPEN.
+**Blocks:** every packet's "Data migration" acceptance. **State:** ACCEPTED
+2026-06-18 — locked to packet-local backfill. D-04/D-05 settled as adapter, not
+rename, so there is **no global Student/Event data migration** in Phase C:
+existing HYBRID `students`/`events` data stays in place and modules convert at
+read/write boundaries through `utils/canonicalAdapters.ts`. Any future whole-app
+runtime/persistence migration from legacy `Student`/`CalendarEvent` to V2 remains
+out of scope and needs Noam.
+
+### D-16 — Guardian identity and storage model  🟡
+**Q:** Do student/family/intake/agreement workflows continue to use
+`families.guardians[]` jsonb for guardian/contact data in P0, or must a
+normalized guardian/contact identity model exist before those workflows ship?
+**Recommended default:** P0 continues on the existing `families.guardians[]` jsonb
+contract; do not normalize guardian/contact identities before the first
+student/family, intake, or agreement workflows ship.
+**Blocks:** no P0 build path. Normalized guardian/contact identity migration is
+explicitly deferred beyond the current P0 build unless Noam reopens it.
+**State:** ACCEPTED 2026-06-18 — Noam confirmed the recommendation in the build
+briefing. Student/family, public-registration-intake, and agreements-consent may
+ship against `families.guardians[]` jsonb. Public intake and token signing still
+inherit D-07/D-14 consent/setup and scoped-write requirements; this decision does
+not activate public access by itself.
+
+### D-17 — Lesson group record and materialization model  🔴
+**Q:** Confirm whether group lessons are represented as multiple
+`lesson_records` rows sharing one `eventId` (one row per event/student), or as an
+event-level attendance record with embedded student statuses; also decide lazy
+on-open vs batch materialization for existing events.
+**Recommended default:** none recorded. The schema points toward one row per
+event/student, but the packet still flags this as needing confirmation, so the
+loop must not decide it.
+**Blocks:** lesson-details-attendance, payroll-salaries-hours, reports-analytics.
+**State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
+sections are marked **BLOCKED ON D-17**.
+
+### D-18 — HoursReport / HoursEntry consolidation  🔴
+**Q:** Does legacy `hours_reports` become a period header for normalized
+`hours_entries`, get migrated into `hours_entries` and retired, or remain as a
+parallel reporting surface?
+**Recommended default:** none recorded; this is a payroll migration/product
+model call.
+**Blocks:** payroll-salaries-hours, import/export, reports-analytics.
+**State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
+sections are marked **BLOCKED ON D-18**.
+
+### D-19 — Payroll rate source and stamp timing  🔴
+**Q:** What is the rate resolution order for payroll entries (teaching assignment,
+org role, manual override, other), and is the rate stamped at teacher submit,
+admin approve, or payment close?
+**Recommended default:** none recorded; this is a finance/payroll policy call.
+**Blocks:** payroll-salaries-hours, finance exports/reports.
+**State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
+sections are marked **BLOCKED ON D-19**.
+
+### D-20 — Ledger currency policy  🔴
+**Q:** Should the ledger enforce a single currency per family/org, or explicitly
+support multi-currency balances and statements?
+**Recommended default:** none recorded; money behavior is a product/finance call.
+**Blocks:** payments-charges, reports-analytics, agreement/statement outputs.
+**State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
+sections are marked **BLOCKED ON D-20**.
+
+### D-21 — Operational request calendar mutation rules  🟡
+**Q:** When an `ABSENCE` or `DAY_OFF` operational request is approved, what exact
+calendar side effects should ship: create `GanttBlock` blackouts, cancel or
+reschedule affected events, create makeup tasks, affect lesson/payroll records,
+or only notify admins? How should the feature-tree "extra teaching day" case be
+represented: a new `RequestKind`, a staff availability/schedule record, or out of
+scope for v1?
+**Recommended default:** none recorded; this is a scheduling/payroll product
+semantics call.
+**Blocks:** rooms-absence-requests; may also affect lesson-details-attendance,
+payroll-salaries-hours, reports-analytics, and calendar-website-integrations
+depending on the chosen side effects. **State:** NEEDS NOAM — parked in
+[`LOOP_STATE.md`](LOOP_STATE.md); blocked packet sections are marked
+**BLOCKED ON D-21**.
+
+### D-22 — Academic Hub assessment scope and document pipeline  🟡
+**Q:** For exams/certificates/report cards, should v1 use the current normalized
+`ExamSession`/`ExaminerSubmission`/`Certificate`/`ReportCard` schema as simple
+admin-managed assessment records with authenticated examiner submissions, or must
+it implement the older Academic Hub add-on model: configurable scoring rubrics,
+explicit pass/fail thresholds and overrides, AI-assisted summaries, generated PDF
+templates, guardian email delivery, and/or tokenized examiner or guardian-facing
+links? If the richer model is required, what exact stored fields, document paths,
+consent/setup steps, and public-token rules should ship?
+**Recommended default:** none recorded; this is a product/scope and
+consent-sensitive data-access call.
+**Blocks:** exams-certificates-report-cards; may also affect
+calendar-website-integrations, reports-analytics, student-family-files assessment
+history, and agreements/consent language if guardian-facing delivery is required.
+**State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
+sections are marked **BLOCKED ON D-22**.
+
+### D-23 — Concert public program exposure and consent  🟡
+**Q:** May concert/event publishing expose event details, venue, repertoire,
+student/staff performer names, and downloadable or embeddable program files to
+unauthenticated website/calendar visitors? If yes, what consent/release setup,
+redaction rules, performer display names, revocation/unpublish behavior, and
+`public_endpoints`/calendar-website integration scope should ship?
+**Recommended default:** none recorded; this is a public exposure and student
+personal-data disclosure call, so the loop must not decide it.
+**Blocks:** public/website-facing concert-program pages, public program PDFs,
+public embeds, and public performer lists in concert-programs-events; may also
+affect calendar-website-integrations, agreements-consent consent language, and
+reports-analytics if public publication/audit reports are required.
+**State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
+sections are marked **BLOCKED ON D-23**.
+
+### D-24 — Agreement consent withdrawal / revocation semantics  🟡
+**Q:** Should agreement/consent v1 support guardian/family withdrawal or
+revocation after acceptance, and if yes what status value, audit fields
+(`revokedAt`, revokedBy, reason), public-token behavior, and downstream effects
+should ship for enrollments, media/public releases, instrument loans, and
+reports?
+**Recommended default:** none recorded; this is a consent/personal-data policy
+call and the current `AgreementAcceptance` schema has no `REVOKED` status or
+`revokedAt` field, so the loop must not decide it.
+**Blocks:** agreements-consent revocation/withdrawal workflow and any downstream
+module that relies on revoking previously accepted media, public-performance,
+instrument-loan, enrollment, or report-card consent.
+**State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
+sections are marked **BLOCKED ON D-24**.
+
+### D-25 — Instrument deposit model  🟡
+**Q:** Should instrument deposits, replacement fees, and refunds be represented
+as finance ledger rows, agreement-only terms, standalone fields on
+`instrument_loans`, or a mixed model; what lifecycle states, refund/forfeit
+rules, document links, and family/student/staff ownership should ship?
+**Recommended default:** none recorded; this is a money/product policy call and
+also depends on D-20 for currency behavior, so the loop must not decide it.
+**Blocks:** instrument-inventory deposit/fee/refund workflow, payments-charges
+ledger integration for instrument custody, agreements-consent loan/deposit terms,
+and reports-analytics deposit/refund reporting.
+**State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
+sections are marked **BLOCKED ON D-25**.
+
+### D-26 — Staff HR evaluation privacy, consent/notice, and access scope  🟡
+**Q:** For teacher evaluation/HR, may Cadenza collect and store staff
+self-evaluations, manager reviews, reviewer-only notes, ratings, follow-up
+actions, acknowledgments, and document attachments without a separate staff
+notice/consent or HR policy setup? If yes, what exact privacy scope should ship:
+all admins, a dedicated HR capability, assigned reviewers, subject staff
+self-read/self-edit/acknowledgment, storage visibility, retention/deletion, and
+export rules?
+**Recommended default:** none recorded; this is staff personal-performance data
+with privacy, retention, and employment-policy implications, so the loop must not
+decide it.
+**Blocks:** teacher-evaluation-hr workflow, RLS/storage scope for
+`staff_evaluations`, evaluation document attachments, HR exports, and any
+reports-analytics or operations-command-center rollups that expose staff
+evaluation data.
+**State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
+sections are marked **BLOCKED ON D-26**.
+
+### D-27 — Year rollover grade and recurring-event copy rules  🟡
+**Q:** For year rollover, should Cadenza automatically advance
+`StudentV2.grade` and copy recurring schedule/event records into the new school
+year; if yes, what grade vocabulary/increment rules, non-graded/adult-student
+exceptions, manual override behavior, date-shift method, holiday/blackout
+handling, room/staff conflict behavior, and predecessor/successor lineage fields
+should ship?
+**Recommended default:** none recorded; this is a school-operations product and
+data-model call, and it affects student grade data plus schedule generation.
+**Blocks:** year-rollover-setup grade advancement, next-year student copy
+lineage, recurring-event/schedule copy, and any rollover backfill for those
+records. **State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md);
+blocked packet sections are marked **BLOCKED ON D-27**.
 
 ### D-STATUS-2 — P0 node status drift  ⚪
 **Q:** `features/forteTree.ts` marks `student-family-files`, `lesson-details-attendance`,
@@ -172,20 +381,29 @@ tree to match the policy?
 **Recommended default:** Set `student-family-files` and `payroll-salaries-hours`
 to `embedded`; keep `public-registration-intake`, `lesson-details-attendance`,
 `payments-charges` as `gap`. Apply with the consistency check, alongside D-STATUS.
-**Blocks:** nothing; cleanup. **State:** OPEN.
+**Blocks:** nothing; cleanup. **State:** ✅ IMPLEMENTED 2026-06-18 —
+`features/forteTree.ts` now marks `student-family-files` and
+`payroll-salaries-hours` as `embedded`; `public-registration-intake`,
+`lesson-details-attendance`, and `payments-charges` remain `gap`. The P0 packet
+headers are reconciled with those tree statuses, and
+`features/forteTree.consistency.test.ts` is the status-policy gate.
 
 ### D-STATUS — Instrument Inventory tree status  ⚪
 **Q:** Update `instrument-inventory` from `gap` to `implemented`?
 **Recommended default:** Yes, after the feature-tree consistency check is green
 (see [`status-policy.md`](status-policy.md)).
-**Blocks:** nothing; cleanup. **State:** OPEN.
+**Blocks:** nothing; cleanup. **State:** ✅ IMPLEMENTED 2026-06-18 —
+`features/forteTree.ts` marks `instrument-inventory` as `implemented`, with the
+D-STATUS comment at the node and the deterministic-query consistency check in
+`features/forteTree.consistency.test.ts`.
 
 ---
 
 ## Resolution order (suggested)
 
 1. D-02 + D-01 (route/nav) — unblocks all UX placement.
-2. D-04 + D-05 (canonical types) — pending data audit, then unblocks student/event packets.
+2. D-04 + D-05 (canonical types) — implemented as the adapter seam; no wide rename
+   and no global Student/Event data migration.
 3. D-03 + D-07-FIN (family + ledger ownership) — unblocks student/finance.
 4. D-06 + D-08 (RLS refinements) — unblocks attendance/payroll/finance security.
 5. D-07 + D-14 (public write + endpoint registry) — unblocks registration/agreements.

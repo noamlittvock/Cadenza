@@ -6,7 +6,8 @@ Date: 2026-06-17 · Branch: `blueprint-supabase` · Repo:
 Nothing is committed. Repo convention still appears to be: commit only when Noam
 asks. All Phase A + Phase B step 5 work is in the working tree.
 
-Authoritative plan remains [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md).
+Authoritative plan remains [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md),
+with Pass 4 sequencing in [`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md).
 This file is the operational state snapshot for the next agent.
 
 ---
@@ -34,7 +35,11 @@ Phase B step 6 is now done as an **adapter, not a rename** (`utils/canonicalAdap
 It is **additive and unwired** — no UI, persistence, or data migration changed.
 The next gate is **Phase C**: building the first P0 module
 (`student-family-files`, the keystone), which is where the adapter actually gets
-wired at a real write boundary.
+wired at a real write boundary. Planning later parked D-16–D-27 Noam questions
+for packet-local conversion/migration gaps; Noam has since accepted D-16 for the
+P0 build path: use `families.guardians[]` jsonb for guardian/contact data and
+defer normalized guardian identity. D-17–D-27 remain parked; resolve those before
+building any packet section marked `BLOCKED ON D-xx`.
 
 ---
 
@@ -243,16 +248,19 @@ blueprint planning work.
 
 ## Next Agent Should Do
 
-1. Read this file, then [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md).
+1. Read this file, [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md), and
+   [`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md).
 2. Run `git status --short --branch` and preserve the dirty working tree.
 3. Do not re-decide Phase B migration 0004 or the D-04/D-05 adapter unless Noam
    explicitly asks.
-4. **Next is Phase C — the first P0 module: `student-family-files` (the keystone).**
-   Ask Noam before starting it (it's a product slice, not a cleanup), then build
-   per its packet, wiring `studentToV2`/`studentV2ToMinimal` from
+4. **Next implementation slice is Phase C — the first P0 module:
+   `student-family-files` (the keystone).**
+   Noam has now approved starting the build loop with the recommended shape:
+   separate RLS harness first, then the Students/Family vertical slice. Build per
+   the packet, wiring `studentToV2`/`studentV2ToMinimal` from
    `utils/canonicalAdapters.ts` at the write boundary (this is where the adapter
-   stops being unwired). Also resolve D-03 (Family as first-class table) up front —
-   the packet is blocked on it.
+   stops being unwired). D-03 and D-16 are already accepted; do not re-decide
+   them. P0 guardian/contact data uses `families.guardians[]` jsonb.
 5. Remember the `implemented` bar for any P0 module still requires:
    - product UI (list + create/edit/detail, empty/loading/error states)
    - Supabase persistence through the app path
@@ -276,5 +284,11 @@ blueprint planning work.
 - Finance policies allow finance capability holders to write ledger rows. If Noam
   wants adjustment approval or voiding to be admin-only later, refine those
   transitions in a follow-up migration.
+- D-17–D-27 are parked planning questions for lesson materialization, payroll
+  consolidation, payroll rate stamping, ledger currency policy, operational
+  request calendar mutation rules, Academic Hub assessment/document pipeline
+  scope, concert public program exposure, agreement consent withdrawal/revocation
+  semantics, instrument deposit modeling, staff HR evaluation privacy/access
+  scope, and year-rollover grade/schedule copy rules.
 - Real RLS enforcement remains todo until a live Supabase test project exists.
 - No commit has been made.

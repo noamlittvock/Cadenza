@@ -128,7 +128,7 @@ describe('studentToV2', () => {
   });
 
   it('drops every field named in the lossy manifest', () => {
-    const v = studentToV2(makeStudent()) as Record<string, unknown>;
+    const v = studentToV2(makeStudent()) as unknown as Record<string, unknown>;
     // V2 simply has no key for these legacy concepts.
     for (const field of ['isMinor', 'governmentalId', 'assignments', 'pedagogicalRecord', 'notes']) {
       expect(v[field]).toBeUndefined();

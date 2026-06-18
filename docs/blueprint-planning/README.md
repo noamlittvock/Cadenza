@@ -34,10 +34,10 @@ What is real today (do not re-plan as if greenfield):
 | Pass | Output | State |
 |---|---|---|
 | 0 — Planning setup | this folder: index, template, status policy, decision log, role-matrix template, route/nav policy | ✅ done |
-| 1 — P0 product definition | [`packets/`](packets/): registration, student/family, lesson attendance, payments, payroll | ✅ drafted — awaiting decision-log resolution |
-| 2 — Security/data/conversion | role matrices, canonicalization decisions, migration deltas, conversion semantics | next; blocked on D-04/D-05/D-07/D-08 |
-| 3 — P1/P2 module definition | packets for remaining 16 nodes | pending |
-| 4 — Implementation roadmap | sequenced epics, ticket slices, test plans | pending |
+| 1 — P0 product definition | [`packets/`](packets/): registration, student/family, lesson attendance, payments, payroll | ✅ drafted — decision-log prerequisites resolved |
+| 2 — Security/data/conversion | role matrices, canonicalization decisions, migration deltas, conversion semantics | ✅ complete for resolved P0 decisions; parked D-17–D-27 questions remain in NEEDS NOAM |
+| 3 — P1/P2 module definition | packets for 11 currently unpacketized non-native nodes | ✅ drafted |
+| 4 — Implementation roadmap | [`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md): sequenced epics, ticket slices, test plans, live-Supabase RLS markers | ✅ drafted |
 
 ### What the audit changed (read before implementing)
 
@@ -45,29 +45,32 @@ The deterministic foundation is **more complete than the tree's `gap` labels imp
 all 45 query helpers in `utils/blueprintQueries.ts` are implemented and unit-tested
 (`blueprintQueries.test.ts`, 44 cases), and `intake → student` conversion already
 exists as `approveIntakeRecord` (student-only). The **real P0 gaps** are: (1) product
-UI/workflows, (2) RLS refinement beyond uniform member-read/admin-write (teacher
-self-write, finance visibility, public submit), and (3) untested layers —
-camel/snake mapping (`supabaseSync.ts`), RLS, and migration/schema consistency.
-`PublicEndpoint` is a ghost entity (`forteTree.ts:1370`, no table).
+UI/workflows, (2) remaining public-submit / real-role RLS verification beyond the
+implemented `0004` teacher and finance foundations, and (3) remaining live-role
+security and product workflow tests. `supabaseSync.ts` mapping and static
+migration/schema consistency now have tests; live Supabase authenticated-role RLS
+remains todo.
+`PublicEndpoint` was a ghost entity in the audit; `0004` now creates the
+inert/admin-only `public_endpoints` registry, with no public surface activated.
 
-## Packet roster (21 feature-tree nodes)
+## Packet roster (22 feature-tree nodes)
 
 P0 first (this pass): `public-registration-intake`, `student-family-files`,
 `lesson-details-attendance`, `payments-charges`, `payroll-salaries-hours`.
 Plus native spines confirmed-not-rebuilt: `staff-teacher-management`,
 `activity-program-tree`, `calendar-schedule-engine`, `org-settings-global-users`,
-`deterministic-agent-layer`.
+`import-export-data-portability`, `deterministic-agent-layer`.
 
-P1/P2 (Pass 3): `rooms-absence-requests`, `ensembles-theory-school-programs`,
+P1/P2 (Pass 3 queue): `rooms-absence-requests`, `ensembles-theory-school-programs`,
 `exams-certificates-report-cards`, `concert-programs-events`, `agreements-consent`,
-`instrument-inventory` (follow-up), `teacher-evaluation-hr`, `reports-analytics`,
-`year-rollover-setup`, `import-export-data-portability`, `calendar-website-integrations`,
-`operations-command-center`.
+`instrument-inventory` (follow-up), `teacher-evaluation-hr`, `year-rollover-setup`,
+`calendar-website-integrations`, `reports-analytics`, `operations-command-center`.
 
 ## Ground rules (from the brief)
 
 - Subagents audit and draft; **synthesis stays centralized** here. No competing global roadmaps.
-- No implementation slices until cross-module decisions in the decision log are settled.
+- No implementation slices for a packet section that depends on an unsettled
+  decision; parked items must stay marked `BLOCKED ON D-xx`.
 - Consent/personal-data rule is absolute: public intake, tokenized endpoints, and any
   data-collection surface must route through an explicit consent/setup flow, never a
   config that bypasses it.

@@ -1,13 +1,15 @@
 # Payments And Charges  (`payments-charges`)
 
 Status: gap → planned (this packet)  ·  Priority: p0 (high-risk — finance)
-Owner-decisions blocking this packet: **D-07-FIN** (ledger canonical owner),
-**D-08** (finance visibility), **D-10** (balance snapshots), **D-15** (backfill).
+Owner-decisions still blocking this packet: **D-20** (ledger currency policy).
+Current accepted prerequisites: **D-07-FIN** (family-led ledger), **D-08**
+(finance visibility/capability), **D-10** (compute-live + audit snapshots), and
+**D-15** (backfill, recorded below).
 
 ## Current State (ground truth)
 - Existing UI: none. No charge/payment surface.
 - Existing schema (normalized, `0002`):
-  - `charges`: `studentId, familyId, enrollmentId, description, amount, currency, dueDate, status (OPEN|PARTIAL|PAID|VOID), periodLabel`. **All three scope FKs present** → schema supports student/family/enrollment-led; D-07-FIN picks the canonical rule.
+  - `charges`: `studentId, familyId, enrollmentId, description, amount, currency, dueDate, status (OPEN|PARTIAL|PAID|VOID), periodLabel`. **All three scope FKs present** → schema supports student/family/enrollment-led; D-07-FIN locks the family-led canonical rule.
   - `payments`: `studentId, familyId, amount, method (CASH|TRANSFER|CARD|CHECK|OTHER), receivedAt, appliedChargeIds[], reference`.
   - `adjustments`: `studentId, familyId, chargeId, amount (signed), reason, approvedBy`.
   - `balance_snapshots`: `studentId, familyId, asOf, totalCharged, totalPaid, totalAdjusted, balance` (audit history).
@@ -19,14 +21,14 @@ Owner-decisions blocking this packet: **D-07-FIN** (ledger canonical owner),
 - Feature-tree declared queries: `listOpenBalances`, `reconcileEnrollmentCharges`, `listPaymentsByFamily` — all implemented.
 
 ## Users And Permissions
-- Actors: admin, finance (capability — not yet a DB role), super_admin. **Not** general members.
+- Actors: admin, finance (capability implemented by D-08/`0004`), super_admin. **Not** general members.
 - Read: finance/admin only (D-08) — narrower than uniform member-read.
 - Write: admin/finance create charges, record payments, approve adjustments.
 - Public/token: none.
 
 ## Workflows
 - List/search/filter: open balances (`listOpenBalances`), by family/student/period/status; payment history by family (`listPaymentsByFamily`).
-- Create: charge (manual; later from enrollment/import/agreement/rollover); payment (apply to charges via `appliedChargeIds`); adjustment (signed, reason, approver).
+- Create: charge (manual; later from enrollment/import/agreement/rollover; instrument deposit or replacement-fee charge source is **BLOCKED ON D-25**); payment (apply to charges via `appliedChargeIds`); adjustment (signed, reason, approver).
 - Detail: family/student ledger — charges, payments, adjustments, running balance, reconciliation (`reconcileEnrollmentCharges`).
 - Edit: pre-application charge edits; void with audit.
 - Status transitions: charge `OPEN → PARTIAL → PAID`; `→ VOID` (admin, audited). Payment allocation drives PARTIAL/PAID.
@@ -36,12 +38,21 @@ Owner-decisions blocking this packet: **D-07-FIN** (ledger canonical owner),
 
 ## Data Contract
 - Primary records: `Charge`, `Payment`, `Adjustment`, `BalanceSnapshot`.
-- **Ledger owner (D-07-FIN):** default family-led rollup with per-enrollment charge lines. Charge keeps all three FKs; canonical *aggregation* key = familyId.
+- **Ledger owner (D-07-FIN ACCEPTED):** family-led rollup with per-enrollment charge lines. Charge keeps all three FKs; canonical *aggregation* key = `familyId`.
 - Required: charge {amount, currency, dueDate, status, scope FK}; payment {amount, method, receivedAt}.
-- Derived: open balance — **D-10:** compute on demand for live balance; persist `balance_snapshots` only for history/audit.
-- **Currency:** `Charge.currency` exists but no mixing guard → require a single-currency-per-family invariant or explicit multi-currency handling; add property test.
+- Derived: open balance — **D-10 ACCEPTED:** compute on demand for live balance; persist `balance_snapshots` only for periodic/audit history.
+- **Conversion semantics:** D-07-FIN/D-10 ACCEPTED — charge/payment/adjustment
+  posting writes family-led ledger rows with `familyId` as the canonical
+  aggregation key, while retaining `studentId`/`enrollmentId` as lineage on charge
+  lines. Payment allocation updates charge status (`OPEN/PARTIAL/PAID/VOID`) but
+  live balance remains computed on demand; `balance_snapshots` are written only by
+  periodic/audit jobs, not as the current-balance source of truth.
+- **Currency:** `Charge.currency` exists but no mixing guard. Single-currency vs
+  multi-currency behavior is **BLOCKED ON D-20**; add the resulting invariant or
+  multi-currency property tests before implementation.
 - Audit: createdBy/approvedBy/server timestamps; VOID + adjustments are the mutation channel.
-- Open schema decisions: D-07-FIN, D-10, currency policy.
+- Schema decisions / parked items: currency policy is **BLOCKED ON D-20**.
+  Instrument deposit, replacement-fee, and refund modeling is **BLOCKED ON D-25**.
 
 ## UX Placement (per route-nav-policy)
 - Home: **top-level Finance view** (reuse dead-end `BILLING` ViewState; un-dead-end per route-nav-policy). Family/student ledger also surfaces as a **gated tab** in student-family files.
@@ -50,13 +61,22 @@ Owner-decisions blocking this packet: **D-07-FIN** (ledger canonical owner),
 - Empty/loading/error: no-charges state; payment-exceeds-balance warning; void confirmation.
 - Hebrew/RTL: currency/number formatting RTL-safe; amounts LTR-isolated within RTL.
 
-## Role / RLS Matrix (key cells)
-| Operation | admin | finance | member | refinement |
-|---|---|---|---|---|
-| Read ledger | ✓ | ✓ | — | ⚠ D-08 — narrower than uniform member-read |
-| Create charge / record payment | ✓ | ✓ | — | needs `finance` capability/role |
-| Approve adjustment / void | ✓ | per policy | — | admin-gated |
-**Required refinement:** finance is not a DB role yet — uniform RLS would expose finance to all members. This is the hardest RLS delta; resolve in Pass 2.
+## Role / RLS Matrix
+| Operation | super_admin | admin | teacher (self) | teacher (others) | finance | guardian/public | RLS mechanism / refinement needed |
+|---|---|---|---|---|---|---|---|
+| List/read | ✓ | ✓ | — | — | ✓ | — | `0004` ledger read policies: `app_is_org_admin` or `app_has_capability('finance')`. |
+| Read detail | ✓ | ✓ | — | — | ✓ | — | Same admin-or-finance policy across charges, payments, adjustments, snapshots. |
+| Create | ✓ | ✓ | — | — | ✓ | — | `0004` ledger write policies allow admin-or-finance for charges/payments/adjustments/snapshots. |
+| Edit | ✓ | ✓ | — | — | ✓ | — | Finance/admin may edit pre-application records; immutable/audited states enforced in app logic and tests. |
+| Status transition (non-financial) | — | — | — | — | — | — | Ledger status changes are finance-affecting by definition. |
+| Status transition (payroll/finance-affecting) | ✓ | ✓ | — | — | ✓ | — | Charge `OPEN/PARTIAL/PAID/VOID`, payment allocation, adjustment approval; D-08 grants finance capability write. |
+| Archive/delete | ✓ | ✓ | — | — | ✓ | — | No hard delete; VOID/adjustments only, audited. |
+| Export | ✓ | ✓ | — | — | ✓ | — | Admin/finance statement, receipt, and ledger exports. |
+| Public submit/sign | — | — | — | — | — | — | No public payment/charge path in v1. |
+
+Required RLS refinements/tests:
+- `0004` implements admin-or-finance ledger access; add real-role tests proving plain members cannot read ledger rows.
+- Student/family finance tabs must rely on ledger-table RLS so a plain member cannot reach balances through a broader student profile query.
 
 ## Acceptance Criteria
 - Unit: `listOpenBalances`, `reconcileEnrollmentCharges`, `listPaymentsByFamily`; **add** partial-allocation + currency-mixing property tests + date-boundary tests.
@@ -64,8 +84,18 @@ Owner-decisions blocking this packet: **D-07-FIN** (ledger canonical owner),
 - RLS: real finance/admin roles; verify a plain member **cannot** read finance; verify cross-org isolation.
 - Playwright: create charge → record payment → verify open balance + family payment history; void path.
 - Hebrew/RTL: ledger + amounts.
-- Data migration: existing demo charges/payments → canonical owner (D-07-FIN); D-15.
+- Data migration: D-15 ACCEPTED — packet-local canonicalization of any existing
+  demo charges/payments only; no global ledger migration. Existing demo ledger
+  rows must be assigned or linked to `familyId` as the canonical aggregation key,
+  while preserving per-student/per-enrollment charge lineage. Snapshot-history
+  backfill may create periodic/audit baselines from existing ledger rows, but
+  current live balances stay computed on demand. Mixed-currency migration behavior
+  is **BLOCKED ON D-20**.
 
 ## Dependencies
-- Blocks: reports-analytics (finance reports), year-rollover (balances), agreements (financial).
-- Blocked by: **D-07-FIN, D-08, D-10**; student-family-files (family/student ledger owner); finance-role RLS refinement (Pass 2).
+- Blocks: reports-analytics (finance reports), year-rollover (balances),
+  agreements (financial), and instrument-inventory only if D-25 accepts
+  ledger-backed deposits, replacement fees, or refunds.
+- Blocked by: **D-20** currency policy, student-family-files (family/student
+  ledger owner), real-role finance RLS tests during implementation, and **D-25**
+  for instrument-specific deposit/fee/refund rows.

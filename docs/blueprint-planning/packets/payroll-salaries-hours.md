@@ -1,10 +1,11 @@
 # Payroll, Salaries, And Hours  (`payroll-salaries-hours`)
 
-Status: tree says `gap`; per status-policy this is **`embedded`** (existing hours
-reporting + `hours_reports`) → target `implemented`. Drift logged as **D-STATUS-2**.
-·  Priority: p0
-Owner-decisions blocking this packet: **D-05** (canonical event), **D-06** (teacher
-self-report vs admin approval), **PR-RATE** (rate source, below).
+Status: `embedded` (per `features/forteTree.ts` + **D-STATUS-2**) → target
+`implemented`. ·  Priority: p0
+Owner-decisions still blocking this packet: **D-18** (HoursReport↔HoursEntry
+consolidation) and **D-19** (rate source/stamp timing). Current accepted
+prerequisites: **D-05** (canonical event adapter) and **D-06** (teacher self-write
+with admin approval gate) are implemented foundation, not open blockers.
 
 ## Current State (ground truth)
 - Existing UI: existing hours-reporting surface (native-ish; `hours_reports` hybrid). No consolidated payroll module.
@@ -20,9 +21,11 @@ self-report vs admin approval), **PR-RATE** (rate source, below).
 - Feature-tree declared queries: `listPendingHoursReports`, `compareReportedVsCalendarHours` (+ `calculatePayslipRows`) — implemented.
 
 ## Users And Permissions
-- Actors: teacher (self-report own hours), admin (approve/pay), super_admin, finance (pay).
+- Actors: teacher (self-report own hours), admin (approve/pay), super_admin,
+  finance (read/export support via `hours_entries_read`).
 - Read: teachers read own entries; admin/finance read all.
 - Write: **teacher self-service submit** (D-06); admin approves + marks paid.
+  `0004` does not grant finance write access to payroll status transitions.
 - Public/token: none. (Legacy `hours_reports.token` exists — reconcile/retire under D-14 endpoint registry, not a public payroll write.)
 
 ## Workflows
@@ -38,11 +41,18 @@ self-report vs admin approval), **PR-RATE** (rate source, below).
 ## Data Contract
 - Primary record: `HoursEntry`; period roll-up: `HoursReport` (consolidation decision).
 - Linked: staff (StaffMemberV2), event (canonical D-05), lesson completion.
-- **PR-RATE (rate source):** teaching assignment vs org role vs manual override. `HoursEntry.rate` is per-entry; decide the resolution order and where the rate is stamped (at submit vs at approve).
+- **D-19 — rate source:** teaching assignment vs org role vs manual override.
+  `HoursEntry.rate` is per-entry; resolution order and stamp timing are **BLOCKED ON D-19**.
 - Required: staffMemberId, date, reportedMinutes, status.
 - Derived: variance (reported−calendar), payslip amount (rate×minutes).
 - Audit: submittedBy/approvedBy/server timestamps; PAID immutable.
-- Open schema decisions: HoursReport↔HoursEntry consolidation, PR-RATE.
+- **Conversion semantics:** D-05/D-06 ACCEPTED — teacher self-report creates/edits
+  own DRAFT/SUBMITTED `hours_entries`; admin approval moves entries to
+  APPROVED/PAID. Calendar-derived entries link to events through the D-05 adapter
+  boundary and do not rewrite HYBRID `events`. Period roll-up semantics are
+  **BLOCKED ON D-18**; rate source/stamp timing is **BLOCKED ON D-19**.
+- Schema decisions / parked items: HoursReport↔HoursEntry consolidation is
+  **BLOCKED ON D-18**; payroll rate source/stamp timing is **BLOCKED ON D-19**.
 
 ## UX Placement (per route-nav-policy)
 - Home: **Manage tab or Finance sub-view** (dead-end `PAYROLL` ViewState — route per route-nav-policy; likely a Manage tab given config-like cadence). Teacher self-report is a lightweight surface reachable by teachers.
@@ -51,22 +61,37 @@ self-report vs admin approval), **PR-RATE** (rate source, below).
 - Empty/loading/error: nothing-pending state; variance-mismatch warning.
 - Hebrew/RTL: hours/amounts LTR-isolated within RTL; period labels Hebrew-calendar aware.
 
-## Role / RLS Matrix (key cells)
-| Operation | teacher (own) | admin | finance | refinement |
-|---|---|---|---|---|
-| Read own hours | ✓ | ✓ | ✓ | row-scope teacher to own (⚠ D-06) |
-| Submit own hours | ✓ | ✓ | — | ⚠ uniform RLS makes writes admin-only today |
-| Approve / mark PAID | — | ✓ | per policy | admin-gated |
-**Required refinement:** teacher self-write to own entries (D-06) + finance visibility (D-08-adjacent).
+## Role / RLS Matrix
+| Operation | super_admin | admin | teacher (self) | teacher (others) | finance | guardian/public | RLS mechanism / refinement needed |
+|---|---|---|---|---|---|---|---|
+| List/read | ✓ | ✓ | own | — | ✓ | — | `0004` `hours_entries_read`: admin, finance capability, or `app_is_staff_self`. Legacy `hours_reports` must be consolidated to the same scope. |
+| Read detail | ✓ | ✓ | own | — | ✓ | — | Same as list/read; teacher detail is own period only. |
+| Create | ✓ | ✓ | own | — | — | — | `0004` `hours_entries_teacher_insert` allows own DRAFT/SUBMITTED rows; admin can create any. |
+| Edit | ✓ | ✓ | own | — | — | — | Teacher may edit own DRAFT/SUBMITTED rows; admin can correct any non-PAID row. |
+| Status transition (non-financial) | ✓ | ✓ | own | — | — | — | Teacher can move own `DRAFT -> SUBMITTED`; admin can move/reset pre-approval states. |
+| Status transition (payroll/finance-affecting) | ✓ | ✓ | — | — | — | — | D-06/`0004`: `APPROVED` and `PAID` transitions are admin-gated; finance is read/export only unless a future decision expands payroll capability. |
+| Archive/delete | ✓ | ✓ | — | — | — | — | PAID is immutable; corrections use adjusting entries. |
+| Export | ✓ | ✓ | — | — | ✓ | — | Finance read access supports payslip/payroll export; writes remain admin-gated. |
+| Public submit/sign | — | — | — | — | — | — | No public payroll write; legacy `hours_reports.token` must not become a D-07 bypass. |
+
+Required RLS refinements/tests:
+- `0004` implements own-row teacher insert/update for DRAFT/SUBMITTED `hours_entries`; add real-role tests for own vs other staff rows and blocked APPROVED/PAID writes.
+- HoursReport↔HoursEntry consolidation must apply the same teacher-own/admin/finance-read scope to any legacy `hours_reports` surface.
 
 ## Acceptance Criteria
 - Unit: `listPendingHoursReports`, `compareReportedVsCalendarHours`, `calculatePayslipRows`; add variance-edge + rate-resolution tests.
 - Supabase mapping: `hours_entries` camel↔snake; `hours_reports` hybrid wrap/unwrap.
-- RLS: teacher submits own (real teacher role); cannot submit for others; admin approve/pay works.
+- RLS: teacher submits own (real teacher role); cannot submit for others;
+  finance can read/export but cannot approve/pay; admin approve/pay works.
 - Playwright: submit hours → compare against calendar → approve → generate payslip rows.
 - Hebrew/RTL: hours + payslip.
-- Data migration: reconcile existing `hours_reports` docs into entries/reports model (D-15).
+- Data migration: D-15 ACCEPTED — packet-local reconciliation of existing
+  `hours_reports` docs with `hours_entries`; no global student/event migration.
+  The exact report↔entry consolidation is **BLOCKED ON D-18** and rate stamping is
+  **BLOCKED ON D-19** before implementation.
 
 ## Dependencies
 - Blocks: reports-analytics (payroll reports), finance (payslip → payment).
-- Blocked by: **D-05, D-06, PR-RATE**, HoursReport↔HoursEntry consolidation; lesson-details-attendance (completed-lesson hours source).
+- Blocked by: **D-18**, **D-19**, and lesson-details-attendance
+  (completed-lesson hours source). D-05/D-06 are accepted/implemented
+  prerequisites, not open blockers.

@@ -35,6 +35,20 @@ bash orchestration/scripts/codex-blueprint-audit.sh
 RUN_ALL_TESTS=1 bash orchestration/scripts/codex-blueprint-audit.sh
 ```
 
+## Codex Planning Loop
+
+The docs-only planning loop is driven by:
+
+```bash
+MAX_ITERS=1 ./plan-loop.sh   # first-iteration validation
+./plan-loop.sh               # full loop, up to 40 iterations by default
+```
+
+It runs `codex exec` once per queue item, using
+`docs/blueprint-planning/LOOP_STATE.md` as the cross-iteration state file. Logs are
+written under `.plan-loop/` and are intentionally ignored by git. Optional
+overrides: `CODEX_MODEL`, `CODEX_SANDBOX`, `CODEX_BIN`, `MAX_ITERS`.
+
 ## Manual Continue
 
 ```bash

@@ -47,6 +47,9 @@ hosts.yml
 # Claude Code internal session state
 .claude/
 
+# Codex planning loop logs
+.plan-loop/
+
 # Playwright test artifacts
 playwright-report/
 test-results/

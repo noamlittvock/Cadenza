@@ -38,15 +38,15 @@ Backend-only readiness (schema + queries + tests, no workflow) caps a node at
 - When a packet ships, update both the packet header and the `features/forteTree.ts`
   node in the same change, and note it in [`decision-log.md`](decision-log.md) if the
   change resolves an open question.
-- Pass 0 corrects exactly one known-stale status: **`instrument-inventory`** is `gap`
-  in the tree but meets the `implemented` bar (catalog, checkout/return, counters,
-  Supabase mapping, RTL smoke). It moves `gap → implemented` once the consistency
-  check (below) is green. Tracked as decision D-STATUS.
+- Pass 0 corrected the known-stale statuses tracked by D-STATUS and D-STATUS-2:
+  **`instrument-inventory`** is `implemented`; **`student-family-files`** and
+  **`payroll-salaries-hours`** are `embedded`; **`public-registration-intake`**,
+  **`lesson-details-attendance`**, and **`payments-charges`** remain `gap`.
 
 ## Consistency check (brief item 6)
 
-Add an automated test asserting every `node.deterministicQueries` name maps to an
-implemented export (in `utils/blueprintQueries.ts` or a documented utility), or is
-explicitly listed as a known-unimplemented stub. This prevents the tree from
-claiming coverage that does not exist. Until green, no status is promoted to
-`implemented`.
+Keep `features/forteTree.consistency.test.ts` green. It asserts every
+`node.deterministicQueries` name maps to an implemented export (in
+`utils/blueprintQueries.ts` or a documented utility), or is explicitly listed as a
+known-unimplemented stub. This prevents the tree from claiming coverage that does
+not exist. Until green, no status is promoted to `implemented`.

@@ -11,11 +11,15 @@ STUDENTS, BILLING, ACADEMICS, INVENTORY, PAYROLL, ANALYTICS`.
 
 `App.tsx` routes only 7: `CALENDAR` (inline, 455-592) and the switch (596-724)
 `STAFF_MEMBERS`, `MANAGE`, `BLUEPRINT`, `SUPER_ADMIN`, `ADMIN_INBOX`, `SETTINGS`.
-**Unrouted → `app.not_found`:** `STUDENTS, BILLING, ACADEMICS, INVENTORY, PAYROLL,
-ANALYTICS` (6 dead ends).
+**Unrouted as top-level views → `app.not_found` if forced directly:** `STUDENTS,
+BILLING, ACADEMICS, INVENTORY, PAYROLL, ANALYTICS`.
 
-`CommandPalette.tsx` (28-58) exposes **all 13** and calls `setCurrentView(view)`
-(line 113) — so 6 palette commands currently land on Not Found.
+Phase A D-02 cleanup is implemented: `CommandPalette.tsx` still defines labels and
+icons for all 13 values, but builds the navigate section through
+`isPaletteVisible()` from `routing.ts`. The visible palette destinations are
+`ROUTED_VIEWS` plus aliases. Today that hides `STUDENTS`, `BILLING`, `ACADEMICS`,
+`PAYROLL`, and `ANALYTICS`; `INVENTORY` remains visible only through its alias to
+`Manage?tab=inventory`.
 
 Sidebar (`Layout.tsx:184-234`, inside `isAdmin` gate):
 - Always: `CALENDAR`, `BLUEPRINT`, `SETTINGS`.
@@ -50,16 +54,17 @@ Rule: **a command-palette destination must route to a real surface or not exist.
 
 | ViewState | Action now | When module ships |
 |---|---|---|
-| `INVENTORY` | Alias to `Manage?tab=inventory` (don't render Not Found) | stays an alias; Inventory is a Manage tab |
-| `STUDENTS` | Hide palette entry | unhide + route as top-level view |
-| `BILLING` | Hide palette entry | unhide + route as **Finance** top-level view |
-| `ACADEMICS` | Hide palette entry | unhide when Academic Hub packet ships (tier TBD) |
-| `PAYROLL` | Hide palette entry | unhide; likely Manage tab or Finance sub-view |
-| `ANALYTICS` | Hide palette entry | unhide when reports-analytics ships |
+| `INVENTORY` | Aliased to `Manage?tab=inventory` (does not render Not Found) | stays an alias; Inventory is a Manage tab |
+| `STUDENTS` | Palette entry hidden | unhide + route as top-level view |
+| `BILLING` | Palette entry hidden | unhide + route as **Finance** top-level view |
+| `ACADEMICS` | Palette entry hidden | unhide when Academic Hub packet ships (tier TBD) |
+| `PAYROLL` | Palette entry hidden | unhide; likely Manage tab or Finance sub-view |
+| `ANALYTICS` | Palette entry hidden | unhide when reports-analytics ships |
 
-Implementation note for the cleanup ticket: drive palette visibility from a single
-"routed views" allowlist so a view appears in the palette **iff** `App.tsx` routes
-it. This kills the false-coverage problem at the source instead of per-entry.
+Implementation posture: palette visibility is driven from a single routed-views
+allowlist, plus explicit aliases for embedded surfaces. A view appears in the
+palette only if `App.tsx` routes it or the alias target does. This kills the
+false-coverage problem at the source instead of per-entry.
 
 ## Mobile visibility (explicit decision)
 
