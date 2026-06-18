@@ -49,6 +49,7 @@ hosts.yml
 
 # Codex planning loop logs
 .plan-loop/
+.build-loop/
 
 # Playwright test artifacts
 playwright-report/

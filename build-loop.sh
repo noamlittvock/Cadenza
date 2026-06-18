@@ -60,6 +60,12 @@ Non-negotiable rules:
   registry/control plane before launch.
 - Consent is mandatory for public data-collection surfaces. Do not add a config
   path that bypasses explicit consent/setup capture.
+- D-05 is ACCEPTED: EventV2 is the canonical event write-model. Use
+  `utils/canonicalAdapters.ts` for CalendarEvent/EventV2 conversion and do not
+  add a second inline event conversion or a broad HYBRID events rewrite.
+- D-06 is ACCEPTED: teachers may self-write own attendance/hour rows, while
+  payroll-affecting approval remains admin-gated. Do not broaden staff write
+  scope beyond row ownership.
 - D-16 is ACCEPTED for P0: guardian/contact data stays in
   `families.guardians[]` jsonb. Do not normalize guardian/contact identity or
   reopen that decision.
@@ -71,10 +77,11 @@ Non-negotiable rules:
 - UI must match the existing app language: dense operator workflows, warm paper
   workspace, dark espresso sidebar, bordeaux/navy accents, compact headers,
   segmented controls, 8px-radius panels/cards, lucide icons, no marketing page.
-- Use existing app patterns and helpers. Public submit must create only
-  quarantined intake; live Student/Family/Enrollment records are created only by
-  an admin-approved conversion. Use `utils/canonicalAdapters.ts` for Student
-  legacy/V2 conversion; do not add a second inline Student conversion.
+- Use existing app patterns and helpers. Use `utils/canonicalAdapters.ts` for
+  Student and Event legacy/V2 conversion; do not add duplicate inline conversion
+  seams. Public submit must create only quarantined intake; live
+  Student/Family/Enrollment records are created only by an admin-approved
+  conversion.
 - If live Supabase credentials are absent, add env-gated RLS tests that skip with
   a clear message, record the exact env vars in BUILD_LOOP_STATE.md, and do not
   mark RLS-LIVE or BUILD COMPLETE until those tests run against a real project.

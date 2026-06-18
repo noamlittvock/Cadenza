@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
   createLiveRlsHarness,
@@ -14,6 +15,15 @@ function expectNoSupabaseError(error: { message?: string; code?: string } | null
 
 function expectRlsDenied(error: { message?: string; code?: string } | null, context: string): void {
   expect(error?.message ?? '', context).toMatch(/row-level security|permission denied|violates row-level security/i);
+}
+
+function isMissingRegistrationIntakeRpc(error: { message?: string; code?: string } | null): boolean {
+  return error?.code === 'PGRST202' &&
+    /submit_registration_intake/i.test(error.message ?? '');
+}
+
+function sha256Hex(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
 }
 
 if (!liveRlsEnv.ready) {
@@ -319,5 +329,385 @@ if (!liveRlsEnv.ready) {
       });
       expectRlsDenied(approvedHoursError, 'teacher should not insert approved/payroll-final hours rows');
     });
+
+    it('enforces attendance marking boundaries for lesson rows', async () => {
+      const ownLessonId = h.id('lesson_attendance_own');
+      const otherLessonId = h.id('lesson_attendance_other');
+      const crossOrgLessonId = h.id('lesson_attendance_cross_org');
+      const financeDeniedLessonId = h.id('lesson_attendance_finance_denied');
+      const anonDeniedLessonId = h.id('lesson_attendance_anon_denied');
+      const teacherCrossOrgDeniedLessonId = h.id('lesson_attendance_teacher_cross_org_denied');
+
+      h.track('lesson_records', ownLessonId);
+      h.track('lesson_records', otherLessonId);
+      h.track('lesson_records', crossOrgLessonId);
+      h.track('lesson_records', financeDeniedLessonId);
+      h.track('lesson_records', anonDeniedLessonId);
+      h.track('lesson_records', teacherCrossOrgDeniedLessonId);
+
+      const otherStaffMemberId = `${config.teacher.staffMemberId}_other`;
+
+      const { error: seedError } = await h.service.from('lesson_records').insert([
+        {
+          id: ownLessonId,
+          org_id: config.orgId,
+          event_id: 'rls-live-attendance-event',
+          student_id: 'rls-live-attendance-student',
+          staff_member_id: config.teacher.staffMemberId,
+          date: '2026-06-18',
+          attendance: 'UNMARKED',
+          completion: 'PENDING',
+          notes: null,
+          repertoire: [],
+          homework: null,
+          makeup_of_lesson_id: null,
+          created_by: 'rls-live-harness',
+          updated_by: 'rls-live-harness',
+        },
+        {
+          id: otherLessonId,
+          org_id: config.orgId,
+          event_id: 'rls-live-attendance-event-other',
+          student_id: 'rls-live-attendance-student-other',
+          staff_member_id: otherStaffMemberId,
+          date: '2026-06-18',
+          attendance: 'UNMARKED',
+          completion: 'PENDING',
+          notes: null,
+          repertoire: [],
+          homework: null,
+          makeup_of_lesson_id: null,
+          created_by: 'rls-live-harness',
+          updated_by: 'rls-live-harness',
+        },
+        {
+          id: crossOrgLessonId,
+          org_id: config.crossOrgId,
+          event_id: 'rls-live-attendance-event-cross',
+          student_id: 'rls-live-attendance-student-cross',
+          staff_member_id: config.teacher.staffMemberId,
+          date: '2026-06-18',
+          attendance: 'UNMARKED',
+          completion: 'PENDING',
+          notes: null,
+          repertoire: [],
+          homework: null,
+          makeup_of_lesson_id: null,
+          created_by: 'rls-live-harness',
+          updated_by: 'rls-live-harness',
+        },
+      ]);
+      expectNoSupabaseError(seedError, 'service should seed lesson rows for attendance RLS fixtures');
+
+      const { error: teacherMarkError } = await h.teacher.client
+        .from('lesson_records')
+        .update({
+          attendance: 'PRESENT',
+          completion: 'COMPLETED',
+          notes: 'Marked by teacher in live RLS harness',
+          updated_by: 'rls-live-harness',
+        })
+        .eq('id', ownLessonId);
+      expectNoSupabaseError(teacherMarkError, 'teacher should mark their own lesson row');
+
+      const { error: teacherOtherUpdateError } = await h.teacher.client
+        .from('lesson_records')
+        .update({
+          attendance: 'ABSENT',
+          completion: 'NO_SHOW',
+          updated_by: 'rls-live-harness',
+        })
+        .eq('id', otherLessonId);
+      expectNoSupabaseError(teacherOtherUpdateError, 'other-staff update should be filtered by RLS without mutating');
+
+      const { error: teacherCrossOrgUpdateError } = await h.teacher.client
+        .from('lesson_records')
+        .update({
+          attendance: 'EXCUSED',
+          updated_by: 'rls-live-harness',
+        })
+        .eq('id', crossOrgLessonId);
+      expectNoSupabaseError(teacherCrossOrgUpdateError, 'cross-org update should be filtered by RLS without mutating');
+
+      const { error: adminOverrideError } = await h.admin.client
+        .from('lesson_records')
+        .update({
+          attendance: 'LATE',
+          completion: 'COMPLETED',
+          notes: 'Admin override in live RLS harness',
+          updated_by: 'rls-live-harness',
+        })
+        .eq('id', otherLessonId);
+      expectNoSupabaseError(adminOverrideError, 'admin should override any own-org lesson row');
+
+      const { error: financeInsertError } = await h.finance.client.from('lesson_records').insert({
+        id: financeDeniedLessonId,
+        org_id: config.orgId,
+        event_id: 'rls-live-attendance-event-finance-denied',
+        student_id: 'rls-live-attendance-student-finance-denied',
+        staff_member_id: config.teacher.staffMemberId,
+        date: '2026-06-18',
+        attendance: 'PRESENT',
+        completion: 'COMPLETED',
+        notes: null,
+        repertoire: [],
+        homework: null,
+        makeup_of_lesson_id: null,
+      });
+      expectRlsDenied(financeInsertError, 'finance-capable non-admin should not insert lesson rows');
+
+      const { error: anonInsertError } = await h.anon.from('lesson_records').insert({
+        id: anonDeniedLessonId,
+        org_id: config.orgId,
+        event_id: 'rls-live-attendance-event-anon-denied',
+        student_id: 'rls-live-attendance-student-anon-denied',
+        staff_member_id: config.teacher.staffMemberId,
+        date: '2026-06-18',
+        attendance: 'PRESENT',
+        completion: 'COMPLETED',
+        notes: null,
+        repertoire: [],
+        homework: null,
+        makeup_of_lesson_id: null,
+      });
+      expectRlsDenied(anonInsertError, 'anon should not insert lesson rows');
+
+      const { error: teacherCrossOrgInsertError } = await h.teacher.client.from('lesson_records').insert({
+        id: teacherCrossOrgDeniedLessonId,
+        org_id: config.crossOrgId,
+        event_id: 'rls-live-attendance-event-teacher-cross-org-denied',
+        student_id: 'rls-live-attendance-student-teacher-cross-org-denied',
+        staff_member_id: config.teacher.staffMemberId,
+        date: '2026-06-18',
+        attendance: 'PRESENT',
+        completion: 'COMPLETED',
+        notes: null,
+        repertoire: [],
+        homework: null,
+        makeup_of_lesson_id: null,
+      });
+      expectRlsDenied(teacherCrossOrgInsertError, 'teacher should not insert lesson rows in another org');
+
+      const { data: rows, error: verifyError } = await h.service
+        .from('lesson_records')
+        .select('id, org_id, attendance, completion, notes')
+        .in('id', [ownLessonId, otherLessonId, crossOrgLessonId])
+        .order('id');
+      expectNoSupabaseError(verifyError, 'service should verify lesson RLS mutation results');
+      expect(rows).toEqual([
+        {
+          id: crossOrgLessonId,
+          org_id: config.crossOrgId,
+          attendance: 'UNMARKED',
+          completion: 'PENDING',
+          notes: null,
+        },
+        {
+          id: otherLessonId,
+          org_id: config.orgId,
+          attendance: 'LATE',
+          completion: 'COMPLETED',
+          notes: 'Admin override in live RLS harness',
+        },
+        {
+          id: ownLessonId,
+          org_id: config.orgId,
+          attendance: 'PRESENT',
+          completion: 'COMPLETED',
+          notes: 'Marked by teacher in live RLS harness',
+        },
+      ]);
+    }, LIVE_RLS_TIMEOUT_MS);
+
+    it('enforces controlled public registration submit and admin-only intake review', async (ctx) => {
+      const endpointId = h.id('public_endpoint');
+      const token = h.id('registration_token');
+      const tokenHash = sha256Hex(token);
+      const deniedStudentId = h.id('anon_student_denied');
+      const deniedFamilyId = h.id('anon_family_denied');
+      const deniedEnrollmentId = h.id('anon_enrollment_denied');
+      const crossOrgIntakeId = h.id('cross_intake');
+
+      const { error: submitRpcPreflightError } = await h.anon.rpc('submit_registration_intake', {
+        p_token_hash: 'missing-token-hash',
+        p_payload: {},
+      });
+      if (isMissingRegistrationIntakeRpc(submitRpcPreflightError)) {
+        (ctx as unknown as { skip: (note?: string) => never }).skip(
+          'remote Supabase project has not applied 0006_registration_intake_public_submit.sql yet; run the RLS-LIVE migration unit before enforcing public intake RPC assertions',
+        );
+      }
+      expectNoSupabaseError(submitRpcPreflightError, 'registration intake submit RPC should exist in the live schema');
+
+      h.track('public_endpoints', endpointId);
+      h.track('students', deniedStudentId);
+      h.track('families', deniedFamilyId);
+      h.track('enrollments', deniedEnrollmentId);
+      h.track('registration_intake', crossOrgIntakeId);
+
+      const { error: endpointError } = await h.service.from('public_endpoints').insert({
+        id: endpointId,
+        org_id: config.orgId,
+        kind: 'REGISTRATION_INTAKE',
+        label: 'RLS harness registration',
+        token_hash: tokenHash,
+        status: 'ACTIVE',
+        scopes: ['registration_intake:submit'],
+        target_id: 'rls-live-activity',
+        consent_agreement_id: 'rls-live-consent',
+        created_by: 'rls-live-harness',
+        updated_by: 'rls-live-harness',
+      });
+      expectNoSupabaseError(endpointError, 'service should seed a scoped public registration endpoint');
+
+      const { error: crossSeedError } = await h.service.from('registration_intake').insert({
+        id: crossOrgIntakeId,
+        org_id: config.crossOrgId,
+        status: 'PENDING',
+        source: 'WEBSITE',
+        student_full_name: 'Cross Org Intake',
+        guardians: [],
+        consent_accepted: true,
+        consent_agreement_id: 'rls-live-consent',
+        created_by: 'rls-live-harness',
+        updated_by: 'rls-live-harness',
+      });
+      expectNoSupabaseError(crossSeedError, 'service should seed cross-org intake fixture');
+
+      const { error: anonStudentError } = await h.anon.from('students').insert({
+        id: deniedStudentId,
+        org_id: config.orgId,
+        data: { fullName: 'Denied Anon Student', profileStatus: 'ACTIVE' },
+      });
+      expectRlsDenied(anonStudentError, 'anon should not insert live student rows directly');
+
+      const { error: anonFamilyError } = await h.anon.from('families').insert({
+        id: deniedFamilyId,
+        org_id: config.orgId,
+        name: 'Denied Anon Family',
+        guardians: [],
+        student_ids: [],
+        primary_contact_guardian_id: null,
+        billing_notes: null,
+        is_archived: false,
+      });
+      expectRlsDenied(anonFamilyError, 'anon should not insert live family rows directly');
+
+      const { error: anonEnrollmentError } = await h.anon.from('enrollments').insert({
+        id: deniedEnrollmentId,
+        org_id: config.orgId,
+        data: { studentId: deniedStudentId, activityId: 'rls-live-activity', status: 'ACTIVE' },
+      });
+      expectRlsDenied(anonEnrollmentError, 'anon should not insert live enrollment rows directly');
+
+      const { data: submitData, error: submitError } = await h.anon.rpc('submit_registration_intake', {
+        p_token_hash: tokenHash,
+        p_payload: {
+          applicant: {
+            fullName: 'RLS Harness Applicant',
+            email: 'rls.intake.applicant@example.test',
+            phone: null,
+          },
+          student: {
+            fullName: 'RLS Harness Intake Student',
+            dateOfBirth: '2014-02-03',
+            instrument: 'Piano',
+            requestedActivityId: null,
+          },
+          guardians: [
+            {
+              id: 'guardian_1',
+              fullName: 'RLS Harness Guardian',
+              relationship: 'PARENT',
+              email: 'rls.intake.guardian@example.test',
+              phone: null,
+              isPrimary: true,
+            },
+          ],
+          notes: 'Submitted by live RLS harness.',
+          consent: {
+            accepted: true,
+            agreementId: 'rls-live-consent',
+            capturedAt: new Date().toISOString(),
+          },
+        },
+      });
+      expectNoSupabaseError(submitError, 'anon should submit through the scoped registration RPC');
+      expect(submitData).toMatchObject({ ok: true });
+      const intakeId = (submitData as { intakeId?: string } | null)?.intakeId;
+      expect(typeof intakeId).toBe('string');
+      h.track('registration_intake', intakeId as string);
+
+      const { data: anonRows, error: anonReadError } = await h.anon
+        .from('registration_intake')
+        .select('id')
+        .eq('id', intakeId as string);
+      expectNoSupabaseError(anonReadError, 'anon intake select should not error');
+      expect(anonRows).toEqual([]);
+
+      const { data: teacherRows, error: teacherReadError } = await h.teacher.client
+        .from('registration_intake')
+        .select('id')
+        .eq('id', intakeId as string);
+      expectNoSupabaseError(teacherReadError, 'non-admin member intake select should not error');
+      expect(teacherRows).toEqual([]);
+
+      const { data: financeRows, error: financeReadError } = await h.finance.client
+        .from('registration_intake')
+        .select('id')
+        .eq('id', intakeId as string);
+      expectNoSupabaseError(financeReadError, 'finance-capable non-admin intake select should not error');
+      expect(financeRows).toEqual([]);
+
+      const { data: crossRows, error: crossReadError } = await h.crossOrg.client
+        .from('registration_intake')
+        .select('id')
+        .eq('id', intakeId as string);
+      expectNoSupabaseError(crossReadError, 'cross-org intake select should not error');
+      expect(crossRows).toEqual([]);
+
+      const { data: adminRows, error: adminReadError } = await h.admin.client
+        .from('registration_intake')
+        .select('id, org_id, status, student_full_name, consent_accepted')
+        .in('id', [intakeId as string, crossOrgIntakeId])
+        .order('id');
+      expectNoSupabaseError(adminReadError, 'admin should read own-org intake queue rows');
+      expect(adminRows).toEqual([
+        {
+          id: intakeId,
+          org_id: config.orgId,
+          status: 'PENDING',
+          student_full_name: 'RLS Harness Intake Student',
+          consent_accepted: true,
+        },
+      ]);
+
+      const { error: adminUpdateError } = await h.admin.client
+        .from('registration_intake')
+        .update({
+          status: 'IN_REVIEW',
+          reviewed_by: h.admin.userId,
+          reviewed_at: new Date().toISOString(),
+          updated_by: 'rls-live-harness',
+        })
+        .eq('id', intakeId as string);
+      expectNoSupabaseError(adminUpdateError, 'admin should update intake review status');
+
+      const { error: teacherUpdateError } = await h.teacher.client
+        .from('registration_intake')
+        .update({ status: 'REJECTED' })
+        .eq('id', intakeId as string);
+      if (teacherUpdateError) {
+        expectRlsDenied(teacherUpdateError, 'non-admin member should not update intake review rows');
+      }
+
+      const { data: reviewedRow, error: reviewedReadError } = await h.admin.client
+        .from('registration_intake')
+        .select('status')
+        .eq('id', intakeId as string)
+        .maybeSingle();
+      expectNoSupabaseError(reviewedReadError, 'admin should verify non-admin update did not mutate intake');
+      expect(reviewedRow?.status).toBe('IN_REVIEW');
+    }, LIVE_RLS_TIMEOUT_MS);
   });
 }

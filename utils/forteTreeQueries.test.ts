@@ -36,7 +36,7 @@ describe('forteTreeQueries', () => {
     const p0Gaps = getForteIndustryGaps('p0');
 
     expect(p0Gaps.every(node => node.priority === 'p0')).toBe(true);
-    expect(p0Gaps.some(node => node.id === 'public-registration-intake')).toBe(true);
+    expect(p0Gaps.some(node => node.id === 'lesson-details-attendance')).toBe(true);
   });
 
   test('builds embedding records with source metadata and deterministic query names', () => {

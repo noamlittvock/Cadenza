@@ -1,6 +1,6 @@
 # Public Registration Intake  (`public-registration-intake`)
 
-Status: gap → planned (this packet)  ·  Priority: p0
+Status: `implemented` (per `features/forteTree.ts`).  ·  Priority: p0
 Owner-decisions still blocking this packet: none.
 Current accepted prerequisites: **D-03** (family/conversion graph), **D-07**
 (controlled public write path with consent), **D-14** (inert PublicEndpoint

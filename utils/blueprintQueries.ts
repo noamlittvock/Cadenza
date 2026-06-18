@@ -15,6 +15,8 @@
 
 import type {
   RegistrationIntake,
+  IntakeStatus,
+  IntakeStatusHistoryEntry,
   Family,
   Guardian,
   LessonRecord,
@@ -37,9 +39,15 @@ import type {
   EvaluationAction,
   ReportDefinition,
   ReportFilter,
+  PublicEndpoint,
+  PublicEndpointKind,
   IsoDate,
   IsoTimestamp,
 } from '../types/blueprint';
+import type { AdminInboxItem } from '../types';
+import type { EnrollmentV2, StudentV2 } from '../types/v2';
+import { fromDateTimestamp } from './appTimestamp';
+import { decideApproval, makeApprovalRequest } from './adminInbox';
 
 // ─── Minimal structural shapes for cross-module entities ─────────────────────
 // Avoids importing heavy app types; matches the fields these queries read.
@@ -147,33 +155,394 @@ export function suggestStudentDuplicates(
     .sort((a, b) => b.score - a.score || a.studentName.localeCompare(b.studentName));
 }
 
-export interface IntakeApproval {
+export const REGISTRATION_INTAKE_PUBLIC_SCOPE = 'registration_intake:submit';
+
+export type PublicTokenResolutionReason =
+  | 'NOT_FOUND'
+  | 'WRONG_KIND'
+  | 'INACTIVE'
+  | 'EXPIRED'
+  | 'MISSING_SCOPE'
+  | 'MISSING_CONSENT';
+
+export interface PublicTokenResolutionOptions {
+  tokenHash: string;
+  kind: PublicEndpointKind;
+  now: IsoTimestamp;
+  requiredScope?: string;
+  requireConsentAgreement?: boolean;
+}
+
+export interface ResolvedPublicEndpoint {
+  endpointId: string;
+  orgId: string;
+  kind: PublicEndpointKind;
+  label: string;
+  scopes: string[];
+  targetId: string | null;
+  consentAgreementId: string | null;
+}
+
+export type PublicTokenResolution =
+  | { ok: true; endpoint: ResolvedPublicEndpoint }
+  | { ok: false; reason: PublicTokenResolutionReason };
+
+/**
+ * D-14 public endpoint contract resolver. Callers pass an already-hashed token;
+ * raw public tokens are never stored in application state or compared directly
+ * to persisted rows. This only validates the registry record and returns the
+ * public-safe endpoint config. It does not write intake or any live org table.
+ */
+export function resolvePublicToken(
+  endpoints: PublicEndpoint[],
+  opts: PublicTokenResolutionOptions,
+): PublicTokenResolution {
+  const endpoint = endpoints.find(e => e.tokenHash === opts.tokenHash);
+  if (!endpoint) return { ok: false, reason: 'NOT_FOUND' };
+  if (endpoint.kind !== opts.kind) return { ok: false, reason: 'WRONG_KIND' };
+  if (endpoint.status !== 'ACTIVE') return { ok: false, reason: 'INACTIVE' };
+  if (endpoint.expiresAt && endpoint.expiresAt <= opts.now) {
+    return { ok: false, reason: 'EXPIRED' };
+  }
+  if (opts.requiredScope && !endpoint.scopes.includes(opts.requiredScope)) {
+    return { ok: false, reason: 'MISSING_SCOPE' };
+  }
+  if (opts.requireConsentAgreement && !endpoint.consentAgreementId) {
+    return { ok: false, reason: 'MISSING_CONSENT' };
+  }
+
+  return {
+    ok: true,
+    endpoint: {
+      endpointId: endpoint.id,
+      orgId: endpoint.orgId,
+      kind: endpoint.kind,
+      label: endpoint.label,
+      scopes: [...endpoint.scopes],
+      targetId: endpoint.targetId,
+      consentAgreementId: endpoint.consentAgreementId,
+    },
+  };
+}
+
+export function resolveRegistrationIntakeEndpoint(
+  endpoints: PublicEndpoint[],
+  opts: { tokenHash: string; now: IsoTimestamp },
+): PublicTokenResolution {
+  return resolvePublicToken(endpoints, {
+    tokenHash: opts.tokenHash,
+    kind: 'REGISTRATION_INTAKE',
+    now: opts.now,
+    requiredScope: REGISTRATION_INTAKE_PUBLIC_SCOPE,
+    requireConsentAgreement: true,
+  });
+}
+
+export interface IntakeApprovalGraph {
   intake: RegistrationIntake;
-  student: MinimalStudent;
+  student: StudentV2;
+  family: Family;
+  enrollment: EnrollmentV2;
+  agreementRequest: AgreementAcceptance;
+  inboxHistoryItem: AdminInboxItem;
+}
+
+export interface IntakeApprovalOptions {
+  studentId: string;
+  familyId: string;
+  enrollmentId: string;
+  agreementRequestId: string;
+  inboxItemId: string;
+  now: IsoTimestamp;
+  reviewedBy: string;
+  activityId?: string | null;
+  l2Id: string;
+  enrollmentStartDate: IsoDate;
+  agreementTemplateId?: string | null;
+  agreementTemplateVersion?: number;
+  decisionNote?: string;
+}
+
+export interface IntakeReviewDecision {
+  intake: RegistrationIntake;
+  inboxHistoryItem: AdminInboxItem;
+}
+
+export interface IntakeRejectOptions {
+  inboxItemId: string;
+  now: IsoTimestamp;
+  reviewedBy: string;
+  reason: string;
+}
+
+export interface IntakeDuplicateOptions {
+  inboxItemId: string;
+  now: IsoTimestamp;
+  reviewedBy: string;
+  duplicateOfStudentId: string;
+  note?: string;
+}
+
+export interface AppendIntakeStatusHistoryOptions {
+  status: IntakeStatus;
+  now: IsoTimestamp;
+  by: string | null;
+  note?: string | null;
+  fromStatus?: IntakeStatus | null;
+  relatedEntityIds?: string[];
+}
+
+function primaryGuardian(record: RegistrationIntake): Guardian | null {
+  return record.guardians.find(g => g.isPrimary) ?? record.guardians[0] ?? null;
+}
+
+function deriveFamilyName(record: RegistrationIntake): string {
+  const source = primaryGuardian(record)?.fullName || record.studentFullName;
+  const tokens = source.trim().split(/\s+/).filter(Boolean);
+  const surname = tokens.length > 1 ? tokens[tokens.length - 1] : tokens[0];
+  return surname ? `${surname} Family` : `${record.studentFullName} Family`;
+}
+
+export function appendIntakeStatusHistory(
+  record: RegistrationIntake,
+  opts: AppendIntakeStatusHistoryOptions,
+): IntakeStatusHistoryEntry[] {
+  const previous = record.statusHistory ?? [];
+  const fromStatus = opts.fromStatus !== undefined ? opts.fromStatus : record.status;
+  return [
+    ...previous,
+    {
+      id: `${record.id}:${opts.now}:${opts.status}:${previous.length + 1}`,
+      status: opts.status,
+      fromStatus: fromStatus === opts.status ? null : fromStatus,
+      at: opts.now,
+      by: opts.by,
+      note: opts.note ?? null,
+      ...(opts.relatedEntityIds?.length ? { relatedEntityIds: [...opts.relatedEntityIds] } : {}),
+    },
+  ];
+}
+
+function buildIntakeHistoryItem(
+  record: RegistrationIntake,
+  opts: {
+    inboxItemId: string;
+    now: IsoTimestamp;
+    reviewedBy: string;
+    decision: 'APPROVED' | 'REJECTED';
+    title: string;
+    message: string;
+    note: string;
+    relatedEntityIds: string[];
+  },
+): AdminInboxItem {
+  return decideApproval(
+    makeApprovalRequest({
+      id: opts.inboxItemId,
+      orgId: record.orgId,
+      title: opts.title,
+      message: opts.message,
+      relatedEntityType: 'registration_intake',
+      relatedEntityIds: opts.relatedEntityIds,
+      requestedBy: record.createdBy ?? 'public',
+      nowIso: opts.now,
+    }),
+    opts.decision,
+    { decidedBy: opts.reviewedBy, nowIso: opts.now, note: opts.note },
+  );
 }
 
 /**
- * Pure converter: returns the intake mutated to CONVERTED plus the new Student
- * payload (caller persists). Deterministic given an `idFactory` and `now`.
+ * Pure conversion service: returns the admin-approved intake lineage plus the
+ * records a repository layer should persist in one transaction. Public submit
+ * never calls this directly; it only creates quarantined intake rows.
  */
 export function approveIntakeRecord(
   record: RegistrationIntake,
-  opts: { studentId: string; now: IsoTimestamp; reviewedBy?: string | null },
-): IntakeApproval {
-  const student: MinimalStudent = {
+  opts: IntakeApprovalOptions,
+): IntakeApprovalGraph {
+  const activityId = opts.activityId ?? record.requestedActivityId;
+  if (!activityId) {
+    throw new Error('Cannot approve registration intake without an activityId');
+  }
+  if (!opts.l2Id) {
+    throw new Error('Cannot approve registration intake without an l2Id');
+  }
+
+  const stamp = fromDateTimestamp(new Date(opts.now));
+  const guardian = primaryGuardian(record);
+  const familyGuardians = record.guardians.map(g => ({ ...g }));
+  const agreementTemplateId =
+    opts.agreementTemplateId ?? record.consentAgreementId ?? 'registration-intake-placeholder';
+  const agreementTemplateVersion = opts.agreementTemplateVersion ?? 1;
+
+  const student: StudentV2 = {
     id: opts.studentId,
+    orgId: record.orgId,
     fullName: record.studentFullName,
+    dateOfBirth: record.studentDateOfBirth,
+    parentName: guardian?.fullName ?? null,
+    parentPhone: guardian?.phone ?? null,
+    grade: null,
+    startDate: opts.enrollmentStartDate,
+    level: null,
+    tags: record.instrument ? [record.instrument] : [],
+    phone2: null,
+    email: guardian?.email ?? null,
+    address: null,
     isArchived: false,
+    createdAt: stamp,
+    updatedAt: stamp,
+    documents: [],
   };
+  const family: Family = {
+    id: opts.familyId,
+    orgId: record.orgId,
+    name: deriveFamilyName(record),
+    guardians: familyGuardians,
+    studentIds: [opts.studentId],
+    primaryContactGuardianId: guardian?.id ?? null,
+    billingNotes: null,
+    isArchived: false,
+    createdAt: opts.now,
+    updatedAt: opts.now,
+    createdBy: opts.reviewedBy,
+    updatedBy: opts.reviewedBy,
+  };
+  const enrollment: EnrollmentV2 = {
+    id: opts.enrollmentId,
+    orgId: record.orgId,
+    studentId: opts.studentId,
+    activityId,
+    l2Id: opts.l2Id,
+    startDate: opts.enrollmentStartDate,
+    endDate: null,
+    status: 'ACTIVE',
+    createdAt: stamp,
+    updatedAt: stamp,
+  };
+  const agreementRequest: AgreementAcceptance = {
+    id: opts.agreementRequestId,
+    orgId: record.orgId,
+    templateId: agreementTemplateId,
+    templateVersion: agreementTemplateVersion,
+    studentId: opts.studentId,
+    familyId: opts.familyId,
+    enrollmentId: opts.enrollmentId,
+    guardianId: guardian?.id ?? null,
+    status: 'PENDING',
+    acceptedAt: null,
+    acceptedByName: null,
+    signatureRef: null,
+    createdAt: opts.now,
+    updatedAt: opts.now,
+    createdBy: opts.reviewedBy,
+    updatedBy: opts.reviewedBy,
+  };
+  const relatedEntityIds = [
+    record.id,
+    opts.studentId,
+    opts.familyId,
+    opts.enrollmentId,
+    opts.agreementRequestId,
+  ];
+  const decisionNote = opts.decisionNote ?? 'Converted to student/family/enrollment graph.';
   const intake: RegistrationIntake = {
     ...record,
     status: 'CONVERTED',
-    reviewedBy: opts.reviewedBy ?? record.reviewedBy ?? null,
+    reviewedBy: opts.reviewedBy,
     reviewedAt: opts.now,
     convertedStudentId: opts.studentId,
+    convertedEnrollmentId: opts.enrollmentId,
+    statusHistory: appendIntakeStatusHistory(record, {
+      status: 'CONVERTED',
+      now: opts.now,
+      by: opts.reviewedBy,
+      note: decisionNote,
+      relatedEntityIds,
+    }),
     updatedAt: opts.now,
+    updatedBy: opts.reviewedBy,
   };
-  return { intake, student };
+  const inboxHistoryItem = buildIntakeHistoryItem(record, {
+    inboxItemId: opts.inboxItemId,
+    now: opts.now,
+    reviewedBy: opts.reviewedBy,
+    decision: 'APPROVED',
+    title: 'Registration intake approved',
+    message: `${record.studentFullName} was converted from intake ${record.id}.`,
+    note: decisionNote,
+    relatedEntityIds,
+  });
+
+  return { intake, student, family, enrollment, agreementRequest, inboxHistoryItem };
+}
+
+export function rejectIntakeRecord(
+  record: RegistrationIntake,
+  opts: IntakeRejectOptions,
+): IntakeReviewDecision {
+  const intake: RegistrationIntake = {
+    ...record,
+    status: 'REJECTED',
+    reviewedBy: opts.reviewedBy,
+    reviewedAt: opts.now,
+    rejectionReason: opts.reason,
+    statusHistory: appendIntakeStatusHistory(record, {
+      status: 'REJECTED',
+      now: opts.now,
+      by: opts.reviewedBy,
+      note: opts.reason,
+      relatedEntityIds: [record.id],
+    }),
+    updatedAt: opts.now,
+    updatedBy: opts.reviewedBy,
+  };
+  const inboxHistoryItem = buildIntakeHistoryItem(record, {
+    inboxItemId: opts.inboxItemId,
+    now: opts.now,
+    reviewedBy: opts.reviewedBy,
+    decision: 'REJECTED',
+    title: 'Registration intake rejected',
+    message: `${record.studentFullName} intake ${record.id} was rejected.`,
+    note: opts.reason,
+    relatedEntityIds: [record.id],
+  });
+  return { intake, inboxHistoryItem };
+}
+
+export function markIntakeDuplicate(
+  record: RegistrationIntake,
+  opts: IntakeDuplicateOptions,
+): IntakeReviewDecision {
+  const note = opts.note ?? `Duplicate of student ${opts.duplicateOfStudentId}.`;
+  const intake: RegistrationIntake = {
+    ...record,
+    status: 'DUPLICATE',
+    reviewedBy: opts.reviewedBy,
+    reviewedAt: opts.now,
+    duplicateOfStudentId: opts.duplicateOfStudentId,
+    statusHistory: appendIntakeStatusHistory(record, {
+      status: 'DUPLICATE',
+      now: opts.now,
+      by: opts.reviewedBy,
+      note,
+      relatedEntityIds: [record.id, opts.duplicateOfStudentId],
+    }),
+    updatedAt: opts.now,
+    updatedBy: opts.reviewedBy,
+  };
+  const inboxHistoryItem = buildIntakeHistoryItem(record, {
+    inboxItemId: opts.inboxItemId,
+    now: opts.now,
+    reviewedBy: opts.reviewedBy,
+    decision: 'REJECTED',
+    title: 'Registration intake marked duplicate',
+    message: `${record.studentFullName} intake ${record.id} was marked duplicate.`,
+    note,
+    relatedEntityIds: [record.id, opts.duplicateOfStudentId],
+  });
+  return { intake, inboxHistoryItem };
 }
 
 // ════════════════════════════════════════════════════════════════════════════

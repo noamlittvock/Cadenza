@@ -46,6 +46,16 @@ export type IntakeStatus =
   | 'DUPLICATE'
   | 'CONVERTED';
 
+export interface IntakeStatusHistoryEntry {
+  id: string;
+  status: IntakeStatus;
+  fromStatus: IntakeStatus | null;
+  at: IsoTimestamp;
+  by: string | null;
+  note: string | null;
+  relatedEntityIds?: string[];
+}
+
 /** A guardian/parent contact captured at intake or on a family file. */
 export interface Guardian {
   id: string;
@@ -66,6 +76,9 @@ export interface RegistrationIntake extends BlueprintBase {
   source: 'WEBSITE' | 'MANUAL' | 'IMPORT';
   submittedAt: IsoTimestamp;
   // Applicant
+  applicantName?: string | null;
+  applicantEmail?: string | null;
+  applicantPhone?: string | null;
   studentFullName: string;
   studentDateOfBirth: IsoDate | null;
   instrument: string | null;
@@ -81,6 +94,7 @@ export interface RegistrationIntake extends BlueprintBase {
   duplicateOfStudentId?: string | null;
   convertedStudentId?: string | null;
   convertedEnrollmentId?: string | null;
+  statusHistory?: IntakeStatusHistoryEntry[];
 }
 
 // ─── Students / family files ─────────────────────────────────────────────────

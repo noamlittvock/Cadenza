@@ -236,6 +236,11 @@ on-open vs batch materialization for existing events.
 **Recommended default:** none recorded. The schema points toward one row per
 event/student, but the packet still flags this as needing confirmation, so the
 loop must not decide it.
+**Product principle from Noam:** Defaults should reduce work, not invent facts.
+For attendance, completeness must not become a human data-entry ritual. A default
+may prefill or prepare rows from schedule/roster facts, but it must not silently
+mark attendance, completion, or lesson outcomes that a teacher/admin has not
+confirmed.
 **Blocks:** lesson-details-attendance, payroll-salaries-hours, reports-analytics.
 **State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
 sections are marked **BLOCKED ON D-17**.
@@ -384,10 +389,12 @@ tree to match the policy?
 to `embedded`; keep `public-registration-intake`, `lesson-details-attendance`,
 `payments-charges` as `gap`. Apply with the consistency check, alongside D-STATUS.
 **Blocks:** nothing; cleanup. **State:** ✅ IMPLEMENTED 2026-06-18 —
-`features/forteTree.ts` now marks `student-family-files` and
+`features/forteTree.ts` initially marked `student-family-files` and
 `payroll-salaries-hours` as `embedded`; `public-registration-intake`,
-`lesson-details-attendance`, and `payments-charges` remain `gap`. The P0 packet
-headers are reconciled with those tree statuses, and
+`lesson-details-attendance`, and `payments-charges` remained `gap`. Later Phase C
+work promoted `student-family-files` and `public-registration-intake` to
+`implemented`; `lesson-details-attendance` and `payments-charges` remain `gap`.
+The packet headers are reconciled with current tree statuses, and
 `features/forteTree.consistency.test.ts` is the status-policy gate.
 
 ### D-STATUS — Instrument Inventory tree status  ⚪

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { nowTimestamp } from '../utils/appTimestamp';
 import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, RecurrenceRule, DayOfWeek } from '../types';
 import { generateId } from '../constants';
-import { ChevronLeft, ChevronRight, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronDown, Repeat, Ban, RotateCcw, HelpCircle, Search, Loader2, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronDown, Repeat, Ban, RotateCcw, HelpCircle, Search, Loader2, Sparkles, ClipboardCheck, ClipboardList } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { syncEventToGoogle, removeEventFromGoogle, updateEventInGoogle } from '../utils/googleCalendarSync';
 import { Modal } from './Modal';
@@ -17,8 +17,17 @@ import {
   TeachingAssignmentV2, OrgRoleV2, EventV2, EventParticipant, EnrollmentV2, StudentV2, V2_COLLECTIONS,
   AssignmentType,
 } from '../types/v2';
+import { BLUEPRINT_COLLECTIONS } from '../types/blueprint';
+import type { AttendanceStatus, LessonCompletion, LessonRecord } from '../types/blueprint';
 import { TagChip } from './TagChip';
 import { hasEventDataError } from '../utils/eventValidation';
+import { eventToV2 } from '../utils/canonicalAdapters';
+import { buildEventAttendancePanelModel, buildUnmarkedAttendanceWorklist } from '../utils/lessonAttendancePanel';
+import {
+  LessonAttendanceError,
+  applyLessonAttendanceUpdate,
+  buildExistingLessonAttendanceUpdate,
+} from '../utils/lessonAttendanceService';
 import type { CalendarFilterState, CalendarSidebarTab } from '../types/calendarFilters';
 interface Props {
   events: CalendarEvent[];
@@ -82,6 +91,7 @@ const START_HOUR = 0;
 const END_HOUR = 23;
 const PIXELS_PER_HOUR = 60;
 const SNAP_MINUTES = 15;
+const ADAPTER_FALLBACK_TIMESTAMP = { seconds: 0, nanoseconds: 0 };
 
 // Module-level scroll position — survives component re-mounts (sidebar toggle, etc.)
 let savedScrollTop = 7 * PIXELS_PER_HOUR; // Default: scroll to 7 AM
@@ -152,6 +162,7 @@ export const CalendarView: React.FC<Props> = ({
   const [eventsV2, setEventsV2] = useSupabaseSync<EventV2>(V2_COLLECTIONS.events, []);
   const [eventParticipantsV2, setEventParticipantsV2] = useSupabaseSync<EventParticipant>(V2_COLLECTIONS.eventParticipants, []);
   const [enrollments] = useSupabaseSync<EnrollmentV2>(V2_COLLECTIONS.enrollments, []);
+  const [lessonRecords, setLessonRecords, lessonRecordsLoading] = useSupabaseSync<LessonRecord>(BLUEPRINT_COLLECTIONS.lessonRecords, []);
   const students = studentsV2;
 
   // ─── CSV Import/Export data ──────────────────────────────────────────────
@@ -224,6 +235,47 @@ export const CalendarView: React.FC<Props> = ({
 
   // Detail Popover State
   const [detailItem, setDetailItem] = useState<DetailItem>(null);
+  const [attendanceWorklistOpen, setAttendanceWorklistOpen] = useState(false);
+  const [attendanceSavingId, setAttendanceSavingId] = useState<string | null>(null);
+  const [attendanceError, setAttendanceError] = useState<string | null>(null);
+  const attendanceEventsV2 = useMemo(() => events.map(event => eventToV2(event, {
+    orgId: orgId || '',
+    timeZone: settings.timeZone || 'UTC',
+    now: ADAPTER_FALLBACK_TIMESTAMP,
+  })), [events, orgId, settings.timeZone]);
+  const unmarkedAttendanceWorklist = useMemo(() => buildUnmarkedAttendanceWorklist({
+    lessons: lessonRecords,
+    events: attendanceEventsV2.map(event => ({
+      id: event.id,
+      name: event.name,
+      date: event.date,
+      startTime: event.startTime,
+    })),
+    students: students.map(student => ({ id: student.id, fullName: student.fullName })),
+    limit: 25,
+  }), [attendanceEventsV2, lessonRecords, students]);
+  const eventAttendancePanel = useMemo(() => {
+    if (detailItem?.type !== 'EVENT') return null;
+    const eventV2 = attendanceEventsV2.find(event => event.id === detailItem.data.id) ?? eventToV2(detailItem.data, {
+      orgId: orgId || '',
+      timeZone: settings.timeZone || 'UTC',
+      now: ADAPTER_FALLBACK_TIMESTAMP,
+    });
+    return buildEventAttendancePanelModel({
+      event: eventV2,
+      lessons: lessonRecords,
+      students: students.map(student => ({ id: student.id, fullName: student.fullName })),
+      loading: lessonRecordsLoading,
+    });
+  }, [attendanceEventsV2, detailItem, lessonRecords, lessonRecordsLoading, orgId, settings.timeZone, students]);
+  const currentStaffMemberId = useMemo(() => {
+    const email = currentUser?.email?.toLowerCase();
+    const uid = currentUser?.uid ?? currentUser?.id;
+    return staffMembersV2.find(staff => (
+      (uid && staff.uid === uid)
+      || (email && staff.email?.toLowerCase() === email)
+    ))?.id ?? null;
+  }, [currentUser, staffMembersV2]);
 
   // Right-click Context Menu State
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; event: CalendarEvent } | null>(null);
@@ -821,6 +873,266 @@ export const CalendarView: React.FC<Props> = ({
     }
     return pills;
   }, [filterState, activityById, l1Subs, l2Subs, staffById, studentById, t, filterSet]);
+
+  const attendanceLabels: Record<AttendanceStatus, string> = {
+    UNMARKED: t('attendance.status.unmarked'),
+    PRESENT: t('attendance.status.present'),
+    ABSENT: t('attendance.status.absent'),
+    LATE: t('attendance.status.late'),
+    EXCUSED: t('attendance.status.excused'),
+    MAKEUP: t('attendance.status.makeup'),
+  };
+
+  const completionLabels: Record<LessonCompletion, string> = {
+    PENDING: t('attendance.completion.pending'),
+    COMPLETED: t('attendance.completion.completed'),
+    CANCELLED: t('attendance.completion.cancelled'),
+    NO_SHOW: t('attendance.completion.no_show'),
+  };
+
+  const attendanceBadgeClass: Record<AttendanceStatus, string> = {
+    UNMARKED: 'bg-stone-100 text-stone-700 border-stone-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+    PRESENT: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/25 dark:text-emerald-300 dark:border-emerald-800',
+    ABSENT: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/25 dark:text-red-300 dark:border-red-800',
+    LATE: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/25 dark:text-amber-300 dark:border-amber-800',
+    EXCUSED: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/25 dark:text-blue-300 dark:border-blue-800',
+    MAKEUP: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/25 dark:text-indigo-300 dark:border-indigo-800',
+  };
+  const attendanceActionStatuses: AttendanceStatus[] = ['PRESENT', 'ABSENT', 'LATE', 'EXCUSED', 'MAKEUP', 'UNMARKED'];
+  const canMarkLesson = (lesson: LessonRecord) => (
+    isAdmin || isSuperAdmin || Boolean(currentStaffMemberId && lesson.staffMemberId === currentStaffMemberId)
+  );
+  const markAttendanceAria = (studentName: string, status: AttendanceStatus) => (
+    t('attendance.panel.mark_aria')
+      .replace('{student}', studentName)
+      .replace('{status}', attendanceLabels[status])
+  );
+
+  const handleLessonAttendanceMark = async (lesson: LessonRecord, status: AttendanceStatus) => {
+    if (detailItem?.type !== 'EVENT' || lesson.attendance === status) return;
+    setAttendanceSavingId(lesson.id);
+    setAttendanceError(null);
+    const updatedAt = new Date().toISOString();
+    try {
+      const plan = buildExistingLessonAttendanceUpdate({
+        event: detailItem.data,
+        lessons: lessonRecords,
+        lessonId: lesson.id,
+        patch: { attendance: status },
+        context: {
+          orgId: orgId || '',
+          timeZone: settings.timeZone || 'UTC',
+          adapterNow: nowTimestamp(),
+          updatedAt,
+          actor: {
+            userId: currentUser?.id ?? currentUser?.uid ?? null,
+            staffMemberId: currentStaffMemberId,
+            canAdminOverride: isAdmin || isSuperAdmin,
+          },
+        },
+      });
+      const nextLessons = applyLessonAttendanceUpdate(lessonRecords, plan.lesson);
+      await setLessonRecords(nextLessons);
+    } catch (error) {
+      const code = error instanceof LessonAttendanceError ? error.code : 'UNKNOWN';
+      setAttendanceError(`${t('attendance.panel.mark_error')} (${code})`);
+    } finally {
+      setAttendanceSavingId(null);
+    }
+  };
+
+  const renderAttendancePanel = () => {
+    if (!eventAttendancePanel) return null;
+
+    const shellClass = 'mt-5 rounded-lg border border-stone-200 bg-stone-50/80 p-3 text-start dark:border-slate-700 dark:bg-slate-800/45';
+
+    if (eventAttendancePanel.state === 'loading') {
+      return (
+        <section data-testid="event-attendance-panel" dir={isRtl ? 'rtl' : 'ltr'} className={shellClass}>
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+            <Loader2 size={16} className="animate-spin text-blue-600" />
+            {t('attendance.panel.loading')}
+          </div>
+        </section>
+      );
+    }
+
+    if (eventAttendancePanel.state === 'error') {
+      return (
+        <section data-testid="event-attendance-panel" dir={isRtl ? 'rtl' : 'ltr'} className={shellClass}>
+          <div className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300">
+            <AlertOctagon size={16} className="mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-semibold">{t('attendance.panel.error_title')}</p>
+              <p className="text-xs text-red-600/85 dark:text-red-300/80">{t('attendance.panel.error_body')}</p>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    if (eventAttendancePanel.state === 'empty') {
+      return (
+        <section data-testid="event-attendance-panel" dir={isRtl ? 'rtl' : 'ltr'} className={shellClass}>
+          <div className="flex items-start gap-2">
+            <ClipboardCheck size={16} className="mt-0.5 flex-shrink-0 text-slate-500 dark:text-slate-400" />
+            <div>
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{t('attendance.panel.no_rows_title')}</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{t('attendance.panel.no_rows_body')}</p>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    return (
+      <section data-testid="event-attendance-panel" dir={isRtl ? 'rtl' : 'ltr'} className={shellClass}>
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <ClipboardCheck size={16} className="flex-shrink-0 text-blue-700 dark:text-blue-300" />
+            <h4 className="text-sm font-semibold text-slate-900 dark:text-white truncate">{t('attendance.panel.title')}</h4>
+          </div>
+          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+            {eventAttendancePanel.rows.length} {t('attendance.panel.rows_suffix')}
+          </span>
+        </div>
+        <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+          {t('attendance.panel.mark_hint')}
+        </p>
+        {attendanceError && (
+          <div data-testid="attendance-mark-error" className="mt-3 rounded-md border border-red-200 bg-red-50 px-2.5 py-2 text-xs font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+            {attendanceError}
+          </div>
+        )}
+
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="min-w-0 rounded-md border border-stone-200 bg-white px-2 py-1.5 dark:border-slate-700 dark:bg-slate-900/60">
+            <p className="text-[10px] font-semibold uppercase text-slate-500 dark:text-slate-400">{t('attendance.panel.unmarked')}</p>
+            <p className="text-base font-bold text-slate-900 dark:text-white">{eventAttendancePanel.summary.attendance.UNMARKED}</p>
+          </div>
+          <div className="min-w-0 rounded-md border border-stone-200 bg-white px-2 py-1.5 dark:border-slate-700 dark:bg-slate-900/60">
+            <p className="text-[10px] font-semibold uppercase text-slate-500 dark:text-slate-400">{t('attendance.panel.present')}</p>
+            <p className="text-base font-bold text-slate-900 dark:text-white">{eventAttendancePanel.summary.attendance.PRESENT}</p>
+          </div>
+          <div className="min-w-0 rounded-md border border-stone-200 bg-white px-2 py-1.5 dark:border-slate-700 dark:bg-slate-900/60">
+            <p className="text-[10px] font-semibold uppercase text-slate-500 dark:text-slate-400">{t('attendance.panel.completed')}</p>
+            <p className="text-base font-bold text-slate-900 dark:text-white">{eventAttendancePanel.summary.completed}</p>
+          </div>
+        </div>
+
+        <div className="mt-3 max-h-[52vh] space-y-2 overflow-y-auto pe-1 custom-scrollbar sm:max-h-64">
+          {eventAttendancePanel.rows.map(({ lesson, studentName }) => (
+            <div key={lesson.id} data-testid="attendance-lesson-row" className="rounded-md border border-stone-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-900/60">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{studentName}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{completionLabels[lesson.completion]}</p>
+                </div>
+                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${attendanceBadgeClass[lesson.attendance]}`}>
+                  {attendanceLabels[lesson.attendance]}
+                </span>
+              </div>
+              {(lesson.repertoire.length > 0 || lesson.homework || lesson.notes) && (
+                <div className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                  {lesson.repertoire.length > 0 && <p className="truncate">{t('attendance.panel.repertoire')}: {lesson.repertoire.join(', ')}</p>}
+                  {lesson.homework && <p className="truncate">{t('attendance.panel.homework')}: {lesson.homework}</p>}
+                  {lesson.notes && <p className="line-clamp-2">{t('attendance.panel.notes')}: {lesson.notes}</p>}
+                </div>
+              )}
+              <div className="mt-2">
+                <p className="text-[10px] font-semibold uppercase text-slate-500 dark:text-slate-400">{t('attendance.panel.mark_label')}</p>
+                <div className="mt-1 grid grid-cols-2 gap-1.5 sm:grid-cols-3" data-testid="attendance-mark-controls">
+                  {attendanceActionStatuses.map(status => {
+                    const isActive = lesson.attendance === status;
+                    const isSaving = attendanceSavingId === lesson.id;
+                    const allowed = canMarkLesson(lesson);
+                    return (
+                      <button
+                        key={status}
+                        type="button"
+                        disabled={!allowed || isSaving || isActive}
+                        onClick={() => handleLessonAttendanceMark(lesson, status)}
+                        aria-label={markAttendanceAria(studentName, status)}
+                        title={!allowed ? t('attendance.panel.not_allowed') : attendanceLabels[status]}
+                        className={`min-h-9 rounded-md border px-2 py-1.5 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-cadenza-700 disabled:cursor-not-allowed ${
+                          isActive
+                            ? attendanceBadgeClass[status]
+                            : 'border-stone-200 bg-stone-50 text-slate-700 hover:border-cadenza-300 hover:bg-cadenza-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-cadenza-700 dark:hover:bg-slate-800/70'
+                        } ${!allowed || isSaving ? 'opacity-60' : ''}`}
+                      >
+                        {isSaving ? t('attendance.panel.marking') : attendanceLabels[status]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  };
+
+  const openAttendanceWorklistItem = (eventId: string) => {
+    const event = events.find(item => item.id === eventId);
+    if (!event) return;
+    setCurrentDate(new Date(event.start));
+    setDetailItem({ type: 'EVENT', data: event });
+    setAttendanceWorklistOpen(false);
+  };
+
+  const renderAttendanceWorklist = () => (
+    <div data-testid="attendance-worklist-panel" dir={isRtl ? 'rtl' : 'ltr'} className="p-4 pt-5 text-start">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white">{t('attendance.worklist.title')}</h3>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t('attendance.worklist.subtitle')}</p>
+        </div>
+        <span className="rounded-full border border-stone-200 bg-stone-50 px-2 py-0.5 text-[11px] font-semibold text-stone-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+          {unmarkedAttendanceWorklist.length}
+        </span>
+      </div>
+
+      {lessonRecordsLoading ? (
+        <div className="mt-4 rounded-lg border border-stone-200 bg-stone-50 p-3 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+          <Loader2 size={15} className="me-2 inline animate-spin text-blue-600" />
+          {t('attendance.worklist.loading')}
+        </div>
+      ) : unmarkedAttendanceWorklist.length === 0 ? (
+        <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-5 text-center dark:border-slate-700 dark:bg-slate-950">
+          <ClipboardCheck size={20} className="mx-auto text-cadenza-600 dark:text-cadenza-300" />
+          <div className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{t('attendance.worklist.empty_title')}</div>
+          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t('attendance.worklist.empty_body')}</div>
+        </div>
+      ) : (
+        <div className="mt-4 space-y-2">
+          {unmarkedAttendanceWorklist.map(item => (
+            <button
+              key={item.lesson.id}
+              type="button"
+              disabled={!item.hasEventLink}
+              onClick={() => openAttendanceWorklistItem(item.lesson.eventId)}
+              data-testid="attendance-worklist-row"
+              className="w-full rounded-lg border border-stone-200 bg-white p-3 text-start shadow-sm transition-colors hover:border-cadenza-300 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-cadenza-800 dark:hover:bg-slate-800"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-slate-900 dark:text-white">{item.studentName}</div>
+                  <div className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{item.eventName}</div>
+                </div>
+                <span className="shrink-0 rounded-full border border-stone-200 bg-stone-50 px-2 py-0.5 text-[11px] font-semibold text-stone-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  {t('attendance.status.unmarked')}
+                </span>
+              </div>
+              <div className="mt-2 text-xs text-slate-600 dark:text-slate-300">
+                {item.eventDate}{item.eventStartTime ? ` · ${item.eventStartTime}` : ''}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   const clearAllFilters = useCallback(() => filterClear(), [filterClear]);
 
@@ -2489,6 +2801,32 @@ export const CalendarView: React.FC<Props> = ({
             <div className="w-px h-full bg-slate-200 dark:bg-slate-700" />
             <div className="relative group/tt h-full">
               <button
+                type="button"
+                onClick={() => setAttendanceWorklistOpen(open => !open)}
+                className={`relative h-full w-9 flex items-center justify-center text-xs font-medium transition-colors ${
+                  attendanceWorklistOpen
+                    ? 'bg-cadenza-600/10 dark:bg-cadenza-600/30 text-cadenza-700 dark:text-cadenza-200'
+                    : unmarkedAttendanceWorklist.length > 0
+                    ? 'bg-slate-100 dark:bg-slate-800 text-cadenza-700 dark:text-cadenza-200 hover:text-slate-700 dark:hover:text-slate-200'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+                aria-label={t('attendance.worklist.toggle')}
+                aria-expanded={attendanceWorklistOpen}
+              >
+                <ClipboardList size={14} />
+                {unmarkedAttendanceWorklist.length > 0 && (
+                  <span className="absolute -top-1 -end-1 z-10 min-w-[14px] h-3.5 rounded-full bg-cadenza-700 text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none ring-2 ring-white dark:ring-slate-900">
+                    {unmarkedAttendanceWorklist.length}
+                  </span>
+                )}
+              </button>
+              <span role="tooltip" className="pointer-events-none absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-[11px] font-medium bg-slate-900 dark:bg-slate-700 text-white whitespace-nowrap opacity-0 group-hover/tt:opacity-100 transition-opacity z-50 shadow-lg">
+                {t('attendance.worklist.toggle')}
+              </span>
+            </div>
+            <div className="w-px h-full bg-slate-200 dark:bg-slate-700" />
+            <div className="relative group/tt h-full">
+              <button
                 onClick={() => setSidebarTab(sidebarTab === 'POWER_TOOLS' ? null : 'POWER_TOOLS')}
                 className={`h-full w-9 flex items-center justify-center text-xs font-medium transition-colors ${
                   sidebarTab === 'POWER_TOOLS'
@@ -2589,6 +2927,12 @@ export const CalendarView: React.FC<Props> = ({
         </div>
       </div>
 
+      {attendanceWorklistOpen && (
+        <div className="absolute end-4 top-16 z-40 w-[min(24rem,calc(100vw-2rem))] rounded-lg border border-slate-200 bg-white shadow-cadenza-deep dark:border-slate-800 dark:bg-slate-900">
+          {renderAttendanceWorklist()}
+        </div>
+      )}
+
       {/* BL01: Active filter pills row — visible only when at least one select-style filter is active. */}
       {activeFilterPills.length > 0 && (
         <div
@@ -2639,9 +2983,9 @@ export const CalendarView: React.FC<Props> = ({
       {detailItem && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setDetailItem(null)} />
-          <div className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="fixed z-50 top-1/2 left-1/2 w-[calc(100vw-2rem)] max-w-lg max-h-[90vh] transform -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200 dark:border-slate-700 dark:bg-slate-900">
             <div className="h-2 w-full" style={{ backgroundColor: detailItem.type === 'EVENT' ? getTeacherColor((detailItem.data as CalendarEvent).teacherId) : (detailItem.data as GanttBlock).color }} />
-            <div className="p-6">
+            <div className="max-h-[calc(90vh-0.5rem)] overflow-y-auto p-5 sm:p-6 custom-scrollbar">
               <div className="flex justify-between items-start mb-4">
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">{detailItem.type === 'EVENT' ? (detailItem.data as CalendarEvent).name : (detailItem.data as GanttBlock).title}</h3>
                 <button onClick={() => setDetailItem(null)} aria-label={t('common.close') || 'Close'} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"><X size={20} /></button>
@@ -2655,6 +2999,7 @@ export const CalendarView: React.FC<Props> = ({
                     {(detailItem.data as CalendarEvent).isCanceled && <div className="mt-2 bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 text-xs px-2 py-1 rounded inline-block font-bold">{t('cal.canceled')}</div>}
                     {(detailItem.data as CalendarEvent).recurrenceRule && <div className="mt-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-bold"><Repeat size={10} /> {t('cal.recurring')}</div>}
                     {(detailItem.data as CalendarEvent).recurrenceId && <div className="mt-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-bold"><Repeat size={10} /> {t('cal.part_of_series')}</div>}
+                    {renderAttendancePanel()}
                   </>
                 ) : (
                   <>

@@ -1,6 +1,7 @@
-import type { Student, StaffDocument, Note, RecitalEntry, ReportCard } from '../types';
-import type { Family, Guardian as FamilyGuardian } from '../types/blueprint';
+import type { CalendarEvent, Student, StaffDocument, Note, RecitalEntry, ReportCard } from '../types';
+import type { Family, Guardian as FamilyGuardian, LessonRecord } from '../types/blueprint';
 import type { ActivityV2 } from '../types/v2';
+import { listStudentLessonHistory } from './blueprintQueries';
 
 export type StudentFamilyDetailTab =
   | 'profile'
@@ -28,6 +29,22 @@ export interface DetailTimelineItem {
   at: string;
 }
 
+export interface DetailLessonHistoryRow {
+  id: string;
+  source: 'normalized' | 'legacy';
+  studentId: string;
+  studentName: string;
+  date: string | null;
+  eventId: string | null;
+  eventName: string | null;
+  attendance: LessonRecord['attendance'] | null;
+  completion: LessonRecord['completion'] | null;
+  notes: string | null;
+  repertoire: string[];
+  homework: string | null;
+  summary: string | null;
+}
+
 export interface StudentDetailModel {
   kind: 'student';
   student: Student;
@@ -35,7 +52,7 @@ export interface StudentDetailModel {
   guardians: FamilyGuardian[];
   siblingStudents: Student[];
   enrollments: DetailEnrollmentRow[];
-  lessonHistory: string[];
+  lessonHistory: DetailLessonHistoryRow[];
   recitalHistory: RecitalEntry[];
   reportCards: ReportCard[];
   documents: StaffDocument[];
@@ -51,7 +68,7 @@ export interface FamilyDetailModel {
   enrollments: DetailEnrollmentRow[];
   documents: StaffDocument[];
   notes: Note[];
-  lessonHistory: string[];
+  lessonHistory: DetailLessonHistoryRow[];
   timeline: DetailTimelineItem[];
 }
 
@@ -129,11 +146,69 @@ function timelineForFamily(family: Family, linkedStudents: Student[]): DetailTim
   return items.sort((a, b) => b.at.localeCompare(a.at));
 }
 
+function legacyLessonRows(student: Student): DetailLessonHistoryRow[] {
+  return (student.pedagogicalRecord?.lessonHistory ?? []).map((entry, index) => ({
+    id: `${student.id}:legacy-lesson:${index}`,
+    source: 'legacy',
+    studentId: student.id,
+    studentName: student.fullName,
+    date: null,
+    eventId: null,
+    eventName: null,
+    attendance: null,
+    completion: null,
+    notes: null,
+    repertoire: [],
+    homework: null,
+    summary: entry,
+  }));
+}
+
+function lessonRowsForStudents(
+  targetStudents: Student[],
+  lessons: LessonRecord[],
+  events: CalendarEvent[],
+): DetailLessonHistoryRow[] {
+  const studentById = new Map(targetStudents.map(student => [student.id, student]));
+  const eventById = new Map(events.map(event => [event.id, event]));
+  const normalizedRows = targetStudents.flatMap(student =>
+    listStudentLessonHistory(lessons, student.id).map(lesson => {
+      const event = eventById.get(lesson.eventId);
+      return {
+        id: lesson.id,
+        source: 'normalized' as const,
+        studentId: lesson.studentId,
+        studentName: studentById.get(lesson.studentId)?.fullName ?? lesson.studentId,
+        date: lesson.date,
+        eventId: lesson.eventId,
+        eventName: event?.name ?? null,
+        attendance: lesson.attendance,
+        completion: lesson.completion,
+        notes: lesson.notes,
+        repertoire: lesson.repertoire,
+        homework: lesson.homework,
+        summary: null,
+      };
+    }),
+  );
+
+  return [
+    ...normalizedRows,
+    ...targetStudents.flatMap(legacyLessonRows),
+  ].sort((a, b) => {
+    const dateA = a.date ?? '';
+    const dateB = b.date ?? '';
+    return dateB.localeCompare(dateA) || a.studentName.localeCompare(b.studentName) || a.id.localeCompare(b.id);
+  });
+}
+
 export function buildStudentDetailModel(
   studentId: string,
   students: Student[],
   families: Family[],
   activities: ActivityV2[],
+  lessons: LessonRecord[] = [],
+  events: CalendarEvent[] = [],
 ): StudentDetailModel | null {
   const student = students.find(item => item.id === studentId) ?? null;
   if (!student) return null;
@@ -152,7 +227,7 @@ export function buildStudentDetailModel(
     guardians: guardiansFor(student, family),
     siblingStudents,
     enrollments: enrollmentRowsForStudents([student], activities),
-    lessonHistory: student.pedagogicalRecord?.lessonHistory ?? [],
+    lessonHistory: lessonRowsForStudents([student], lessons, events),
     recitalHistory: student.pedagogicalRecord?.recitalHistory ?? [],
     reportCards: student.pedagogicalRecord?.reportCards ?? [],
     documents: student.documents ?? [],
@@ -166,6 +241,8 @@ export function buildFamilyDetailModel(
   students: Student[],
   families: Family[],
   activities: ActivityV2[],
+  lessons: LessonRecord[] = [],
+  events: CalendarEvent[] = [],
 ): FamilyDetailModel | null {
   const family = families.find(item => item.id === familyId) ?? null;
   if (!family) return null;
@@ -181,7 +258,7 @@ export function buildFamilyDetailModel(
     enrollments: enrollmentRowsForStudents(linkedStudents, activities),
     documents: linkedStudents.flatMap(student => student.documents ?? []),
     notes: linkedStudents.flatMap(student => student.notes ?? []),
-    lessonHistory: linkedStudents.flatMap(student => student.pedagogicalRecord?.lessonHistory ?? []),
+    lessonHistory: lessonRowsForStudents(linkedStudents, lessons, events),
     timeline: timelineForFamily(family, linkedStudents),
   };
 }
@@ -191,8 +268,10 @@ export function buildStudentFamilyDetailModel(
   students: Student[],
   families: Family[],
   activities: ActivityV2[],
+  lessons: LessonRecord[] = [],
+  events: CalendarEvent[] = [],
 ): StudentFamilyDetailModel | null {
   return target.kind === 'student'
-    ? buildStudentDetailModel(target.id, students, families, activities)
-    : buildFamilyDetailModel(target.id, students, families, activities);
+    ? buildStudentDetailModel(target.id, students, families, activities, lessons, events)
+    : buildFamilyDetailModel(target.id, students, families, activities, lessons, events);
 }

@@ -1,6 +1,6 @@
 # Next Agent Loop Command
 
-The active build state is seeded for `public-registration-intake`.
+The active build state is seeded for `lesson-details-attendance`.
 
 Copy/paste this from a fresh Codex session or terminal in the same workspace:
 
@@ -17,7 +17,10 @@ Notes:
 
 - `build-loop.sh` defaults `CODEX_REASONING_EFFORT=high`.
 - `BUILD_LOOP_STATE.md` no longer starts with `BUILD COMPLETE`; the first queued
-  unit is the `public-registration-intake` baseline audit.
+  unit is the `lesson-details-attendance` baseline audit.
+- D-17 is still parked. The next agent must not implement group lesson
+  materialization/backfill or promote the packet until Noam answers D-17 and the
+  decision log plus packet are updated.
 - Keep `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` out of child-agent
   environment unless a human/orchestrator is handling an explicit migration push.
 - Do not paste or print `.env.local`; the loop prompt requires presence-only env

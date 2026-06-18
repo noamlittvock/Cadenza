@@ -36,6 +36,11 @@ foundation, not open blockers.
   sharing one `eventId`, with the event-level view derived from row counts/statuses,
   but the loop cannot confirm this without Noam. Event-level embedded-status
   alternatives and lazy-vs-batch materialization are **BLOCKED ON D-17**.
+- **Attendance default principle:** defaults should reduce work, not invent facts.
+  The system may prepare rows from schedule/roster facts and offer low-friction
+  actions such as "all present" or "mark exceptions", but it must not silently
+  mark attendance, completion, or lesson outcomes without an explicit
+  teacher/admin confirmation.
 - Linked: event (canonical per D-05), student/enrollment, teacher, room.
 - Required: eventId, studentId, status, markedBy, markedAt.
 - Derived: unmarked counter, completed-hours for payroll.

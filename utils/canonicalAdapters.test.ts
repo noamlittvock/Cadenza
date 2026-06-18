@@ -261,6 +261,28 @@ describe('event minimal projections', () => {
       id: 'ev_1', date: '2026-01-15', durationMinutes: 60, activityId: 'act_1', name: 'Piano Lesson', roomId: null,
     });
   });
+  it('pins the attendance boundary to EventV2 while preserving legacy read-edge parity', () => {
+    const legacy = makeEvent({
+      id: 'lesson_event_1',
+      activityId: 'activity_1',
+      roomId: 'room_7',
+      start: '2026-06-18T13:15:00.000Z',
+      end: '2026-06-18T14:00:00.000Z',
+    });
+
+    const viaV2 = eventV2ToMinimal(eventToV2(legacy, { orgId: 'org_1', timeZone: 'UTC', now: NOW }));
+    const viaLegacyReadEdge = eventToMinimal(legacy, 'UTC');
+
+    expect(viaV2).toEqual({
+      id: 'lesson_event_1',
+      date: '2026-06-18',
+      durationMinutes: 45,
+      activityId: 'activity_1',
+      name: 'Piano Lesson',
+      roomId: null,
+    });
+    expect(viaLegacyReadEdge).toEqual({ ...viaV2, roomId: 'room_7' });
+  });
   it('eventToMinimal keeps the legacy roomId', () => {
     expect(eventToMinimal(makeEvent(), 'UTC')).toEqual({
       id: 'ev_1', date: '2026-01-15', durationMinutes: 60, activityId: 'act_1', name: 'Piano Lesson', roomId: 'room_1',

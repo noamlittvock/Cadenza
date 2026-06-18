@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronRight, ChevronLeft, X, Filter, Zap, List, Sparkles } from 'lucide-react';
 import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, Student, CalendarSubscription, HoursReport, AdminInboxItem } from './types';
 import type { ActivityV2, L1Subcategory, L2Subcategory, StaffMemberV2, StudentV2 } from './types/v2';
-import type { Family } from './types/blueprint';
+import type { Family, LessonRecord } from './types/blueprint';
 import { BLUEPRINT_COLLECTIONS } from './types/blueprint';
 import type { CalendarSidebarTab } from './types/calendarFilters';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, TRANSLATIONS, migrateTeacher, generateId } from './constants';
@@ -33,6 +33,7 @@ import { StudentFamilyWorkspace } from './components/StudentFamilyWorkspace';
 import { OnboardingChecklist } from './components/OnboardingChecklist';
 
 import { TeacherHoursForm } from './components/TeacherHoursForm';
+import { PublicRegistrationForm } from './components/PublicRegistrationForm';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { UserRole } from './context/AuthContext';
@@ -129,6 +130,7 @@ function AppContent() {
   const [activities, setActivities] = useSupabaseSync<ActivityV2>('activities', []);
   const [students, setStudents, studentsLoading] = useSupabaseSync<Student>('students', []);
   const [families, setFamilies, familiesLoading] = useSupabaseSync<Family>(BLUEPRINT_COLLECTIONS.families, []);
+  const [lessonRecords] = useSupabaseSync<LessonRecord>(BLUEPRINT_COLLECTIONS.lessonRecords, []);
   const [calendarSubscriptions, setCalendarSubscriptions] = useSupabaseSync<CalendarSubscription>('calendarSubscriptions', []);
   const [hoursReports, setHoursReports] = useSupabaseSync<HoursReport>('hoursReports', []);
   const [adminInboxItems, setAdminInboxItems] = useSupabaseSync<AdminInboxItem>('adminInboxItems', []);
@@ -638,6 +640,8 @@ function AppContent() {
             students={students}
             families={families}
             activities={activities}
+            lessonRecords={lessonRecords}
+            events={events}
             setStudents={setStudents}
             setFamilies={setFamilies}
             orgId={orgId}
@@ -724,6 +728,9 @@ function AppContent() {
             setInboxItems={setAdminInboxItems}
             teachers={teachers}
             students={students}
+            setStudents={setStudents}
+            families={families}
+            setFamilies={setFamilies}
             events={events}
             setEvents={setEvents}
             rooms={rooms}
@@ -818,6 +825,15 @@ export default function App() {
     return (
       <ErrorBoundary>
         <TeacherHoursForm token={reportMatch[1]} />
+      </ErrorBoundary>
+    );
+  }
+
+  const registrationMatch = window.location.pathname.match(/^\/registration\/([^/]+)$/);
+  if (registrationMatch) {
+    return (
+      <ErrorBoundary>
+        <PublicRegistrationForm token={decodeURIComponent(registrationMatch[1])} />
       </ErrorBoundary>
     );
   }

@@ -21,9 +21,9 @@ import {
   UsersRound,
   X,
 } from 'lucide-react';
-import type { AppSettings, Student } from '../types';
+import type { AppSettings, CalendarEvent, Student } from '../types';
 import type { ActivityV2 } from '../types/v2';
-import type { Family, Guardian as FamilyGuardian } from '../types/blueprint';
+import type { Family, Guardian as FamilyGuardian, LessonCompletion, LessonRecord } from '../types/blueprint';
 import { generateId, TRANSLATIONS } from '../constants';
 import { Modal } from './Modal';
 import {
@@ -55,6 +55,8 @@ interface Props {
   students: Student[];
   families: Family[];
   activities: ActivityV2[];
+  lessonRecords?: LessonRecord[];
+  events?: CalendarEvent[];
   setStudents: SyncSetter<Student>;
   setFamilies: SyncSetter<Family>;
   orgId: string | null;
@@ -423,6 +425,20 @@ const InfoCell = ({ label, value }: { label: string; value: React.ReactNode }) =
   </div>
 );
 
+const lessonAttendanceClass = (attendance: LessonRecord['attendance'] | null) => {
+  switch (attendance) {
+    case 'PRESENT': return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/25 dark:text-emerald-300';
+    case 'ABSENT': return 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/25 dark:text-red-300';
+    case 'LATE': return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/25 dark:text-amber-300';
+    case 'EXCUSED': return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/25 dark:text-blue-300';
+    case 'MAKEUP': return 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-900/25 dark:text-indigo-300';
+    case 'UNMARKED':
+    default: return 'border-stone-200 bg-stone-50 text-stone-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300';
+  }
+};
+
+const lessonCompletionLabelKey = (completion: LessonCompletion) => `attendance.completion.${completion.toLowerCase()}`;
+
 const DetailEmpty = ({
   icon: Icon,
   title,
@@ -550,9 +566,36 @@ const DetailPanel = ({
         </div>
         {detail.lessonHistory.length > 0 && (
           <div className="space-y-2">
-            {detail.lessonHistory.slice(0, 5).map((entry, index) => (
-              <div key={`${index}:${entry}`} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
-                {entry}
+            {detail.lessonHistory.slice(0, 5).map(entry => (
+              <div key={entry.id} data-testid="student-family-lesson-history-row" className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate font-semibold text-slate-900 dark:text-white">
+                      {entry.eventName || entry.summary || t('student_family.detail.lesson_entry')}
+                    </div>
+                    <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                      {[entry.date ? compactDate(entry.date) : null, detail.kind === 'family' ? entry.studentName : null].filter(Boolean).join(' · ') || t('student_family.detail.legacy_lesson_note')}
+                    </div>
+                  </div>
+                  {entry.attendance && (
+                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${lessonAttendanceClass(entry.attendance)}`}>
+                      {t(`attendance.status.${entry.attendance.toLowerCase()}`)}
+                    </span>
+                  )}
+                </div>
+                {entry.completion && (
+                  <div className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                    {t(lessonCompletionLabelKey(entry.completion))}
+                  </div>
+                )}
+                {(entry.repertoire.length > 0 || entry.homework || entry.notes || (entry.summary && entry.eventName)) && (
+                  <div className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                    {entry.repertoire.length > 0 && <p className="truncate">{t('attendance.panel.repertoire')}: {entry.repertoire.join(', ')}</p>}
+                    {entry.homework && <p className="truncate">{t('attendance.panel.homework')}: {entry.homework}</p>}
+                    {entry.notes && <p className="line-clamp-2">{t('attendance.panel.notes')}: {entry.notes}</p>}
+                    {entry.summary && entry.eventName && <p className="line-clamp-2">{entry.summary}</p>}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -695,6 +738,8 @@ export const StudentFamilyWorkspace: React.FC<Props> = ({
   students,
   families,
   activities,
+  lessonRecords = [],
+  events = [],
   setStudents,
   setFamilies,
   orgId,
@@ -733,8 +778,8 @@ export const StudentFamilyWorkspace: React.FC<Props> = ({
     [students, families, mode, query, status, activityId],
   );
   const detailModel = useMemo(
-    () => detailTarget ? buildStudentFamilyDetailModel(detailTarget, students, families, activities) : null,
-    [detailTarget, students, families, activities],
+    () => detailTarget ? buildStudentFamilyDetailModel(detailTarget, students, families, activities, lessonRecords, events) : null,
+    [detailTarget, students, families, activities, lessonRecords, events],
   );
 
   const hasSourceRows = model.totalRows > 0;

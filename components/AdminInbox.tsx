@@ -1,20 +1,37 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { AdminInboxItem, AppSettings, Teacher, Student, CalendarEvent, Room } from '../types';
+import type { AgreementAcceptance, Family, IntakeStatus, RegistrationIntake } from '../types/blueprint';
 import { TRANSLATIONS } from '../constants';
 import { Modal } from './Modal';
 import { ConflictResolutionPanel } from './ConflictResolutionPanel';
 import { EventFormV2, EventFormState, EventFormV2Handle } from './EventFormV2';
 import { useSupabaseSync } from '../utils/useSupabaseSync';
+import { useAuth } from '../context/AuthContext';
 import { buildUpdatedCalendarEvent, applyEventUpdate } from '../utils/saveEventV2';
+import { studentToMinimal } from '../utils/canonicalAdapters';
+import {
+  approveIntakeRecord,
+  markIntakeDuplicate,
+  rejectIntakeRecord,
+} from '../utils/blueprintQueries';
+import {
+  applyRegistrationIntakeCorrection,
+  applyApprovedIntakeGraphToCollections,
+  buildRegistrationIntakeReviewRows,
+  exportRegistrationIntakeCsv,
+  type IntakeReviewStatusFilter,
+} from '../utils/registrationIntakeReview';
+import { downloadCSV } from '../utils/csvUtils';
 import {
   ActivityV2, L1Subcategory, L2Subcategory, StaffMemberV2,
-  TeachingAssignmentV2, OrgRoleV2,
+  TeachingAssignmentV2, OrgRoleV2, EnrollmentV2,
   EventParticipant, V2_COLLECTIONS,
 } from '../types/v2';
 import {
   Menu, Inbox, CheckCircle2, Bell, ChevronDown, ChevronUp,
   Clock, Users, Eye, EyeOff, Calendar, HelpCircle, AlertTriangle, GraduationCap,
-  ExternalLink, Mail, Phone, XCircle, ShieldCheck, Trash2
+  ExternalLink, Mail, Phone, XCircle, ShieldCheck, Trash2, Search, FileCheck2,
+  SlidersHorizontal, Save, Check, CopyCheck, Ban, Loader2, Download,
 } from 'lucide-react';
 
 interface Props {
@@ -22,6 +39,9 @@ interface Props {
   setInboxItems: React.Dispatch<React.SetStateAction<AdminInboxItem[]>>;
   teachers: Teacher[];
   students: Student[];
+  setStudents: SyncedCollectionSetter<Student>;
+  families: Family[];
+  setFamilies: SyncedCollectionSetter<Family>;
   events: CalendarEvent[];
   setEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>;
   rooms: Room[];
@@ -31,13 +51,59 @@ interface Props {
   onNavigateToStaff?: (staffId: string) => void;
 }
 
+type SyncedCollectionSetter<T extends { id: string }> = (
+  value: T[] | ((prev: T[]) => T[]),
+) => void | Promise<void>;
+
+type IntakeDraft = {
+  applicantName: string;
+  applicantEmail: string;
+  applicantPhone: string;
+  studentFullName: string;
+  studentDateOfBirth: string;
+  instrument: string;
+  requestedActivityId: string;
+  primaryGuardianFullName: string;
+  primaryGuardianPhone: string;
+  primaryGuardianEmail: string;
+  notes: string;
+  l2Id: string;
+  enrollmentStartDate: string;
+  rejectionReason: string;
+  duplicateStudentId: string;
+};
+
+const REVIEWABLE_INTAKE_STATUSES: IntakeReviewStatusFilter[] = ['ACTIVE', 'PENDING', 'IN_REVIEW', 'APPROVED', 'REJECTED', 'DUPLICATE', 'CONVERTED', 'ALL'];
+
+const makeId = (prefix: string) => {
+  const cryptoObj = typeof globalThis !== 'undefined' ? globalThis.crypto : undefined;
+  if (cryptoObj?.randomUUID) return `${prefix}_${cryptoObj.randomUUID()}`;
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+};
+
+const inputClass = 'w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30';
+const labelClass = 'text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400';
+
 export const AdminInbox: React.FC<Props> = ({
-  inboxItems, setInboxItems, teachers, students, events, setEvents, rooms, settings, onMobileMenuOpen, onNavigateToEvent, onNavigateToStaff
+  inboxItems, setInboxItems, teachers, students, setStudents, families, setFamilies, events, setEvents, rooms, settings, onMobileMenuOpen, onNavigateToEvent, onNavigateToStaff
 }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
+  const { currentUser } = useAuth();
+  const actorId = currentUser?.uid || currentUser?.id || 'admin';
+  const locale = settings.language === 'he-IL' ? 'he-IL' : 'en-US';
+  const isRtl = settings.language === 'he-IL';
   const [showResolvedNotifs, setShowResolvedNotifs] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [viewStudentId, setViewStudentId] = useState<string | null>(null);
+  const [registrationIntake, setRegistrationIntake, registrationIntakeLoading] = useSupabaseSync<RegistrationIntake>('registrationIntake', []);
+  const [enrollmentsV2, setEnrollmentsV2] = useSupabaseSync<EnrollmentV2>(V2_COLLECTIONS.enrollments, []);
+  const [agreementAcceptances, setAgreementAcceptances] = useSupabaseSync<AgreementAcceptance>('agreementAcceptances', []);
+  const [intakeStatusFilter, setIntakeStatusFilter] = useState<IntakeReviewStatusFilter>('ACTIVE');
+  const [intakeQuery, setIntakeQuery] = useState('');
+  const [intakeActivityFilter, setIntakeActivityFilter] = useState('');
+  const [selectedIntakeId, setSelectedIntakeId] = useState<string | null>(null);
+  const [intakeDraft, setIntakeDraft] = useState<IntakeDraft | null>(null);
+  const [lastPreparedGraph, setLastPreparedGraph] = useState<string | null>(null);
 
   const notifications = useMemo(() => {
     const items = inboxItems.filter(i => i.type === 'NOTIFICATION');
@@ -160,6 +226,182 @@ export const AdminInbox: React.FC<Props> = ({
 
   const rescheduleFormRef = useRef<EventFormV2Handle>(null);
 
+  const studentMinimals = useMemo(() => students.map(studentToMinimal), [students]);
+  const intakeRows = useMemo(() => buildRegistrationIntakeReviewRows(registrationIntake, studentMinimals, {
+    status: intakeStatusFilter,
+    query: intakeQuery,
+    activityId: intakeActivityFilter,
+  }), [registrationIntake, studentMinimals, intakeStatusFilter, intakeQuery, intakeActivityFilter]);
+  const selectedIntake = useMemo(
+    () => registrationIntake.find(record => record.id === selectedIntakeId) ?? intakeRows[0]?.record ?? null,
+    [registrationIntake, selectedIntakeId, intakeRows],
+  );
+  const selectedRow = useMemo(
+    () => intakeRows.find(row => row.record.id === selectedIntake?.id) ?? null,
+    [intakeRows, selectedIntake],
+  );
+  const activeIntakeCount = useMemo(
+    () => registrationIntake.filter(record => record.status === 'PENDING' || record.status === 'IN_REVIEW').length,
+    [registrationIntake],
+  );
+  const terminalIntakeCount = registrationIntake.length - activeIntakeCount;
+  const selectedStatusHistory = selectedIntake?.statusHistory ?? [];
+
+  const activityName = useCallback((id?: string | null) => {
+    if (!id) return t('intake_review.no_activity');
+    return activitiesV2.find(activity => activity.id === id)?.name ?? id;
+  }, [activitiesV2, t]);
+
+  const l2OptionsForDraft = useMemo(() => {
+    const activityId = intakeDraft?.requestedActivityId || selectedIntake?.requestedActivityId || '';
+    return l2Subs.filter(l2 => !l2.isArchived && (!activityId || l2.activityId === activityId));
+  }, [l2Subs, intakeDraft?.requestedActivityId, selectedIntake?.requestedActivityId]);
+
+  const statusLabel = (status: IntakeStatus | IntakeReviewStatusFilter) => {
+    const key = `intake_review.status.${status.toLowerCase()}`;
+    return t(key) || String(status);
+  };
+
+  const makeDraft = useCallback((record: RegistrationIntake): IntakeDraft => {
+    const primaryGuardian = record.guardians.find(g => g.isPrimary) ?? record.guardians[0] ?? null;
+    const firstL2 = l2Subs.find(l2 => !l2.isArchived && l2.activityId === record.requestedActivityId)?.id ?? '';
+    return {
+      applicantName: record.applicantName ?? '',
+      applicantEmail: record.applicantEmail ?? '',
+      applicantPhone: record.applicantPhone ?? '',
+      studentFullName: record.studentFullName,
+      studentDateOfBirth: record.studentDateOfBirth ?? '',
+      instrument: record.instrument ?? '',
+      requestedActivityId: record.requestedActivityId ?? '',
+      primaryGuardianFullName: primaryGuardian?.fullName ?? '',
+      primaryGuardianPhone: primaryGuardian?.phone ?? '',
+      primaryGuardianEmail: primaryGuardian?.email ?? '',
+      notes: record.notes ?? '',
+      l2Id: firstL2,
+      enrollmentStartDate: settings.schoolYearStartDate || new Date().toISOString().slice(0, 10),
+      rejectionReason: record.rejectionReason ?? '',
+      duplicateStudentId: record.duplicateOfStudentId ?? '',
+    };
+  }, [l2Subs, settings.schoolYearStartDate]);
+
+  useEffect(() => {
+    if (!selectedIntakeId && intakeRows[0]) {
+      setSelectedIntakeId(intakeRows[0].record.id);
+    }
+  }, [intakeRows, selectedIntakeId]);
+
+  useEffect(() => {
+    setIntakeDraft(selectedIntake ? makeDraft(selectedIntake) : null);
+  }, [selectedIntake, makeDraft]);
+
+  const updateDraft = (patch: Partial<IntakeDraft>) => {
+    setIntakeDraft(prev => prev ? { ...prev, ...patch } : prev);
+  };
+
+  const updateIntakeRecord = (record: RegistrationIntake) => {
+    void setRegistrationIntake(prev => prev.map(item => item.id === record.id ? record : item));
+  };
+
+  const appendInboxHistory = (item: AdminInboxItem) => {
+    void setInboxItems(prev => [item, ...prev.filter(existing => existing.id !== item.id)]);
+  };
+
+  const handleSaveIntakeCorrection = () => {
+    if (!selectedIntake || !intakeDraft) return;
+    const corrected = applyRegistrationIntakeCorrection(selectedIntake, {
+      applicantName: intakeDraft.applicantName,
+      applicantEmail: intakeDraft.applicantEmail,
+      applicantPhone: intakeDraft.applicantPhone,
+      studentFullName: intakeDraft.studentFullName,
+      studentDateOfBirth: intakeDraft.studentDateOfBirth,
+      instrument: intakeDraft.instrument,
+      requestedActivityId: intakeDraft.requestedActivityId,
+      notes: intakeDraft.notes,
+      primaryGuardianFullName: intakeDraft.primaryGuardianFullName,
+      primaryGuardianPhone: intakeDraft.primaryGuardianPhone,
+      primaryGuardianEmail: intakeDraft.primaryGuardianEmail,
+    }, { now: new Date().toISOString(), reviewedBy: actorId });
+    updateIntakeRecord(corrected);
+  };
+
+  const handleRejectIntake = () => {
+    if (!selectedIntake || !intakeDraft?.rejectionReason.trim()) return;
+    const result = rejectIntakeRecord(selectedIntake, {
+      inboxItemId: makeId('inbox_intake_reject'),
+      now: new Date().toISOString(),
+      reviewedBy: actorId,
+      reason: intakeDraft.rejectionReason.trim(),
+    });
+    updateIntakeRecord(result.intake);
+    appendInboxHistory(result.inboxHistoryItem);
+  };
+
+  const handleDuplicateIntake = () => {
+    const duplicateStudentId = intakeDraft?.duplicateStudentId || selectedRow?.duplicateSuggestions[0]?.studentId || '';
+    if (!selectedIntake || !duplicateStudentId) return;
+    const result = markIntakeDuplicate(selectedIntake, {
+      inboxItemId: makeId('inbox_intake_duplicate'),
+      now: new Date().toISOString(),
+      reviewedBy: actorId,
+      duplicateOfStudentId: duplicateStudentId,
+      note: intakeDraft?.rejectionReason.trim() || undefined,
+    });
+    updateIntakeRecord(result.intake);
+    appendInboxHistory(result.inboxHistoryItem);
+  };
+
+  const handleApproveIntake = async () => {
+    if (!selectedIntake || !intakeDraft?.requestedActivityId || !intakeDraft.l2Id || !intakeDraft.enrollmentStartDate) return;
+    const graph = approveIntakeRecord(
+      {
+        ...selectedIntake,
+        requestedActivityId: intakeDraft.requestedActivityId,
+        studentFullName: intakeDraft.studentFullName.trim() || selectedIntake.studentFullName,
+        studentDateOfBirth: intakeDraft.studentDateOfBirth.trim() || null,
+        instrument: intakeDraft.instrument.trim() || null,
+        notes: intakeDraft.notes.trim() || null,
+      },
+      {
+        studentId: makeId('student'),
+        familyId: makeId('family'),
+        enrollmentId: makeId('enrollment'),
+        agreementRequestId: makeId('agreement_request'),
+        inboxItemId: makeId('inbox_intake_approve'),
+        now: new Date().toISOString(),
+        reviewedBy: actorId,
+        activityId: intakeDraft.requestedActivityId,
+        l2Id: intakeDraft.l2Id,
+        enrollmentStartDate: intakeDraft.enrollmentStartDate,
+        decisionNote: intakeDraft.notes.trim() || undefined,
+      },
+    );
+    const persisted = applyApprovedIntakeGraphToCollections(graph, {
+      students,
+      families,
+      enrollments: enrollmentsV2,
+      agreementAcceptances,
+      registrationIntake,
+      inboxItems,
+    });
+    await Promise.all([
+      setStudents(persisted.students),
+      setFamilies(persisted.families),
+      setEnrollmentsV2(persisted.enrollments),
+      setAgreementAcceptances(persisted.agreementAcceptances),
+      setRegistrationIntake(persisted.registrationIntake),
+      setInboxItems(persisted.inboxItems),
+    ]);
+    setLastPreparedGraph(`${persisted.legacyStudent.fullName} -> ${graph.family.name} / ${graph.enrollment.id}`);
+  };
+
+  const handleExportIntakeQueue = () => {
+    const csv = exportRegistrationIntakeCsv(intakeRows, {
+      activityName,
+      statusLabel: status => statusLabel(status),
+    });
+    downloadCSV(csv, `registration_intake_${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
   const handleRescheduleSave = useCallback((formState: EventFormState) => {
     if (!rescheduleEvent) return;
     const result = buildUpdatedCalendarEvent(rescheduleEvent, formState);
@@ -190,6 +432,346 @@ export const AdminInbox: React.FC<Props> = ({
             </div>
           </div>
         </div>
+
+        {/* Registration intake review */}
+        <section
+          data-testid="registration-intake-review"
+          dir={isRtl ? 'rtl' : 'ltr'}
+          className="mb-6 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden"
+        >
+          <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                <FileCheck2 size={17} className="text-amber-700 dark:text-amber-300" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">{t('intake_review.title')}</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {t('intake_review.subtitle')
+                    .replace('{active}', String(activeIntakeCount))
+                    .replace('{history}', String(terminalIntakeCount))}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Search size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={intakeQuery}
+                  onChange={e => setIntakeQuery(e.target.value)}
+                  placeholder={t('intake_review.search_placeholder')}
+                  className="ps-8 pe-3 py-2 w-56 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-700 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                />
+              </div>
+              <select
+                value={intakeStatusFilter}
+                onChange={e => setIntakeStatusFilter(e.target.value as IntakeReviewStatusFilter)}
+                className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-700 dark:text-slate-100"
+                aria-label={t('intake_review.status_filter')}
+              >
+                {REVIEWABLE_INTAKE_STATUSES.map(status => (
+                  <option key={status} value={status}>{statusLabel(status)}</option>
+                ))}
+              </select>
+              <select
+                value={intakeActivityFilter}
+                onChange={e => setIntakeActivityFilter(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-700 dark:text-slate-100"
+                aria-label={t('intake_review.activity_filter')}
+              >
+                <option value="">{t('student_family.filter.all_activities')}</option>
+                {activitiesV2.filter(activity => !activity.isArchived).map(activity => (
+                  <option key={activity.id} value={activity.id}>{activity.name}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={handleExportIntakeQueue}
+                disabled={intakeRows.length === 0}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm font-medium text-slate-700 dark:text-slate-100 hover:bg-white dark:hover:bg-slate-900 disabled:opacity-40"
+              >
+                <Download size={14} />
+                {t('intake_review.export_csv')}
+              </button>
+            </div>
+          </div>
+
+          {registrationIntakeLoading ? (
+            <div className="p-6 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+              <Loader2 size={16} className="animate-spin" />
+              {t('intake_review.loading')}
+            </div>
+          ) : registrationIntake.length === 0 ? (
+            <div className="p-8 text-center border-t border-dashed border-slate-200 dark:border-slate-800">
+              <FileCheck2 size={34} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{t('intake_review.empty')}</p>
+            </div>
+          ) : (
+            <div className="grid xl:grid-cols-[360px_minmax(0,1fr)] min-h-[420px]">
+              <div className="border-e border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/40">
+                <div className="px-4 py-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  <SlidersHorizontal size={13} />
+                  {intakeRows.length} {t('intake_review.rows')}
+                </div>
+                <div className="max-h-[520px] overflow-y-auto custom-scrollbar">
+                  {intakeRows.length === 0 ? (
+                    <div className="p-5 text-sm text-slate-500 dark:text-slate-400">{t('intake_review.no_matches')}</div>
+                  ) : intakeRows.map(row => {
+                    const isSelected = selectedIntake?.id === row.record.id;
+                    return (
+                      <button
+                        key={row.record.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedIntakeId(row.record.id);
+                          setLastPreparedGraph(null);
+                        }}
+                        className={`w-full text-start px-4 py-3 border-t border-slate-200 dark:border-slate-800 transition-colors ${isSelected ? 'bg-white dark:bg-slate-900' : 'hover:bg-white/70 dark:hover:bg-slate-900/70'}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="font-semibold text-sm text-slate-900 dark:text-white truncate">{row.record.studentFullName}</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400 truncate">{row.primaryGuardianName || row.record.applicantName || t('intake_review.no_guardian')}</div>
+                          </div>
+                          <span data-testid={`intake-review-row-status-${row.record.id}`} className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            row.record.status === 'PENDING' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
+                            row.record.status === 'IN_REVIEW' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                            row.record.status === 'CONVERTED' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                            'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                          }`}>
+                            {statusLabel(row.record.status)}
+                          </span>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                          <span className="truncate">{activityName(row.record.requestedActivityId)}</span>
+                          <span>{formatDate(row.record.submittedAt)}</span>
+                        </div>
+                        {row.duplicateSuggestions.length > 0 && (
+                          <div className="mt-2 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                            {t('intake_review.duplicate_hint')}: {row.duplicateSuggestions[0].studentName}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="p-4">
+                {!selectedIntake || !intakeDraft ? (
+                  <div className="h-full min-h-[320px] flex items-center justify-center text-sm text-slate-500 dark:text-slate-400">
+                    {t('intake_review.select_prompt')}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="text-lg font-bold text-slate-900 dark:text-white">{selectedIntake.studentFullName}</h4>
+                          <span data-testid="intake-review-detail-status" className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                            {statusLabel(selectedIntake.status)}
+                          </span>
+                          {selectedIntake.consentAccepted && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+                              <ShieldCheck size={11} />
+                              {t('intake_review.consent_captured')}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          {t('intake_review.submitted')} {formatDate(selectedIntake.submittedAt)} · {selectedIntake.source}
+                        </p>
+                      </div>
+                      {lastPreparedGraph && (
+                        <div role="status" className="text-xs rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 px-3 py-2">
+                          {t('intake_review.graph_prepared')}: {lastPreparedGraph}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/30 p-3">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200 mb-2">
+                        <Clock size={14} />
+                        {t('intake_review.audit_history')}
+                      </div>
+                      {selectedStatusHistory.length === 0 ? (
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                          {t('intake_review.no_audit_history')}
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {selectedStatusHistory.map(entry => (
+                            <div key={entry.id} className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 text-sm">
+                              <div>
+                                <span className="font-semibold text-slate-800 dark:text-slate-100">{statusLabel(entry.status)}</span>
+                                {entry.fromStatus && (
+                                  <span className="text-slate-500 dark:text-slate-400"> · {statusLabel(entry.fromStatus)} {'->'} {statusLabel(entry.status)}</span>
+                                )}
+                                {entry.note && (
+                                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{entry.note}</div>
+                                )}
+                              </div>
+                              <div className="text-xs text-slate-500 dark:text-slate-400 sm:text-end">
+                                <div>{formatDate(entry.at)}</div>
+                                <div>{entry.by || t('intake_review.system_actor')}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid lg:grid-cols-3 gap-3">
+                      <label className="space-y-1">
+                        <span className={labelClass}>{t('intake_review.applicant_name')}</span>
+                        <input className={inputClass} value={intakeDraft.applicantName} onChange={e => updateDraft({ applicantName: e.target.value })} />
+                      </label>
+                      <label className="space-y-1">
+                        <span className={labelClass}>{t('intake_review.applicant_email')}</span>
+                        <input className={inputClass} value={intakeDraft.applicantEmail} onChange={e => updateDraft({ applicantEmail: e.target.value })} />
+                      </label>
+                      <label className="space-y-1">
+                        <span className={labelClass}>{t('intake_review.applicant_phone')}</span>
+                        <input className={inputClass} value={intakeDraft.applicantPhone} onChange={e => updateDraft({ applicantPhone: e.target.value })} />
+                      </label>
+                    </div>
+
+                    <div className="grid lg:grid-cols-4 gap-3">
+                      <label className="space-y-1 lg:col-span-2">
+                        <span className={labelClass}>{t('intake_review.student_name')}</span>
+                        <input className={inputClass} value={intakeDraft.studentFullName} onChange={e => updateDraft({ studentFullName: e.target.value })} />
+                      </label>
+                      <label className="space-y-1">
+                        <span className={labelClass}>{t('intake_review.date_of_birth')}</span>
+                        <input type="date" className={inputClass} value={intakeDraft.studentDateOfBirth} onChange={e => updateDraft({ studentDateOfBirth: e.target.value })} />
+                      </label>
+                      <label className="space-y-1">
+                        <span className={labelClass}>{t('intake_review.instrument')}</span>
+                        <input className={inputClass} value={intakeDraft.instrument} onChange={e => updateDraft({ instrument: e.target.value })} />
+                      </label>
+                    </div>
+
+                    <div className="grid lg:grid-cols-3 gap-3">
+                      <label className="space-y-1">
+                        <span className={labelClass}>{t('intake_review.guardian_name')}</span>
+                        <input className={inputClass} value={intakeDraft.primaryGuardianFullName} onChange={e => updateDraft({ primaryGuardianFullName: e.target.value })} />
+                      </label>
+                      <label className="space-y-1">
+                        <span className={labelClass}>{t('intake_review.guardian_phone')}</span>
+                        <input className={inputClass} value={intakeDraft.primaryGuardianPhone} onChange={e => updateDraft({ primaryGuardianPhone: e.target.value })} />
+                      </label>
+                      <label className="space-y-1">
+                        <span className={labelClass}>{t('intake_review.guardian_email')}</span>
+                        <input className={inputClass} value={intakeDraft.primaryGuardianEmail} onChange={e => updateDraft({ primaryGuardianEmail: e.target.value })} />
+                      </label>
+                    </div>
+
+                    <div className="grid lg:grid-cols-3 gap-3">
+                      <label className="space-y-1">
+                        <span className={labelClass}>{t('intake_review.activity')}</span>
+                        <select className={inputClass} value={intakeDraft.requestedActivityId} onChange={e => updateDraft({ requestedActivityId: e.target.value, l2Id: '' })}>
+                          <option value="">{t('event.select_activity')}</option>
+                          {activitiesV2.filter(activity => !activity.isArchived).map(activity => (
+                            <option key={activity.id} value={activity.id}>{activity.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="space-y-1">
+                        <span className={labelClass}>{t('intake_review.section')}</span>
+                        <select className={inputClass} value={intakeDraft.l2Id} onChange={e => updateDraft({ l2Id: e.target.value })}>
+                          <option value="">{t('event.select_subcategory')}</option>
+                          {l2OptionsForDraft.map(l2 => (
+                            <option key={l2.id} value={l2.id}>{l2.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="space-y-1">
+                        <span className={labelClass}>{t('intake_review.enrollment_start')}</span>
+                        <input type="date" className={inputClass} value={intakeDraft.enrollmentStartDate} onChange={e => updateDraft({ enrollmentStartDate: e.target.value })} />
+                      </label>
+                    </div>
+
+                    <label className="space-y-1 block">
+                      <span className={labelClass}>{t('intake_review.notes')}</span>
+                      <textarea className={`${inputClass} min-h-[72px]`} value={intakeDraft.notes} onChange={e => updateDraft({ notes: e.target.value })} />
+                    </label>
+
+                    <div className="rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/20 p-3">
+                      <div className="flex items-center gap-2 text-xs font-bold text-amber-800 dark:text-amber-200 mb-2">
+                        <CopyCheck size={14} />
+                        {t('intake_review.duplicate_suggestions')}
+                      </div>
+                      {selectedRow?.duplicateSuggestions.length ? (
+                        <div className="space-y-2">
+                          {selectedRow.duplicateSuggestions.map(suggestion => (
+                            <label key={suggestion.studentId} className="flex items-center justify-between gap-3 text-sm text-slate-700 dark:text-slate-200">
+                              <span>
+                                <input
+                                  type="radio"
+                                  name="duplicateStudent"
+                                  className="me-2"
+                                  checked={intakeDraft.duplicateStudentId === suggestion.studentId}
+                                  onChange={() => updateDraft({ duplicateStudentId: suggestion.studentId })}
+                                />
+                                {suggestion.studentName}
+                              </span>
+                              <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">{Math.round(suggestion.score * 100)}%</span>
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-slate-500 dark:text-slate-400">{t('intake_review.no_duplicates')}</p>
+                      )}
+                    </div>
+
+                    <label className="space-y-1 block">
+                      <span className={labelClass}>{t('intake_review.decision_note')}</span>
+                      <input className={inputClass} value={intakeDraft.rejectionReason} onChange={e => updateDraft({ rejectionReason: e.target.value })} />
+                    </label>
+
+                    <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleSaveIntakeCorrection}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      >
+                        <Save size={14} />
+                        {t('intake_review.save_corrections')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRejectIntake}
+                        disabled={!intakeDraft.rejectionReason.trim()}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-rose-200 dark:border-rose-900/60 text-sm font-medium text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/20 disabled:opacity-40"
+                      >
+                        <Ban size={14} />
+                        {t('intake_review.reject')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDuplicateIntake}
+                        disabled={!intakeDraft.duplicateStudentId && !selectedRow?.duplicateSuggestions[0]?.studentId}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-amber-200 dark:border-amber-900/60 text-sm font-medium text-amber-800 dark:text-amber-200 hover:bg-amber-50 dark:hover:bg-amber-950/20 disabled:opacity-40"
+                      >
+                        <CopyCheck size={14} />
+                        {t('intake_review.mark_duplicate')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleApproveIntake}
+                        disabled={!intakeDraft.requestedActivityId || !intakeDraft.l2Id || !intakeDraft.enrollmentStartDate || !selectedIntake.consentAccepted}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft text-sm font-medium disabled:opacity-40"
+                      >
+                        <Check size={14} />
+                        {t('intake_review.approve')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
 
         {/* Notifications header — resolved toggle + clear all conflicts */}
         <div className="flex items-center justify-end gap-4 mb-6">

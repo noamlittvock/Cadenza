@@ -173,6 +173,243 @@ describe('Student/Family packet mapping contracts', () => {
   });
 });
 
+describe('Lesson details/attendance packet mapping contracts', () => {
+  it('maps lesson_records as NORMALIZED rows while preserving repertoire jsonb', () => {
+    const lessonRecordSpec = tableSpecFor('lessonRecords');
+    expect(lessonRecordSpec).toEqual({ table: 'lesson_records', mode: 'NORMALIZED' });
+
+    const lessonRecord = {
+      id: 'lesson_1',
+      orgId: 'ignored-client-org',
+      eventId: 'event_1',
+      studentId: 'student_1',
+      staffMemberId: 'staff_1',
+      date: '2026-06-18',
+      attendance: 'LATE',
+      completion: 'COMPLETED',
+      notes: 'Arrived after warmups',
+      repertoire: ['Bach Minuet', 'Scale pattern No. 4'],
+      homework: 'Practice measures 8-16 slowly',
+      makeupOfLessonId: 'lesson_missed_1',
+      createdAt: '2026-06-18T08:30:00.000Z',
+      updatedAt: '2026-06-18T09:00:00.000Z',
+      createdBy: 'teacher_1',
+      updatedBy: undefined,
+    };
+
+    const row = appToRow(lessonRecordSpec, 'org_1', lessonRecord);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'lesson_1',
+      event_id: 'event_1',
+      student_id: 'student_1',
+      staff_member_id: 'staff_1',
+      date: '2026-06-18',
+      attendance: 'LATE',
+      completion: 'COMPLETED',
+      notes: 'Arrived after warmups',
+      repertoire: ['Bach Minuet', 'Scale pattern No. 4'],
+      homework: 'Practice measures 8-16 slowly',
+      makeup_of_lesson_id: 'lesson_missed_1',
+      created_at: '2026-06-18T08:30:00.000Z',
+      updated_at: '2026-06-18T09:00:00.000Z',
+      created_by: 'teacher_1',
+    });
+    expect('updated_by' in row).toBe(false);
+
+    expect(rowToApp(lessonRecordSpec, row)).toEqual({
+      id: 'lesson_1',
+      orgId: 'org_1',
+      eventId: 'event_1',
+      studentId: 'student_1',
+      staffMemberId: 'staff_1',
+      date: '2026-06-18',
+      attendance: 'LATE',
+      completion: 'COMPLETED',
+      notes: 'Arrived after warmups',
+      repertoire: ['Bach Minuet', 'Scale pattern No. 4'],
+      homework: 'Practice measures 8-16 slowly',
+      makeupOfLessonId: 'lesson_missed_1',
+      createdAt: '2026-06-18T08:30:00.000Z',
+      updatedAt: '2026-06-18T09:00:00.000Z',
+      createdBy: 'teacher_1',
+    });
+  });
+});
+
+describe('Public registration intake mapping contracts', () => {
+  it('maps public_endpoints as NORMALIZED while preserving scopes jsonb and token hashes', () => {
+    const endpointSpec = tableSpecFor('publicEndpoints');
+    const endpoint = {
+      id: 'endpoint_1',
+      orgId: 'ignored-client-org',
+      kind: 'REGISTRATION_INTAKE',
+      label: 'Fall registration',
+      tokenHash: 'sha256-token-hash',
+      status: 'ACTIVE',
+      scopes: ['registration_intake:submit'],
+      targetId: 'activity_1',
+      consentAgreementId: 'consent_template_1',
+      expiresAt: '2026-07-01T00:00:00.000Z',
+      lastUsedAt: null,
+      revokedAt: null,
+      createdAt: '2026-06-18T08:30:00.000Z',
+      updatedAt: '2026-06-18T08:30:00.000Z',
+      createdBy: 'admin_1',
+      updatedBy: undefined,
+    };
+
+    const row = appToRow(endpointSpec, 'org_1', endpoint);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'endpoint_1',
+      kind: 'REGISTRATION_INTAKE',
+      label: 'Fall registration',
+      token_hash: 'sha256-token-hash',
+      status: 'ACTIVE',
+      scopes: ['registration_intake:submit'],
+      target_id: 'activity_1',
+      consent_agreement_id: 'consent_template_1',
+      expires_at: '2026-07-01T00:00:00.000Z',
+      last_used_at: null,
+      revoked_at: null,
+      created_at: '2026-06-18T08:30:00.000Z',
+      updated_at: '2026-06-18T08:30:00.000Z',
+      created_by: 'admin_1',
+    });
+    expect('updated_by' in row).toBe(false);
+
+    expect(rowToApp(endpointSpec, row)).toEqual({
+      id: 'endpoint_1',
+      orgId: 'org_1',
+      kind: 'REGISTRATION_INTAKE',
+      label: 'Fall registration',
+      tokenHash: 'sha256-token-hash',
+      status: 'ACTIVE',
+      scopes: ['registration_intake:submit'],
+      targetId: 'activity_1',
+      consentAgreementId: 'consent_template_1',
+      expiresAt: '2026-07-01T00:00:00.000Z',
+      lastUsedAt: null,
+      revokedAt: null,
+      createdAt: '2026-06-18T08:30:00.000Z',
+      updatedAt: '2026-06-18T08:30:00.000Z',
+      createdBy: 'admin_1',
+    });
+  });
+
+  it('maps registration_intake as NORMALIZED while preserving guardians[] jsonb and consent lineage', () => {
+    const intakeSpec = tableSpecFor('registrationIntake');
+    const guardians = [
+      {
+        id: 'guardian_1',
+        fullName: 'Ron Cohen',
+        relationship: 'PARENT',
+        phone: '050-2222222',
+        email: 'ron@example.com',
+        isPrimary: true,
+      },
+      {
+        id: 'guardian_2',
+        fullName: 'Mia Levi',
+        relationship: 'GUARDIAN',
+        phone: null,
+        email: 'mia@example.com',
+        isPrimary: false,
+      },
+    ];
+    const intake = {
+      id: 'intake_1',
+      orgId: 'ignored-client-org',
+      status: 'IN_REVIEW',
+      source: 'WEBSITE',
+      submittedAt: '2026-06-18T08:30:00.000Z',
+      studentFullName: 'Dana Cohen',
+      studentDateOfBirth: '2014-05-02',
+      instrument: 'Cello',
+      requestedActivityId: 'activity_1',
+      notes: 'Prefers Tuesday afternoons',
+      guardians,
+      consentAccepted: true,
+      consentAgreementId: 'agreement_template_1',
+      reviewedBy: 'admin_1',
+      reviewedAt: '2026-06-18T09:00:00.000Z',
+      rejectionReason: null,
+      duplicateOfStudentId: null,
+      convertedStudentId: undefined,
+      convertedEnrollmentId: undefined,
+      statusHistory: [
+        {
+          id: 'hist_1',
+          status: 'IN_REVIEW',
+          fromStatus: 'PENDING',
+          at: '2026-06-18T09:00:00.000Z',
+          by: 'admin_1',
+          note: 'Admin corrections saved.',
+          relatedEntityIds: ['intake_1'],
+        },
+      ],
+      createdAt: '2026-06-18T08:30:00.000Z',
+      updatedAt: '2026-06-18T09:00:00.000Z',
+      createdBy: 'public',
+      updatedBy: 'admin_1',
+    };
+
+    const row = appToRow(intakeSpec, 'org_1', intake);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'intake_1',
+      status: 'IN_REVIEW',
+      source: 'WEBSITE',
+      submitted_at: '2026-06-18T08:30:00.000Z',
+      student_full_name: 'Dana Cohen',
+      student_date_of_birth: '2014-05-02',
+      instrument: 'Cello',
+      requested_activity_id: 'activity_1',
+      notes: 'Prefers Tuesday afternoons',
+      guardians,
+      consent_accepted: true,
+      consent_agreement_id: 'agreement_template_1',
+      reviewed_by: 'admin_1',
+      reviewed_at: '2026-06-18T09:00:00.000Z',
+      rejection_reason: null,
+      duplicate_of_student_id: null,
+      status_history: intake.statusHistory,
+      created_at: '2026-06-18T08:30:00.000Z',
+      updated_at: '2026-06-18T09:00:00.000Z',
+      created_by: 'public',
+      updated_by: 'admin_1',
+    });
+    expect('converted_student_id' in row).toBe(false);
+    expect('converted_enrollment_id' in row).toBe(false);
+
+    expect(rowToApp(intakeSpec, row)).toEqual({
+      id: 'intake_1',
+      orgId: 'org_1',
+      status: 'IN_REVIEW',
+      source: 'WEBSITE',
+      submittedAt: '2026-06-18T08:30:00.000Z',
+      studentFullName: 'Dana Cohen',
+      studentDateOfBirth: '2014-05-02',
+      instrument: 'Cello',
+      requestedActivityId: 'activity_1',
+      notes: 'Prefers Tuesday afternoons',
+      guardians,
+      consentAccepted: true,
+      consentAgreementId: 'agreement_template_1',
+      reviewedBy: 'admin_1',
+      reviewedAt: '2026-06-18T09:00:00.000Z',
+      rejectionReason: null,
+      duplicateOfStudentId: null,
+      statusHistory: intake.statusHistory,
+      createdAt: '2026-06-18T08:30:00.000Z',
+      updatedAt: '2026-06-18T09:00:00.000Z',
+      createdBy: 'public',
+      updatedBy: 'admin_1',
+    });
+  });
+});
+
 describe('NORMALIZED mapping (real snake_case columns, nested jsonb)', () => {
   it('rowToApp converts top-level columns snake→camel and leaves nested jsonb intact', () => {
     const row = {

@@ -253,7 +253,7 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
   {
     id: 'public-registration-intake',
     domain: 'people',
-    status: 'gap',
+    status: 'implemented',
     priority: 'p0',
     label: 'Online registration intake',
     labelHe: 'רישום אונליין',

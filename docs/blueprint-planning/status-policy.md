@@ -38,10 +38,12 @@ Backend-only readiness (schema + queries + tests, no workflow) caps a node at
 - When a packet ships, update both the packet header and the `features/forteTree.ts`
   node in the same change, and note it in [`decision-log.md`](decision-log.md) if the
   change resolves an open question.
-- Pass 0 corrected the known-stale statuses tracked by D-STATUS and D-STATUS-2:
-  **`instrument-inventory`** is `implemented`; **`student-family-files`** and
-  **`payroll-salaries-hours`** are `embedded`; **`public-registration-intake`**,
-  **`lesson-details-attendance`**, and **`payments-charges`** remain `gap`.
+- Pass 0 corrected the known-stale statuses tracked by D-STATUS and D-STATUS-2.
+  Current Phase C implementation status as of 2026-06-18:
+  **`instrument-inventory`**, **`student-family-files`**, and
+  **`public-registration-intake`** are `implemented`;
+  **`payroll-salaries-hours`** is `embedded`; **`lesson-details-attendance`**
+  and **`payments-charges`** remain `gap`.
 
 ## Consistency check (brief item 6)
 

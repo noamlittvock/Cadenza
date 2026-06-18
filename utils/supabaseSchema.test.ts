@@ -135,14 +135,19 @@ describe('Phase B RLS refinements', () => {
   });
 
   it('allows teacher self-write only through row-scoped lesson/hour policies', () => {
+    const lessonWrite = policySql('lesson_records', 'lesson_records_write');
     const lessonInsert = policySql('lesson_records', 'lesson_records_teacher_insert');
     const lessonUpdate = policySql('lesson_records', 'lesson_records_teacher_update');
     const hoursRead = policySql('hours_entries', 'hours_entries_read');
     const hoursInsert = policySql('hours_entries', 'hours_entries_teacher_insert');
     const hoursUpdate = policySql('hours_entries', 'hours_entries_teacher_update');
 
+    expect(lessonWrite).toMatch(/public\.app_is_org_admin\(org_id\)/i);
+    expect(lessonWrite).not.toMatch(/app_is_org_member|app_has_capability/i);
     expect(lessonInsert).toMatch(/public\.app_is_staff_self\(org_id,\s*staff_member_id\)/i);
     expect(lessonUpdate).toMatch(/public\.app_is_staff_self\(org_id,\s*staff_member_id\)/i);
+    expect(lessonInsert).not.toMatch(/app_is_org_member|app_has_capability/i);
+    expect(lessonUpdate).not.toMatch(/app_is_org_member|app_has_capability/i);
     expect(hoursRead).toMatch(/public\.app_is_staff_self\(org_id,\s*staff_member_id\)/i);
     expect(hoursRead).toMatch(/public\.app_has_capability\(org_id,\s*'finance'\)/i);
     expect(hoursInsert).toMatch(/status\s+in\s+\('DRAFT','SUBMITTED'\)/i);
@@ -163,6 +168,39 @@ describe('Phase B RLS refinements', () => {
     expect(familiesRead).toMatch(/public\.app_can_read_family\(org_id,\s*student_ids\)/i);
     expect(studentsRead).not.toMatch(/app_is_org_member/i);
     expect(familiesRead).not.toMatch(/app_is_org_member/i);
+  });
+});
+
+describe('Public registration intake submit path', () => {
+  it('narrows registration_intake queue reads to admins while preserving controlled submit', () => {
+    const read = policySql('registration_intake', 'registration_intake_read');
+    const write = policySql('registration_intake', 'registration_intake_write');
+
+    expect(read).toMatch(/public\.app_is_org_admin\(org_id\)/i);
+    expect(write).toMatch(/public\.app_is_org_admin\(org_id\)/i);
+    expect(read).not.toMatch(/app_is_org_member|auth\.role\(\)\s*=\s*'anon'/i);
+    expect(write).not.toMatch(/app_is_org_member|auth\.role\(\)\s*=\s*'anon'/i);
+  });
+
+  it('adds a tightly scoped RPC for anon/public submit without granting table writes', () => {
+    expect(SQL).toMatch(/function\s+public\.submit_registration_intake\s*\(\s*p_token_hash\s+text,\s*p_payload\s+jsonb\s*\)/i);
+    expect(SQL).toMatch(/security\s+definer/i);
+    expect(SQL).toMatch(/grant\s+execute\s+on\s+function\s+public\.submit_registration_intake\(text,\s*jsonb\)\s+to\s+anon/i);
+    expect(SQL).toMatch(/from\s+public\.public_endpoints[\s\S]*token_hash\s*=\s*p_token_hash/i);
+    expect(SQL).toMatch(/scopes\s+\?\s+'registration_intake:submit'/i);
+    expect(SQL).toMatch(/consent_agreement_id\s+is\s+not\s+null/i);
+    expect(SQL).toMatch(/insert\s+into\s+public\.registration_intake/i);
+    expect(SQL).not.toMatch(/grant\s+(?:select|insert|update|delete|all)[\s\S]*on\s+(?:table\s+)?public\.registration_intake\s+to\s+anon/i);
+    expect(SQL).not.toMatch(/create\s+policy[\s\S]*on\s+public\.registration_intake[\s\S]*auth\.role\(\)\s*=\s*'anon'/i);
+  });
+
+  it('stores public applicant fields on quarantined registration_intake rows', () => {
+    expect(SQL).toMatch(/add\s+column\s+if\s+not\s+exists\s+applicant_name\s+text/i);
+    expect(SQL).toMatch(/add\s+column\s+if\s+not\s+exists\s+applicant_email\s+text/i);
+    expect(SQL).toMatch(/add\s+column\s+if\s+not\s+exists\s+applicant_phone\s+text/i);
+    expect(SQL).toMatch(/add\s+column\s+if\s+not\s+exists\s+status_history\s+jsonb\s+not\s+null\s+default\s+'\[\]'::jsonb/i);
+    expect(SQL).toMatch(/applicant_name,\s*\n\s+applicant_email,\s*\n\s+applicant_phone/i);
+    expect(SQL).toMatch(/status_history[\s\S]*jsonb_build_array\(jsonb_build_object/i);
   });
 });
 

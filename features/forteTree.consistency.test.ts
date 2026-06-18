@@ -61,8 +61,6 @@ const KNOWN_UNIMPLEMENTED_STUBS: Record<string, string> = {
   listOrgUsers: 'org-settings-global-users — users managed via SuperAdmin, no export',
   getOrgSettingsHealth: 'org-settings-global-users — gap',
   resolveUserAccess: 'org-settings-global-users — RLS/Phase B (D-06/D-08), no client export',
-  // public-registration-intake — PublicEndpoint is a ghost until migration 0004 (D-14)
-  resolvePublicToken: 'public-registration-intake — PublicEndpoint ghost; created in Phase B migration 0004 (D-14)',
   // deterministic-agent-layer — naming drift: real export is buildForteEmbeddingRecords
   buildFeatureEmbeddingRecords:
     'deterministic-agent-layer — tree references this name; actual export is buildForteEmbeddingRecords',

@@ -3,7 +3,7 @@ import type {
   RegistrationIntake, Family, LessonRecord, OperationalRequest, ExamSession,
   ExaminerSubmission, Certificate, ConcertProgram, HoursEntry, Charge, Payment,
   Adjustment, AgreementTemplate, AgreementAcceptance, Instrument, InstrumentLoan,
-  InstrumentRepair, StaffEvaluation, ReportDefinition,
+  InstrumentRepair, StaffEvaluation, ReportDefinition, PublicEndpoint,
 } from '../types/blueprint';
 import * as Q from './blueprintQueries';
 import type { MinimalStudent, MinimalEnrollment, MinimalEvent, MinimalParticipant, MinimalActivity } from './blueprintQueries';
@@ -24,6 +24,9 @@ describe('intake', () => {
     { ...base, id: 'i1', status: 'PENDING', source: 'WEBSITE', submittedAt: '2026-06-10T09:00:00.000Z', studentFullName: 'Avi Cohen', studentDateOfBirth: null, instrument: 'Violin', requestedActivityId: null, notes: null, guardians: [], consentAccepted: true, consentAgreementId: null },
     { ...base, id: 'i2', status: 'CONVERTED', source: 'WEBSITE', submittedAt: '2026-06-09T09:00:00.000Z', studentFullName: 'Done Person', studentDateOfBirth: null, instrument: null, requestedActivityId: null, notes: null, guardians: [], consentAccepted: true, consentAgreementId: null },
     { ...base, id: 'i3', status: 'IN_REVIEW', source: 'MANUAL', submittedAt: '2026-06-08T09:00:00.000Z', studentFullName: 'New Kid', studentDateOfBirth: null, instrument: null, requestedActivityId: null, notes: null, guardians: [], consentAccepted: false, consentAgreementId: null },
+    { ...base, id: 'i4', status: 'APPROVED', source: 'WEBSITE', submittedAt: '2026-06-07T09:00:00.000Z', studentFullName: 'Approved Person', studentDateOfBirth: null, instrument: null, requestedActivityId: null, notes: null, guardians: [], consentAccepted: true, consentAgreementId: null },
+    { ...base, id: 'i5', status: 'REJECTED', source: 'WEBSITE', submittedAt: '2026-06-06T09:00:00.000Z', studentFullName: 'Rejected Person', studentDateOfBirth: null, instrument: null, requestedActivityId: null, notes: null, guardians: [], consentAccepted: true, consentAgreementId: null },
+    { ...base, id: 'i6', status: 'DUPLICATE', source: 'WEBSITE', submittedAt: '2026-06-05T09:00:00.000Z', studentFullName: 'Duplicate Person', studentDateOfBirth: null, instrument: null, requestedActivityId: null, notes: null, guardians: [], consentAccepted: true, consentAgreementId: null },
   ];
   it('listPendingIntake returns pending+in-review sorted by submittedAt', () => {
     const r = Q.listPendingIntake(intake);
@@ -35,12 +38,294 @@ describe('intake', () => {
     expect(r[0].score).toBe(1);
     expect(r.some(d => d.studentId === 's4')).toBe(false); // archived excluded
   });
-  it('approveIntakeRecord converts and emits a student payload', () => {
-    const { intake: out, student } = Q.approveIntakeRecord(intake[0], { studentId: 'new1', now: T, reviewedBy: 'admin' });
+  it('approveIntakeRecord converts into the full student/family/enrollment graph', () => {
+    const source: RegistrationIntake = {
+      ...intake[0],
+      requestedActivityId: 'activity_1',
+      guardians: [
+        { id: 'g1', fullName: 'Dana Cohen', relationship: 'PARENT', phone: '050-111', email: 'dana@example.com', isPrimary: true },
+      ],
+      consentAgreementId: 'template_1',
+    };
+    const graph = Q.approveIntakeRecord(source, {
+      studentId: 'stu_new',
+      familyId: 'fam_new',
+      enrollmentId: 'enr_new',
+      agreementRequestId: 'agreement_request_new',
+      inboxItemId: 'inbox_new',
+      now: T,
+      reviewedBy: 'admin',
+      l2Id: 'l2_1',
+      enrollmentStartDate: '2026-09-01',
+      agreementTemplateVersion: 3,
+    });
+    const { intake: out, student, family, enrollment, agreementRequest, inboxHistoryItem } = graph;
+
     expect(out.status).toBe('CONVERTED');
-    expect(out.convertedStudentId).toBe('new1');
+    expect(out.convertedStudentId).toBe('stu_new');
+    expect(out.convertedEnrollmentId).toBe('enr_new');
     expect(out.reviewedBy).toBe('admin');
+    expect(out.reviewedAt).toBe(T);
+    expect(out.updatedAt).toBe(T);
+    expect(out.updatedBy).toBe('admin');
+    expect(out.consentAccepted).toBe(true);
+    expect(out.statusHistory).toEqual([
+      {
+        id: `i1:${T}:CONVERTED:1`,
+        status: 'CONVERTED',
+        fromStatus: 'PENDING',
+        at: T,
+        by: 'admin',
+        note: 'Converted to student/family/enrollment graph.',
+        relatedEntityIds: ['i1', 'stu_new', 'fam_new', 'enr_new', 'agreement_request_new'],
+      },
+    ]);
     expect(student.fullName).toBe('Avi Cohen');
+    expect(student.id).toBe('stu_new');
+    expect(student.orgId).toBe('org1');
+    expect(student.dateOfBirth).toBe(source.studentDateOfBirth);
+    expect(student.parentName).toBe('Dana Cohen');
+    expect(student.parentPhone).toBe('050-111');
+    expect(student.email).toBe('dana@example.com');
+    expect(student.startDate).toBe('2026-09-01');
+    expect(student.tags).toEqual(['Violin']);
+    expect(student.isArchived).toBe(false);
+    expect(family).toMatchObject({
+      id: 'fam_new',
+      orgId: 'org1',
+      name: 'Cohen Family',
+      studentIds: ['stu_new'],
+      primaryContactGuardianId: 'g1',
+      isArchived: false,
+      createdBy: 'admin',
+      updatedBy: 'admin',
+    });
+    expect(family.guardians).toEqual(source.guardians);
+    expect(enrollment).toMatchObject({
+      id: 'enr_new',
+      orgId: 'org1',
+      studentId: 'stu_new',
+      activityId: 'activity_1',
+      l2Id: 'l2_1',
+      startDate: '2026-09-01',
+      endDate: null,
+      status: 'ACTIVE',
+    });
+    expect(agreementRequest).toMatchObject({
+      id: 'agreement_request_new',
+      orgId: 'org1',
+      templateId: 'template_1',
+      templateVersion: 3,
+      studentId: 'stu_new',
+      familyId: 'fam_new',
+      enrollmentId: 'enr_new',
+      guardianId: 'g1',
+      status: 'PENDING',
+      createdBy: 'admin',
+      updatedBy: 'admin',
+    });
+    expect(inboxHistoryItem).toMatchObject({
+      id: 'inbox_new',
+      orgId: 'org1',
+      type: 'APPROVAL_REQUEST',
+      status: 'APPROVED',
+      relatedEntityType: 'registration_intake',
+      relatedEntityIds: ['i1', 'stu_new', 'fam_new', 'enr_new', 'agreement_request_new'],
+      decidedBy: 'admin',
+      decidedAt: T,
+      markedDoneAt: T,
+      markedDoneBy: 'admin',
+    });
+    expect(source.status).toBe('PENDING');
+  });
+
+  it('approveIntakeRecord requires resolved enrollment placement', () => {
+    expect(() => Q.approveIntakeRecord(intake[0], {
+      studentId: 'stu_new',
+      familyId: 'fam_new',
+      enrollmentId: 'enr_new',
+      agreementRequestId: 'agreement_request_new',
+      inboxItemId: 'inbox_new',
+      now: T,
+      reviewedBy: 'admin',
+      l2Id: 'l2_1',
+      enrollmentStartDate: '2026-09-01',
+    })).toThrow('activityId');
+    expect(() => Q.approveIntakeRecord({ ...intake[0], requestedActivityId: 'activity_1' }, {
+      studentId: 'stu_new',
+      familyId: 'fam_new',
+      enrollmentId: 'enr_new',
+      agreementRequestId: 'agreement_request_new',
+      inboxItemId: 'inbox_new',
+      now: T,
+      reviewedBy: 'admin',
+      l2Id: '',
+      enrollmentStartDate: '2026-09-01',
+    })).toThrow('l2Id');
+  });
+
+  it('rejectIntakeRecord records rejection lineage and inbox history', () => {
+    const { intake: out, inboxHistoryItem } = Q.rejectIntakeRecord(intake[0], {
+      inboxItemId: 'inbox_reject',
+      now: T,
+      reviewedBy: 'admin',
+      reason: 'Outside current program scope',
+    });
+
+    expect(out.status).toBe('REJECTED');
+    expect(out.reviewedBy).toBe('admin');
+    expect(out.reviewedAt).toBe(T);
+    expect(out.rejectionReason).toBe('Outside current program scope');
+    expect(out.convertedStudentId).toBeUndefined();
+    expect(out.statusHistory?.[0]).toMatchObject({
+      id: `i1:${T}:REJECTED:1`,
+      status: 'REJECTED',
+      fromStatus: 'PENDING',
+      at: T,
+      by: 'admin',
+      note: 'Outside current program scope',
+      relatedEntityIds: ['i1'],
+    });
+    expect(inboxHistoryItem).toMatchObject({
+      id: 'inbox_reject',
+      status: 'REJECTED',
+      decisionNote: 'Outside current program scope',
+      relatedEntityIds: ['i1'],
+      decidedBy: 'admin',
+      markedDoneBy: 'admin',
+    });
+    expect(intake[0].status).toBe('PENDING');
+  });
+
+  it('markIntakeDuplicate records duplicate lineage and inbox history', () => {
+    const { intake: out, inboxHistoryItem } = Q.markIntakeDuplicate(intake[0], {
+      inboxItemId: 'inbox_duplicate',
+      now: T,
+      reviewedBy: 'admin',
+      duplicateOfStudentId: 's1',
+      note: 'Same guardian confirmed existing student.',
+    });
+
+    expect(out.status).toBe('DUPLICATE');
+    expect(out.duplicateOfStudentId).toBe('s1');
+    expect(out.reviewedBy).toBe('admin');
+    expect(out.reviewedAt).toBe(T);
+    expect(out.statusHistory?.[0]).toMatchObject({
+      id: `i1:${T}:DUPLICATE:1`,
+      status: 'DUPLICATE',
+      fromStatus: 'PENDING',
+      at: T,
+      by: 'admin',
+      note: 'Same guardian confirmed existing student.',
+      relatedEntityIds: ['i1', 's1'],
+    });
+    expect(inboxHistoryItem).toMatchObject({
+      id: 'inbox_duplicate',
+      status: 'REJECTED',
+      decisionNote: 'Same guardian confirmed existing student.',
+      relatedEntityIds: ['i1', 's1'],
+      decidedBy: 'admin',
+      markedDoneBy: 'admin',
+    });
+  });
+
+  describe('public endpoint contract', () => {
+    const endpoints: PublicEndpoint[] = [
+      {
+        ...base,
+        id: 'endpoint_registration',
+        orgId: 'org1',
+        kind: 'REGISTRATION_INTAKE',
+        label: 'Fall registration',
+        tokenHash: 'hash_registration',
+        status: 'ACTIVE',
+        scopes: [Q.REGISTRATION_INTAKE_PUBLIC_SCOPE],
+        targetId: 'activity_1',
+        consentAgreementId: 'consent_template_1',
+        expiresAt: '2026-07-01T00:00:00.000Z',
+        lastUsedAt: null,
+        revokedAt: null,
+      },
+      {
+        ...base,
+        id: 'endpoint_hours',
+        orgId: 'org1',
+        kind: 'HOURS_REPORT',
+        label: 'Hours report',
+        tokenHash: 'hash_hours',
+        status: 'ACTIVE',
+        scopes: ['hours_report:submit'],
+        targetId: 'report_1',
+        consentAgreementId: null,
+        expiresAt: null,
+        lastUsedAt: null,
+        revokedAt: null,
+      },
+    ];
+
+    it('resolves an active registration endpoint to public-safe config', () => {
+      const resolved = Q.resolveRegistrationIntakeEndpoint(endpoints, {
+        tokenHash: 'hash_registration',
+        now: T,
+      });
+
+      expect(resolved).toEqual({
+        ok: true,
+        endpoint: {
+          endpointId: 'endpoint_registration',
+          orgId: 'org1',
+          kind: 'REGISTRATION_INTAKE',
+          label: 'Fall registration',
+          scopes: [Q.REGISTRATION_INTAKE_PUBLIC_SCOPE],
+          targetId: 'activity_1',
+          consentAgreementId: 'consent_template_1',
+        },
+      });
+      if (resolved.ok) {
+        expect('tokenHash' in resolved.endpoint).toBe(false);
+        expect('createdBy' in resolved.endpoint).toBe(false);
+      }
+    });
+
+    it('rejects missing, wrong-kind, inactive, and expired endpoint records', () => {
+      expect(Q.resolveRegistrationIntakeEndpoint(endpoints, {
+        tokenHash: 'missing_hash',
+        now: T,
+      })).toEqual({ ok: false, reason: 'NOT_FOUND' });
+
+      expect(Q.resolveRegistrationIntakeEndpoint(endpoints, {
+        tokenHash: 'hash_hours',
+        now: T,
+      })).toEqual({ ok: false, reason: 'WRONG_KIND' });
+
+      expect(Q.resolveRegistrationIntakeEndpoint([
+        { ...endpoints[0], status: 'REVOKED', revokedAt: T },
+      ], {
+        tokenHash: 'hash_registration',
+        now: T,
+      })).toEqual({ ok: false, reason: 'INACTIVE' });
+
+      expect(Q.resolveRegistrationIntakeEndpoint(endpoints, {
+        tokenHash: 'hash_registration',
+        now: '2026-07-01T00:00:00.000Z',
+      })).toEqual({ ok: false, reason: 'EXPIRED' });
+    });
+
+    it('requires registration submit scope and consent setup', () => {
+      expect(Q.resolveRegistrationIntakeEndpoint([
+        { ...endpoints[0], scopes: ['registration_intake:read'] },
+      ], {
+        tokenHash: 'hash_registration',
+        now: T,
+      })).toEqual({ ok: false, reason: 'MISSING_SCOPE' });
+
+      expect(Q.resolveRegistrationIntakeEndpoint([
+        { ...endpoints[0], consentAgreementId: null },
+      ], {
+        tokenHash: 'hash_registration',
+        now: T,
+      })).toEqual({ ok: false, reason: 'MISSING_CONSENT' });
+    });
   });
 });
 
@@ -134,6 +419,16 @@ describe('lessons/attendance', () => {
     expect(Q.listUnmarkedAttendance(lessons).map(l => l.id)).toEqual(['l2']);
     expect(Q.listUnmarkedAttendance(lessons, '2026-06-05')).toEqual([]);
   });
+  it('listUnmarkedAttendance includes cutoff date and sorts existing rows only', () => {
+    const unmarked = [
+      mk('future', 's1', '2026-06-20', 'UNMARKED', 'PENDING'),
+      mk('cutoff', 's2', '2026-06-18', 'UNMARKED', 'PENDING'),
+      mk('past', 's3', '2026-06-10', 'UNMARKED', 'PENDING'),
+      mk('marked', 's4', '2026-06-01', 'EXCUSED', 'PENDING'),
+    ];
+
+    expect(Q.listUnmarkedAttendance(unmarked, '2026-06-18').map(l => l.id)).toEqual(['past', 'cutoff']);
+  });
   it('summarizeLessonCompletion computes rates excluding cancelled', () => {
     const sum = Q.summarizeLessonCompletion(lessons);
     expect(sum.total).toBe(4);
@@ -141,6 +436,41 @@ describe('lessons/attendance', () => {
     expect(sum.cancelled).toBe(1);
     expect(sum.completionRate).toBeCloseTo(1 / 3);
     expect(sum.attendance.PRESENT).toBe(2);
+  });
+  it('summarizeLessonCompletion counts every attendance enum and no-show/pending buckets', () => {
+    const summary = Q.summarizeLessonCompletion([
+      mk('u', 's1', '2026-06-01', 'UNMARKED', 'PENDING'),
+      mk('p', 's1', '2026-06-02', 'PRESENT', 'COMPLETED'),
+      mk('a', 's1', '2026-06-03', 'ABSENT', 'NO_SHOW'),
+      mk('l', 's1', '2026-06-04', 'LATE', 'COMPLETED'),
+      mk('e', 's1', '2026-06-05', 'EXCUSED', 'PENDING'),
+      mk('m', 's1', '2026-06-06', 'MAKEUP', 'CANCELLED'),
+    ]);
+
+    expect(summary.attendance).toEqual({
+      UNMARKED: 1,
+      PRESENT: 1,
+      ABSENT: 1,
+      LATE: 1,
+      EXCUSED: 1,
+      MAKEUP: 1,
+    });
+    expect(summary).toMatchObject({
+      total: 6,
+      completed: 2,
+      cancelled: 1,
+      noShow: 1,
+      pending: 2,
+    });
+    expect(summary.completionRate).toBeCloseTo(2 / 5);
+  });
+  it('summarizeLessonCompletion returns zero rate when every row is cancelled', () => {
+    const summary = Q.summarizeLessonCompletion([
+      mk('c1', 's1', '2026-06-01', 'EXCUSED', 'CANCELLED'),
+      mk('c2', 's2', '2026-06-01', 'MAKEUP', 'CANCELLED'),
+    ]);
+
+    expect(summary.completionRate).toBe(0);
   });
 });
 
