@@ -230,7 +230,7 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
 
 ### Stage 2 - Verification And Promotion
 
-- [ ] Playwright payroll workflow smoke: teacher submit hours -> admin compare
+- [x] Playwright payroll workflow smoke: teacher submit hours -> admin compare
   variance -> approve with stamped rate -> payslip rows/export; include Hebrew
   RTL and 390x844 teacher self-report coverage.
 - [ ] RLS-LIVE payroll run: run the live-role harness against a real Supabase
@@ -252,18 +252,18 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
 - [ ] Finance read/export cannot mutate approval/payment status.
 - [ ] PAID entries are immutable; corrections use new adjusting entries.
 - [x] Teacher self-report is mobile-reachable and covered at 390x844.
-- [ ] Hebrew/RTL hours and payslip states are covered with LTR-isolated numbers.
-- [ ] Playwright payroll smoke passed.
+- [x] Hebrew/RTL hours and payslip states are covered with LTR-isolated numbers.
+- [x] Playwright payroll smoke passed.
 - [ ] RLS-LIVE passed against a real project for payroll.
-- [ ] `npm run typecheck -- --diagnostics` passes.
-- [ ] `npx vitest run --reporter=dot` passes.
+- [x] `npm run typecheck -- --diagnostics` passes.
+- [x] `npx vitest run --reporter=dot` passes.
 - [ ] No D-21-D-27 blocked section was implemented without a decision update.
 
 ## Next Unit
 
-- Playwright payroll workflow smoke: teacher submit hours -> admin compare
-  variance -> approve with stamped rate -> payslip rows/export; include Hebrew
-  RTL and 390x844 teacher self-report coverage.
+- RLS-LIVE payroll run: run the live-role harness against a real Supabase
+  project for the payroll workflow. Do not mark complete if only skipped local
+  tests ran.
 
 ## Setup Notes For Next Agent
 
@@ -392,3 +392,15 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
   `npx vitest run --reporter=dot` passed (21 files, 246 tests);
   `npm run test:e2e -- e2e/payroll-teacher.spec.ts` passed (3 tests).
   Playwright payroll workflow smoke remains the next queue unit.
+- 2026-06-19 Playwright payroll workflow smoke for `payroll-salaries-hours`:
+  expanded `e2e/payroll-teacher.spec.ts` with an end-to-end local-mode workflow
+  carrying teacher-created DRAFT rows through period submission, admin variance
+  comparison, D-19 approval-time rate stamping, payslip CSV export, and PAID
+  transition. Strengthened Hebrew RTL coverage by saving mobile teacher hours at
+  390x844 and approving a Hebrew review row with visible LTR payslip numbers.
+  Changed files: `e2e/payroll-teacher.spec.ts` and
+  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
+  `npm run test:e2e -- e2e/payroll-teacher.spec.ts` passed (5 tests);
+  `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
+  passed (21 files, 246 tests). RLS-LIVE payroll run remains the next queue
+  unit.
