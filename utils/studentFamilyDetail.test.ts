@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CalendarEvent, Student } from '../types';
-import type { Family, LessonRecord } from '../types/blueprint';
+import type { AgreementAcceptance, AgreementTemplate, Family, LessonRecord } from '../types/blueprint';
 import type { ActivityV2 } from '../types/v2';
 import { buildFamilyDetailModel, buildStudentDetailModel } from './studentFamilyDetail';
 
@@ -98,6 +98,43 @@ const event: CalendarEvent = {
   isHidden: false,
 };
 
+const agreementTemplate = (overrides: Partial<AgreementTemplate> = {}): AgreementTemplate => ({
+  id: 'template_enrollment',
+  orgId: 'org_1',
+  kind: 'ENROLLMENT',
+  title: 'Enrollment Terms',
+  version: 2,
+  body: 'Terms',
+  isActive: true,
+  supersedesVersion: 1,
+  requiresGuardian: true,
+  createdAt: '2026-06-01T08:00:00.000Z',
+  updatedAt: '2026-06-01T08:00:00.000Z',
+  createdBy: 'admin_1',
+  updatedBy: 'admin_1',
+  ...overrides,
+});
+
+const agreementAcceptance = (overrides: Partial<AgreementAcceptance> = {}): AgreementAcceptance => ({
+  id: 'acceptance_1',
+  orgId: 'org_1',
+  templateId: 'template_enrollment',
+  templateVersion: 2,
+  studentId: 'stu_1',
+  familyId: 'fam_1',
+  enrollmentId: 'asg_1',
+  guardianId: 'guardian_1',
+  status: 'ACCEPTED',
+  acceptedAt: '2026-06-18T10:00:00.000Z',
+  acceptedByName: 'Ron Cohen',
+  signatureRef: 'typed://agreement_acceptances/acceptance_1',
+  createdAt: '2026-06-18T09:00:00.000Z',
+  updatedAt: '2026-06-18T10:00:00.000Z',
+  createdBy: 'admin_1',
+  updatedBy: 'admin_1',
+  ...overrides,
+});
+
 describe('student/family detail model', () => {
   it('builds a student detail from family guardians and legacy assignment data', () => {
     const student = makeStudent({
@@ -155,6 +192,70 @@ describe('student/family detail model', () => {
     });
   });
 
+  it('builds student agreement history and unsigned status from contextual enrollment targets', () => {
+    const student = makeStudent({
+      assignments: [
+        {
+          id: 'asg_1',
+          activityId: 'act_piano',
+          subcategoryId: 'l2_1',
+          staffMemberId: 'staff_1',
+          teachingAssignmentId: 'ta_1',
+          startDate: '2026-01-01',
+          status: 'ACTIVE',
+        },
+        {
+          id: 'asg_2',
+          activityId: 'act_piano',
+          subcategoryId: 'l2_2',
+          staffMemberId: 'staff_2',
+          teachingAssignmentId: 'ta_2',
+          startDate: '2026-02-01',
+          status: 'ACTIVE',
+        },
+      ],
+    });
+    const family = makeFamily();
+    const templates = [
+      agreementTemplate(),
+      agreementTemplate({ id: 'template_financial', kind: 'FINANCIAL', title: 'Financial Terms', version: 1, supersedesVersion: null }),
+    ];
+
+    const detail = buildStudentDetailModel(student.id, [student], [family], activities, [], [], templates, [
+      agreementAcceptance(),
+      agreementAcceptance({
+        id: 'pending_financial',
+        templateId: 'template_financial',
+        templateVersion: 1,
+        studentId: null,
+        enrollmentId: null,
+        status: 'PENDING',
+        acceptedAt: null,
+        acceptedByName: null,
+        signatureRef: null,
+        createdAt: '2026-06-19T09:00:00.000Z',
+      }),
+    ]);
+
+    expect(detail?.agreements.history.map(row => row.id)).toEqual(['pending_financial', 'acceptance_1']);
+    expect(detail?.agreements.history[1]).toMatchObject({
+      templateTitle: 'Enrollment Terms',
+      enrollmentLabel: 'Piano · Dana Cohen',
+      guardianName: 'Ron Cohen',
+      acceptedByName: 'Ron Cohen',
+    });
+    expect(detail?.agreements.acceptedCount).toBe(1);
+    expect(detail?.agreements.pendingCount).toBe(1);
+    expect(detail?.agreements.unsigned.map(row => ({
+      title: row.templateTitle,
+      enrollment: row.enrollmentId,
+      reason: row.reason,
+    }))).toEqual([
+      { title: 'Enrollment Terms', enrollment: 'asg_2', reason: 'NEVER_ACCEPTED' },
+      { title: 'Financial Terms', enrollment: null, reason: 'NEVER_ACCEPTED' },
+    ]);
+  });
+
   it('falls back to legacy student guardians when no family is linked', () => {
     const detail = buildStudentDetailModel('stu_1', [makeStudent()], [], activities);
 
@@ -189,5 +290,35 @@ describe('student/family detail model', () => {
     expect(detail?.linkedStudents.map(student => student.fullName)).toEqual(['Dana Cohen', 'Ari Cohen']);
     expect(detail?.enrollments.map(row => row.studentName)).toEqual(['Dana Cohen']);
     expect(detail?.timeline[0]).toMatchObject({ label: 'student_updated', at: '2026-06-04T08:00:00.000Z' });
+  });
+
+  it('builds family agreement history across linked students without normalizing guardians', () => {
+    const students = [
+      makeStudent({ id: 'stu_1', fullName: 'Dana Cohen' }),
+      makeStudent({ id: 'stu_2', fullName: 'Ari Cohen' }),
+    ];
+    const family = makeFamily({ studentIds: ['stu_1', 'stu_2'] });
+
+    const detail = buildFamilyDetailModel('fam_1', students, [family], activities, [], [], [
+      agreementTemplate({ id: 'template_financial', kind: 'FINANCIAL', title: 'Financial Terms', version: 1, supersedesVersion: null }),
+    ], [
+      agreementAcceptance({
+        id: 'family_acceptance',
+        templateId: 'template_financial',
+        templateVersion: 1,
+        studentId: null,
+        enrollmentId: null,
+        status: 'ACCEPTED',
+      }),
+      agreementAcceptance({ id: 'other_family', familyId: 'fam_other', studentId: null, enrollmentId: null }),
+    ]);
+
+    expect(detail?.agreements.history.map(row => row.id)).toEqual(['family_acceptance']);
+    expect(detail?.agreements.history[0]).toMatchObject({
+      familyName: 'Cohen Family',
+      guardianName: 'Ron Cohen',
+      templateTitle: 'Financial Terms',
+    });
+    expect(detail?.agreements.unsigned).toEqual([]);
   });
 });

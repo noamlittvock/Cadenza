@@ -38,8 +38,8 @@ You are ONE iteration of an autonomous BUILD loop for the Cadenza Blueprint.
 
 Your only durable loop memory is docs/blueprint-planning/BUILD_LOOP_STATE.md.
 Read it in full first, then read the authoritative artifacts it names:
-IMPLEMENTATION_HANDOFF.md, IMPLEMENTATION_ROADMAP.md, the current packet,
-decision-log.md, route-nav-policy.md, and status-policy.md. Treat
+IMPLEMENTATION_HANDOFF.md, IMPLEMENTATION_ROADMAP.md, the current packet or
+packets, decision-log.md, route-nav-policy.md, and status-policy.md. Treat
 BUILD_LOOP_STATE.md as the queue, not as a substitute for the specs.
 
 Do the NEXT SINGLE unticked unit in BUILD_LOOP_STATE.md's queue - exactly one.
@@ -83,6 +83,12 @@ Non-negotiable rules:
 - D-20 is ACCEPTED: P0 finance uses single currency per org/family ledger while
   staying future-safe for explicit multi-currency mode; never silently offset one
   currency against another.
+- D-09 is ACCEPTED: reports are admin/finance only initially; do not give
+  general members, teachers, guardians, public users, or anonymous users report
+  access.
+- D-11 is ACCEPTED: agreement capture supports typed e-signature plus PDF upload;
+  public signing still inherits D-07/D-14 and must not use broad anon table
+  policies.
 - D-21-D-27 remain parked. Do not build packet sections marked `BLOCKED ON D-xx`
   until the matching decision is answered and the packet/decision log are updated.
 - Route/palette rule: a command-palette destination must route to a real surface

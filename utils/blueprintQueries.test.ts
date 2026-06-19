@@ -789,21 +789,101 @@ describe('payments/ledger', () => {
 describe('agreements/consent', () => {
   const templates: AgreementTemplate[] = [
     { ...base, id: 't1', kind: 'CONSENT', title: 'Media Release', version: 2, body: '...', isActive: true, supersedesVersion: 1, requiresGuardian: true },
+    { ...base, id: 't2', kind: 'ENROLLMENT', title: 'Enrollment Terms', version: 1, body: '...', isActive: true, supersedesVersion: null, requiresGuardian: false },
+    { ...base, id: 't3', kind: 'FINANCIAL', title: 'Payment Terms', version: 1, body: '...', isActive: true, supersedesVersion: null, requiresGuardian: true },
+    { ...base, id: 't4', kind: 'OTHER', title: 'Archived Policy', version: 1, body: '...', isActive: false, supersedesVersion: null, requiresGuardian: false },
   ];
   const acceptances: AgreementAcceptance[] = [
     { ...base, id: 'ac1', templateId: 't1', templateVersion: 1, studentId: 's1', familyId: null, enrollmentId: 'en1', guardianId: 'g1', status: 'ACCEPTED', acceptedAt: '2025-09-01T10:00:00.000Z', acceptedByName: 'Dana', signatureRef: null },
     { ...base, id: 'ac2', templateId: 't1', templateVersion: 2, studentId: 's2', familyId: null, enrollmentId: 'en2', guardianId: 'g1', status: 'ACCEPTED', acceptedAt: '2026-09-01T10:00:00.000Z', acceptedByName: 'Dana', signatureRef: null },
+    { ...base, id: 'ac3', templateId: 't2', templateVersion: 1, studentId: 's1', familyId: null, enrollmentId: 'en1', guardianId: null, status: 'DECLINED', acceptedAt: null, acceptedByName: null, signatureRef: null },
+    { ...base, id: 'ac4', templateId: 't2', templateVersion: 1, studentId: 's2', familyId: null, enrollmentId: 'en2', guardianId: null, status: 'EXPIRED', acceptedAt: null, acceptedByName: null, signatureRef: null },
+    { ...base, id: 'ac5', templateId: 't3', templateVersion: 1, studentId: null, familyId: 'f1', enrollmentId: null, guardianId: 'g1', status: 'ACCEPTED', acceptedAt: '2026-08-01T10:00:00.000Z', acceptedByName: 'Dana', signatureRef: 'typed://sig/ac5' },
+    { ...base, id: 'ac6', templateId: 't1', templateVersion: 1, studentId: 's4', familyId: null, enrollmentId: 'en4', guardianId: 'g2', status: 'SUPERSEDED', acceptedAt: '2025-08-01T10:00:00.000Z', acceptedByName: 'Mia', signatureRef: null },
   ];
   it('listUnsignedAgreements flags superseded + never-signed', () => {
-    const r = Q.listUnsignedAgreements(templates, acceptances, ['s1', 's2', 's3']);
+    const r = Q.listUnsignedAgreements([templates[0]], acceptances, ['s1', 's2', 's3']);
     const s1 = r.find(x => x.studentId === 's1')!;
     expect(s1.reason).toBe('SUPERSEDED_VERSION'); // had v1, active is v2
     expect(r.find(x => x.studentId === 's2')).toBeUndefined(); // signed v2
     expect(r.find(x => x.studentId === 's3')!.reason).toBe('NEVER_ACCEPTED');
   });
-  it('getAgreementHistory + findAgreementByEnrollment', () => {
-    expect(Q.getAgreementHistory(acceptances, 't1').map(a => a.id)).toEqual(['ac2', 'ac1']);
-    expect(Q.findAgreementByEnrollment(acceptances, 'en1').map(a => a.id)).toEqual(['ac1']);
+  it('listUnsignedAgreements handles scoped family/enrollment targets and guardian-required templates', () => {
+    const r = Q.listUnsignedAgreements(templates, acceptances, [
+      { studentId: 's1', enrollmentId: 'en1', kind: 'ENROLLMENT' },
+      { studentId: null, familyId: 'f1', guardianId: 'g1', templateId: 't3' },
+      { studentId: null, familyId: 'f2', guardianId: 'g2', templateId: 't3' },
+    ]);
+
+    expect(r.map(x => ({
+      templateId: x.template.id,
+      requiresGuardian: x.template.requiresGuardian,
+      studentId: x.studentId,
+      familyId: x.familyId,
+      enrollmentId: x.enrollmentId,
+      guardianId: x.guardianId,
+      reason: x.reason,
+    }))).toEqual([
+      {
+        templateId: 't2',
+        requiresGuardian: false,
+        studentId: 's1',
+        familyId: null,
+        enrollmentId: 'en1',
+        guardianId: null,
+        reason: 'NEVER_ACCEPTED',
+      },
+      {
+        templateId: 't3',
+        requiresGuardian: true,
+        studentId: null,
+        familyId: 'f2',
+        enrollmentId: null,
+        guardianId: 'g2',
+        reason: 'NEVER_ACCEPTED',
+      },
+    ]);
+  });
+  it('listUnsignedAgreements treats declined/expired as unsigned and superseded rows as stale signatures', () => {
+    const r = Q.listUnsignedAgreements(templates, acceptances, [
+      { studentId: 's1', enrollmentId: 'en1', templateId: 't2' },
+      { studentId: 's2', enrollmentId: 'en2', templateId: 't2' },
+      { studentId: 's4', enrollmentId: 'en4', templateId: 't1' },
+    ]);
+
+    expect(r.map(x => [x.template.id, x.studentId, x.reason])).toEqual([
+      ['t2', 's1', 'NEVER_ACCEPTED'],
+      ['t2', 's2', 'NEVER_ACCEPTED'],
+      ['t1', 's4', 'SUPERSEDED_VERSION'],
+    ]);
+  });
+  it('listUnsignedAgreements ignores inactive templates and sorts deterministically', () => {
+    const sameTitleTemplates: AgreementTemplate[] = [
+      { ...base, id: 't_b', kind: 'CONSENT', title: 'Same Title', version: 1, body: '...', isActive: true, supersedesVersion: null, requiresGuardian: false },
+      { ...base, id: 't_a', kind: 'CONSENT', title: 'Same Title', version: 1, body: '...', isActive: true, supersedesVersion: null, requiresGuardian: false },
+      { ...base, id: 't_inactive', kind: 'CONSENT', title: 'AAA Inactive', version: 1, body: '...', isActive: false, supersedesVersion: null, requiresGuardian: false },
+    ];
+
+    const r = Q.listUnsignedAgreements(sameTitleTemplates, [], ['s2', 's1']);
+
+    expect(r.map(x => `${x.template.id}:${x.studentId}`)).toEqual([
+      't_a:s1',
+      't_a:s2',
+      't_b:s1',
+      't_b:s2',
+    ]);
+  });
+  it('getAgreementHistory + findAgreementByEnrollment sort newest first with id tie-breaks', () => {
+    const sameTime = '2026-09-02T10:00:00.000Z';
+    const historyRows: AgreementAcceptance[] = [
+      { ...acceptances[0], id: 'tie_b', acceptedAt: sameTime, createdAt: '2026-09-01T10:00:00.000Z' },
+      { ...acceptances[0], id: 'older', acceptedAt: '2026-09-01T10:00:00.000Z', createdAt: '2026-09-01T10:00:00.000Z' },
+      { ...acceptances[0], id: 'tie_a', acceptedAt: sameTime, createdAt: '2026-09-01T10:00:00.000Z' },
+      { ...acceptances[0], id: 'created_only', acceptedAt: null, createdAt: '2026-09-03T10:00:00.000Z' },
+    ];
+
+    expect(Q.getAgreementHistory(historyRows, 't1').map(a => a.id)).toEqual(['created_only', 'tie_a', 'tie_b', 'older']);
+    expect(Q.findAgreementByEnrollment(historyRows, 'en1').map(a => a.id)).toEqual(['created_only', 'tie_a', 'tie_b', 'older']);
   });
 });
 

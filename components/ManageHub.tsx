@@ -6,10 +6,12 @@ import { ActivityManager } from './ActivityManager';
 import { CalendarSubscriptionManager } from './CalendarSubscriptionManager';
 import { StaffMemberManager } from './StaffMemberManager';
 import { InstrumentManager } from './InstrumentManager';
-import { Home, Menu, Layers, Rss, Users, Guitar } from 'lucide-react';
+import { AgreementManager } from './AgreementManager';
+import { Home, Menu, Layers, Rss, Users, Guitar, ScrollText } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
+import type { AgreementAcceptance, AgreementTemplate, Family } from '../types/blueprint';
 
-type ManageTab = 'staff' | 'rooms' | 'activities' | 'subscriptions' | 'inventory';
+type ManageTab = 'staff' | 'rooms' | 'activities' | 'subscriptions' | 'inventory' | 'agreements';
 
 interface Props {
     rooms: Room[];
@@ -23,10 +25,18 @@ interface Props {
     setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>;
     events: CalendarEvent[];
     students: Student[];
+    families: Family[];
     hoursReports: HoursReport[];
     setHoursReports: React.Dispatch<React.SetStateAction<HoursReport[]>>;
     adminInboxItems: AdminInboxItem[];
     setAdminInboxItems: React.Dispatch<React.SetStateAction<AdminInboxItem[]>>;
+    agreementTemplates: AgreementTemplate[];
+    setAgreementTemplates: (data: AgreementTemplate[] | ((prev: AgreementTemplate[]) => AgreementTemplate[])) => Promise<void>;
+    agreementAcceptances: AgreementAcceptance[];
+    setAgreementAcceptances: (data: AgreementAcceptance[] | ((prev: AgreementAcceptance[]) => AgreementAcceptance[])) => Promise<void>;
+    agreementsLoading?: boolean;
+    orgId: string | null;
+    actorId?: string | null;
     onMobileMenuOpen: () => void;
     initialTab?: ManageTab;
     onTabChange?: (tab: ManageTab) => void;
@@ -46,10 +56,18 @@ export const ManageHub: React.FC<Props> = ({
     setTeachers,
     events,
     students,
+    families,
     hoursReports,
     setHoursReports,
     adminInboxItems,
     setAdminInboxItems,
+    agreementTemplates,
+    setAgreementTemplates,
+    agreementAcceptances,
+    setAgreementAcceptances,
+    agreementsLoading = false,
+    orgId,
+    actorId,
     onMobileMenuOpen,
     initialTab = 'staff',
     onTabChange,
@@ -63,7 +81,7 @@ export const ManageHub: React.FC<Props> = ({
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const tabFromUrl = params.get('tab') as ManageTab;
-        if (tabFromUrl && ['staff', 'rooms', 'activities', 'subscriptions', 'inventory'].includes(tabFromUrl)) {
+        if (tabFromUrl && ['staff', 'rooms', 'activities', 'subscriptions', 'inventory', 'agreements'].includes(tabFromUrl)) {
             setActiveTab(tabFromUrl);
         }
     }, []);
@@ -82,6 +100,7 @@ export const ManageHub: React.FC<Props> = ({
         { id: 'activities', label: t('nav.activities'), icon: Layers },
         { id: 'rooms', label: t('nav.rooms'), icon: Home },
         { id: 'inventory', label: t('nav.inventory'), icon: Guitar },
+        { id: 'agreements', label: settings.language === 'he-IL' ? 'הסכמים' : 'Agreements', icon: ScrollText },
         { id: 'subscriptions', label: t('nav.subscriptions'), icon: Rss },
     ];
 
@@ -174,6 +193,20 @@ export const ManageHub: React.FC<Props> = ({
                         teachers={teachers}
                         onMobileMenuOpen={onMobileMenuOpen}
                         embedded={true}
+                    />
+                )}
+                {activeTab === 'agreements' && (
+                    <AgreementManager
+                        settings={settings}
+                        orgId={orgId}
+                        actorId={actorId}
+                        students={students}
+                        families={families}
+                        templates={agreementTemplates}
+                        setTemplates={setAgreementTemplates}
+                        acceptances={agreementAcceptances}
+                        setAcceptances={setAgreementAcceptances}
+                        loading={agreementsLoading}
                     />
                 )}
                 {activeTab === 'subscriptions' && (

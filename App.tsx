@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronRight, ChevronLeft, X, Filter, Zap, List, Sparkles } from 'lucide-react';
 import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, Student, CalendarSubscription, HoursReport, AdminInboxItem } from './types';
 import type { ActivityV2, L1Subcategory, L2Subcategory, OrgRoleV2, StaffMemberV2, StudentV2, TeachingAssignmentV2 } from './types/v2';
-import type { Adjustment, BalanceSnapshot, Charge, Family, LessonRecord, HoursEntry, Payment } from './types/blueprint';
+import type { Adjustment, AgreementAcceptance, AgreementTemplate, BalanceSnapshot, Charge, Family, LessonRecord, HoursEntry, Payment } from './types/blueprint';
 import { BLUEPRINT_COLLECTIONS } from './types/blueprint';
 import type { CalendarSidebarTab } from './types/calendarFilters';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, TRANSLATIONS, migrateTeacher, generateId } from './constants';
@@ -36,6 +36,7 @@ import { OnboardingChecklist } from './components/OnboardingChecklist';
 
 import { TeacherHoursForm } from './components/TeacherHoursForm';
 import { PublicRegistrationForm } from './components/PublicRegistrationForm';
+import { PublicAgreementSigningForm } from './components/PublicAgreementSigningForm';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { UserRole } from './context/AuthContext';
@@ -48,7 +49,7 @@ import { BotChatPanel } from './components/BotChatPanel';
 import type { HoursPeriodHeader } from './utils/hoursEntryService';
 import { applyHoursEntryUpdates, reconcileLegacyHoursReports } from './utils/hoursEntryService';
 
-const MANAGE_TABS = new Set(['staff', 'rooms', 'activities', 'subscriptions', 'inventory']);
+const MANAGE_TABS = new Set(['staff', 'rooms', 'activities', 'subscriptions', 'inventory', 'agreements']);
 
 const initialViewFromUrl = (): ViewState => {
   if (typeof window === 'undefined') return 'CALENDAR';
@@ -144,6 +145,8 @@ function AppContent() {
   const [payments, setPayments, paymentsLoading] = useSupabaseSync<Payment>(BLUEPRINT_COLLECTIONS.payments, []);
   const [adjustments, setAdjustments, adjustmentsLoading] = useSupabaseSync<Adjustment>(BLUEPRINT_COLLECTIONS.adjustments, []);
   const [balanceSnapshots, , balanceSnapshotsLoading] = useSupabaseSync<BalanceSnapshot>(BLUEPRINT_COLLECTIONS.balanceSnapshots, []);
+  const [agreementTemplates, setAgreementTemplates, agreementTemplatesLoading] = useSupabaseSync<AgreementTemplate>(BLUEPRINT_COLLECTIONS.agreementTemplates, []);
+  const [agreementAcceptances, setAgreementAcceptances, agreementAcceptancesLoading] = useSupabaseSync<AgreementAcceptance>(BLUEPRINT_COLLECTIONS.agreementAcceptances, []);
   const [calendarSubscriptions, setCalendarSubscriptions] = useSupabaseSync<CalendarSubscription>('calendarSubscriptions', []);
   const [hoursReports, setHoursReports, hoursReportsLoading] = useSupabaseSync<HoursReport>('hoursReports', []);
   const [hoursEntries, setHoursEntries, hoursEntriesLoading] = useSupabaseSync<HoursEntry>(BLUEPRINT_COLLECTIONS.hoursEntries, []);
@@ -668,10 +671,18 @@ function AppContent() {
             setTeachers={setTeachers}
             events={events}
             students={students}
+            families={families}
             hoursReports={hoursReports}
             setHoursReports={setHoursReports}
             adminInboxItems={adminInboxItems}
             setAdminInboxItems={setAdminInboxItems}
+            agreementTemplates={agreementTemplates}
+            setAgreementTemplates={setAgreementTemplates}
+            agreementAcceptances={agreementAcceptances}
+            setAgreementAcceptances={setAgreementAcceptances}
+            agreementsLoading={agreementTemplatesLoading || agreementAcceptancesLoading}
+            orgId={orgId}
+            actorId={currentUser?.id ?? null}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
             initialTab="staff"
             navigateToStaffId={navigateToStaffId}
@@ -694,6 +705,8 @@ function AppContent() {
             activities={activities}
             lessonRecords={lessonRecords}
             events={events}
+            agreementTemplates={agreementTemplates}
+            agreementAcceptances={agreementAcceptances}
             setStudents={setStudents}
             setFamilies={setFamilies}
             orgId={orgId}
@@ -704,6 +717,7 @@ function AppContent() {
             adjustments={adjustments}
             balanceSnapshots={balanceSnapshots}
             financeLedgerLoading={chargesLoading || paymentsLoading || adjustmentsLoading || balanceSnapshotsLoading}
+            agreementsLoading={agreementTemplatesLoading || agreementAcceptancesLoading}
             onOpenFinanceLedger={(familyId) => {
               setFinanceFocusFamilyId(familyId);
               setCurrentView('BILLING');
@@ -937,6 +951,15 @@ export default function App() {
     return (
       <ErrorBoundary>
         <PublicRegistrationForm token={decodeURIComponent(registrationMatch[1])} />
+      </ErrorBoundary>
+    );
+  }
+
+  const agreementMatch = window.location.pathname.match(/^\/agreement\/([^/]+)$/);
+  if (agreementMatch) {
+    return (
+      <ErrorBoundary>
+        <PublicAgreementSigningForm token={decodeURIComponent(agreementMatch[1])} />
       </ErrorBoundary>
     );
   }

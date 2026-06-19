@@ -31,6 +31,29 @@ export async function uploadDocument(
   return { url, path };
 }
 
+/**
+ * Upload a countersigned agreement PDF under the private agreements prefix.
+ * Direct reads for this prefix are admin-only in storage RLS.
+ */
+export async function uploadAgreementPdf(
+  orgId: string,
+  agreementAcceptanceId: string,
+  file: File,
+): Promise<{ path: string; signatureRef: string }> {
+  const timestamp = Date.now();
+  const safeName = safeFileName(file.name || 'signed-agreement.pdf');
+
+  const sb = getSupabase();
+  if (!sb) throw new Error('[storageUtils] Supabase not configured');
+  const path = `${orgId}/agreements/${agreementAcceptanceId}/${timestamp}_${safeName}`;
+  const { error } = await sb.storage.from(DOCUMENTS_BUCKET).upload(path, file, {
+    upsert: false,
+    contentType: file.type || 'application/pdf',
+  });
+  if (error) throw error;
+  return { path, signatureRef: `private://documents/${path}` };
+}
+
 /** Delete a document file by its storage path. */
 export async function deleteDocument(path: string): Promise<void> {
   const sb = getSupabase();

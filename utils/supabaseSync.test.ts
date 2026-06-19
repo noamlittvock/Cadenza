@@ -21,6 +21,8 @@ describe('tableSpecFor', () => {
     expect(tableSpecFor('charges')).toEqual({ table: 'charges', mode: 'NORMALIZED' });
     expect(tableSpecFor('rolloverRuns')).toEqual({ table: 'rollover_runs', mode: 'NORMALIZED' });
     expect(tableSpecFor('publicEndpoints')).toEqual({ table: 'public_endpoints', mode: 'NORMALIZED' });
+    expect(tableSpecFor('agreementTemplates')).toEqual({ table: 'agreement_templates', mode: 'NORMALIZED' });
+    expect(tableSpecFor('agreementAcceptances')).toEqual({ table: 'agreement_acceptances', mode: 'NORMALIZED' });
   });
 
   it('falls back to a HYBRID table named after an unknown collection', () => {
@@ -513,6 +515,184 @@ describe('Public registration intake mapping contracts', () => {
       updatedAt: '2026-06-18T09:00:00.000Z',
       createdBy: 'public',
       updatedBy: 'admin_1',
+    });
+  });
+});
+
+describe('Agreements/consent packet mapping contracts', () => {
+  it('maps agreement_templates as NORMALIZED rows with version and guardian flags', () => {
+    const templateSpec = tableSpecFor('agreementTemplates');
+    expect(templateSpec).toEqual({ table: 'agreement_templates', mode: 'NORMALIZED' });
+
+    const template = {
+      id: 'agreement_template_1',
+      orgId: 'ignored-client-org',
+      kind: 'ENROLLMENT',
+      title: 'Enrollment Terms',
+      version: 3,
+      body: 'Enrollment agreement body',
+      isActive: true,
+      supersedesVersion: 2,
+      requiresGuardian: true,
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T09:00:00.000Z',
+      createdBy: 'admin_1',
+      updatedBy: undefined,
+    };
+
+    const row = appToRow(templateSpec, 'org_1', template);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'agreement_template_1',
+      kind: 'ENROLLMENT',
+      title: 'Enrollment Terms',
+      version: 3,
+      body: 'Enrollment agreement body',
+      is_active: true,
+      supersedes_version: 2,
+      requires_guardian: true,
+      created_at: '2026-06-19T08:30:00.000Z',
+      updated_at: '2026-06-19T09:00:00.000Z',
+      created_by: 'admin_1',
+    });
+    expect('updated_by' in row).toBe(false);
+
+    expect(rowToApp(templateSpec, row)).toEqual({
+      id: 'agreement_template_1',
+      orgId: 'org_1',
+      kind: 'ENROLLMENT',
+      title: 'Enrollment Terms',
+      version: 3,
+      body: 'Enrollment agreement body',
+      isActive: true,
+      supersedesVersion: 2,
+      requiresGuardian: true,
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T09:00:00.000Z',
+      createdBy: 'admin_1',
+    });
+  });
+
+  it('maps agreement_acceptances as NORMALIZED rows with target lineage and private signature references', () => {
+    const acceptanceSpec = tableSpecFor('agreementAcceptances');
+    expect(acceptanceSpec).toEqual({ table: 'agreement_acceptances', mode: 'NORMALIZED' });
+
+    const acceptance = {
+      id: 'agreement_acceptance_1',
+      orgId: 'ignored-client-org',
+      templateId: 'agreement_template_1',
+      templateVersion: 3,
+      studentId: 'student_1',
+      familyId: 'family_1',
+      enrollmentId: 'enrollment_1',
+      guardianId: 'guardian_1',
+      status: 'ACCEPTED',
+      acceptedAt: '2026-06-19T10:00:00.000Z',
+      acceptedByName: 'Dana Cohen',
+      signatureRef: 'private://agreements/org_1/agreement_acceptance_1.pdf',
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T10:00:00.000Z',
+      createdBy: 'admin_1',
+      updatedBy: undefined,
+    };
+
+    const row = appToRow(acceptanceSpec, 'org_1', acceptance);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'agreement_acceptance_1',
+      template_id: 'agreement_template_1',
+      template_version: 3,
+      student_id: 'student_1',
+      family_id: 'family_1',
+      enrollment_id: 'enrollment_1',
+      guardian_id: 'guardian_1',
+      status: 'ACCEPTED',
+      accepted_at: '2026-06-19T10:00:00.000Z',
+      accepted_by_name: 'Dana Cohen',
+      signature_ref: 'private://agreements/org_1/agreement_acceptance_1.pdf',
+      created_at: '2026-06-19T08:30:00.000Z',
+      updated_at: '2026-06-19T10:00:00.000Z',
+      created_by: 'admin_1',
+    });
+    expect('updated_by' in row).toBe(false);
+
+    expect(rowToApp(acceptanceSpec, row)).toEqual({
+      id: 'agreement_acceptance_1',
+      orgId: 'org_1',
+      templateId: 'agreement_template_1',
+      templateVersion: 3,
+      studentId: 'student_1',
+      familyId: 'family_1',
+      enrollmentId: 'enrollment_1',
+      guardianId: 'guardian_1',
+      status: 'ACCEPTED',
+      acceptedAt: '2026-06-19T10:00:00.000Z',
+      acceptedByName: 'Dana Cohen',
+      signatureRef: 'private://agreements/org_1/agreement_acceptance_1.pdf',
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T10:00:00.000Z',
+      createdBy: 'admin_1',
+    });
+  });
+
+  it('maps AGREEMENT_ACCEPTANCE public endpoints without raw token columns', () => {
+    const endpointSpec = tableSpecFor('publicEndpoints');
+    const endpoint = {
+      id: 'agreement_endpoint_1',
+      orgId: 'ignored-client-org',
+      kind: 'AGREEMENT_ACCEPTANCE',
+      label: 'Enrollment agreement signing link',
+      tokenHash: 'sha256-agreement-token-hash',
+      status: 'ACTIVE',
+      scopes: ['agreement_acceptance:sign'],
+      targetId: 'agreement_acceptance_1',
+      consentAgreementId: 'agreement_template_1',
+      expiresAt: '2026-07-01T00:00:00.000Z',
+      lastUsedAt: null,
+      revokedAt: null,
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T08:30:00.000Z',
+      createdBy: 'admin_1',
+      updatedBy: undefined,
+    };
+
+    const row = appToRow(endpointSpec, 'org_1', endpoint);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'agreement_endpoint_1',
+      kind: 'AGREEMENT_ACCEPTANCE',
+      label: 'Enrollment agreement signing link',
+      token_hash: 'sha256-agreement-token-hash',
+      status: 'ACTIVE',
+      scopes: ['agreement_acceptance:sign'],
+      target_id: 'agreement_acceptance_1',
+      consent_agreement_id: 'agreement_template_1',
+      expires_at: '2026-07-01T00:00:00.000Z',
+      last_used_at: null,
+      revoked_at: null,
+      created_at: '2026-06-19T08:30:00.000Z',
+      updated_at: '2026-06-19T08:30:00.000Z',
+      created_by: 'admin_1',
+    });
+    expect('raw_token' in row).toBe(false);
+    expect('updated_by' in row).toBe(false);
+
+    expect(rowToApp(endpointSpec, row)).toEqual({
+      id: 'agreement_endpoint_1',
+      orgId: 'org_1',
+      kind: 'AGREEMENT_ACCEPTANCE',
+      label: 'Enrollment agreement signing link',
+      tokenHash: 'sha256-agreement-token-hash',
+      status: 'ACTIVE',
+      scopes: ['agreement_acceptance:sign'],
+      targetId: 'agreement_acceptance_1',
+      consentAgreementId: 'agreement_template_1',
+      expiresAt: '2026-07-01T00:00:00.000Z',
+      lastUsedAt: null,
+      revokedAt: null,
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T08:30:00.000Z',
+      createdBy: 'admin_1',
     });
   });
 });

@@ -115,6 +115,7 @@ tenant scope via `(storage.foldername(name))[1] = org_id`.
 | Firebase Storage | Supabase Storage |
 |---|---|
 | `organizations/{orgId}/documents/{ts}_{name}` | `{orgId}/documents/{ts}_{name}` (orgId first for RLS) |
+| signed agreement PDFs | `{orgId}/agreements/{agreementAcceptanceId}/{filename}` (admin-only direct reads; public signer file access must use an exact scoped token path) |
 | `uploadBytes` / `getDownloadURL` | `storage.from('documents').upload` / `createSignedUrl` |
 | `deleteObject` | `storage.from('documents').remove([path])` |
 

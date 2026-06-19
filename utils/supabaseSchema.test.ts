@@ -15,11 +15,18 @@ function allMigrationSql(): string {
 const SQL = allMigrationSql();
 const FOUNDATION_TABLES = ['member_capabilities', 'rollover_runs', 'public_endpoints'];
 const FINANCE_TABLES = ['charges', 'payments', 'adjustments', 'balance_snapshots'];
+const AGREEMENT_TABLES = ['agreement_templates', 'agreement_acceptances'];
 
 function policySql(table: string, policy: string): string {
   const match = SQL.match(new RegExp(`create\\s+policy\\s+${policy}\\s+on\\s+public\\.${table}\\b[\\s\\S]*?;`, 'i'));
   expect(match, `missing policy ${policy} on ${table}`).not.toBeNull();
   return match?.[0] ?? '';
+}
+
+function latestStoragePolicySql(policy: string): string {
+  const matches = [...SQL.matchAll(new RegExp(`create\\s+policy\\s+${policy}\\s+on\\s+storage\\.objects\\b[\\s\\S]*?;`, 'gi'))];
+  expect(matches.length, `missing policy ${policy} on storage.objects`).toBeGreaterThan(0);
+  return matches.at(-1)?.[0] ?? '';
 }
 
 /** Quoted string literals inside a `array[ ... ]` expression. */
@@ -209,6 +216,84 @@ describe('Public registration intake submit path', () => {
     expect(SQL).toMatch(/add\s+column\s+if\s+not\s+exists\s+status_history\s+jsonb\s+not\s+null\s+default\s+'\[\]'::jsonb/i);
     expect(SQL).toMatch(/applicant_name,\s*\n\s+applicant_email,\s*\n\s+applicant_phone/i);
     expect(SQL).toMatch(/status_history[\s\S]*jsonb_build_array\(jsonb_build_object/i);
+  });
+});
+
+describe('Agreement direct-table RLS refinements', () => {
+  it('narrows agreement template and acceptance direct access to admins only', () => {
+    for (const table of AGREEMENT_TABLES) {
+      const read = policySql(table, `${table}_read`);
+      const write = policySql(table, `${table}_write`);
+
+      expect(read, table).toMatch(/public\.app_is_org_admin\(org_id\)/i);
+      expect(write, table).toMatch(/public\.app_is_org_admin\(org_id\)/i);
+      expect(read, table).not.toMatch(/app_is_org_member|app_has_capability|app_is_staff_self|auth\.role\(\)\s*=\s*'anon'/i);
+      expect(write, table).not.toMatch(/app_is_org_member|app_has_capability|app_is_staff_self|auth\.role\(\)\s*=\s*'anon'/i);
+    }
+  });
+
+  it('does not grant anon direct access to agreement tables', () => {
+    for (const table of AGREEMENT_TABLES) {
+      expect(SQL).not.toMatch(new RegExp(`grant\\s+(?:select|insert|update|delete|all)[\\s\\S]*on\\s+(?:table\\s+)?public\\.${table}\\s+to\\s+anon`, 'i'));
+      expect(SQL).not.toMatch(new RegExp(`create\\s+policy[\\s\\S]*on\\s+public\\.${table}[\\s\\S]*auth\\.role\\(\\)\\s*=\\s*'anon'`, 'i'));
+    }
+  });
+});
+
+describe('Public agreement acceptance submit path', () => {
+  it('adds a scoped public read RPC for a single pending agreement target', () => {
+    expect(SQL).toMatch(/function\s+public\.get_public_agreement_acceptance\s*\(\s*p_token_hash\s+text\s*\)/i);
+    expect(SQL).toMatch(/grant\s+execute\s+on\s+function\s+public\.get_public_agreement_acceptance\(text\)\s+to\s+anon/i);
+    expect(SQL).toMatch(/from\s+public\.public_endpoints[\s\S]*token_hash\s*=\s*p_token_hash/i);
+    expect(SQL).toMatch(/kind\s+=\s+'AGREEMENT_ACCEPTANCE'/i);
+    expect(SQL).toMatch(/scopes\s+\?\s+'agreement_acceptance:sign'/i);
+    expect(SQL).toMatch(/v_acceptance\.status\s+<>\s+'PENDING'/i);
+    expect(SQL).toMatch(/from\s+public\.agreement_templates[\s\S]*id\s+=\s+v_acceptance\.template_id/i);
+    expect(SQL).toMatch(/jsonb_build_object\([\s\S]*'template'[\s\S]*'body',\s*v_template\.body/i);
+    expect(SQL).not.toMatch(/grant\s+(?:select|insert|update|delete|all)[\s\S]*on\s+(?:table\s+)?public\.agreement_templates\s+to\s+anon/i);
+    expect(SQL).not.toMatch(/grant\s+(?:select|insert|update|delete|all)[\s\S]*on\s+(?:table\s+)?public\.agreement_acceptances\s+to\s+anon/i);
+  });
+
+  it('adds a tightly scoped RPC for anon/public signing without granting table writes', () => {
+    expect(SQL).toMatch(/function\s+public\.submit_agreement_acceptance\s*\(\s*p_token_hash\s+text,\s*p_payload\s+jsonb\s*\)/i);
+    expect(SQL).toMatch(/security\s+definer/i);
+    expect(SQL).toMatch(/grant\s+execute\s+on\s+function\s+public\.submit_agreement_acceptance\(text,\s*jsonb\)\s+to\s+anon/i);
+    expect(SQL).toMatch(/from\s+public\.public_endpoints[\s\S]*token_hash\s*=\s*p_token_hash/i);
+    expect(SQL).toMatch(/kind\s+=\s+'AGREEMENT_ACCEPTANCE'/i);
+    expect(SQL).toMatch(/scopes\s+\?\s+'agreement_acceptance:sign'/i);
+    expect(SQL).toMatch(/consent_agreement_id\s+is\s+not\s+null/i);
+    expect(SQL).toMatch(/from\s+public\.agreement_acceptances[\s\S]*id\s+=\s+v_endpoint\.target_id[\s\S]*org_id\s+=\s+v_endpoint\.org_id/i);
+    expect(SQL).toMatch(/v_acceptance\.template_id\s+<>\s+v_endpoint\.consent_agreement_id/i);
+    expect(SQL).toMatch(/p_payload\s+#>>\s+'\{target,studentId\}'/i);
+    expect(SQL).toMatch(/p_payload\s+#>>\s+'\{target,familyId\}'/i);
+    expect(SQL).toMatch(/p_payload\s+#>>\s+'\{target,enrollmentId\}'/i);
+    expect(SQL).toMatch(/p_payload\s+#>>\s+'\{target,guardianId\}'/i);
+    expect(SQL).toMatch(/update\s+public\.agreement_acceptances[\s\S]*where\s+id\s+=\s+v_acceptance\.id/i);
+    expect(SQL).toMatch(/update\s+public\.public_endpoints[\s\S]*set\s+status\s+=\s+'EXPIRED'/i);
+    expect(SQL).not.toMatch(/grant\s+(?:select|insert|update|delete|all)[\s\S]*on\s+(?:table\s+)?public\.agreement_acceptances\s+to\s+anon/i);
+    expect(SQL).not.toMatch(/create\s+policy[\s\S]*on\s+public\.agreement_acceptances[\s\S]*auth\.role\(\)\s*=\s*'anon'/i);
+  });
+});
+
+describe('Agreement private PDF storage RLS refinements', () => {
+  it('keeps signed agreement PDFs out of broad org-member document reads', () => {
+    const generalRead = latestStoragePolicySql('documents_read');
+    const agreementRead = latestStoragePolicySql('documents_agreements_read');
+
+    expect(generalRead).toMatch(/bucket_id\s*=\s*'documents'/i);
+    expect(generalRead).toMatch(/public\.app_is_org_member\(\(storage\.foldername\(name\)\)\[1\]\)/i);
+    expect(generalRead).toMatch(/coalesce\(\(storage\.foldername\(name\)\)\[2\],\s*''\)\s*<>\s*'agreements'/i);
+    expect(generalRead).not.toMatch(/auth\.role\(\)\s*=\s*'anon'/i);
+
+    expect(agreementRead).toMatch(/bucket_id\s*=\s*'documents'/i);
+    expect(agreementRead).toMatch(/\(storage\.foldername\(name\)\)\[2\]\s*=\s*'agreements'/i);
+    expect(agreementRead).toMatch(/public\.app_is_org_admin\(\(storage\.foldername\(name\)\)\[1\]\)/i);
+    expect(agreementRead).not.toMatch(/app_is_org_member|app_has_capability|app_is_staff_self|auth\.role\(\)\s*=\s*'anon'/i);
+  });
+
+  it('does not add anon storage policies for signed agreement PDFs', () => {
+    expect(SQL).not.toMatch(/create\s+policy[\s\S]*on\s+storage\.objects[\s\S]*\(storage\.foldername\(name\)\)\[2\]\s*=\s*'agreements'[\s\S]*auth\.role\(\)\s*=\s*'anon'/i);
+    expect(SQL).not.toMatch(/grant\s+(?:select|insert|update|delete|all)[\s\S]*on\s+(?:table\s+)?storage\.objects\s+to\s+anon/i);
   });
 });
 

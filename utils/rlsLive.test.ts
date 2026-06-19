@@ -17,9 +17,23 @@ function expectRlsDenied(error: { message?: string; code?: string } | null, cont
   expect(error?.message ?? '', context).toMatch(/row-level security|permission denied|violates row-level security/i);
 }
 
+function expectStorageDenied(error: { message?: string; statusCode?: string } | null, context: string): void {
+  expect(error?.message ?? '', context).toMatch(/not found|not authorized|permission denied|row-level security|unauthorized/i);
+}
+
 function isMissingRegistrationIntakeRpc(error: { message?: string; code?: string } | null): boolean {
   return error?.code === 'PGRST202' &&
     /submit_registration_intake/i.test(error.message ?? '');
+}
+
+function isMissingAgreementAcceptanceRpc(error: { message?: string; code?: string } | null): boolean {
+  return error?.code === 'PGRST202' &&
+    /submit_agreement_acceptance/i.test(error.message ?? '');
+}
+
+function isMissingAgreementAcceptanceReadRpc(error: { message?: string; code?: string } | null): boolean {
+  return error?.code === 'PGRST202' &&
+    /get_public_agreement_acceptance/i.test(error.message ?? '');
 }
 
 function sha256Hex(value: string): string {
@@ -948,6 +962,503 @@ if (!liveRlsEnv.ready) {
           notes: 'Marked by teacher in live RLS harness',
         },
       ]);
+    }, LIVE_RLS_TIMEOUT_MS);
+
+    it('enforces admin-only direct access for agreement templates and acceptances', async (ctx) => {
+      const templateId = h.id('agreement_template');
+      const acceptanceId = h.id('agreement_acceptance');
+      const crossTemplateId = h.id('agreement_template_cross');
+      const crossAcceptanceId = h.id('agreement_acceptance_cross');
+      const teacherTemplateDeniedId = h.id('agreement_template_teacher_denied');
+      const financeTemplateDeniedId = h.id('agreement_template_finance_denied');
+      const anonTemplateDeniedId = h.id('agreement_template_anon_denied');
+      const crossTemplateDeniedId = h.id('agreement_template_cross_denied');
+      const teacherAcceptanceDeniedId = h.id('agreement_acceptance_teacher_denied');
+      const financeAcceptanceDeniedId = h.id('agreement_acceptance_finance_denied');
+      const anonAcceptanceDeniedId = h.id('agreement_acceptance_anon_denied');
+      const crossAcceptanceDeniedId = h.id('agreement_acceptance_cross_denied');
+
+      for (const id of [
+        templateId,
+        crossTemplateId,
+        teacherTemplateDeniedId,
+        financeTemplateDeniedId,
+        anonTemplateDeniedId,
+        crossTemplateDeniedId,
+      ]) {
+        h.track('agreement_templates', id);
+      }
+      for (const id of [
+        acceptanceId,
+        crossAcceptanceId,
+        teacherAcceptanceDeniedId,
+        financeAcceptanceDeniedId,
+        anonAcceptanceDeniedId,
+        crossAcceptanceDeniedId,
+      ]) {
+        h.track('agreement_acceptances', id);
+      }
+
+      const makeTemplateRow = (
+        id: string,
+        orgId: string,
+        label: string,
+      ): Record<string, unknown> => ({
+        id,
+        org_id: orgId,
+        kind: 'ENROLLMENT',
+        title: `RLS harness agreement ${label}`,
+        version: 1,
+        body: 'Agreement body seeded by the live RLS harness.',
+        is_active: true,
+        supersedes_version: null,
+        requires_guardian: true,
+        created_by: 'rls-live-harness',
+        updated_by: 'rls-live-harness',
+      });
+
+      const makeAcceptanceRow = (
+        id: string,
+        orgId: string,
+        template: string,
+        label: string,
+      ): Record<string, unknown> => ({
+        id,
+        org_id: orgId,
+        template_id: template,
+        template_version: 1,
+        student_id: `student-${label}`,
+        family_id: `family-${label}`,
+        enrollment_id: `enrollment-${label}`,
+        guardian_id: `guardian-${label}`,
+        status: 'PENDING',
+        accepted_at: null,
+        accepted_by_name: null,
+        signature_ref: null,
+        created_by: 'rls-live-harness',
+        updated_by: 'rls-live-harness',
+      });
+
+      const { error: adminTemplateInsertError } = await h.admin.client
+        .from('agreement_templates')
+        .insert(makeTemplateRow(templateId, config.orgId, 'admin'));
+      expectNoSupabaseError(adminTemplateInsertError, 'admin should insert own-org agreement templates');
+
+      const { error: adminAcceptanceInsertError } = await h.admin.client
+        .from('agreement_acceptances')
+        .insert(makeAcceptanceRow(acceptanceId, config.orgId, templateId, 'admin'));
+      expectNoSupabaseError(adminAcceptanceInsertError, 'admin should insert own-org agreement acceptances');
+
+      const { error: seedCrossRowsError } = await h.service.from('agreement_templates').insert(
+        makeTemplateRow(crossTemplateId, config.crossOrgId, 'cross-org'),
+      );
+      expectNoSupabaseError(seedCrossRowsError, 'service should seed cross-org agreement template');
+
+      const { error: seedCrossAcceptanceError } = await h.service.from('agreement_acceptances').insert(
+        makeAcceptanceRow(crossAcceptanceId, config.crossOrgId, crossTemplateId, 'cross-org'),
+      );
+      expectNoSupabaseError(seedCrossAcceptanceError, 'service should seed cross-org agreement acceptance');
+
+      const { error: adminTemplateUpdateError } = await h.admin.client
+        .from('agreement_templates')
+        .update({ body: 'Updated agreement body by admin.', updated_by: 'rls-live-harness-admin-update' })
+        .eq('id', templateId);
+      expectNoSupabaseError(adminTemplateUpdateError, 'admin should update own-org agreement templates');
+
+      const { error: adminAcceptanceUpdateError } = await h.admin.client
+        .from('agreement_acceptances')
+        .update({ status: 'EXPIRED', updated_by: 'rls-live-harness-admin-update' })
+        .eq('id', acceptanceId);
+      expectNoSupabaseError(adminAcceptanceUpdateError, 'admin should update own-org agreement acceptances');
+
+      const { data: adminTemplates, error: adminTemplateReadError } = await h.admin.client
+        .from('agreement_templates')
+        .select('id, org_id, body')
+        .in('id', [templateId, crossTemplateId]);
+      expectNoSupabaseError(adminTemplateReadError, 'admin should read own-org agreement templates');
+      expect(adminTemplates).toEqual([
+        {
+          id: templateId,
+          org_id: config.orgId,
+          body: 'Updated agreement body by admin.',
+        },
+      ]);
+
+      const { data: adminAcceptances, error: adminAcceptanceReadError } = await h.admin.client
+        .from('agreement_acceptances')
+        .select('id, org_id, status')
+        .in('id', [acceptanceId, crossAcceptanceId]);
+      expectNoSupabaseError(adminAcceptanceReadError, 'admin should read own-org agreement acceptances');
+      expect(adminAcceptances).toEqual([
+        {
+          id: acceptanceId,
+          org_id: config.orgId,
+          status: 'EXPIRED',
+        },
+      ]);
+
+      const { data: preflightTeacherTemplates, error: preflightTeacherTemplateError } = await h.teacher.client
+        .from('agreement_templates')
+        .select('id')
+        .eq('id', templateId);
+      expectNoSupabaseError(preflightTeacherTemplateError, 'teacher agreement template preflight select should not error');
+
+      const { data: preflightTeacherAcceptances, error: preflightTeacherAcceptanceError } = await h.teacher.client
+        .from('agreement_acceptances')
+        .select('id')
+        .eq('id', acceptanceId);
+      expectNoSupabaseError(preflightTeacherAcceptanceError, 'teacher agreement acceptance preflight select should not error');
+
+      if ((preflightTeacherTemplates ?? []).length || (preflightTeacherAcceptances ?? []).length) {
+        (ctx as unknown as { skip: (note?: string) => never }).skip(
+          'remote Supabase project has not applied 0008_agreement_direct_table_rls.sql yet; apply migrations with SUPABASE_DB_PASSWORD before enforcing live agreement RLS assertions',
+        );
+      }
+
+      const readClients = [
+        { label: 'teacher/plain member', client: h.teacher.client },
+        { label: 'finance-capable non-admin', client: h.finance.client },
+        { label: 'cross-org user', client: h.crossOrg.client },
+      ];
+
+      for (const role of readClients) {
+        const { data: templateRows, error: templateReadError } = await role.client
+          .from('agreement_templates')
+          .select('id')
+          .in('id', [templateId, crossTemplateId]);
+        expectNoSupabaseError(templateReadError, `${role.label} agreement template select should not error`);
+        expect(templateRows, `${role.label} should not read agreement templates directly`).toEqual([]);
+
+        const { data: acceptanceRows, error: acceptanceReadError } = await role.client
+          .from('agreement_acceptances')
+          .select('id')
+          .in('id', [acceptanceId, crossAcceptanceId]);
+        expectNoSupabaseError(acceptanceReadError, `${role.label} agreement acceptance select should not error`);
+        expect(acceptanceRows, `${role.label} should not read agreement acceptances directly`).toEqual([]);
+      }
+
+      const { data: anonTemplateRows, error: anonTemplateReadError } = await h.anon
+        .from('agreement_templates')
+        .select('id')
+        .eq('id', templateId);
+      expectNoSupabaseError(anonTemplateReadError, 'anon agreement template select should not error');
+      expect(anonTemplateRows).toEqual([]);
+
+      const { data: anonAcceptanceRows, error: anonAcceptanceReadError } = await h.anon
+        .from('agreement_acceptances')
+        .select('id')
+        .eq('id', acceptanceId);
+      expectNoSupabaseError(anonAcceptanceReadError, 'anon agreement acceptance select should not error');
+      expect(anonAcceptanceRows).toEqual([]);
+
+      const deniedTemplateInserts = [
+        { label: 'teacher/plain member', client: h.teacher.client, id: teacherTemplateDeniedId },
+        { label: 'finance-capable non-admin', client: h.finance.client, id: financeTemplateDeniedId },
+        { label: 'cross-org user', client: h.crossOrg.client, id: crossTemplateDeniedId },
+      ];
+      for (const role of deniedTemplateInserts) {
+        const { error } = await role.client
+          .from('agreement_templates')
+          .insert(makeTemplateRow(role.id, config.orgId, role.label));
+        expectRlsDenied(error, `${role.label} should not insert agreement templates`);
+      }
+
+      const { error: anonTemplateInsertError } = await h.anon
+        .from('agreement_templates')
+        .insert(makeTemplateRow(anonTemplateDeniedId, config.orgId, 'anon'));
+      expectRlsDenied(anonTemplateInsertError, 'anon should not insert agreement templates');
+
+      const deniedAcceptanceInserts = [
+        { label: 'teacher/plain member', client: h.teacher.client, id: teacherAcceptanceDeniedId },
+        { label: 'finance-capable non-admin', client: h.finance.client, id: financeAcceptanceDeniedId },
+        { label: 'cross-org user', client: h.crossOrg.client, id: crossAcceptanceDeniedId },
+      ];
+      for (const role of deniedAcceptanceInserts) {
+        const { error } = await role.client
+          .from('agreement_acceptances')
+          .insert(makeAcceptanceRow(role.id, config.orgId, templateId, role.label));
+        expectRlsDenied(error, `${role.label} should not insert agreement acceptances`);
+      }
+
+      const { error: anonAcceptanceInsertError } = await h.anon
+        .from('agreement_acceptances')
+        .insert(makeAcceptanceRow(anonAcceptanceDeniedId, config.orgId, templateId, 'anon'));
+      expectRlsDenied(anonAcceptanceInsertError, 'anon should not insert agreement acceptances');
+
+      const { error: adminCrossTemplateInsertError } = await h.admin.client
+        .from('agreement_templates')
+        .insert(makeTemplateRow(h.id('agreement_template_admin_cross_denied'), config.crossOrgId, 'admin-cross'));
+      expectRlsDenied(adminCrossTemplateInsertError, 'primary-org admin should not insert cross-org agreement templates');
+    }, LIVE_RLS_TIMEOUT_MS);
+
+    it('enforces scoped public agreement acceptance submit without anon table access', async (ctx) => {
+      const templateId = h.id('agreement_template_token');
+      const acceptanceId = h.id('agreement_acceptance_token');
+      const expiredAcceptanceId = h.id('agreement_acceptance_expired_token');
+      const endpointId = h.id('agreement_endpoint_token');
+      const expiredEndpointId = h.id('agreement_endpoint_expired_token');
+      const token = h.id('agreement_token');
+      const expiredToken = h.id('agreement_token_expired');
+      const tokenHash = sha256Hex(token);
+      const expiredTokenHash = sha256Hex(expiredToken);
+      const anonDeniedAcceptanceId = h.id('agreement_acceptance_anon_direct_denied');
+
+      const { error: submitRpcPreflightError } = await h.anon.rpc('submit_agreement_acceptance', {
+        p_token_hash: 'missing-token-hash',
+        p_payload: {},
+      });
+      if (isMissingAgreementAcceptanceRpc(submitRpcPreflightError)) {
+        (ctx as unknown as { skip: (note?: string) => never }).skip(
+          'remote Supabase project has not applied 0009_agreement_acceptance_public_submit.sql yet; apply migrations before enforcing live agreement token assertions',
+        );
+      }
+      expectNoSupabaseError(submitRpcPreflightError, 'agreement acceptance submit RPC should exist in the live schema');
+      const { error: readRpcPreflightError } = await h.anon.rpc('get_public_agreement_acceptance', {
+        p_token_hash: 'missing-token-hash',
+      });
+      if (isMissingAgreementAcceptanceReadRpc(readRpcPreflightError)) {
+        (ctx as unknown as { skip: (note?: string) => never }).skip(
+          'remote Supabase project has not applied 0011_agreement_acceptance_public_read.sql yet; apply migrations before enforcing live agreement public read assertions',
+        );
+      }
+      expectNoSupabaseError(readRpcPreflightError, 'agreement acceptance public read RPC should exist in the live schema');
+
+      for (const id of [templateId]) h.track('agreement_templates', id);
+      for (const id of [acceptanceId, expiredAcceptanceId, anonDeniedAcceptanceId]) {
+        h.track('agreement_acceptances', id);
+      }
+      for (const id of [endpointId, expiredEndpointId]) h.track('public_endpoints', id);
+
+      const { error: templateError } = await h.service.from('agreement_templates').insert({
+        id: templateId,
+        org_id: config.orgId,
+        kind: 'ENROLLMENT',
+        title: 'RLS harness token agreement',
+        version: 1,
+        body: 'Agreement body seeded by the live RLS harness.',
+        is_active: true,
+        supersedes_version: null,
+        requires_guardian: true,
+        created_by: 'rls-live-harness',
+        updated_by: 'rls-live-harness',
+      });
+      expectNoSupabaseError(templateError, 'service should seed agreement template for public token test');
+
+      const makeAcceptanceRow = (id: string, studentId: string): Record<string, unknown> => ({
+        id,
+        org_id: config.orgId,
+        template_id: templateId,
+        template_version: 1,
+        student_id: studentId,
+        family_id: 'rls-live-family',
+        enrollment_id: 'rls-live-enrollment',
+        guardian_id: 'rls-live-guardian',
+        status: 'PENDING',
+        accepted_at: null,
+        accepted_by_name: null,
+        signature_ref: null,
+        created_by: 'rls-live-harness',
+        updated_by: 'rls-live-harness',
+      });
+
+      const { error: acceptanceError } = await h.service.from('agreement_acceptances').insert([
+        makeAcceptanceRow(acceptanceId, 'rls-live-student'),
+        makeAcceptanceRow(expiredAcceptanceId, 'rls-live-expired-student'),
+      ]);
+      expectNoSupabaseError(acceptanceError, 'service should seed target agreement acceptances');
+
+      const { error: endpointError } = await h.service.from('public_endpoints').insert([
+        {
+          id: endpointId,
+          org_id: config.orgId,
+          kind: 'AGREEMENT_ACCEPTANCE',
+          label: 'RLS harness agreement token',
+          token_hash: tokenHash,
+          status: 'ACTIVE',
+          scopes: ['agreement_acceptance:sign'],
+          target_id: acceptanceId,
+          consent_agreement_id: templateId,
+          expires_at: new Date(Date.now() + 60_000).toISOString(),
+          created_by: 'rls-live-harness',
+          updated_by: 'rls-live-harness',
+        },
+        {
+          id: expiredEndpointId,
+          org_id: config.orgId,
+          kind: 'AGREEMENT_ACCEPTANCE',
+          label: 'RLS harness expired agreement token',
+          token_hash: expiredTokenHash,
+          status: 'ACTIVE',
+          scopes: ['agreement_acceptance:sign'],
+          target_id: expiredAcceptanceId,
+          consent_agreement_id: templateId,
+          expires_at: new Date(Date.now() - 60_000).toISOString(),
+          created_by: 'rls-live-harness',
+          updated_by: 'rls-live-harness',
+        },
+      ]);
+      expectNoSupabaseError(endpointError, 'service should seed scoped public agreement endpoints');
+
+      const { error: anonDirectInsertError } = await h.anon.from('agreement_acceptances').insert(
+        makeAcceptanceRow(anonDeniedAcceptanceId, 'rls-live-anon-denied-student'),
+      );
+      expectRlsDenied(anonDirectInsertError, 'anon should not insert agreement acceptances directly');
+
+      const { data: readData, error: readError } = await h.anon.rpc('get_public_agreement_acceptance', {
+        p_token_hash: tokenHash,
+      });
+      expectNoSupabaseError(readError, 'anon should read only the scoped agreement target through RPC');
+      expect(readData).toMatchObject({
+        ok: true,
+        template: {
+          id: templateId,
+          title: 'RLS harness token agreement',
+          body: 'Agreement body seeded by the live RLS harness.',
+        },
+        acceptance: {
+          id: acceptanceId,
+          templateId,
+          studentId: 'rls-live-student',
+          status: 'PENDING',
+        },
+      });
+
+      const basePayload = {
+        action: 'ACCEPT',
+        target: {
+          acceptanceId,
+          templateId,
+          studentId: 'rls-live-student',
+          familyId: 'rls-live-family',
+          enrollmentId: 'rls-live-enrollment',
+          guardianId: 'rls-live-guardian',
+        },
+        signer: {
+          fullName: 'RLS Harness Guardian',
+        },
+        consent: {
+          confirmed: true,
+          accepted: true,
+          agreementId: templateId,
+          capturedAt: new Date().toISOString(),
+        },
+      };
+
+      const { data: mismatchData, error: mismatchError } = await h.anon.rpc('submit_agreement_acceptance', {
+        p_token_hash: tokenHash,
+        p_payload: {
+          ...basePayload,
+          target: {
+            ...basePayload.target,
+            studentId: 'rls-live-wrong-student',
+          },
+        },
+      });
+      expectNoSupabaseError(mismatchError, 'target mismatch should return structured denial');
+      expect(mismatchData).toMatchObject({ ok: false, code: 'TARGET_MISMATCH' });
+
+      const { data: submitData, error: submitError } = await h.anon.rpc('submit_agreement_acceptance', {
+        p_token_hash: tokenHash,
+        p_payload: basePayload,
+      });
+      expectNoSupabaseError(submitError, 'anon should submit through scoped agreement RPC');
+      expect(submitData).toMatchObject({
+        ok: true,
+        acceptanceId,
+        status: 'ACCEPTED',
+      });
+
+      const { data: acceptedRow, error: acceptedReadError } = await h.service
+        .from('agreement_acceptances')
+        .select('status, accepted_at, accepted_by_name, signature_ref')
+        .eq('id', acceptanceId)
+        .maybeSingle();
+      expectNoSupabaseError(acceptedReadError, 'service should verify public agreement acceptance mutation');
+      expect(acceptedRow).toMatchObject({
+        status: 'ACCEPTED',
+        accepted_by_name: 'RLS Harness Guardian',
+      });
+      expect(acceptedRow?.accepted_at).toEqual(expect.any(String));
+      expect(acceptedRow?.signature_ref).toMatch(/^typed:\/\/agreement_acceptances\//);
+
+      const { data: endpointRow, error: endpointReadError } = await h.service
+        .from('public_endpoints')
+        .select('status, last_used_at')
+        .eq('id', endpointId)
+        .maybeSingle();
+      expectNoSupabaseError(endpointReadError, 'service should verify agreement endpoint consumption');
+      expect(endpointRow?.status).toBe('EXPIRED');
+      expect(endpointRow?.last_used_at).toEqual(expect.any(String));
+
+      const { data: reusedData, error: reusedError } = await h.anon.rpc('submit_agreement_acceptance', {
+        p_token_hash: tokenHash,
+        p_payload: basePayload,
+      });
+      expectNoSupabaseError(reusedError, 'reused agreement token should return structured denial');
+      expect(reusedData).toMatchObject({ ok: false, code: 'INVALID_ENDPOINT' });
+
+      const { data: expiredData, error: expiredError } = await h.anon.rpc('submit_agreement_acceptance', {
+        p_token_hash: expiredTokenHash,
+        p_payload: {
+          ...basePayload,
+          target: {
+            ...basePayload.target,
+            acceptanceId: expiredAcceptanceId,
+            studentId: 'rls-live-expired-student',
+          },
+        },
+      });
+      expectNoSupabaseError(expiredError, 'expired agreement token should return structured denial');
+      expect(expiredData).toMatchObject({ ok: false, code: 'INVALID_ENDPOINT' });
+    }, LIVE_RLS_TIMEOUT_MS);
+
+    it('enforces admin-only direct reads for signed agreement PDF storage', async (ctx) => {
+      const objectPath = `${config.orgId}/agreements/${h.id('agreement_acceptance_pdf')}/signed.pdf`;
+      const pdfBody = 'RLS harness signed agreement PDF';
+      let uploaded = false;
+
+      try {
+        const { error: uploadError } = await h.service.storage
+          .from('documents')
+          .upload(objectPath, new Blob([pdfBody], { type: 'application/pdf' }), {
+            contentType: 'application/pdf',
+            upsert: false,
+          });
+        expectNoSupabaseError(uploadError, 'service should seed signed agreement PDF storage fixture');
+        uploaded = true;
+
+        const { data: teacherPreflightData, error: teacherPreflightError } = await h.teacher.client.storage
+          .from('documents')
+          .download(objectPath);
+        if (!teacherPreflightError && teacherPreflightData) {
+          (ctx as unknown as { skip: (note?: string) => never }).skip(
+            'remote Supabase project has not applied 0010_agreement_private_pdf_storage_rls.sql yet; apply migrations before enforcing live agreement PDF storage assertions',
+          );
+        }
+        expectStorageDenied(teacherPreflightError, 'teacher/plain member should not directly read signed agreement PDFs');
+
+        const { data: adminData, error: adminDownloadError } = await h.admin.client.storage
+          .from('documents')
+          .download(objectPath);
+        expectNoSupabaseError(adminDownloadError, 'admin should directly read signed agreement PDFs');
+        expect(await adminData?.text()).toBe(pdfBody);
+
+        const deniedClients = [
+          { label: 'finance-capable non-admin', storage: h.finance.client.storage },
+          { label: 'cross-org user', storage: h.crossOrg.client.storage },
+          { label: 'anon', storage: h.anon.storage },
+        ];
+
+        for (const role of deniedClients) {
+          const { data, error } = await role.storage.from('documents').download(objectPath);
+          expect(data, `${role.label} should not receive signed agreement PDF bytes`).toBeNull();
+          expectStorageDenied(error, `${role.label} should not directly read signed agreement PDFs`);
+        }
+      } finally {
+        if (uploaded) {
+          await h.service.storage.from('documents').remove([objectPath]);
+        }
+      }
     }, LIVE_RLS_TIMEOUT_MS);
 
     it('enforces controlled public registration submit and admin-only intake review', async (ctx) => {

@@ -12,6 +12,8 @@ async function resetStudentFamilyData(page: Page, language: 'en-US' | 'he-IL' = 
       localStorage.removeItem(`cadenza:local:${orgId}:col:payments`);
       localStorage.removeItem(`cadenza:local:${orgId}:col:adjustments`);
       localStorage.removeItem(`cadenza:local:${orgId}:col:balanceSnapshots`);
+      localStorage.removeItem(`cadenza:local:${orgId}:col:agreementTemplates`);
+      localStorage.removeItem(`cadenza:local:${orgId}:col:agreementAcceptances`);
       localStorage.setItem('language', lang);
     },
     { orgId: TEST_ORG, lang: language },
@@ -41,6 +43,81 @@ async function createStudentFamilyRecord(page: Page, suffix: string) {
   return { studentName, familyName, guardianName, guardianPhone, guardianEmail };
 }
 
+async function seedAgreementRows(page: Page, record: Awaited<ReturnType<typeof createStudentFamilyRecord>>) {
+  await page.evaluate(
+    ({ orgId, data, runId }) => {
+      const read = (collection: string) => JSON.parse(localStorage.getItem(`cadenza:local:${orgId}:col:${collection}`) || '[]');
+      const students = read('students');
+      const families = read('families');
+      const student = students.find((row: { fullName?: string }) => row.fullName === data.studentName);
+      const family = families.find((row: { name?: string }) => row.name === data.familyName);
+      const guardianId = family?.primaryContactGuardianId ?? family?.guardians?.[0]?.id ?? null;
+      if (!student || !family) throw new Error('Could not seed agreement rows without student and family records.');
+
+      const now = '2026-06-19T10:00:00.000Z';
+      const acceptedTemplateId = `student_family_agreement_accepted_${runId}`;
+      const missingTemplateId = `student_family_agreement_missing_${runId}`;
+      const templatesKey = `cadenza:local:${orgId}:col:agreementTemplates`;
+      const acceptancesKey = `cadenza:local:${orgId}:col:agreementAcceptances`;
+      localStorage.setItem(templatesKey, JSON.stringify([
+        {
+          id: acceptedTemplateId,
+          orgId,
+          kind: 'ENROLLMENT',
+          title: `Enrollment Terms ${runId}`,
+          version: 1,
+          body: 'Enrollment terms for the student file smoke.',
+          isActive: true,
+          supersedesVersion: null,
+          requiresGuardian: true,
+          createdAt: now,
+          updatedAt: now,
+          createdBy: 'e2e-admin',
+          updatedBy: 'e2e-admin',
+        },
+        {
+          id: missingTemplateId,
+          orgId,
+          kind: 'CONSENT',
+          title: `General Consent ${runId}`,
+          version: 1,
+          body: 'Consent terms for unsigned status.',
+          isActive: true,
+          supersedesVersion: null,
+          requiresGuardian: true,
+          createdAt: now,
+          updatedAt: now,
+          createdBy: 'e2e-admin',
+          updatedBy: 'e2e-admin',
+        },
+      ]));
+      localStorage.setItem(acceptancesKey, JSON.stringify([
+        {
+          id: `student_family_acceptance_${runId}`,
+          orgId,
+          templateId: acceptedTemplateId,
+          templateVersion: 1,
+          studentId: student.id,
+          familyId: family.id,
+          enrollmentId: null,
+          guardianId,
+          status: 'ACCEPTED',
+          acceptedAt: now,
+          acceptedByName: data.guardianName,
+          signatureRef: `typed://agreement_acceptances/student_family_acceptance_${runId}`,
+          createdAt: now,
+          updatedAt: now,
+          createdBy: 'e2e-admin',
+          updatedBy: 'e2e-admin',
+        },
+      ]));
+      window.dispatchEvent(new StorageEvent('storage', { key: templatesKey }));
+      window.dispatchEvent(new StorageEvent('storage', { key: acceptancesKey }));
+    },
+    { orgId: TEST_ORG, data: record, runId: RUN_ID },
+  );
+}
+
 test.describe('Student/Family Files', () => {
   test('creates a family, student, and guardian; searches guardian data; opens detail tabs', async ({ page }) => {
     await resetStudentFamilyData(page);
@@ -48,6 +125,7 @@ test.describe('Student/Family Files', () => {
     await gotoView(page, 'STUDENTS');
 
     const record = await createStudentFamilyRecord(page, `SF${RUN_ID}`);
+    await seedAgreementRows(page, record);
 
     await page.getByPlaceholder('Search by student, family, guardian, phone, or email...').fill(record.guardianPhone);
     await expect(page.getByText(record.studentName).first()).toBeVisible();
@@ -63,7 +141,7 @@ test.describe('Student/Family Files', () => {
       ['Lessons', 'No lesson history yet'],
       ['Finance', 'Family ledger summary'],
       ['Documents', 'No documents'],
-      ['Agreements', 'Agreements source not connected'],
+      ['Agreements', `Enrollment Terms ${RUN_ID}`],
       ['History', 'Created'],
     ] as const;
 
@@ -71,6 +149,13 @@ test.describe('Student/Family Files', () => {
       await page.getByRole('tab', { name: tabName }).click();
       await expect(page.getByText(expectedText).first()).toBeVisible();
     }
+
+    await page.getByRole('tab', { name: 'Agreements' }).click();
+    const agreementPanel = page.getByTestId('student-family-agreements-panel');
+    await expect(agreementPanel.getByText(`General Consent ${RUN_ID}`)).toBeVisible();
+    await expect(agreementPanel.getByText('Missing').first()).toBeVisible();
+    await expect(agreementPanel.getByText('Accepted').first()).toBeVisible();
+    await expect(agreementPanel.getByText(record.guardianName).first()).toBeVisible();
 
     await page.getByRole('tab', { name: 'Finance' }).click();
     await expect(page.getByText('Balance').first()).toBeVisible();

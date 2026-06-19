@@ -24,7 +24,18 @@ import {
 } from 'lucide-react';
 import type { AppSettings, CalendarEvent, Student } from '../types';
 import type { ActivityV2 } from '../types/v2';
-import type { Adjustment, BalanceSnapshot, Charge, Family, Guardian as FamilyGuardian, LessonCompletion, LessonRecord, Payment } from '../types/blueprint';
+import type {
+  Adjustment,
+  AgreementAcceptance,
+  AgreementTemplate,
+  BalanceSnapshot,
+  Charge,
+  Family,
+  Guardian as FamilyGuardian,
+  LessonCompletion,
+  LessonRecord,
+  Payment,
+} from '../types/blueprint';
 import { generateId, TRANSLATIONS } from '../constants';
 import { Modal } from './Modal';
 import {
@@ -59,6 +70,8 @@ interface Props {
   activities: ActivityV2[];
   lessonRecords?: LessonRecord[];
   events?: CalendarEvent[];
+  agreementTemplates?: AgreementTemplate[];
+  agreementAcceptances?: AgreementAcceptance[];
   setStudents: SyncSetter<Student>;
   setFamilies: SyncSetter<Family>;
   orgId: string | null;
@@ -69,6 +82,7 @@ interface Props {
   adjustments?: Adjustment[];
   balanceSnapshots?: BalanceSnapshot[];
   financeLedgerLoading?: boolean;
+  agreementsLoading?: boolean;
   onOpenFinanceLedger?: (familyId: string) => void;
   studentsLoading?: boolean;
   familiesLoading?: boolean;
@@ -448,6 +462,17 @@ const lessonAttendanceClass = (attendance: LessonRecord['attendance'] | null) =>
 
 const lessonCompletionLabelKey = (completion: LessonCompletion) => `attendance.completion.${completion.toLowerCase()}`;
 
+const agreementStatusClass = (status: AgreementAcceptance['status']) => {
+  switch (status) {
+    case 'ACCEPTED': return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/25 dark:text-emerald-300';
+    case 'PENDING': return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/25 dark:text-amber-300';
+    case 'DECLINED': return 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/25 dark:text-red-300';
+    case 'EXPIRED': return 'border-stone-200 bg-stone-50 text-stone-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300';
+    case 'SUPERSEDED':
+    default: return 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-900/25 dark:text-indigo-300';
+  }
+};
+
 const DetailEmpty = ({
   icon: Icon,
   title,
@@ -477,6 +502,7 @@ const DetailPanel = ({
   adjustments,
   balanceSnapshots,
   financeLedgerLoading,
+  agreementsLoading,
   onOpenFinanceLedger,
   onEdit,
   onClose,
@@ -493,6 +519,7 @@ const DetailPanel = ({
   adjustments: Adjustment[];
   balanceSnapshots: BalanceSnapshot[];
   financeLedgerLoading: boolean;
+  agreementsLoading: boolean;
   onOpenFinanceLedger?: (familyId: string) => void;
   onEdit: () => void;
   onClose: () => void;
@@ -739,9 +766,82 @@ const DetailPanel = ({
     )
   );
 
-  const renderAgreements = () => (
-    <DetailEmpty icon={ScrollText} title={t('student_family.detail.agreements_source_ready_title')} body={t('student_family.detail.agreements_source_ready_body')} />
-  );
+  const agreementTargetText = (row: {
+    studentName: string | null;
+    familyName: string | null;
+    enrollmentLabel: string | null;
+    guardianName: string | null;
+  }) => [row.studentName, row.familyName, row.enrollmentLabel, row.guardianName].filter(Boolean).join(' · ') || '—';
+
+  const renderAgreements = () => {
+    if (agreementsLoading) {
+      return <DetailEmpty icon={ScrollText} title={t('student_family.detail.agreements_loading_title')} body={t('student_family.detail.agreements_loading_body')} />;
+    }
+    if (detail.agreements.history.length === 0 && detail.agreements.unsigned.length === 0) {
+      return <DetailEmpty icon={ScrollText} title={t('student_family.detail.no_agreements')} body={t('student_family.detail.no_agreements_body')} />;
+    }
+
+    return (
+      <div data-testid="student-family-agreements-panel" className="space-y-3">
+        <div className="grid gap-2 sm:grid-cols-3">
+          <InfoCell label={t('student_family.detail.agreements_unsigned')} value={String(detail.agreements.unsigned.length)} />
+          <InfoCell label={t('student_family.detail.agreements_accepted')} value={String(detail.agreements.acceptedCount)} />
+          <InfoCell label={t('student_family.detail.agreements_pending')} value={String(detail.agreements.pendingCount)} />
+        </div>
+
+        {detail.agreements.unsigned.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{t('student_family.detail.agreements_unsigned_title')}</div>
+            {detail.agreements.unsigned.map(row => (
+              <div key={row.id} data-testid="student-family-unsigned-agreement-row" className="rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm dark:border-amber-800 dark:bg-amber-900/10">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate font-semibold text-slate-900 dark:text-white">{row.templateTitle}</div>
+                    <div className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
+                      {t('student_family.detail.agreement_version').replace('{version}', String(row.version))} · {agreementTargetText(row)}
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-slate-950 dark:text-amber-300">
+                    {t(`student_family.detail.unsigned_reason.${row.reason.toLowerCase()}`)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {detail.agreements.history.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{t('student_family.detail.agreements_history_title')}</div>
+            {detail.agreements.history.map(row => (
+              <div key={row.id} data-testid="student-family-agreement-history-row" className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate font-semibold text-slate-900 dark:text-white">{row.templateTitle}</div>
+                    <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                      {t('student_family.detail.agreement_version').replace('{version}', String(row.version))} · {agreementTargetText(row)}
+                    </div>
+                  </div>
+                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${agreementStatusClass(row.status)}`}>
+                    {t(`student_family.detail.agreement_status.${row.status.toLowerCase()}`)}
+                  </span>
+                </div>
+                <div className="mt-2 grid gap-1 text-xs text-slate-600 dark:text-slate-300 sm:grid-cols-2">
+                  <span>{t('student_family.detail.agreement_decided_by')}: {row.acceptedByName || '—'}</span>
+                  <span>{t('student_family.detail.agreement_decided_at')}: {compactDate(row.acceptedAt ?? row.createdAt)}</span>
+                </div>
+                {row.signatureRef && (
+                  <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                    {t('student_family.detail.agreement_signature_ref')}: <bdi>{row.signatureRef}</bdi>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderHistory = () => (
     <div className="space-y-3">
@@ -852,6 +952,8 @@ export const StudentFamilyWorkspace: React.FC<Props> = ({
   activities,
   lessonRecords = [],
   events = [],
+  agreementTemplates = [],
+  agreementAcceptances = [],
   setStudents,
   setFamilies,
   orgId,
@@ -862,6 +964,7 @@ export const StudentFamilyWorkspace: React.FC<Props> = ({
   adjustments = [],
   balanceSnapshots = [],
   financeLedgerLoading = false,
+  agreementsLoading = false,
   onOpenFinanceLedger,
   studentsLoading = false,
   familiesLoading = false,
@@ -896,8 +999,8 @@ export const StudentFamilyWorkspace: React.FC<Props> = ({
     [students, families, mode, query, status, activityId],
   );
   const detailModel = useMemo(
-    () => detailTarget ? buildStudentFamilyDetailModel(detailTarget, students, families, activities, lessonRecords, events) : null,
-    [detailTarget, students, families, activities, lessonRecords, events],
+    () => detailTarget ? buildStudentFamilyDetailModel(detailTarget, students, families, activities, lessonRecords, events, agreementTemplates, agreementAcceptances) : null,
+    [detailTarget, students, families, activities, lessonRecords, events, agreementTemplates, agreementAcceptances],
   );
 
   const hasSourceRows = model.totalRows > 0;
@@ -1294,6 +1397,7 @@ export const StudentFamilyWorkspace: React.FC<Props> = ({
                 adjustments={adjustments}
                 balanceSnapshots={balanceSnapshots}
                 financeLedgerLoading={financeLedgerLoading}
+                agreementsLoading={agreementsLoading}
                 onOpenFinanceLedger={onOpenFinanceLedger}
                 onEdit={() => openEditor(detailModel.kind === 'student'
                   ? { mode: 'edit-student', studentId: detailModel.student.id }

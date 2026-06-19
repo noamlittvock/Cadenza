@@ -31,8 +31,8 @@ Sidebar (`Layout.tsx`):
 - Desktop-only (`{!isMobile && …}`): `ADMIN_INBOX`, `MANAGE`.
 - `SUPER_ADMIN` shown for real superadmin.
 
-`ManageHub` (`ManageHub.tsx:80-86`) tabs via `?tab=` URL param:
-`staff, activities, rooms, inventory, subscriptions`. Inventory is
+`ManageHub` tabs via `?tab=` URL param:
+`staff, activities, rooms, inventory, agreements, subscriptions`. Inventory is
 `Manage?tab=inventory` (embedded), **not** a `ViewState.INVENTORY` route.
 
 ## Placement tiers
@@ -45,8 +45,8 @@ Decide each module into exactly one tier:
    justifies its sidebar slot or does not get one — "the interface earns its
    space."
 2. **Manage tab:** lower-frequency, config-like modules. Current: staff,
-   activities, rooms, inventory, subscriptions. Candidate additions: academic
-   config, agreement templates.
+   activities, rooms, inventory, agreement templates, subscriptions. Candidate
+   additions: academic config.
 3. **Contextual panel:** lives inside its source record, no standalone route.
    Lesson attendance → Calendar event detail. Room/absence requests → Admin Inbox.
    Source-event lineage → Calendar event detail.

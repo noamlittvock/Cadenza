@@ -1227,39 +1227,95 @@ export function reconcileEnrollmentCharges(
 
 export interface UnsignedAgreement {
   template: AgreementTemplate;
-  studentId: string;
+  studentId: string | null;
+  familyId: string | null;
+  enrollmentId: string | null;
+  guardianId: string | null;
   reason: 'NEVER_ACCEPTED' | 'SUPERSEDED_VERSION';
+}
+
+export interface RequiredAgreementTarget {
+  studentId: string | null;
+  familyId?: string | null;
+  enrollmentId?: string | null;
+  guardianId?: string | null;
+  templateId?: string | null;
+  kind?: AgreementTemplate['kind'] | null;
+}
+
+function normalizeAgreementTargets(targets: string[] | RequiredAgreementTarget[]): RequiredAgreementTarget[] {
+  return targets.map(target => typeof target === 'string' ? { studentId: target } : target);
+}
+
+function agreementTargetApplies(template: AgreementTemplate, target: RequiredAgreementTarget): boolean {
+  if (target.templateId && target.templateId !== template.id) return false;
+  if (target.kind && target.kind !== template.kind) return false;
+  return true;
+}
+
+function agreementMatchesTarget(acceptance: AgreementAcceptance, target: RequiredAgreementTarget): boolean {
+  if (target.studentId !== null && target.studentId !== undefined && acceptance.studentId !== target.studentId) return false;
+  if (target.familyId !== null && target.familyId !== undefined && acceptance.familyId !== target.familyId) return false;
+  if (target.enrollmentId !== null && target.enrollmentId !== undefined && acceptance.enrollmentId !== target.enrollmentId) return false;
+  if (target.guardianId !== null && target.guardianId !== undefined && acceptance.guardianId !== target.guardianId) return false;
+  return target.studentId !== undefined || target.familyId !== undefined || target.enrollmentId !== undefined || target.guardianId !== undefined;
+}
+
+function agreementTargetSortKey(target: UnsignedAgreement): string {
+  return [
+    target.studentId ?? '',
+    target.familyId ?? '',
+    target.enrollmentId ?? '',
+    target.guardianId ?? '',
+  ].join('|');
+}
+
+function agreementDateDescThenId(a: AgreementAcceptance, b: AgreementAcceptance): number {
+  const dateCompare = (b.acceptedAt ?? b.createdAt).localeCompare(a.acceptedAt ?? a.createdAt);
+  return dateCompare || a.id.localeCompare(b.id);
 }
 
 /**
  * For each active template, finds students who have no current acceptance of the
- * active version. `requiredStudentIds` scopes who must sign each kind.
+ * active version. String inputs preserve the legacy student-scoped call shape;
+ * target inputs support family/enrollment agreement requirements.
  */
 export function listUnsignedAgreements(
   templates: AgreementTemplate[],
   acceptances: AgreementAcceptance[],
-  requiredStudentIds: string[],
+  requiredTargets: string[] | RequiredAgreementTarget[],
 ): UnsignedAgreement[] {
   const active = templates.filter(t => t.isActive);
+  const targets = normalizeAgreementTargets(requiredTargets);
   const out: UnsignedAgreement[] = [];
   for (const t of active) {
-    for (const studentId of requiredStudentIds) {
+    for (const target of targets) {
+      if (!agreementTargetApplies(t, target)) continue;
       const current = acceptances.find(a =>
         a.templateId === t.id &&
-        a.studentId === studentId &&
+        agreementMatchesTarget(a, target) &&
         a.status === 'ACCEPTED' &&
         a.templateVersion === t.version);
       if (current) continue;
       const older = acceptances.find(a =>
         a.templateId === t.id &&
-        a.studentId === studentId &&
-        a.status === 'ACCEPTED' &&
+        agreementMatchesTarget(a, target) &&
+        (a.status === 'ACCEPTED' || a.status === 'SUPERSEDED') &&
         a.templateVersion < t.version);
-      out.push({ template: t, studentId, reason: older ? 'SUPERSEDED_VERSION' : 'NEVER_ACCEPTED' });
+      out.push({
+        template: t,
+        studentId: target.studentId ?? null,
+        familyId: target.familyId ?? null,
+        enrollmentId: target.enrollmentId ?? null,
+        guardianId: target.guardianId ?? null,
+        reason: older ? 'SUPERSEDED_VERSION' : 'NEVER_ACCEPTED',
+      });
     }
   }
   return out.sort((a, b) =>
-    a.template.title.localeCompare(b.template.title) || a.studentId.localeCompare(b.studentId));
+    a.template.title.localeCompare(b.template.title) ||
+    a.template.id.localeCompare(b.template.id) ||
+    agreementTargetSortKey(a).localeCompare(agreementTargetSortKey(b)));
 }
 
 /** Full acceptance trail for a template (all versions/parties), newest first. */
@@ -1269,7 +1325,7 @@ export function getAgreementHistory(
 ): AgreementAcceptance[] {
   return acceptances
     .filter(a => a.templateId === templateId)
-    .sort((a, b) => (b.acceptedAt ?? b.createdAt).localeCompare(a.acceptedAt ?? a.createdAt));
+    .sort(agreementDateDescThenId);
 }
 
 export function findAgreementByEnrollment(
@@ -1278,7 +1334,7 @@ export function findAgreementByEnrollment(
 ): AgreementAcceptance[] {
   return acceptances
     .filter(a => a.enrollmentId === enrollmentId)
-    .sort((a, b) => (b.acceptedAt ?? b.createdAt).localeCompare(a.acceptedAt ?? a.createdAt));
+    .sort(agreementDateDescThenId);
 }
 
 // ════════════════════════════════════════════════════════════════════════════
