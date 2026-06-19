@@ -127,7 +127,7 @@ building the accepted P0 family-led finance ledger:
 - [x] Ledger service B: implement small, tested helpers for adjustment posting,
   void/audit semantics, and snapshot history as audit-only records. Live current
   balances must remain computed on demand.
-- [ ] RLS-LIVE finance ledger run: prove admin and finance can read/write,
+- [x] RLS-LIVE finance ledger run: prove admin and finance can read/write,
   plain member cannot read, anon denied, and cross-org denied against a real
   Supabase project.
 
@@ -162,7 +162,7 @@ building the accepted P0 family-led finance ledger:
 - [ ] Mixed-currency rows are rejected or flagged; no silent cross-currency
   offset exists.
 - [ ] Live balances are computed on demand; snapshots are audit/history only.
-- [ ] Admin/finance ledger access passes real-role RLS; plain member/anon/cross
+- [x] Admin/finance ledger access passes real-role RLS; plain member/anon/cross
   org are denied.
 - [ ] `BILLING` routes to a real Finance surface before it is palette-visible.
 - [ ] Finance UI covers charge creation, payment recording/allocation, balance
@@ -177,9 +177,9 @@ building the accepted P0 family-led finance ledger:
 
 ## Next Unit
 
-- RLS-LIVE finance ledger run: prove admin and finance can read/write, plain
-  member cannot read, anon denied, and cross-org denied against a real Supabase
-  project.
+- Finance route/nav: route `BILLING` as top-level Finance, unhide palette only
+  when the route renders a real surface, and keep public routes out of
+  sidebar/palette.
 
 ## Setup Notes For Next Agent
 
@@ -260,3 +260,15 @@ building the accepted P0 family-led finance ledger:
   `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
   passed (273 tests). Playwright not run because Ledger service B has no UI
   workflow.
+- 2026-06-19 RLS-LIVE finance ledger run: expanded live Supabase RLS coverage
+  from `charges`-only to all finance ledger tables: `charges`, `payments`,
+  `adjustments`, and `balance_snapshots`. The live harness now proves
+  admin/finance own-org insert/update/read access, plain member and anon
+  read/insert denial, cross-org read/insert denial, primary-admin cross-org
+  insert denial, and unauthorized updates leaving rows unchanged. Changed files:
+  `utils/rlsLive.test.ts` and `docs/blueprint-planning/BUILD_LOOP_STATE.md`.
+  Verification: presence-only live env check showed all required
+  `CADENZA_RLS_*` vars set; `npx vitest run utils/rlsLive.test.ts
+  --reporter=dot` passed (6 live tests); `npm run typecheck -- --diagnostics`
+  passed; `npx vitest run --reporter=dot` passed (273 tests). Playwright not run
+  because this RLS-LIVE unit has no UI workflow.

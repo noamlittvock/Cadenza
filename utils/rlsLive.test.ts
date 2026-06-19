@@ -213,51 +213,213 @@ if (!liveRlsEnv.ready) {
       expectRlsDenied(teacherInsertError, 'teacher/member should not insert family rows');
     });
 
-    it('enforces finance capability access on ledger rows', async () => {
-      const chargeId = h.id('charge');
-      h.track('charges', chargeId);
+    it('enforces admin-or-finance read/write boundaries on all finance ledger tables', async () => {
+      type LedgerTable = 'charges' | 'payments' | 'adjustments' | 'balance_snapshots';
+      type LedgerSpec = {
+        table: LedgerTable;
+        makeRow: (id: string, orgId: string, label: string) => Record<string, unknown>;
+      };
 
-      const { error: adminInsertError } = await h.admin.client.from('charges').insert({
-        id: chargeId,
-        org_id: config.orgId,
-        family_id: 'rls-live-family',
-        description: 'RLS harness charge',
-        amount: 25,
-        currency: 'ILS',
-        status: 'OPEN',
-        created_by: 'rls-live-harness',
-        updated_by: 'rls-live-harness',
-      });
-      expectNoSupabaseError(adminInsertError, 'admin should insert ledger charge rows');
+      const ledgerSpecs: LedgerSpec[] = [
+        {
+          table: 'charges',
+          makeRow: (id, orgId, label) => ({
+            id,
+            org_id: orgId,
+            family_id: 'rls-live-family',
+            description: `RLS harness charge ${label}`,
+            amount: 25,
+            currency: 'ILS',
+            status: 'OPEN',
+            created_by: 'rls-live-harness',
+            updated_by: 'rls-live-harness',
+          }),
+        },
+        {
+          table: 'payments',
+          makeRow: (id, orgId, label) => ({
+            id,
+            org_id: orgId,
+            family_id: 'rls-live-family',
+            amount: 10,
+            currency: 'ILS',
+            method: 'TRANSFER',
+            received_at: '2026-06-19T10:00:00.000Z',
+            reference: `RLS harness payment ${label}`,
+            applied_charge_ids: [],
+            note: null,
+            created_by: 'rls-live-harness',
+            updated_by: 'rls-live-harness',
+          }),
+        },
+        {
+          table: 'adjustments',
+          makeRow: (id, orgId, label) => ({
+            id,
+            org_id: orgId,
+            family_id: 'rls-live-family',
+            charge_id: null,
+            amount: -5,
+            currency: 'ILS',
+            reason: `RLS harness adjustment ${label}`,
+            approved_by: h.admin.userId,
+            created_by: 'rls-live-harness',
+            updated_by: 'rls-live-harness',
+          }),
+        },
+        {
+          table: 'balance_snapshots',
+          makeRow: (id, orgId, label) => ({
+            id,
+            org_id: orgId,
+            family_id: 'rls-live-family',
+            as_of: '2026-06-19T10:00:00.000Z',
+            total_charged: 25,
+            total_paid: 10,
+            total_adjusted: -5,
+            balance: 10,
+            currency: 'ILS',
+            created_by: 'rls-live-harness',
+            updated_by: `rls-live-harness-${label}`,
+          }),
+        },
+      ];
 
-      const { data: financeRows, error: financeReadError } = await h.finance.client
-        .from('charges')
-        .select('id')
-        .eq('id', chargeId);
-      expectNoSupabaseError(financeReadError, 'finance capability should read ledger rows');
-      expect(financeRows).toHaveLength(1);
+      for (const spec of ledgerSpecs) {
+        const adminRowId = h.id(`${spec.table}_admin`);
+        const financeRowId = h.id(`${spec.table}_finance`);
+        const teacherDeniedId = h.id(`${spec.table}_teacher_denied`);
+        const anonDeniedId = h.id(`${spec.table}_anon_denied`);
+        const crossDeniedId = h.id(`${spec.table}_cross_denied`);
+        const adminCrossDeniedId = h.id(`${spec.table}_admin_cross_denied`);
 
-      const { data: teacherRows, error: teacherReadError } = await h.teacher.client
-        .from('charges')
-        .select('id')
-        .eq('id', chargeId);
-      expectNoSupabaseError(teacherReadError, 'plain teacher/member ledger select should not error');
-      expect(teacherRows).toEqual([]);
+        for (const id of [
+          adminRowId,
+          financeRowId,
+          teacherDeniedId,
+          anonDeniedId,
+          crossDeniedId,
+          adminCrossDeniedId,
+        ]) {
+          h.track(spec.table, id);
+        }
 
-      const { data: crossRows, error: crossReadError } = await h.crossOrg.client
-        .from('charges')
-        .select('id')
-        .eq('id', chargeId);
-      expectNoSupabaseError(crossReadError, 'cross-org ledger select should not error');
-      expect(crossRows).toEqual([]);
+        const { error: adminInsertError } = await h.admin.client
+          .from(spec.table)
+          .insert(spec.makeRow(adminRowId, config.orgId, 'admin'));
+        expectNoSupabaseError(adminInsertError, `admin should insert own-org ${spec.table} rows`);
 
-      const { data: anonRows, error: anonReadError } = await h.anon
-        .from('charges')
-        .select('id')
-        .eq('id', chargeId);
-      expectNoSupabaseError(anonReadError, 'anon ledger select should not error');
-      expect(anonRows).toEqual([]);
-    });
+        const { error: financeInsertError } = await h.finance.client
+          .from(spec.table)
+          .insert(spec.makeRow(financeRowId, config.orgId, 'finance'));
+        expectNoSupabaseError(financeInsertError, `finance capability should insert own-org ${spec.table} rows`);
+
+        const { error: adminUpdateError } = await h.admin.client
+          .from(spec.table)
+          .update({ updated_by: 'rls-live-harness-admin-update' })
+          .eq('id', adminRowId);
+        expectNoSupabaseError(adminUpdateError, `admin should update own-org ${spec.table} rows`);
+
+        const { error: financeUpdateError } = await h.finance.client
+          .from(spec.table)
+          .update({ updated_by: 'rls-live-harness-finance-update' })
+          .eq('id', financeRowId);
+        expectNoSupabaseError(financeUpdateError, `finance capability should update own-org ${spec.table} rows`);
+
+        const { data: adminRows, error: adminReadError } = await h.admin.client
+          .from(spec.table)
+          .select('id, updated_by')
+          .in('id', [adminRowId, financeRowId])
+          .order('id');
+        expectNoSupabaseError(adminReadError, `admin should read own-org ${spec.table} rows`);
+        expect((adminRows ?? []).map(row => row.id).sort()).toEqual([adminRowId, financeRowId].sort());
+
+        const { data: financeRows, error: financeReadError } = await h.finance.client
+          .from(spec.table)
+          .select('id')
+          .in('id', [adminRowId, financeRowId]);
+        expectNoSupabaseError(financeReadError, `finance capability should read own-org ${spec.table} rows`);
+        expect((financeRows ?? []).map(row => row.id).sort()).toEqual([adminRowId, financeRowId].sort());
+
+        const { data: teacherRows, error: teacherReadError } = await h.teacher.client
+          .from(spec.table)
+          .select('id')
+          .in('id', [adminRowId, financeRowId]);
+        expectNoSupabaseError(teacherReadError, `plain member ${spec.table} select should not error`);
+        expect(teacherRows).toEqual([]);
+
+        const { data: anonRows, error: anonReadError } = await h.anon
+          .from(spec.table)
+          .select('id')
+          .in('id', [adminRowId, financeRowId]);
+        expectNoSupabaseError(anonReadError, `anon ${spec.table} select should not error`);
+        expect(anonRows).toEqual([]);
+
+        const { data: crossRows, error: crossReadError } = await h.crossOrg.client
+          .from(spec.table)
+          .select('id')
+          .in('id', [adminRowId, financeRowId]);
+        expectNoSupabaseError(crossReadError, `cross-org ${spec.table} select should not error`);
+        expect(crossRows).toEqual([]);
+
+        const { error: teacherInsertError } = await h.teacher.client
+          .from(spec.table)
+          .insert(spec.makeRow(teacherDeniedId, config.orgId, 'teacher-denied'));
+        expectRlsDenied(teacherInsertError, `plain member should not insert ${spec.table} rows`);
+
+        const { error: anonInsertError } = await h.anon
+          .from(spec.table)
+          .insert(spec.makeRow(anonDeniedId, config.orgId, 'anon-denied'));
+        expectRlsDenied(anonInsertError, `anon should not insert ${spec.table} rows`);
+
+        const { error: crossInsertError } = await h.crossOrg.client
+          .from(spec.table)
+          .insert(spec.makeRow(crossDeniedId, config.orgId, 'cross-denied'));
+        expectRlsDenied(crossInsertError, `cross-org user should not insert primary-org ${spec.table} rows`);
+
+        const { error: adminCrossInsertError } = await h.admin.client
+          .from(spec.table)
+          .insert(spec.makeRow(adminCrossDeniedId, config.crossOrgId, 'admin-cross-denied'));
+        expectRlsDenied(adminCrossInsertError, `primary-org admin should not insert cross-org ${spec.table} rows`);
+
+        const { error: teacherUpdateError } = await h.teacher.client
+          .from(spec.table)
+          .update({ updated_by: 'rls-live-harness-teacher-denied' })
+          .eq('id', adminRowId);
+        expectNoSupabaseError(teacherUpdateError, `plain member ${spec.table} update should be filtered by RLS`);
+
+        const { error: anonUpdateError } = await h.anon
+          .from(spec.table)
+          .update({ updated_by: 'rls-live-harness-anon-denied' })
+          .eq('id', adminRowId);
+        expectNoSupabaseError(anonUpdateError, `anon ${spec.table} update should be filtered by RLS`);
+
+        const { error: crossUpdateError } = await h.crossOrg.client
+          .from(spec.table)
+          .update({ updated_by: 'rls-live-harness-cross-denied' })
+          .eq('id', adminRowId);
+        expectNoSupabaseError(crossUpdateError, `cross-org ${spec.table} update should be filtered by RLS`);
+
+        const { data: verifyRows, error: verifyError } = await h.service
+          .from(spec.table)
+          .select('id, org_id, updated_by')
+          .in('id', [adminRowId, financeRowId])
+          .order('id');
+        expectNoSupabaseError(verifyError, `service should verify ${spec.table} RLS mutation results`);
+        expect(verifyRows).toEqual([
+          {
+            id: adminRowId,
+            org_id: config.orgId,
+            updated_by: 'rls-live-harness-admin-update',
+          },
+          {
+            id: financeRowId,
+            org_id: config.orgId,
+            updated_by: 'rls-live-harness-finance-update',
+          },
+        ].sort((a, b) => a.id.localeCompare(b.id)));
+      }
+    }, LIVE_RLS_TIMEOUT_MS);
 
     it('enforces teacher self-write scope for lesson and payroll hours rows', async () => {
       const lessonId = h.id('lesson');
