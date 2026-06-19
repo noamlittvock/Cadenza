@@ -39,11 +39,10 @@ Backend-only readiness (schema + queries + tests, no workflow) caps a node at
   node in the same change, and note it in [`decision-log.md`](decision-log.md) if the
   change resolves an open question.
 - Pass 0 corrected the known-stale statuses tracked by D-STATUS and D-STATUS-2.
-  Current Phase C implementation status as of 2026-06-18:
+  Current Phase C implementation status as of 2026-06-19:
   **`instrument-inventory`**, **`student-family-files`**,
   **`public-registration-intake`**, **`lesson-details-attendance`**, and
-  **`payroll-salaries-hours`** are `implemented`; **`payments-charges`** remains
-  `gap`.
+  **`payroll-salaries-hours`**, and **`payments-charges`** are `implemented`.
 
 ## Consistency check (brief item 6)
 

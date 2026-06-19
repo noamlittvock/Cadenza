@@ -1,4 +1,4 @@
-BUILD ACTIVE
+BUILD COMPLETE
 
 This file is the implementation loop's durable memory. The next agent must read
 it in full before editing code. Authoritative specs remain:
@@ -28,11 +28,15 @@ BUILD COMPLETE
   header, teachers self-report own DRAFT/SUBMITTED entries, admins approve/pay
   with stamped rates, finance can read/export only, live RLS and Playwright
   workflow passed.
+- `payments-charges` reached the implemented bar on 2026-06-19 under accepted
+  D-07-FIN/D-08/D-10/D-20: family-led ledger, admin/finance RLS, computed live
+  balances, audit-only snapshots, single-currency checks, student/family handoff,
+  and Finance Playwright workflow passed. D-25 remains parked.
 - Latest committed checkpoint before this payments loop:
   `1037af8` (`Promote payroll build loop complete`) on branch
   `blueprint-supabase`.
 
-## Current Objective
+## Current Objective - Complete
 
 Phase C packet `payments-charges`: promote from `gap` to `implemented` by
 building the accepted P0 family-led finance ledger:
@@ -66,9 +70,9 @@ building the accepted P0 family-led finance ledger:
 
 ## Baseline Known Findings - 2026-06-19
 
-- `payments-charges` packet is still `gap`; `BILLING` now routes to the
-  top-level Finance surface and is palette-visible, but the full ledger workflow
-  remains queued.
+- At loop start, the `payments-charges` packet was still `gap`; `BILLING` routed
+  to the top-level Finance surface and was palette-visible, but the full ledger
+  workflow remained queued.
 - Normalized tables already exist from `0002`: `charges`, `payments`,
   `adjustments`, and `balance_snapshots`.
 - `0004` ledger RLS grants admin or finance capability access for ledger tables;
@@ -85,11 +89,11 @@ building the accepted P0 family-led finance ledger:
 
 - `BILLING` now routes to a real Finance surface, is included in `ROUTED_VIEWS`,
   appears in the sidebar, and has a navigation smoke.
-- `App.tsx` now subscribes to `charges`, `payments`, `adjustments`, and
-  `balanceSnapshots` for the Finance surface. The full ledger list/detail/write
-  workflow remains queued.
-- `StudentFamilyWorkspace` has a finance tab placeholder only. It currently gates
-  with admin/super-admin props and does not surface real ledger rows.
+- At loop start, `App.tsx` subscribed to `charges`, `payments`, `adjustments`,
+  and `balanceSnapshots` for the Finance surface, but the full ledger
+  list/detail/write workflow remained queued.
+- At loop start, `StudentFamilyWorkspace` had a finance tab placeholder only,
+  gated with admin/super-admin props and not surfacing real ledger rows.
 - `listOpenBalances` now defaults to `FAMILY`, rejects mixed currencies per
   party, rounds totals, and sorts open charge ids by due date.
 - Helper tests now cover partial-allocation balances, family-led default
@@ -97,9 +101,10 @@ building the accepted P0 family-led finance ledger:
 - `supabaseSync.test.ts` now covers full ledger row mapping for `charges`,
   `payments`, `adjustments`, and `balanceSnapshots`, including numeric fields,
   nullable lineage fields, `approvedBy`, and `appliedChargeIds` jsonb.
-- Static schema tests prove admin-or-finance policies exist for all ledger
-  tables. The live RLS harness currently covers `charges` read visibility, but the
-  queued RLS-LIVE unit still needs all ledger tables plus write/denial cases.
+- At loop start, static schema tests proved admin-or-finance policies existed for
+  all ledger tables and the live RLS harness covered `charges` read visibility;
+  the queued RLS-LIVE unit still needed all ledger tables plus write/denial
+  cases.
 - No D-25 instrument deposit, replacement-fee, forfeit, or refund behavior was
   found in the current finance code path.
 
@@ -137,18 +142,18 @@ building the accepted P0 family-led finance ledger:
 - [x] Finance route/nav: route `BILLING` as top-level Finance, unhide palette
   only when the route renders a real surface, and keep public routes out of
   sidebar/palette.
-- [ ] Family-led ledger UI: list/search/filter families with balances; detail
+- [x] Family-led ledger UI: list/search/filter families with balances; detail
   view for charges/payments/adjustments; create charge, record payment, void or
   adjust; export/read-only states for finance; empty/loading/error states.
-- [ ] Student/family finance tab or link: surface the family ledger from the
+- [x] Student/family finance tab or link: surface the family ledger from the
   student/family context without bypassing ledger-table RLS.
 
 ### Stage 3 - Verification And Promotion
 
-- [ ] Playwright finance smoke: create charge -> record payment -> verify open
+- [x] Playwright finance smoke: create charge -> record payment -> verify open
   balance and family payment history -> void/adjustment path; include Hebrew/RTL
   amount formatting.
-- [ ] Status promotion: only after every queue unit is complete and every
+- [x] Status promotion: only after every queue unit is complete and every
   completion checklist item below is true, update `features/forteTree.ts` and
   the `payments-charges` packet header to `implemented`, refresh handoff docs,
   append an iteration note here, and replace this file's first line with
@@ -156,31 +161,30 @@ building the accepted P0 family-led finance ledger:
 
 ## Completion Checklist (all required before BUILD COMPLETE)
 
-- [ ] D-07-FIN/D-08/D-10/D-20 are reflected in code, tests, packet docs, and
+- [x] D-07-FIN/D-08/D-10/D-20 are reflected in code, tests, packet docs, and
   handoffs.
-- [ ] Finance ledger is family-led with per-student/per-enrollment charge lineage.
-- [ ] Single-currency invariant is enforced in helpers/UI/import-facing paths.
-- [ ] Mixed-currency rows are rejected or flagged; no silent cross-currency
+- [x] Finance ledger is family-led with per-student/per-enrollment charge lineage.
+- [x] Single-currency invariant is enforced in helpers/UI/import-facing paths.
+- [x] Mixed-currency rows are rejected or flagged; no silent cross-currency
   offset exists.
-- [ ] Live balances are computed on demand; snapshots are audit/history only.
+- [x] Live balances are computed on demand; snapshots are audit/history only.
 - [x] Admin/finance ledger access passes real-role RLS; plain member/anon/cross
   org are denied.
 - [x] `BILLING` routes to a real Finance surface before it is palette-visible.
-- [ ] Finance UI covers charge creation, payment recording/allocation, balance
+- [x] Finance UI covers charge creation, payment recording/allocation, balance
   display, void/adjustment path, empty/loading/error states, and export/read-only
   behavior.
-- [ ] Hebrew/RTL ledger states and LTR-isolated amounts are covered.
-- [ ] `npm run typecheck -- --diagnostics` passes.
-- [ ] `npx vitest run --reporter=dot` passes.
-- [ ] Finance Playwright smoke passes.
-- [ ] No D-21-D-27 blocked section was implemented without a decision update,
+- [x] Hebrew/RTL ledger states and LTR-isolated amounts are covered.
+- [x] `npm run typecheck -- --diagnostics` passes.
+- [x] `npx vitest run --reporter=dot` passes.
+- [x] Finance Playwright smoke passes.
+- [x] No D-21-D-27 blocked section was implemented without a decision update,
   especially D-25 instrument deposit/refund behavior.
 
 ## Next Unit
 
-- Family-led ledger UI: list/search/filter families with balances; detail view
-  for charges/payments/adjustments; create charge, record payment, void or
-  adjust; export/read-only states for finance; empty/loading/error states.
+- None. `payments-charges` is complete and all completion checklist items are
+  true.
 
 ## Setup Notes For Next Agent
 
@@ -290,3 +294,64 @@ building the accepted P0 family-led finance ledger:
   `npm run test:e2e -- e2e/navigation.spec.ts` passed (7 tests);
   `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
   passed (274 tests).
+- 2026-06-19 Family-led ledger UI: expanded the Finance surface into a
+  searchable/filterable family-led ledger with computed live balances, family
+  detail tables for charges/payments/adjustments/audit snapshots, CSV export,
+  read-only/write-access states, and admin/super-admin write forms for manual
+  charge creation, payment allocation, signed adjustments, and charge voiding
+  through `utils/ledgerService.ts`. The component supports read-only/export
+  states by prop, but `AuthContext` still does not expose the Supabase `finance`
+  capability to React; `App.tsx` currently passes the existing admin/super-admin
+  write/export booleans while ledger-table RLS remains the real access boundary.
+  Added focused helper coverage for live
+  balance summaries, audit-only snapshots, D-20 mixed-currency errors, and CSV
+  escaping; updated the existing Finance route smoke assertion for the new UI
+  copy. Changed files: `App.tsx`, `components/FinanceWorkspace.tsx`,
+  `components/FinanceWorkspace.test.tsx`, `e2e/navigation.spec.ts`, and
+  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
+  `npx vitest run components/FinanceWorkspace.test.tsx --reporter=dot` passed
+  (3 tests); `npm run typecheck -- --diagnostics` passed; `npx vitest run
+  --reporter=dot` passed (277 tests); `npm run test:e2e --
+  e2e/navigation.spec.ts` passed (7 tests). The dedicated create-charge ->
+  record-payment -> balance -> void/adjustment Playwright workflow remains the
+  queued Stage 3 smoke unit, so the Finance Playwright completion checklist item
+  is still unchecked.
+- 2026-06-19 Student/family finance tab/link: replaced the Student/Family
+  finance placeholder with a read-only family ledger summary computed from the
+  same `charges`, `payments`, `adjustments`, and `balanceSnapshots` arrays used
+  by the Finance workspace, preserving ledger-table RLS as the access boundary.
+  Added an "Open family ledger" handoff that routes to the real Finance surface
+  with the family preselected; ledger mutations remain only in Finance. Updated
+  EN/HE labels and the existing Student/Family and navigation Playwright smokes.
+  Changed files: `App.tsx`, `components/FinanceWorkspace.tsx`,
+  `components/StudentFamilyWorkspace.tsx`, `constants.ts`,
+  `e2e/student-family.spec.ts`, `e2e/navigation.spec.ts`, and
+  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
+  `npm run typecheck -- --diagnostics` passed; `npm run test:e2e --
+  e2e/student-family.spec.ts e2e/navigation.spec.ts` passed (10 tests);
+  `npx vitest run --reporter=dot` passed (277 tests).
+- 2026-06-19 Playwright finance smoke: added a dedicated Finance ledger
+  Playwright spec covering create charge -> partial payment -> open balance and
+  payment history -> signed adjustment -> second-charge void path. Added stable
+  Finance workspace test selectors and a Hebrew RTL check proving the ledger
+  renders RTL and currency amounts inside `bdi` isolation. Changed files:
+  `components/FinanceWorkspace.tsx`, `e2e/finance-ledger.spec.ts`, and
+  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
+  `npm run test:e2e -- e2e/finance-ledger.spec.ts` passed (2 tests);
+  `npx vitest run components/FinanceWorkspace.test.tsx --reporter=dot` passed
+  (3 tests); `npm run typecheck -- --diagnostics` passed; `npx vitest run
+  --reporter=dot` passed (277 tests).
+- 2026-06-19 Status promotion: promoted `payments-charges` to `implemented` in
+  `features/forteTree.ts` and the packet header, refreshed handoff/status docs,
+  updated feature-tree query tests for the new no-P0-gap state, marked all
+  completion checklist items true, and set this file to `BUILD COMPLETE`.
+  Changed files: `features/forteTree.ts`, `utils/forteTreeQueries.test.ts`,
+  `docs/blueprint-planning/packets/payments-charges.md`,
+  `docs/blueprint-planning/IMPLEMENTATION_HANDOFF.md`,
+  `docs/blueprint-planning/IMPLEMENTATION_ROADMAP.md`,
+  `docs/blueprint-planning/status-policy.md`,
+  `docs/blueprint-planning/decision-log.md`, and
+  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
+  `npx vitest run utils/forteTreeQueries.test.ts --reporter=dot` passed (5
+  tests); `npm run typecheck -- --diagnostics` passed; `npx vitest run
+  --reporter=dot` passed (277 tests).

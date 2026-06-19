@@ -48,6 +48,15 @@ approval/rate stamping, PAID transition, finance read/export, legacy
 `hours_reports` reconciliation, Playwright workflow coverage, and live real-role
 RLS coverage.
 
+**Phase C update — 2026-06-19:** `payments-charges` is implemented under
+D-07-FIN/D-08/D-10/D-20. Finance now routes through `BILLING` with a family-led
+ledger, per-student/per-enrollment charge lineage, charge/payment/adjustment
+posting, void/audit semantics, audit-only balance snapshots, student/family
+ledger handoff, Hebrew/RTL amount isolation, Playwright workflow coverage, and
+live real-role RLS coverage for admin/finance access plus plain-member, anon, and
+cross-org denial. D-25 remains parked; no instrument deposit, replacement-fee,
+forfeit, or refund lifecycle is implemented.
+
 ## Orientation (read in this order)
 
 1. [`README.md`](README.md) — planning index + "what the audit changed".
@@ -67,15 +76,17 @@ Runtime is **Supabase** (Auth/Postgres+RLS/Realtime/Storage), not Firebase.
 
 Key code:
 - `types/blueprint.ts` — 21 Blueprint entity types (enums quoted in each packet).
-- `utils/blueprintQueries.ts` — 45 deterministic helpers, **all implemented + unit-tested** (`blueprintQueries.test.ts`, 44 cases). Pure functions; callers pass `now`/`idFactory`.
-- `utils/supabaseSync.ts` — camel↔snake mapping; HYBRID (`{id,org_id,data jsonb}`) vs NORMALIZED (real columns). **Untested — add tests.**
+- `utils/blueprintQueries.ts` — deterministic helpers, **implemented + unit-tested**. Pure functions; callers pass `now`/`idFactory`.
+- `utils/supabaseSync.ts` — camel↔snake mapping; HYBRID (`{id,org_id,data jsonb}`) vs NORMALIZED (real columns). Mapping tests cover normalized finance/payroll rows and jsonb fields.
 - `supabase/migrations/0001_core_schema.sql`, `0002_blueprint_schema.sql`,
   `0003_runtime_support.sql`, `0004_blueprint_rls_foundation.sql`.
 - `features/forteTree.ts` — feature tree (21 nodes).
 - `App.tsx` (routing), `types.ts` (`ViewState` @359-372), `components/CommandPalette.tsx`, `components/Layout.tsx` (sidebar/mobile), `components/ManageHub.tsx` (tabs, `?tab=`).
 
-The deterministic foundation is largely done. The P0 work is **product UI +
-RLS refinement + the missing mapping/RLS/schema tests.**
+The deterministic foundation and current P0 student/intake/attendance/payroll/
+finance implementation work are done; remaining packets should continue to ship
+their product UI, mapping tests, Playwright smoke, and real-role RLS coverage
+slice by slice.
 
 ## Locked decisions (defaults accepted 2026-06-17)
 
@@ -99,7 +110,7 @@ RLS refinement + the missing mapping/RLS/schema tests.**
 | D-15 | Per-module backfill defined in each packet. D-04/D-05 settled as adapter, not rename, so there is **no global Student/Event data migration** for Phase C; any future runtime/persistence migration to V2 needs Noam. |
 | D-16 | **Use existing `families.guardians[]` jsonb for P0 guardian/contact data.** Do not block student/family, intake, or agreement P0 workflows on normalized guardian/contact identity. A future normalized guardian identity migration needs a new explicit decision. |
 | D-STATUS | `instrument-inventory` `gap → implemented` after the consistency check is green. |
-| D-STATUS-2 | Historical Pass 0 correction: `student-family-files` + `payroll-salaries-hours` -> `embedded`; registration/lesson/payments stayed `gap` at that time. Phase C later promoted `student-family-files`, `public-registration-intake`, `lesson-details-attendance`, and `payroll-salaries-hours` to `implemented`. |
+| D-STATUS-2 | Historical Pass 0 correction: `student-family-files` + `payroll-salaries-hours` -> `embedded`; registration/lesson/payments stayed `gap` at that time. Phase C later promoted `student-family-files`, `public-registration-intake`, `lesson-details-attendance`, `payroll-salaries-hours`, and `payments-charges` to `implemented`. |
 
 ## Parked Noam questions
 
@@ -139,7 +150,7 @@ allow and mark affected sections `BLOCKED ON D-xx`.
 9. ✅ **lesson-details-attendance** (Calendar event-detail panel, mobile-reachable marking, unmarked worklist, student lesson history, and explicit teacher/admin preparation/materialization per accepted D-17 are implemented).
 10. ✅ **payroll-salaries-hours** (teacher self-report, admin review/pay,
     finance export; D-18/D-19 implemented for P0).
-11. **payments-charges** (Finance top-level view + gated student/family ledger tab; D-20 accepted for P0).
+11. ✅ **payments-charges** (Finance top-level view + gated student/family ledger tab; D-20 implemented for P0).
 
 P1/P2 modules (Pass 3) come after — packets are drafted and sequenced in
 [`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md).
@@ -163,7 +174,9 @@ of the actual primary workflow. Update the `forteTree` node status + packet head
 
 ## Traps (learned in the audit)
 
-- **Uniform RLS today:** every write is admin-only (`app_is_org_admin`), every read is any-member (`app_is_org_member`). Teacher self-write, finance-only read, and public submit each need an explicit refinement — they do **not** work out of the box.
+- **Uniform RLS was the starting point:** teacher self-write and finance-only
+  ledger access now have explicit refinements. Future packets still must prove
+  their own real-role RLS rather than relying on local/e2e bypasses.
 - **Dead-end ViewStates** stay hidden from the palette (`ACADEMICS`,
   `ANALYTICS`); don't unhide one until its view is actually routed. `STUDENTS`,
   `PAYROLL`, and `BILLING` are now routed, and `INVENTORY` is intentionally an

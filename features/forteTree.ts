@@ -550,7 +550,7 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
   {
     id: 'payments-charges',
     domain: 'finance',
-    status: 'gap',
+    status: 'implemented',
     priority: 'p0',
     label: 'Payments and charges',
     labelHe: 'תשלומים וחיובים',
@@ -559,9 +559,9 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
     industryStandard:
       'Finance modules need auditable ledger rows and reconciliation against enrollments and agreements.',
     cadenzaFit:
-      'Cadenza should not hide payment state inside student notes; add a simple ledger before any external payment processor.',
+      'Cadenza now routes Finance as a family-led ledger with charge, payment, adjustment, audit snapshot, and student/family handoff workflows.',
     nextStep:
-      'Define Charge, Payment, Adjustment, and BalanceSnapshot collections linked to family/student/enrollment.',
+      'Keep online processors, receipt numbering, tax accounting, multi-currency, and D-25 instrument deposit/refund behavior as later scoped enhancements.',
     dataEntities: ['Charge', 'Payment', 'Adjustment', 'StudentV2', 'EnrollmentV2'],
     deterministicQueries: ['listOpenBalances', 'listPaymentsByFamily', 'reconcileEnrollmentCharges'],
     embeddingText:

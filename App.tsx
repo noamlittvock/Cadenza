@@ -115,6 +115,7 @@ function AppContent() {
   const { currentUser, login, isAdmin, isSuperAdmin } = useEffectiveAuth();
   const { orgId } = useAuth();
   const [currentView, setCurrentView] = useState<ViewState>(initialViewFromUrl);
+  const [financeFocusFamilyId, setFinanceFocusFamilyId] = useState<string | null>(null);
   const onboarding = useEffectiveOnboarding();
   const { simulatedDate } = useDevSimulation();
   const { liveTranslations } = useTranslation();
@@ -139,9 +140,9 @@ function AppContent() {
   const [students, setStudents, studentsLoading] = useSupabaseSync<Student>('students', []);
   const [families, setFamilies, familiesLoading] = useSupabaseSync<Family>(BLUEPRINT_COLLECTIONS.families, []);
   const [lessonRecords] = useSupabaseSync<LessonRecord>(BLUEPRINT_COLLECTIONS.lessonRecords, []);
-  const [charges, , chargesLoading] = useSupabaseSync<Charge>(BLUEPRINT_COLLECTIONS.charges, []);
-  const [payments, , paymentsLoading] = useSupabaseSync<Payment>(BLUEPRINT_COLLECTIONS.payments, []);
-  const [adjustments, , adjustmentsLoading] = useSupabaseSync<Adjustment>(BLUEPRINT_COLLECTIONS.adjustments, []);
+  const [charges, setCharges, chargesLoading] = useSupabaseSync<Charge>(BLUEPRINT_COLLECTIONS.charges, []);
+  const [payments, setPayments, paymentsLoading] = useSupabaseSync<Payment>(BLUEPRINT_COLLECTIONS.payments, []);
+  const [adjustments, setAdjustments, adjustmentsLoading] = useSupabaseSync<Adjustment>(BLUEPRINT_COLLECTIONS.adjustments, []);
   const [balanceSnapshots, , balanceSnapshotsLoading] = useSupabaseSync<BalanceSnapshot>(BLUEPRINT_COLLECTIONS.balanceSnapshots, []);
   const [calendarSubscriptions, setCalendarSubscriptions] = useSupabaseSync<CalendarSubscription>('calendarSubscriptions', []);
   const [hoursReports, setHoursReports, hoursReportsLoading] = useSupabaseSync<HoursReport>('hoursReports', []);
@@ -698,6 +699,15 @@ function AppContent() {
             orgId={orgId}
             actorId={currentUser?.id ?? null}
             canViewFinance={isAdmin || isSuperAdmin}
+            charges={charges}
+            payments={payments}
+            adjustments={adjustments}
+            balanceSnapshots={balanceSnapshots}
+            financeLedgerLoading={chargesLoading || paymentsLoading || adjustmentsLoading || balanceSnapshotsLoading}
+            onOpenFinanceLedger={(familyId) => {
+              setFinanceFocusFamilyId(familyId);
+              setCurrentView('BILLING');
+            }}
             studentsLoading={studentsLoading}
             familiesLoading={familiesLoading}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
@@ -707,12 +717,21 @@ function AppContent() {
         return (
           <FinanceWorkspace
             settings={settings}
+            orgId={orgId}
+            actorId={currentUser?.id ?? currentUser?.uid ?? null}
+            initialFamilyId={financeFocusFamilyId}
             families={families}
+            students={students}
             charges={charges}
+            setCharges={setCharges}
             payments={payments}
+            setPayments={setPayments}
             adjustments={adjustments}
+            setAdjustments={setAdjustments}
             balanceSnapshots={balanceSnapshots}
             loading={chargesLoading || paymentsLoading || adjustmentsLoading || balanceSnapshotsLoading || familiesLoading}
+            canManageLedger={isAdmin || isSuperAdmin}
+            canExportLedger={isAdmin || isSuperAdmin}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
           />
         );

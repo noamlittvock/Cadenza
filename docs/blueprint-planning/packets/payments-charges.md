@@ -1,14 +1,34 @@
 # Payments And Charges  (`payments-charges`)
 
-Status: gap → planned (this packet)  ·  Priority: p0 (high-risk — finance)
+Status: implemented  ·  Priority: p0 (high-risk — finance)
 Owner-decisions still blocking this packet: none for the P0 family-led ledger.
 Current accepted prerequisites: **D-07-FIN** (family-led ledger), **D-08**
 (finance visibility/capability), **D-10** (compute-live + audit snapshots), and
 **D-15** (backfill, recorded below), and **D-20** (single-currency P0 with
 future-safe multi-currency mode).
 
+## Implementation Update - 2026-06-19
+- Finance now routes as the top-level `BILLING` surface and is palette-visible
+  only because it renders a real ledger workflow.
+- The implemented ledger is family-led with per-student/per-enrollment charge
+  lineage, payment allocation, signed adjustments, charge voiding, audit-only
+  balance snapshots, CSV export, read-only states, and student/family handoff
+  links.
+- Live balances are computed on demand from charges, payments, and adjustments;
+  snapshots remain history/audit records only.
+- D-20 single-currency checks are enforced in helpers and write paths. Mixed
+  currencies are rejected or flagged rather than silently offset.
+- Real-role RLS coverage proves admin/finance access and plain member, anon, and
+  cross-org denial across charges, payments, adjustments, and snapshots.
+- The Playwright finance smoke covers create charge -> partial payment -> open
+  balance/history -> signed adjustment -> void path, including Hebrew RTL amount
+  isolation.
+- D-25 remains parked: no instrument deposit, replacement-fee, forfeit, or refund
+  lifecycle has been implemented.
+
 ## Current State (ground truth)
-- Existing UI: none. No charge/payment surface.
+- Existing UI: top-level Finance ledger, plus read-only student/family finance
+  summary linking back to the family ledger.
 - Existing schema (normalized, `0002`):
   - `charges`: `studentId, familyId, enrollmentId, description, amount, currency, dueDate, status (OPEN|PARTIAL|PAID|VOID), periodLabel`. **All three scope FKs present** → schema supports student/family/enrollment-led; D-07-FIN locks the family-led canonical rule.
   - `payments`: `studentId, familyId, amount, method (CASH|TRANSFER|CARD|CHECK|OTHER), receivedAt, appliedChargeIds[], reference`.

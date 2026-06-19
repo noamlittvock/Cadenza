@@ -16,11 +16,11 @@ describe('forteTreeQueries', () => {
     expect(feature?.dataEntities).toContain('CalendarEvent');
   });
 
-  test('filters gaps by domain and priority', () => {
-    const financeGaps = queryForteTree({ domain: 'finance', status: 'gap' });
+  test('filters implemented features by domain and status', () => {
+    const implementedFinance = queryForteTree({ domain: 'finance', status: 'implemented' });
 
-    expect(financeGaps.map(node => node.id)).toContain('payments-charges');
-    expect(financeGaps.every(node => node.domain === 'finance')).toBe(true);
+    expect(implementedFinance.map(node => node.id)).toContain('payments-charges');
+    expect(implementedFinance.every(node => node.domain === 'finance')).toBe(true);
   });
 
   test('summarizes coverage without losing nodes', () => {
@@ -29,14 +29,13 @@ describe('forteTreeQueries', () => {
     expect(coverage.total).toBe(FORTE_FEATURE_TREE.length);
     expect(Object.values(coverage.byStatus).reduce((sum, count) => sum + count, 0)).toBe(FORTE_FEATURE_TREE.length);
     expect(coverage.nativeOrEmbedded).toBeGreaterThan(0);
-    expect(coverage.p0Gaps).toBeGreaterThan(0);
+    expect(coverage.p0Gaps).toBe(0);
   });
 
-  test('returns industry gaps at or above the requested priority', () => {
+  test('returns no p0 industry gaps after p0 packet promotion', () => {
     const p0Gaps = getForteIndustryGaps('p0');
 
-    expect(p0Gaps.every(node => node.priority === 'p0')).toBe(true);
-    expect(p0Gaps.some(node => node.id === 'payments-charges')).toBe(true);
+    expect(p0Gaps).toEqual([]);
   });
 
   test('builds embedding records with source metadata and deterministic query names', () => {

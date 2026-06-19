@@ -8,6 +8,10 @@ async function resetStudentFamilyData(page: Page, language: 'en-US' | 'he-IL' = 
     ({ orgId, lang }) => {
       localStorage.removeItem(`cadenza:local:${orgId}:col:students`);
       localStorage.removeItem(`cadenza:local:${orgId}:col:families`);
+      localStorage.removeItem(`cadenza:local:${orgId}:col:charges`);
+      localStorage.removeItem(`cadenza:local:${orgId}:col:payments`);
+      localStorage.removeItem(`cadenza:local:${orgId}:col:adjustments`);
+      localStorage.removeItem(`cadenza:local:${orgId}:col:balanceSnapshots`);
       localStorage.setItem('language', lang);
     },
     { orgId: TEST_ORG, lang: language },
@@ -57,7 +61,7 @@ test.describe('Student/Family Files', () => {
       ['Guardians', record.guardianEmail],
       ['Enrollments', 'No enrollments linked'],
       ['Lessons', 'No lesson history yet'],
-      ['Finance', 'Finance source not connected'],
+      ['Finance', 'Family ledger summary'],
       ['Documents', 'No documents'],
       ['Agreements', 'Agreements source not connected'],
       ['History', 'Created'],
@@ -68,6 +72,13 @@ test.describe('Student/Family Files', () => {
       await expect(page.getByText(expectedText).first()).toBeVisible();
     }
 
+    await page.getByRole('tab', { name: 'Finance' }).click();
+    await expect(page.getByText('Balance').first()).toBeVisible();
+    await page.getByRole('button', { name: 'Open family ledger' }).click();
+    await expect(page.getByRole('heading', { name: 'Finance' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: record.familyName })).toBeVisible();
+
+    await gotoView(page, 'STUDENTS');
     await page.getByRole('button', { name: 'Families' }).click();
     await expect(page.getByPlaceholder('Search by family, guardian, student, phone, or email...')).toBeVisible();
     await expect(page.getByText(record.familyName).first()).toBeVisible();

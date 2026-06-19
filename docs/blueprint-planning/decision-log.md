@@ -433,9 +433,11 @@ to `embedded`; keep `public-registration-intake`, `lesson-details-attendance`,
 work promoted `student-family-files` and `public-registration-intake` to
 `implemented`; the attendance build loop then promoted
 `lesson-details-attendance` to `implemented`; the payroll build loop promoted
-`payroll-salaries-hours` to `implemented`; `payments-charges` remains `gap`.
-The packet headers are reconciled with current tree statuses, and
-`features/forteTree.consistency.test.ts` is the status-policy gate.
+`payroll-salaries-hours` to `implemented`; the payments build loop then promoted
+`payments-charges` to `implemented` under D-07-FIN/D-08/D-10/D-20, while D-25
+remains parked for instrument deposit/fee/refund semantics. The packet headers
+are reconciled with current tree statuses, and `features/forteTree.consistency.test.ts`
+is the status-policy gate.
 
 ### D-STATUS — Instrument Inventory tree status  ⚪
 **Q:** Update `instrument-inventory` from `gap` to `implemented`?

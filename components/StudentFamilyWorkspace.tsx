@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   AlertCircle,
   Archive,
+  ArrowUpRight,
   BookOpen,
   CalendarDays,
   ClipboardList,
@@ -23,7 +24,7 @@ import {
 } from 'lucide-react';
 import type { AppSettings, CalendarEvent, Student } from '../types';
 import type { ActivityV2 } from '../types/v2';
-import type { Family, Guardian as FamilyGuardian, LessonCompletion, LessonRecord } from '../types/blueprint';
+import type { Adjustment, BalanceSnapshot, Charge, Family, Guardian as FamilyGuardian, LessonCompletion, LessonRecord, Payment } from '../types/blueprint';
 import { generateId, TRANSLATIONS } from '../constants';
 import { Modal } from './Modal';
 import {
@@ -47,6 +48,7 @@ import {
   reconcileFamilyStudentLinks,
   type StudentFamilyWriteContext,
 } from '../utils/studentFamilyService';
+import { computeFamilyLedgerBalance, type FamilyBalanceSummary } from '../utils/ledgerService';
 
 type SyncSetter<T extends { id: string }> = (data: T[] | ((prev: T[]) => T[])) => Promise<void>;
 
@@ -62,6 +64,12 @@ interface Props {
   orgId: string | null;
   actorId?: string | null;
   canViewFinance?: boolean;
+  charges?: Charge[];
+  payments?: Payment[];
+  adjustments?: Adjustment[];
+  balanceSnapshots?: BalanceSnapshot[];
+  financeLedgerLoading?: boolean;
+  onOpenFinanceLedger?: (familyId: string) => void;
   studentsLoading?: boolean;
   familiesLoading?: boolean;
   errorMessage?: string | null;
@@ -169,6 +177,7 @@ interface StudentFamilyFormState {
 }
 
 const NEW_FAMILY_VALUE = '__new_family__';
+const DEFAULT_LEDGER_CURRENCY = 'ILS';
 
 const emptyGuardian = (): FamilyGuardian => ({
   id: `guardian_${generateId()}`,
@@ -460,7 +469,15 @@ const DetailPanel = ({
   activeTab,
   setActiveTab,
   t,
+  language,
+  orgId,
   canViewFinance,
+  charges,
+  payments,
+  adjustments,
+  balanceSnapshots,
+  financeLedgerLoading,
+  onOpenFinanceLedger,
   onEdit,
   onClose,
 }: {
@@ -468,7 +485,15 @@ const DetailPanel = ({
   activeTab: StudentFamilyDetailTab;
   setActiveTab: (tab: StudentFamilyDetailTab) => void;
   t: (key: string) => string;
+  language: AppSettings['language'];
+  orgId: string;
   canViewFinance: boolean;
+  charges: Charge[];
+  payments: Payment[];
+  adjustments: Adjustment[];
+  balanceSnapshots: BalanceSnapshot[];
+  financeLedgerLoading: boolean;
+  onOpenFinanceLedger?: (familyId: string) => void;
   onEdit: () => void;
   onClose: () => void;
 }) => {
@@ -479,6 +504,36 @@ const DetailPanel = ({
   const status = detail.kind === 'student'
     ? detail.student.profileStatus
     : detail.family.isArchived ? 'ARCHIVED' : 'ACTIVE';
+  const ledgerFamilyId = detail.kind === 'student' ? detail.family?.id ?? null : detail.family.id;
+  const formatAmount = (amount: number, currency: string) => {
+    try {
+      return new Intl.NumberFormat(language, { style: 'currency', currency, maximumFractionDigits: 2 }).format(amount);
+    } catch {
+      return `${amount.toFixed(2)} ${currency}`;
+    }
+  };
+  const buildFinanceSummary = (): (FamilyBalanceSummary & {
+    chargeCount: number;
+    paymentCount: number;
+    adjustmentCount: number;
+    snapshotCount: number;
+  }) | null => {
+    if (!ledgerFamilyId) return null;
+    const balance = computeFamilyLedgerBalance({
+      familyId: ledgerFamilyId,
+      charges,
+      payments,
+      adjustments,
+      context: { orgId, ledgerCurrency: DEFAULT_LEDGER_CURRENCY },
+    });
+    return {
+      ...balance,
+      chargeCount: charges.filter(charge => charge.orgId === orgId && charge.familyId === ledgerFamilyId).length,
+      paymentCount: payments.filter(payment => payment.orgId === orgId && payment.familyId === ledgerFamilyId).length,
+      adjustmentCount: adjustments.filter(adjustment => adjustment.orgId === orgId && adjustment.familyId === ledgerFamilyId).length,
+      snapshotCount: balanceSnapshots.filter(snapshot => snapshot.orgId === orgId && snapshot.familyId === ledgerFamilyId).length,
+    };
+  };
 
   const renderProfile = () => (
     <div className="grid gap-2 sm:grid-cols-2">
@@ -604,13 +659,70 @@ const DetailPanel = ({
     );
   };
 
-  const renderFinance = () => (
-    canViewFinance ? (
-      <DetailEmpty icon={ShieldAlert} title={t('student_family.detail.finance_source_ready_title')} body={t('student_family.detail.finance_source_ready_body')} />
-    ) : (
-      <DetailEmpty icon={LockKeyhole} title={t('student_family.detail.finance_locked_title')} body={t('student_family.detail.finance_locked_body')} />
-    )
-  );
+  const renderFinance = () => {
+    if (!canViewFinance) {
+      return <DetailEmpty icon={LockKeyhole} title={t('student_family.detail.finance_locked_title')} body={t('student_family.detail.finance_locked_body')} />;
+    }
+    if (!ledgerFamilyId) {
+      return <DetailEmpty icon={ShieldAlert} title={t('student_family.detail.finance_no_family_title')} body={t('student_family.detail.finance_no_family_body')} />;
+    }
+    if (financeLedgerLoading) {
+      return <DetailEmpty icon={Landmark} title={t('student_family.detail.finance_loading_title')} body={t('student_family.detail.finance_loading_body')} />;
+    }
+
+    let summary: ReturnType<typeof buildFinanceSummary>;
+    try {
+      summary = buildFinanceSummary();
+    } catch (error) {
+      return (
+        <DetailEmpty
+          icon={AlertCircle}
+          title={t('student_family.detail.finance_cleanup_title')}
+          body={error instanceof Error ? error.message : String(error)}
+        />
+      );
+    }
+    if (!summary) return null;
+
+    return (
+      <div data-testid="student-family-finance-panel" className="space-y-3">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-slate-900 dark:text-white">{t('student_family.detail.finance_summary_title')}</div>
+              <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('student_family.detail.finance_summary_body')}</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => onOpenFinanceLedger?.(ledgerFamilyId)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              <ArrowUpRight size={14} />
+              {t('student_family.detail.open_finance_ledger')}
+            </button>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <InfoCell label={t('student_family.detail.finance_balance')} value={<bdi>{formatAmount(summary.balance, summary.currency)}</bdi>} />
+            <InfoCell label={t('student_family.detail.finance_open_charges')} value={String(summary.openChargeIds.length)} />
+            <InfoCell label={t('student_family.detail.finance_total_paid')} value={<bdi>{formatAmount(summary.totalPaid, summary.currency)}</bdi>} />
+            <InfoCell label={t('student_family.detail.finance_adjusted')} value={<bdi>{formatAmount(summary.totalAdjusted, summary.currency)}</bdi>} />
+          </div>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-4">
+          <InfoCell label={t('student_family.detail.finance_charges')} value={String(summary.chargeCount)} />
+          <InfoCell label={t('student_family.detail.finance_payments')} value={String(summary.paymentCount)} />
+          <InfoCell label={t('student_family.detail.finance_adjustments')} value={String(summary.adjustmentCount)} />
+          <InfoCell label={t('student_family.detail.finance_snapshots')} value={String(summary.snapshotCount)} />
+        </div>
+        {summary.openChargeIds.length > 0 && (
+          <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+            <span className="font-semibold">{t('student_family.detail.finance_open_charge_ids')}: </span>
+            <bdi>{summary.openChargeIds.join(', ')}</bdi>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderDocuments = () => (
     detail.documents.length === 0 ? (
@@ -745,6 +857,12 @@ export const StudentFamilyWorkspace: React.FC<Props> = ({
   orgId,
   actorId = null,
   canViewFinance = false,
+  charges = [],
+  payments = [],
+  adjustments = [],
+  balanceSnapshots = [],
+  financeLedgerLoading = false,
+  onOpenFinanceLedger,
   studentsLoading = false,
   familiesLoading = false,
   errorMessage = null,
@@ -1168,7 +1286,15 @@ export const StudentFamilyWorkspace: React.FC<Props> = ({
                 activeTab={detailTab}
                 setActiveTab={setDetailTab}
                 t={t}
+                language={settings.language}
+                orgId={orgId ?? 'local'}
                 canViewFinance={canViewFinance}
+                charges={charges}
+                payments={payments}
+                adjustments={adjustments}
+                balanceSnapshots={balanceSnapshots}
+                financeLedgerLoading={financeLedgerLoading}
+                onOpenFinanceLedger={onOpenFinanceLedger}
                 onEdit={() => openEditor(detailModel.kind === 'student'
                   ? { mode: 'edit-student', studentId: detailModel.student.id }
                   : { mode: 'edit-family', familyId: detailModel.family.id })}

@@ -48,8 +48,7 @@ test.describe('Navigation — routing, sidebar, dark mode, mobile', () => {
     await gotoView(page, 'BILLING');
     await expect(page.getByTestId('finance-workspace')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Finance' })).toBeVisible();
-    await expect(page.getByText('Family-led ledger overview')).toBeVisible();
-    await expect(page.getByText('Family balances')).toBeVisible();
+    await expect(page.getByText('Family-led ledger')).toBeVisible();
     await expect(page.getByText('No ledger rows yet')).toBeVisible();
     await expect(page.getByText('Not found')).not.toBeVisible();
   });
@@ -80,7 +79,7 @@ test.describe('Navigation — routing, sidebar, dark mode, mobile', () => {
     await page.getByRole('tab', { name: 'Enrollments' }).click();
     await expect(page.getByText('No enrollments linked')).toBeVisible();
     await page.getByRole('tab', { name: 'Finance' }).click();
-    await expect(page.getByText('Finance source not connected')).toBeVisible();
+    await expect(page.getByText('Family ledger summary')).toBeVisible();
     await page.getByRole('tab', { name: 'Documents' }).click();
     await expect(page.getByText('No documents')).toBeVisible();
     await page.getByRole('button', { name: 'Families' }).click();
