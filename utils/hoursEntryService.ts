@@ -1,4 +1,5 @@
 import type { HoursEntry, IsoDate, IsoTimestamp } from '../types/blueprint';
+import type { HoursEntry as LegacyHoursEntry, HoursReport as LegacyHoursReport } from '../types';
 import { BLUEPRINT_COLLECTIONS } from '../types/blueprint';
 import {
   type PayrollRatePolicy,
@@ -98,6 +99,11 @@ export interface HoursPeriodSubmissionPlan {
   entries: HoursEntry[];
 }
 
+export interface LegacyHoursReconciliationPlan {
+  headers: Array<HoursPeriodHeader & { token?: undefined; reportedEntries?: undefined }>;
+  entries: HoursEntry[];
+}
+
 function actorId(actor: HoursEntryActor): string | null {
   return actor.userId ?? actor.staffMemberId ?? null;
 }
@@ -150,6 +156,86 @@ function assertMinutes(value: number, field: string, opts: { allowNegative?: boo
 
 function withinPeriod(date: IsoDate, periodStart: IsoDate, periodEnd: IsoDate): boolean {
   return date >= periodStart && date <= periodEnd;
+}
+
+function legacyEntryId(reportId: string, entry: LegacyHoursEntry, index: number): string {
+  return `legacy_${reportId}_${entry.id || index}`;
+}
+
+function legacyEntryStatus(report: LegacyHoursReport): HoursEntry['status'] {
+  return report.status === 'PENDING' ? 'DRAFT' : 'SUBMITTED';
+}
+
+function legacyEntryNote(entry: LegacyHoursEntry, report: LegacyHoursReport): string | null {
+  const parts = [
+    entry.description,
+    entry.absenceReason ? `Absence reason: ${entry.absenceReason}` : null,
+    entry.entryType ? `Legacy type: ${entry.entryType}` : null,
+    report.status === 'REVIEWED' ? 'Legacy report was reviewed; admin approval must stamp the payable rate before payment.' : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' | ') : null;
+}
+
+export function reconcileLegacyHoursReports(params: {
+  reports: LegacyHoursReport[];
+  existingEntries: HoursEntry[];
+  now: IsoTimestamp;
+}): LegacyHoursReconciliationPlan {
+  const existingById = new Map(params.existingEntries.map(entry => [entry.id, entry]));
+  const nextEntries: HoursEntry[] = [];
+  const nextHeaders: LegacyHoursReconciliationPlan['headers'] = [];
+
+  for (const report of params.reports) {
+    const legacyEntries = report.reportedEntries ?? [];
+    if (legacyEntries.length === 0) continue;
+
+    nextHeaders.push({
+      id: report.id,
+      orgId: report.orgId,
+      staffMemberId: report.staffMemberId,
+      periodStart: report.periodStart,
+      periodEnd: report.periodEnd,
+      status: report.status,
+      submittedAt: report.submittedAt ?? null,
+      createdAt: report.createdAt,
+      updatedAt: params.now,
+      createdBy: report.createdBy,
+      updatedBy: 'legacy-hours-reconciliation',
+      token: undefined,
+      reportedEntries: undefined,
+    });
+
+    legacyEntries.forEach((legacyEntry, index) => {
+      const id = legacyEntryId(report.id, legacyEntry, index);
+      if (existingById.has(id)) return;
+      const reportedMinutes = Math.round((Number.isFinite(legacyEntry.hours) ? legacyEntry.hours : 0) * 60);
+      const hasSourceEvent = Boolean(legacyEntry.sourceEventId);
+      nextEntries.push({
+        id,
+        orgId: report.orgId,
+        staffMemberId: report.staffMemberId,
+        hoursReportId: report.id,
+        date: legacyEntry.date || report.periodStart,
+        reportedMinutes,
+        calendarMinutes: hasSourceEvent && legacyEntry.entryType !== 'MANUAL' ? reportedMinutes : 0,
+        eventId: legacyEntry.sourceEventId ?? null,
+        teachingAssignmentId: null,
+        orgRoleId: null,
+        rate: null,
+        status: legacyEntryStatus(report),
+        note: legacyEntryNote(legacyEntry, report),
+        createdAt: report.submittedAt ?? report.createdAt,
+        updatedAt: params.now,
+        createdBy: report.createdBy,
+        updatedBy: 'legacy-hours-reconciliation',
+      });
+    });
+  }
+
+  return {
+    headers: nextHeaders,
+    entries: nextEntries,
+  };
 }
 
 export function buildTeacherHoursEntry(params: {

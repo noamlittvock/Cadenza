@@ -45,6 +45,7 @@ import { ScenarioBanner } from './components/ScenarioBanner';
 import { CommandPalette } from './components/CommandPalette';
 import { BotChatPanel } from './components/BotChatPanel';
 import type { HoursPeriodHeader } from './utils/hoursEntryService';
+import { applyHoursEntryUpdates, reconcileLegacyHoursReports } from './utils/hoursEntryService';
 
 const MANAGE_TABS = new Set(['staff', 'rooms', 'activities', 'subscriptions', 'inventory']);
 
@@ -137,8 +138,8 @@ function AppContent() {
   const [families, setFamilies, familiesLoading] = useSupabaseSync<Family>(BLUEPRINT_COLLECTIONS.families, []);
   const [lessonRecords] = useSupabaseSync<LessonRecord>(BLUEPRINT_COLLECTIONS.lessonRecords, []);
   const [calendarSubscriptions, setCalendarSubscriptions] = useSupabaseSync<CalendarSubscription>('calendarSubscriptions', []);
-  const [hoursReports, setHoursReports] = useSupabaseSync<HoursReport>('hoursReports', []);
-  const [hoursEntries, setHoursEntries] = useSupabaseSync<HoursEntry>(BLUEPRINT_COLLECTIONS.hoursEntries, []);
+  const [hoursReports, setHoursReports, hoursReportsLoading] = useSupabaseSync<HoursReport>('hoursReports', []);
+  const [hoursEntries, setHoursEntries, hoursEntriesLoading] = useSupabaseSync<HoursEntry>(BLUEPRINT_COLLECTIONS.hoursEntries, []);
   const [hoursPeriodHeaders, setHoursPeriodHeaders] = useSupabaseSync<HoursPeriodHeader>('hoursReports', []);
   const [adminInboxItems, setAdminInboxItems] = useSupabaseSync<AdminInboxItem>('adminInboxItems', []);
   // Seed initial language from localStorage so first render matches the persisted state
@@ -196,6 +197,41 @@ function AppContent() {
   useEffect(() => {
     if (simulatedDate) setCurrentDate(simulatedDate);
   }, [simulatedDate]);
+
+  useEffect(() => {
+    if (!orgId || hoursReportsLoading || hoursEntriesLoading || (!isAdmin && !isSuperAdmin)) return;
+    const plan = reconcileLegacyHoursReports({
+      reports: hoursReports,
+      existingEntries: hoursEntries,
+      now: new Date().toISOString(),
+    });
+    if (plan.headers.length === 0 && plan.entries.length === 0) return;
+
+    void (async () => {
+      if (plan.entries.length > 0) {
+        await setHoursEntries(prev => applyHoursEntryUpdates(prev, plan.entries));
+      }
+      if (plan.headers.length > 0) {
+        await setHoursReports(prev => {
+          const updates = new Map(plan.headers.map(header => [header.id, header]));
+          return prev.map(report => {
+            const header = updates.get(report.id);
+            return header ? { ...report, ...header } as HoursReport : report;
+          });
+        });
+      }
+    })();
+  }, [
+    hoursEntries,
+    hoursEntriesLoading,
+    hoursReports,
+    hoursReportsLoading,
+    isAdmin,
+    isSuperAdmin,
+    orgId,
+    setHoursEntries,
+    setHoursReports,
+  ]);
 
   // Branch-Lab BL01: register ⌘K / Ctrl+K to toggle the command palette
   useEffect(() => {

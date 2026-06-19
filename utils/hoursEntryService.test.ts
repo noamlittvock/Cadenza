@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { HoursEntry } from '../types/blueprint';
+import type { HoursReport } from '../types';
 import {
   HoursEntryServiceError,
   applyHoursEntryUpdates,
@@ -8,6 +9,7 @@ import {
   buildTeacherHoursEntry,
   editTeacherHoursEntry,
   markHoursEntriesPaid,
+  reconcileLegacyHoursReports,
   submitTeacherHoursPeriod,
   type HoursEntryServiceContext,
   type HoursPeriodHeader,
@@ -351,5 +353,143 @@ describe('hours entry service - corrections', () => {
       context: adminContext,
       idFactory: () => 'entry_correction',
     })).toThrowError(new HoursEntryServiceError('INVALID_MINUTES', 'reportedMinutesDelta must not be 0.'));
+  });
+});
+
+describe('hours entry service - legacy hours report reconciliation', () => {
+  const legacyReport = (overrides: Partial<HoursReport> = {}): HoursReport => ({
+    id: 'report_legacy',
+    orgId: 'org_1',
+    staffMemberId: 'staff_1',
+    token: 'legacy-token',
+    periodStart: '2026-05-01',
+    periodEnd: '2026-05-31',
+    status: 'SUBMITTED',
+    submittedAt: '2026-06-01T08:00:00.000Z',
+    createdBy: 'admin_user_1',
+    createdAt: '2026-05-01T08:00:00.000Z',
+    reportedEntries: [
+      {
+        id: 'legacy_entry_1',
+        date: '2026-05-10',
+        hours: 1.5,
+        entryType: 'CALENDAR_ADJUSTED',
+        sourceEventId: 'event_1',
+        absenceReason: 'Makeup',
+      },
+      {
+        id: 'legacy_entry_2',
+        date: '2026-05-12',
+        hours: 2,
+        entryType: 'MANUAL',
+        description: 'Workshop prep',
+      },
+    ],
+    ...overrides,
+  });
+
+  it('converts nested legacy reported entries into normalized HoursEntry rows and header-only reports', () => {
+    const plan = reconcileLegacyHoursReports({
+      reports: [legacyReport()],
+      existingEntries: [],
+      now: LATER,
+    });
+
+    expect(plan.headers).toEqual([
+      {
+        id: 'report_legacy',
+        orgId: 'org_1',
+        staffMemberId: 'staff_1',
+        periodStart: '2026-05-01',
+        periodEnd: '2026-05-31',
+        status: 'SUBMITTED',
+        submittedAt: '2026-06-01T08:00:00.000Z',
+        createdAt: '2026-05-01T08:00:00.000Z',
+        updatedAt: LATER,
+        createdBy: 'admin_user_1',
+        updatedBy: 'legacy-hours-reconciliation',
+        token: undefined,
+        reportedEntries: undefined,
+      },
+    ]);
+    expect(plan.entries).toEqual([
+      {
+        id: 'legacy_report_legacy_legacy_entry_1',
+        orgId: 'org_1',
+        staffMemberId: 'staff_1',
+        hoursReportId: 'report_legacy',
+        date: '2026-05-10',
+        reportedMinutes: 90,
+        calendarMinutes: 90,
+        eventId: 'event_1',
+        teachingAssignmentId: null,
+        orgRoleId: null,
+        rate: null,
+        status: 'SUBMITTED',
+        note: 'Absence reason: Makeup | Legacy type: CALENDAR_ADJUSTED',
+        createdAt: '2026-06-01T08:00:00.000Z',
+        updatedAt: LATER,
+        createdBy: 'admin_user_1',
+        updatedBy: 'legacy-hours-reconciliation',
+      },
+      {
+        id: 'legacy_report_legacy_legacy_entry_2',
+        orgId: 'org_1',
+        staffMemberId: 'staff_1',
+        hoursReportId: 'report_legacy',
+        date: '2026-05-12',
+        reportedMinutes: 120,
+        calendarMinutes: 0,
+        eventId: null,
+        teachingAssignmentId: null,
+        orgRoleId: null,
+        rate: null,
+        status: 'SUBMITTED',
+        note: 'Workshop prep | Legacy type: MANUAL',
+        createdAt: '2026-06-01T08:00:00.000Z',
+        updatedAt: LATER,
+        createdBy: 'admin_user_1',
+        updatedBy: 'legacy-hours-reconciliation',
+      },
+    ]);
+  });
+
+  it('is idempotent and keeps reviewed legacy rows awaiting D-19 rate stamping', () => {
+    const existing = entry({
+      id: 'legacy_report_legacy_legacy_entry_1',
+      hoursReportId: 'report_legacy',
+      status: 'APPROVED',
+      rate: 120,
+    });
+    const plan = reconcileLegacyHoursReports({
+      reports: [legacyReport({ status: 'REVIEWED' })],
+      existingEntries: [existing],
+      now: LATER,
+    });
+
+    expect(plan.entries).toHaveLength(1);
+    expect(plan.entries[0]).toMatchObject({
+      id: 'legacy_report_legacy_legacy_entry_2',
+      status: 'SUBMITTED',
+      rate: null,
+      note: 'Workshop prep | Legacy type: MANUAL | Legacy report was reviewed; admin approval must stamp the payable rate before payment.',
+    });
+    expect(plan.headers[0]).toMatchObject({
+      status: 'REVIEWED',
+      token: undefined,
+      reportedEntries: undefined,
+    });
+  });
+
+  it('maps pending legacy entry drafts without creating a parallel totals ledger', () => {
+    const plan = reconcileLegacyHoursReports({
+      reports: [legacyReport({ status: 'PENDING', submittedAt: undefined })],
+      existingEntries: [],
+      now: LATER,
+    });
+
+    expect(plan.entries.map(item => item.status)).toEqual(['DRAFT', 'DRAFT']);
+    expect('totalMinutes' in plan.headers[0]).toBe(false);
+    expect('totalAmount' in plan.headers[0]).toBe(false);
   });
 });

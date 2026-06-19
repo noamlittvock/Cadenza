@@ -77,13 +77,12 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
 
 ## Baseline Known Findings - 2026-06-18
 
-- `components/TeacherHoursForm.tsx` currently appears to use legacy
-  `HoursReport.reportedEntries` nesting and direct/fetch helpers for
-  `hoursReports`; audit before changing.
-- `components/HoursComparisonView.tsx` currently consumes `HoursReport[]`; it
-  likely needs D-18 consolidation around `HoursEntry[]`.
-- `App.tsx` currently syncs `hoursReports`; audit whether `hoursEntries` is
-  already synced anywhere before adding another collection.
+- `components/TeacherHoursForm.tsx` no longer writes payroll data; legacy
+  `/report/:token` links now render a closed reference notice only.
+- `components/HoursComparisonView.tsx` now consumes normalized `HoursEntry[]`
+  and `HoursReport` period headers; do not reintroduce nested report review.
+- `App.tsx` syncs both normalized `hoursEntries` and `hoursReports` period
+  headers for the authenticated payroll workspace.
 - `utils/blueprintQueries.ts` already has `listPendingHoursReports`,
   `compareReportedVsCalendarHours`, and `calculatePayslipRows`, but packet
   acceptance still requires variance-edge tests and D-19 rate-resolution tests.
@@ -103,16 +102,16 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
   `docs/blueprint-planning/NEXT_AGENT_LOOP.md`. Preserve both.
 - At audit start, the only teacher hours surface was the unauthenticated legacy
   `/report/:token` path in `App.tsx`, rendering `components/TeacherHoursForm.tsx`.
-  It queries `hours_reports` by `data->>token`, reads/writes `hoursReports`
-  through `utils/supabaseSync.ts`, and submits nested
-  `HoursReport.reportedEntries`. The teacher self-report unit added an
-  authenticated `PAYROLL` route backed by normalized `hours_entries`, but the
-  legacy token path still exists and must be reconciled/gated in the legacy
-  consolidation/backfill unit before payroll is promoted.
-- `components/TeacherHoursForm.tsx` initializes event rows as
-  confirmed-by-default. Do not preserve that behavior when moving to D-18/D-19:
-  teacher entries must write normalized `hours_entries`, and final payable rate
-  must be stamped only by admin approval.
+  It queried `hours_reports` by `data->>token`, read/wrote `hoursReports`
+  through `utils/supabaseSync.ts`, and submitted nested
+  `HoursReport.reportedEntries`. The legacy consolidation/backfill unit has now
+  retired that public write path to a closed reference notice and added
+  admin-only reconciliation from legacy nested entries into normalized
+  `hours_entries`.
+- The retired legacy token form previously initialized event rows as
+  confirmed-by-default. Do not reintroduce that behavior: teacher entries must
+  write normalized `hours_entries`, and final payable rate must be stamped only
+  by admin approval.
 - Current admin comparison UI exists in `components/HoursComparisonView.tsx`, but
   it consumes legacy `HoursReport[]` and nested entries, supports only
   `SUBMITTED -> REVIEWED`, and was not found mounted in active app routes.
@@ -149,9 +148,9 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
 - D-05 adapter usage for attendance is established in
   `utils/lessonAttendanceService.ts` and `components/CalendarView.tsx` through
   `eventToV2`; the authenticated teacher payroll route uses `eventToV2` for
-  calendar-derived draft rows. Legacy `TeacherHoursForm.tsx` and
-  `HoursComparisonView.tsx` still read legacy `CalendarEvent` directly and must
-  not be carried forward without the canonical adapter boundary.
+  calendar-derived draft rows, and the payroll review surface uses
+  `eventToMinimal` for calendar variance. The legacy token form no longer reads
+  events or writes payroll data.
 - Static RLS coverage in `utils/supabaseSchema.test.ts` now asserts
   `hours_entries` admin-only broad writes, teacher self DRAFT/SUBMITTED-only
   insert/update policies, finance read access, and no member/finance/anon
@@ -224,7 +223,7 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
   list pending/submitted entries by staff/period, show reported-vs-calendar
   variance, stamp rates on approval, mark approved entries paid, and preview or
   export payslip rows. Finance may read/export but not approve/pay.
-- [ ] Legacy consolidation/backfill: reconcile existing `hours_reports`
+- [x] Legacy consolidation/backfill: reconcile existing `hours_reports`
   reported-entry docs into the D-18 model as period headers plus normalized
   `hours_entries` where packet-local safe. Retain legacy reports as archive or
   opening context only; do not create a parallel payroll ledger.
@@ -262,10 +261,9 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
 
 ## Next Unit
 
-- Legacy consolidation/backfill: reconcile existing `hours_reports`
-  reported-entry docs into the D-18 model as period headers plus normalized
-  `hours_entries` where packet-local safe. Retain legacy reports as archive or
-  opening context only; do not create a parallel payroll ledger.
+- Playwright payroll workflow smoke: teacher submit hours -> admin compare
+  variance -> approve with stamped rate -> payslip rows/export; include Hebrew
+  RTL and 390x844 teacher self-report coverage.
 
 ## Setup Notes For Next Agent
 
@@ -378,3 +376,19 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
   tests, including Hebrew mobile self-report and admin approve/pay);
   `npm run typecheck -- --diagnostics` passed;
   `npx vitest run --reporter=dot` passed (21 files, 242 tests).
+- 2026-06-19 Legacy consolidation/backfill for `payroll-salaries-hours`: added
+  an idempotent `hours_reports.reportedEntries` reconciliation helper that
+  converts legacy nested lines into normalized `hours_entries`, strips legacy
+  report tokens/nested entries into header-only archive/opening context, runs
+  only for admin-capable app sessions, and leaves reviewed legacy rows awaiting
+  D-19 approval-time rate stamping. Retired the unauthenticated `/report/:token`
+  write surface to a closed reference notice so public payroll submissions no
+  longer bypass authenticated Payroll. Changed files: `App.tsx`,
+  `components/TeacherHoursForm.tsx`, `utils/hoursEntryService.ts`,
+  `utils/hoursEntryService.test.ts`, and
+  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
+  `npx vitest run utils/hoursEntryService.test.ts --reporter=dot` passed (1
+  file, 14 tests); `npm run typecheck -- --diagnostics` passed;
+  `npx vitest run --reporter=dot` passed (21 files, 246 tests);
+  `npm run test:e2e -- e2e/payroll-teacher.spec.ts` passed (3 tests).
+  Playwright payroll workflow smoke remains the next queue unit.
