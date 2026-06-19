@@ -75,7 +75,15 @@ Non-negotiable rules:
   or preparation, not silent event-open materialization; prepared rows start
   `UNMARKED`/`PENDING` and must not silently mark attendance, completion, or
   lesson outcomes.
-- D-18-D-27 remain parked. Do not build packet sections marked `BLOCKED ON D-xx`
+- D-18 is ACCEPTED: `HoursEntry` is payroll source of truth and `HoursReport` is
+  a period/submission header, not a parallel totals ledger.
+- D-19 is ACCEPTED: payroll rates are configurable; P0 order is admin override,
+  engagement/assignment role-department rate, staff default, org default; payable
+  rate is stamped at admin approval.
+- D-20 is ACCEPTED: P0 finance uses single currency per org/family ledger while
+  staying future-safe for explicit multi-currency mode; never silently offset one
+  currency against another.
+- D-21-D-27 remain parked. Do not build packet sections marked `BLOCKED ON D-xx`
   until the matching decision is answered and the packet/decision log are updated.
 - Route/palette rule: a command-palette destination must route to a real surface
   or alias onto one. Public token routes do not get sidebar or command-palette

@@ -1,6 +1,6 @@
 import type { CalendarEvent } from '../types';
 import { BLUEPRINT_COLLECTIONS, type AttendanceStatus, type LessonCompletion, type LessonRecord } from '../types/blueprint';
-import type { EventV2 } from '../types/v2';
+import type { EnrollmentV2, EventParticipant, EventV2 } from '../types/v2';
 import type { AppTimestamp } from './appTimestamp';
 import { eventToV2 } from './canonicalAdapters';
 import { fetchCollectionItems, upsertCollectionItems } from './supabaseSync';
@@ -11,7 +11,8 @@ export type LessonAttendanceErrorCode =
   | 'ORG_MISMATCH'
   | 'TEACHER_NOT_OWNER'
   | 'INVALID_ATTENDANCE'
-  | 'INVALID_COMPLETION';
+  | 'INVALID_COMPLETION'
+  | 'PREPARE_NOT_ALLOWED';
 
 export class LessonAttendanceError extends Error {
   constructor(
@@ -49,6 +50,12 @@ export interface LessonAttendanceMarkContext {
 export interface LessonAttendanceUpdatePlan {
   event: EventV2;
   lesson: LessonRecord;
+}
+
+export interface LessonAttendancePreparationPlan {
+  event: EventV2;
+  preparedLessons: LessonRecord[];
+  skippedStudentIds: string[];
 }
 
 export interface LessonAttendanceRepository {
@@ -96,6 +103,21 @@ function assertActorCanMark(lesson: LessonRecord, actor: LessonAttendanceActor):
   }
 }
 
+function resolveEventForAttendance(params: {
+  event: CalendarEvent;
+  eventV2?: EventV2 | null;
+  context: Pick<LessonAttendanceMarkContext, 'orgId' | 'timeZone' | 'adapterNow'>;
+}): EventV2 {
+  const adapted = eventToV2(params.event, {
+    orgId: params.context.orgId,
+    timeZone: params.context.timeZone,
+    now: params.context.adapterNow,
+  });
+  if (!params.eventV2) return adapted;
+  if (params.eventV2.id !== adapted.id || params.eventV2.orgId !== params.context.orgId) return adapted;
+  return params.eventV2;
+}
+
 export function buildExistingLessonAttendanceUpdate(params: {
   event: CalendarEvent;
   lessons: LessonRecord[];
@@ -141,6 +163,92 @@ export function buildExistingLessonAttendanceUpdate(params: {
   };
 }
 
+function uniqueIds(ids: Array<string | null | undefined>): string[] {
+  return [...new Set(ids.filter((id): id is string => Boolean(id)))];
+}
+
+function activeRosterStudentIds(eventV2: EventV2, enrollments: EnrollmentV2[]): string[] {
+  if (!eventV2.activityId) return [];
+  return uniqueIds(enrollments
+    .filter(enrollment => (
+      enrollment.orgId === eventV2.orgId
+      && enrollment.status === 'ACTIVE'
+      && enrollment.activityId === eventV2.activityId
+      && (!eventV2.l2Id || enrollment.l2Id === eventV2.l2Id)
+    ))
+    .map(enrollment => enrollment.studentId));
+}
+
+function eventStaffMemberIds(event: CalendarEvent, participants: EventParticipant[]): string[] {
+  const teaching = participants.filter(participant => participant.assignmentType === 'TEACHING');
+  const source = teaching.length > 0 ? teaching : participants;
+  return uniqueIds([
+    ...source.map(participant => participant.staffMemberId),
+    ...(event.staffMemberIds ?? []),
+    event.teacherId,
+  ]);
+}
+
+export function buildLessonAttendancePreparation(params: {
+  event: CalendarEvent;
+  eventV2?: EventV2 | null;
+  lessons: LessonRecord[];
+  enrollments: EnrollmentV2[];
+  participants: EventParticipant[];
+  context: LessonAttendanceMarkContext;
+  idFactory: () => string;
+}): LessonAttendancePreparationPlan {
+  const { event, lessons, enrollments, participants, context, idFactory } = params;
+  const eventV2 = resolveEventForAttendance({
+    event,
+    eventV2: params.eventV2,
+    context,
+  });
+  if (eventV2.orgId !== context.orgId) {
+    throw new LessonAttendanceError('ORG_MISMATCH', 'The selected event is not in the current organization.');
+  }
+
+  const staffMemberIds = eventStaffMemberIds(event, participants.filter(participant => (
+    (!participant.orgId || participant.orgId === context.orgId)
+    && (!participant.eventId || participant.eventId === eventV2.id)
+  )));
+  if (!context.actor.canAdminOverride && (!context.actor.staffMemberId || !staffMemberIds.includes(context.actor.staffMemberId))) {
+    throw new LessonAttendanceError('PREPARE_NOT_ALLOWED', 'Only an assigned teacher or an admin can prepare attendance rows for this event.');
+  }
+
+  const existingStudentIds = new Set(lessons
+    .filter(lesson => lesson.orgId === context.orgId && lesson.eventId === eventV2.id)
+    .map(lesson => lesson.studentId));
+  const rosterStudentIds = activeRosterStudentIds(eventV2, enrollments);
+  const missingStudentIds = rosterStudentIds.filter(studentId => !existingStudentIds.has(studentId));
+  const primaryStaffMemberId = context.actor.canAdminOverride
+    ? (staffMemberIds[0] ?? null)
+    : (context.actor.staffMemberId ?? staffMemberIds[0] ?? null);
+
+  return {
+    event: eventV2,
+    skippedStudentIds: rosterStudentIds.filter(studentId => existingStudentIds.has(studentId)),
+    preparedLessons: missingStudentIds.map(studentId => ({
+      id: idFactory(),
+      orgId: context.orgId,
+      eventId: eventV2.id,
+      studentId,
+      staffMemberId: primaryStaffMemberId,
+      date: eventV2.date,
+      attendance: 'UNMARKED',
+      completion: 'PENDING',
+      notes: null,
+      repertoire: [],
+      homework: null,
+      makeupOfLessonId: null,
+      createdAt: context.updatedAt,
+      updatedAt: context.updatedAt,
+      createdBy: context.actor.userId ?? null,
+      updatedBy: context.actor.userId ?? null,
+    })),
+  };
+}
+
 export function applyLessonAttendanceUpdate(
   lessons: LessonRecord[],
   updatedLesson: LessonRecord,
@@ -169,4 +277,14 @@ export async function markExistingLessonAttendance(params: {
   });
   await repository.upsertLessonRecords(params.context.orgId, [plan.lesson]);
   return plan;
+}
+
+export function applyLessonAttendancePreparation(
+  lessons: LessonRecord[],
+  preparedLessons: LessonRecord[],
+): LessonRecord[] {
+  if (preparedLessons.length === 0) return lessons;
+  const existingKeys = new Set(lessons.map(lesson => `${lesson.eventId}|${lesson.studentId}`));
+  const additions = preparedLessons.filter(lesson => !existingKeys.has(`${lesson.eventId}|${lesson.studentId}`));
+  return [...lessons, ...additions];
 }

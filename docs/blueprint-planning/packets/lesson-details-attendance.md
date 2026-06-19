@@ -1,6 +1,6 @@
 # Lesson Details And Attendance  (`lesson-details-attendance`)
 
-Status: gap → planned (this packet)  ·  Priority: p0
+Status: implemented  ·  Priority: p0
 Owner-decisions still blocking this packet: none for the current P0 attendance
 materialization path. Accepted prerequisites: **D-05** (canonical event adapter),
 **D-06** (teacher self-write with admin approval gate), and **D-17** (one lesson
@@ -8,10 +8,11 @@ row per event/student with explicit preparation) are implemented/accepted
 foundation, not open blockers.
 
 ## Current State (ground truth)
-- Existing UI: Calendar event detail now includes D-17-safe attendance for
-  existing `lesson_records`: read/mark controls, unmarked worklist, student
-  lesson history links, Hebrew/RTL, and 390x844 mobile coverage. Remaining P0
-  work is materialization/preparation for existing events per accepted D-17.
+- Existing UI: Calendar event detail now includes event-linked attendance
+  read/mark controls, an explicit teacher/admin row preparation action for
+  existing events, an unmarked worklist, student lesson history links,
+  Hebrew/RTL, and 390x844 mobile coverage. Preparation follows accepted D-17:
+  no rows are created on event open, and prepared rows start unconfirmed.
 - Existing schema: `lesson_records` (normalized, `0002`) — fields `eventId, studentId, staffMemberId, attendance, completion, repertoire[], homework, makeupOfLessonId`. D-17 ACCEPTED: one row per `(event, student)`. Group lessons are multiple `lesson_records` sharing one `eventId`; event-level attendance views are derived from row counts/statuses. `events` (core hybrid, v1+v2 docs), `event_participants` (core). Type duplication: `CalendarEvent` vs `EventV2` (D-05); Blueprint dataEntities reference `EventV2`/`StaffMemberV2`/`StudentV2`.
 - Existing query helpers (implemented + tested): `listStudentLessonHistory`, `listUnmarkedAttendance` (attendance=UNMARKED, optional cutoff), `summarizeLessonCompletion` (totals + completionRate).
 - Existing tests: `utils/blueprintQueries.test.ts` covers all three. No attendance-marking **workflow/UI** tests.

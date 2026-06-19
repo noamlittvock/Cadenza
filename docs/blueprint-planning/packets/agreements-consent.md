@@ -2,12 +2,11 @@
 
 Status: `gap` (per `features/forteTree.ts`) -> target `implemented`.
 Priority: p1
-Owner-decisions still blocking this packet: **BLOCKED ON D-20** for currency-specific financial
-agreement/statement outputs, **BLOCKED ON D-22** for assessment/report-card
-guardian delivery consent language, **BLOCKED ON D-23** for public performance
-or media-release disclosure rules, and **BLOCKED ON D-24** for consent
-withdrawal/revocation semantics, and **BLOCKED ON D-25** for instrument-loan
-deposit/refund terms. Core authenticated template management,
+Owner-decisions still blocking this packet: **BLOCKED ON D-22** for
+assessment/report-card guardian delivery consent language, **BLOCKED ON D-23**
+for public performance or media-release disclosure rules, **BLOCKED ON D-24**
+for consent withdrawal/revocation semantics, and **BLOCKED ON D-25** for
+instrument-loan deposit/refund terms. Core authenticated template management,
 agreement request tracking, typed e-signature, and PDF upload capture are
 otherwise unblocked by current accepted decisions.
 Current accepted prerequisites: **D-03** (editable Family), **D-04** (canonical
@@ -95,8 +94,9 @@ guardian/contact data stays in `families.guardians[]` jsonb).
   are retained for audit; corrections create a new row or explicit status change,
   not a destructive edit.
 - Import/export: admin import of legacy signed PDFs or template text; admin export
-  of template/request status. Finance statement/agreement exports that compute
-  currency-specific balances or terms are **BLOCKED ON D-20**.
+  of template/request status. Finance statement/agreement exports use the
+  accepted D-20 org/family single-currency policy in P0; future explicit
+  multi-currency agreement terms require a separate configured mode.
 - Cross-links: Student/family detail agreements tab, Enrollment detail, public
   registration conversion, finance/payment terms, instrument loans (deposit/refund
   terms are **BLOCKED ON D-25**), report-card or certificate delivery (**BLOCKED
@@ -137,12 +137,12 @@ guardian/contact data stays in `families.guardians[]` jsonb).
   `DocumentEntry`. Public/token signing inherits D-07/D-14: the Edge
   Function/scoped-token path validates `public_endpoints`, writes only the target
   acceptance row, and never grants broad anon access to org tables.
-- Open schema decisions: financial/currency-specific agreement output is **BLOCKED ON D-20**;
-  assessment/report-card guardian delivery consent language is **BLOCKED ON
-  D-22**; media release and public performer/program disclosure language is
-  **BLOCKED ON D-23**; withdrawal/revocation status, audit fields, and downstream
-  effects are **BLOCKED ON D-24**; instrument-loan deposit/refund terms are
-  **BLOCKED ON D-25**.
+- Open schema decisions: financial agreement output uses the accepted D-20 P0
+  single-currency org/family ledger policy; assessment/report-card guardian
+  delivery consent language is **BLOCKED ON D-22**; media release and public
+  performer/program disclosure language is **BLOCKED ON D-23**; withdrawal/
+  revocation status, audit fields, and downstream effects are **BLOCKED ON
+  D-24**; instrument-loan deposit/refund terms are **BLOCKED ON D-25**.
 
 ## UX Placement (obey route-nav-policy.md)
 - Home: **Manage tab / agreement templates** for template administration, plus
@@ -158,8 +158,8 @@ guardian/contact data stays in `families.guardians[]` jsonb).
 - Empty / loading / error states: no templates, no active version, no unsigned
   agreements, stale student/family/enrollment target, expired/revoked token,
   already-signed token, declined request, storage upload failure, signature save
-  failure, and actions marked **BLOCKED ON D-20**, **BLOCKED ON D-22**,
-  **BLOCKED ON D-23**, **BLOCKED ON D-24**, or **BLOCKED ON D-25**.
+  failure, and actions marked **BLOCKED ON D-22**, **BLOCKED ON D-23**,
+  **BLOCKED ON D-24**, or **BLOCKED ON D-25**.
 - Hebrew/RTL requirements: template bodies, signature forms, signer names,
   status labels, version history, mixed Hebrew/English policy titles, and PDF
   upload labels must be RTL-safe. Signature evidence values and file paths should
@@ -173,9 +173,9 @@ guardian/contact data stays in `families.guardians[]` jsonb).
 | Create | ✓ | ✓ | — | — | — | — | Admin creates templates, versions, and pending acceptance requests under admin-write policy. Public request creation is denied. |
 | Edit | ✓ | ✓ | — | — | — | — | Admin edits pending requests and creates new template versions; accepted text is immutable. |
 | Status transition (non-financial) | ✓ | ✓ | — | — | — | — | Admin expires/supersedes/corrects requests. Public accept/decline is represented only in the `Public submit/sign` path below. |
-| Status transition (payroll/finance-affecting) | — | — | — | — | — | — | No direct payroll/ledger mutation. Currency-specific financial agreement or statement behavior is **BLOCKED ON D-20**. |
+| Status transition (payroll/finance-affecting) | — | — | — | — | — | — | No direct payroll/ledger mutation. Financial agreement or statement terms use accepted D-20 single-currency org/family ledger policy. |
 | Archive/delete | ✓ | ✓ | — | — | — | — | Deactivate/version templates and retain acceptance rows; consent revocation/withdrawal behavior is **BLOCKED ON D-24**. |
-| Export | ✓ | ✓ | — | — | — | — | Admin-only agreement status/template/PDF export; finance-specific statement output is **BLOCKED ON D-20**. |
+| Export | ✓ | ✓ | — | — | — | — | Admin-only agreement status/template/PDF export; finance-specific statement output uses accepted D-20 single-currency semantics. |
 | Public submit/sign | — | — | — | — | — | ✓ | D-07/D-14: controlled Edge Function/scoped token validates `public_endpoints`, explicit consent/setup, and writes only the target acceptance; no broad anon INSERT/UPDATE. |
 
 Required RLS refinements/tests:
@@ -237,5 +237,5 @@ Required RLS refinements/tests:
   public-registration-intake for intake-created agreement requests, payments-
   charges for finance-linked terms, real-role RLS/storage refinements during
   implementation, and the accepted D-07/D-14 token handler build. Specific
-  unresolved sections remain **BLOCKED ON D-20**, **BLOCKED ON D-22**,
-  **BLOCKED ON D-23**, **BLOCKED ON D-24**, and **BLOCKED ON D-25**.
+  unresolved sections remain **BLOCKED ON D-22**, **BLOCKED ON D-23**,
+  **BLOCKED ON D-24**, and **BLOCKED ON D-25**.

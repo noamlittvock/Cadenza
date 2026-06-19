@@ -2,9 +2,9 @@
 
 Status: `implemented` (per `features/forteTree.ts` + **D-STATUS**) -> follow-up
 packet. Priority: p1
-Owner-decisions still blocking this packet: **BLOCKED ON D-20** for ledger
-currency policy, **BLOCKED ON D-24** for agreement/consent withdrawal effects on
-instrument loans, and **BLOCKED ON D-25** for the instrument deposit model.
+Owner-decisions still blocking this packet: **BLOCKED ON D-24** for
+agreement/consent withdrawal effects on instrument loans, and **BLOCKED ON
+D-25** for the instrument deposit model.
 Current accepted prerequisites: **D-02** (Inventory aliases to
 `Manage?tab=inventory`), **D-03** (editable Family), **D-04** (canonical student
 adapter), **D-11** (typed signature plus PDF upload for agreements), and
@@ -82,11 +82,11 @@ adapter), **D-11** (typed signature plus PDF upload for agreements), and
   documents, or financial rows. Retire instruments and retain loan/repair history.
 - Import/export: admin import of catalog rows and historical loans/repairs;
   admin export of catalog, active loans, overdue loans, and custody history.
-  Deposit/charge export is **BLOCKED ON D-25** and any currency behavior is
-  **BLOCKED ON D-20**.
+  Deposit/charge export is **BLOCKED ON D-25** and uses the accepted D-20
+  single-currency org/family ledger policy when instrument deposits are accepted.
 - Cross-links: Student/family files for borrower history, Staff profile for
   staff borrowers, Agreements for loan acceptance, Payments/Charges for deposits
-  or replacement fees once D-25/D-20 are resolved, Reports/Analytics for overdue
+  or replacement fees once D-25 resolves, Reports/Analytics for overdue
   and utilization reports, Import/Export for catalog migration, and Documents for
   photos, condition reports, receipts, or repair invoices.
 
@@ -100,7 +100,7 @@ adapter), **D-11** (typed signature plus PDF upload for agreements), and
   records for staff borrowers; optional `AgreementAcceptance` for a signed loan
   agreement; optional private document records/storage objects for photos,
   condition reports, agreements, and repair invoices; optional finance rows only
-  after D-25/D-20 are resolved.
+  after D-25 resolves, using the accepted D-20 single-currency ledger policy.
 - Required fields: instrument `assetTag`, `name`, `category`, `condition`,
   `status`; loan `instrumentId`, exactly one borrower (`borrowerStudentId` or
   `borrowerStaffId`), `checkedOutAt`, `status`, and `conditionOut`; repair
@@ -124,9 +124,10 @@ adapter), **D-11** (typed signature plus PDF upload for agreements), and
   student display and cross-linking use the D-04 adapter boundary; no global
   Student migration is introduced.
 - Open schema decisions: deposit/fee lifecycle, storage, refund, and ledger
-  linkage are **BLOCKED ON D-25**; mixed-currency behavior for any accepted
-  deposit/fee ledger rows is **BLOCKED ON D-20**; consent withdrawal/revocation
-  effects for existing loan agreements are **BLOCKED ON D-24**.
+  linkage are **BLOCKED ON D-25**; any accepted deposit/fee ledger rows use D-20
+  P0 single-currency semantics, with future mixed-currency behavior requiring an
+  explicit configured mode; consent withdrawal/revocation effects for existing
+  loan agreements are **BLOCKED ON D-24**.
 
 ## UX Placement (obey route-nav-policy.md)
 - Home: **Manage tab** at `Manage?tab=inventory`. Inventory remains an embedded
@@ -141,7 +142,7 @@ adapter), **D-11** (typed signature plus PDF upload for agreements), and
   catalog load, duplicate asset tag, stale active-loan conflict, checkout without
   borrower, return without active loan, failed repair resolution, missing linked
   borrower, missing agreement record, document upload failure, and sections
-  marked **BLOCKED ON D-20**, **BLOCKED ON D-24**, or **BLOCKED ON D-25**.
+  marked **BLOCKED ON D-24** or **BLOCKED ON D-25**.
 - Hebrew/RTL requirements: catalog table, filters, status/condition labels,
   borrower names, serial numbers, asset tags, dates, custody timeline, repair
   notes, and document filenames must remain readable in Hebrew/RTL. Asset tags,
@@ -156,7 +157,7 @@ adapter), **D-11** (typed signature plus PDF upload for agreements), and
 | Create | ✓ | ✓ | — | — | — | — | Existing admin-write policy covers catalog/loan/repair creation; borrowers do not self-create inventory rows. |
 | Edit | ✓ | ✓ | — | — | — | — | Admin edits catalog metadata and repair details; borrower correction requires admin action. |
 | Status transition (non-financial) | ✓ | ✓ | — | — | — | — | Admin performs checkout, return, repair, retire, lost, and correction transitions with status-sync tests. |
-| Status transition (payroll/finance-affecting) | — | — | — | — | — | — | Deposit, replacement-fee, or refund transitions are **BLOCKED ON D-25** and any currency behavior is **BLOCKED ON D-20**. |
+| Status transition (payroll/finance-affecting) | — | — | — | — | — | — | Deposit, replacement-fee, or refund transitions are **BLOCKED ON D-25**; accepted future rows use D-20 single-currency semantics. |
 | Archive/delete | ✓ | ✓ | — | — | — | — | No hard delete after linked loans/repairs/agreements/documents/finance rows; retire instead. |
 | Export | ✓ | ✓ | — | — | — | — | Admin catalog/loan/repair export. Finance/deposit exports are **BLOCKED ON D-25**. |
 | Public submit/sign | — | — | — | — | — | — | No inventory public write path. Guardian/public agreement signing, if used, belongs to agreements-consent through D-07/D-14. |
@@ -199,8 +200,8 @@ Required RLS refinements/tests:
   local/demo inventory rows remain in normalized tables. Backfill historical loans
   and repairs only when source records exist; otherwise preserve current catalog
   and derive availability from current instrument status. No global Student,
-  Staff, or Event migration. Any deposit/fee backfill is **BLOCKED ON D-25** and
-  any mixed-currency handling is **BLOCKED ON D-20**.
+  Staff, or Event migration. Any deposit/fee backfill is **BLOCKED ON D-25**;
+  mixed-currency deposit handling requires a future explicit mode beyond P0.
 
 ## Dependencies
 - Blocks: reports-analytics for overdue, utilization, repair-cost, and custody
@@ -210,6 +211,5 @@ Required RLS refinements/tests:
   files for borrower history and family context.
 - Blocked by: student-family-files for first-class borrower/family cross-links,
   agreements-consent for structured loan agreement request/history, real-role RLS
-  refinements for loan/repair/document detail, **D-20** for currency behavior,
-  **D-24** for agreement withdrawal effects on instrument loans, and **D-25** for
-  the deposit model.
+  refinements for loan/repair/document detail, **D-24** for agreement withdrawal
+  effects on instrument loans, and **D-25** for the deposit model.

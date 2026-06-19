@@ -3,8 +3,8 @@
 Date: 2026-06-17  ·  Branch: `blueprint-supabase`  ·  Repo: `/Users/noamlitt/Documents/Cadenza Forte`
 
 You are continuing a planned implementation. Pass 0 (planning infra) and the five
-P0 packet specs are done. **D-01–D-17 plus D-STATUS/D-STATUS-2 are accepted or
-implemented working decisions** (locked below). D-18–D-27 are parked Noam questions
+P0 packet specs are done. **D-01–D-20 plus D-STATUS/D-STATUS-2 are accepted or
+implemented working decisions** (locked below). D-21–D-27 are parked Noam questions
 surfaced by packet conversion/migration planning; do not choose their outcomes in
 implementation. Build against the locked decisions and resolve any parked question
 before building the packet section marked `BLOCKED ON D-xx`.
@@ -16,22 +16,30 @@ the adapter path, so D-04/D-05 are resolved as **adapter, not rename**:
 `utils/canonicalAdapters.ts` is the single legacy↔V2 conversion seam (pure,
 bidirectional, tested in `canonicalAdapters.test.ts`). No wide rename, no UI rewire,
 no data migration (persistence stays HYBRID jsonb; D-15 holds). The cross-cutting
-adapter/RLS foundations are unblocked; packet-local D-18–D-27 questions still gate
+adapter/RLS foundations are unblocked; packet-local D-21–D-27 questions still gate
 the affected packet sections noted below. **D-16 is now accepted for P0:** keep
 guardian/contact data in `families.guardians[]` jsonb and defer normalized
 guardian identity until a later explicit decision.
 
 **Phase C update — 2026-06-18:** `student-family-files` and
 `public-registration-intake` are implemented. The current build-loop target is
-`lesson-details-attendance`. The D-17-safe attendance workflow for existing
-`lesson_records` rows is complete and pushed at `37ad4df`: Calendar event detail
-panel, teacher/admin existing-row marking, unmarked worklist, student lesson
-history, Hebrew/RTL/mobile checks, Playwright smoke, full Vitest/typecheck, and
-live RLS all passed. D-17 is now accepted: group lessons use one
-`lesson_records` row per `(eventId, studentId)`, with event-level views derived
-from rows; existing-event preparation/materialization must be explicit
-teacher/admin setup or preparation and must start rows unconfirmed. The next
-build-loop unit is BACKFILL/materialization for that accepted model.
+`lesson-details-attendance`. The attendance workflow is now implemented:
+Calendar event detail panel, teacher/admin marking, explicit D-17 row
+preparation for existing events, unmarked worklist, student lesson history,
+Hebrew/RTL/mobile checks, Playwright smoke, full Vitest/typecheck, and live RLS
+all passed. D-17 is accepted: group lessons use one `lesson_records` row per
+`(eventId, studentId)`, with event-level views derived from rows; existing-event
+preparation/materialization is explicit teacher/admin setup or preparation and
+starts rows unconfirmed.
+
+**Finance/payroll discovery update — 2026-06-18:** D-18, D-19, and D-20 are now
+accepted as configurable P0 assumptions, based on the generic conservatory
+finance discovery in
+[`finance-configurable-model-scope.md`](finance-configurable-model-scope.md).
+`HoursEntry` is the payroll source of truth, `HoursReport` is a period/submission
+header, rates are resolved by configurable policy and stamped at admin approval,
+and family ledgers use a single org/family currency in P0 while remaining
+future-safe for explicit multi-currency mode.
 
 ## Orientation (read in this order)
 
@@ -94,9 +102,9 @@ allow and mark affected sections `BLOCKED ON D-xx`.
 | ID | Question |
 |---|---|
 | D-17 | ACCEPTED: lesson group model is one `lesson_records` row per event/student; group lessons share one `eventId`; no embedded event-level attendance container; existing-event preparation/materialization must be explicit teacher/admin setup or preparation, with rows starting unconfirmed. |
-| D-18 | HoursReport↔HoursEntry consolidation model. |
-| D-19 | Payroll rate source order and when the rate is stamped. |
-| D-20 | Ledger currency policy: single-currency invariant vs explicit multi-currency ledger. |
+| D-18 | ACCEPTED: `HoursEntry` is payroll source of truth; `HoursReport` is a period/submission header grouping entries, not a parallel totals ledger. |
+| D-19 | ACCEPTED: configurable rate policy; P0 order is admin override, engagement/assignment role-department rate, staff default, org default; payable rate stamped at admin approval. |
+| D-20 | ACCEPTED: P0 single currency per org/family ledger; future-safe explicit multi-currency mode partitions balances by currency and never silently offsets currencies. |
 | D-21 | Operational request calendar mutation rules: approved absence/day-off side effects and extra teaching day representation. |
 | D-22 | Academic Hub assessment scope and document pipeline: rubric/pass-fail model, AI/PDF/email generation, and any tokenized examiner or guardian-facing path. |
 | D-23 | Concert public program exposure and consent: public event/program details, performer names, redaction, public files, and website/calendar endpoint scope. |
@@ -121,9 +129,9 @@ allow and mark affected sections `BLOCKED ON D-xx`.
 7. ✅ **student-family-files** (keystone — most modules link to it; use current
    `families.guardians[]` jsonb per accepted D-16).
 8. ✅ **public-registration-intake** (depends on 7 as conversion target; D-07/D-14 ready from Phase B). Extend `approveIntakeRecord` from student-only → student+family+enrollment+agreement-request+inbox-history, transactionally; guardian/contact data uses current `families.guardians[]` jsonb per accepted D-16.
-9. **lesson-details-attendance** (current; Calendar event-detail panel and mobile-reachable existing-row marking are built; next is explicit teacher/admin preparation/materialization per accepted D-17).
-10. **payroll-salaries-hours** (teacher self-report; consolidation is BLOCKED ON D-18 and rate stamping is BLOCKED ON D-19).
-11. **payments-charges** (Finance top-level view + gated student/family ledger tab; currency policy is BLOCKED ON D-20).
+9. ✅ **lesson-details-attendance** (Calendar event-detail panel, mobile-reachable marking, unmarked worklist, student lesson history, and explicit teacher/admin preparation/materialization per accepted D-17 are implemented).
+10. **payroll-salaries-hours** (teacher self-report; D-18/D-19 accepted for P0).
+11. **payments-charges** (Finance top-level view + gated student/family ledger tab; D-20 accepted for P0).
 
 P1/P2 modules (Pass 3) come after — packets are drafted and sequenced in
 [`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md).
@@ -164,6 +172,6 @@ of the actual primary workflow. Update the `forteTree` node status + packet head
   separate question of *whether/when* to migrate the app's runtime state + HYBRID
   persistence off legacy `Student`/`CalendarEvent` onto V2 is still deferred (D-15);
   needs Noam before any such migration.
-- D-18–D-27 are parked in the planning loop and must be answered before building
+- D-21–D-27 are parked in the planning loop and must be answered before building
   their blocked packet sections.
 - Final placement of `PAYROLL` (Manage tab vs Finance sub-view) and `ACADEMICS` (Academic Hub tier) when those modules are built.

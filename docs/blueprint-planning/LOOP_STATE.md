@@ -59,13 +59,10 @@ questions in NEEDS NOAM.
 
 ## Next unit
 - Planning queue and completion checklist are complete. Next work starts from
-  `IMPLEMENTATION_HANDOFF.md` and `IMPLEMENTATION_ROADMAP.md`, with D-18-D-27
+  `IMPLEMENTATION_HANDOFF.md` and `IMPLEMENTATION_ROADMAP.md`, with D-21-D-27
   still parked for Noam before blocked packet sections are built.
 
 ## NEEDS NOAM (parking lot - loop never decides these)
-- D-18: Should legacy `hours_reports` become a period header for normalized `hours_entries`, be migrated into `hours_entries` and retired, or remain as a parallel reporting surface?
-- D-19: What is the payroll rate resolution order (teaching assignment, org role, manual override, other), and is the rate stamped at teacher submit, admin approve, or payment close?
-- D-20: Should the ledger enforce a single currency per family/org, or explicitly support multi-currency balances and statements?
 - D-21: When an `ABSENCE` or `DAY_OFF` operational request is approved, what calendar side effects should ship (blackout, event cancellation/reschedule, makeup task, lesson/payroll impact, notification only), and how should "extra teaching day" requests be represented?
 - D-22: For exams/certificates/report cards, should v1 stay on simple authenticated `ExamSession`/`ExaminerSubmission`/`Certificate`/`ReportCard` records, or implement the older Academic Hub model with rubrics, pass/fail thresholds, AI summaries, generated PDFs, guardian email delivery, and/or tokenized examiner/guardian links; if richer scope is required, what fields, document paths, consent/setup, and public-token rules should ship?
 - D-23: May concert/event publishing expose event details, venue, repertoire, student/staff performer names, and downloadable or embeddable program files to unauthenticated website/calendar visitors; if yes, what consent/release setup, redaction rules, performer display names, revocation/unpublish behavior, and `public_endpoints`/calendar-website integration scope should ship?
@@ -144,5 +141,13 @@ questions in NEEDS NOAM.
   Noam confirmed the proposed model: one `lesson_records` row per event/student,
   group lessons as rows sharing one `eventId`, explicit teacher/admin
   preparation/materialization only, and prepared rows starting unconfirmed.
-  Verification: implementation loop state and active packet now carry the
-  accepted model; D-18-D-27 remain in NEEDS NOAM.
+  Verification: implementation loop state and active packet now carried the
+  accepted model; D-18-D-27 still remained in NEEDS NOAM at that time.
+- post-loop decision update - D-18/D-19/D-20 accepted as configurable
+  finance/payroll assumptions after Noam provided generic conservatory finance
+  discovery and instructed the loop to fill gaps without treating one example as
+  gospel. D-18: `HoursEntry` source of truth, `HoursReport` period/submission
+  header. D-19: configurable rate policy with admin-approval stamping. D-20: P0
+  single currency per org/family ledger with future-safe explicit multi-currency
+  mode. Verification: active handoff, roadmap, and packets now carry the accepted
+  model; D-21-D-27 remain in NEEDS NOAM.

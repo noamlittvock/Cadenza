@@ -442,7 +442,7 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
   {
     id: 'lesson-details-attendance',
     domain: 'learning',
-    status: 'gap',
+    status: 'implemented',
     priority: 'p0',
     label: 'Lesson details and attendance',
     labelHe: 'פירוט שיעורים ונוכחות',

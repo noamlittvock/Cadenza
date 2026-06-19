@@ -3,18 +3,16 @@
 Status: `planned` (per `features/forteTree.ts`) -> target `implemented`.
 Priority: p1
 Owner-decisions still blocking this packet: source-specific report packs are
-**BLOCKED ON D-18** and **BLOCKED ON D-19** for payroll period/rate semantics,
-**BLOCKED ON D-20** for currency-specific finance
-reports, **BLOCKED ON D-21** for absence/day-off side-effect reports, **BLOCKED
+**BLOCKED ON D-21** for absence/day-off side-effect reports, **BLOCKED
 ON D-22** for richer assessment/document-delivery reports, **BLOCKED ON D-23** for
 public event/program exposure reports, **BLOCKED ON D-24** for consent revocation
 reports, **BLOCKED ON D-25** for instrument deposit/refund reports, **BLOCKED ON
 D-26** for HR/evaluation reports, and **BLOCKED ON D-27** for rollover
 grade/schedule-copy reports. Core authenticated report-definition management,
 run, lineage, and CSV export over currently allowed source rows is otherwise
-unblocked by accepted D-08, D-09, D-15, and D-16. Guardian/contact reports may
-use `families.guardians[]` jsonb only after student-family source authorization
-exists.
+unblocked by accepted D-08, D-09, D-15, D-16, D-17, D-18, D-19, and D-20.
+Guardian/contact reports may use `families.guardians[]` jsonb only after
+student-family source authorization exists.
 Current accepted prerequisites: **D-08** (finance capability), **D-09**
 (reports are admin/finance only initially), **D-15** (packet-local backfill), and
 **D-17** (attendance reports use one `lesson_records` row per event/student after
@@ -118,10 +116,11 @@ lesson attendance ships).
   D-08/D-09 access limits by reading a broader row set on behalf of finance or
   members.
 - Open schema decisions: grouped attendance reports use accepted D-17
-  `lesson_records` rows after lesson attendance ships; legacy
-  `hours_reports`/normalized `hours_entries` report semantics are **BLOCKED ON
-  D-18**; payroll rate and stamped amount reports are **BLOCKED ON D-19**;
-  multi-currency balance/statement reports are **BLOCKED ON D-20**; absence/day
+  `lesson_records` rows after lesson attendance ships; payroll reports use
+  accepted D-18/D-19 `HoursEntry` source rows, period headers, and approval-time
+  stamped rates; finance reports use accepted D-20 single-currency P0 behavior;
+  explicit multi-currency report packs are deferred until a future
+  `MULTI_CURRENCY` mode is implemented. Absence/day
   operational-impact reports are **BLOCKED ON D-21**; assessment PDF/email/rubric
   reports are **BLOCKED ON D-22**; public publication/performance audit reports
   are **BLOCKED ON D-23**; consent revocation reports are **BLOCKED ON D-24**;
@@ -158,7 +157,7 @@ lesson attendance ships).
 | Create | ✓ | ✓ | — | — | — | — | Admin-only report-definition creation under admin policy; reject arbitrary source/field names. |
 | Edit | ✓ | ✓ | — | — | — | — | Admin-only edits to filters, columns, aggregates, pin/archive state, and descriptions. |
 | Status transition (non-financial) | ✓ | ✓ | — | — | — | — | Admin pins/unpins and archives definitions; no source-record status mutation. |
-| Status transition (payroll/finance-affecting) | — | — | — | — | — | — | Reports do not mutate payroll/ledger records. Payroll and finance semantics remain **BLOCKED ON D-18**, **BLOCKED ON D-19**, and **BLOCKED ON D-20** where source semantics are unresolved. |
+| Status transition (payroll/finance-affecting) | — | — | — | — | — | — | Reports do not mutate payroll/ledger records. Payroll and finance reports use accepted D-18/D-19/D-20 semantics from their source packets. |
 | Archive/delete | ✓ | ✓ | — | — | — | — | Admin soft-archive or delete unused drafts only; retain definitions with run/export lineage. |
 | Export | ✓ | ✓ | — | — | own | — | Admin exports all allowed reports. Finance exports only D-08-authorized finance/payroll reports; no HR/assessment/student roster/public reports by default. |
 | Public submit/sign | — | — | — | — | — | — | No public/tokenized report route, CSV link, or dashboard in v1. |
@@ -204,7 +203,7 @@ Required RLS refinements/tests:
   exist, and mark or skip definitions whose sources are **BLOCKED ON D-xx**. Do
   not create a global Student/Event migration or backfill duplicate aggregate
   tables. Live balances remain computed on demand per D-10; snapshot-history
-  reporting is audit-only and currency behavior is **BLOCKED ON D-20**.
+  reporting is audit-only and P0 currency behavior follows accepted D-20.
 
 ## Dependencies
 - Blocks: operations-command-center for report/health drill-downs; import-export-
@@ -213,8 +212,8 @@ Required RLS refinements/tests:
 - Blocked by: student-family-files for authoritative student/family links and
   guardian/contact source authorization through the accepted D-16 jsonb path;
   lesson-details-attendance for attendance reports using accepted D-17 rows;
-  payroll-salaries-hours, **BLOCKED ON D-18**, and **BLOCKED ON D-19** for payroll reports;
-  payments-charges and **BLOCKED ON D-20** for finance/currency reports; rooms-
+  payroll-salaries-hours for payroll reports using accepted D-18/D-19 semantics;
+  payments-charges for finance/currency reports using accepted D-20 semantics; rooms-
   absence-requests and **BLOCKED ON D-21** for absence impact reports; exams-
   certificates-report-cards and **BLOCKED ON D-22** for richer assessment reports;
   concert-programs-events and **BLOCKED ON D-23** for public/performance exposure

@@ -25,8 +25,10 @@ import { eventToV2 } from '../utils/canonicalAdapters';
 import { buildEventAttendancePanelModel, buildUnmarkedAttendanceWorklist } from '../utils/lessonAttendancePanel';
 import {
   LessonAttendanceError,
+  applyLessonAttendancePreparation,
   applyLessonAttendanceUpdate,
   buildExistingLessonAttendanceUpdate,
+  buildLessonAttendancePreparation,
 } from '../utils/lessonAttendanceService';
 import type { CalendarFilterState, CalendarSidebarTab } from '../types/calendarFilters';
 interface Props {
@@ -237,6 +239,7 @@ export const CalendarView: React.FC<Props> = ({
   const [detailItem, setDetailItem] = useState<DetailItem>(null);
   const [attendanceWorklistOpen, setAttendanceWorklistOpen] = useState(false);
   const [attendanceSavingId, setAttendanceSavingId] = useState<string | null>(null);
+  const [attendancePreparing, setAttendancePreparing] = useState(false);
   const [attendanceError, setAttendanceError] = useState<string | null>(null);
   const attendanceEventsV2 = useMemo(() => events.map(event => eventToV2(event, {
     orgId: orgId || '',
@@ -902,6 +905,19 @@ export const CalendarView: React.FC<Props> = ({
   const canMarkLesson = (lesson: LessonRecord) => (
     isAdmin || isSuperAdmin || Boolean(currentStaffMemberId && lesson.staffMemberId === currentStaffMemberId)
   );
+  const selectedEventParticipants = useMemo(() => {
+    if (detailItem?.type !== 'EVENT') return [];
+    const parentId = detailItem.data.recurrenceId || detailItem.data.id;
+    return resolveParticipants(parentId, detailItem.data.teacherId);
+  }, [detailItem, resolveParticipants]);
+  const canPrepareSelectedEvent = useMemo(() => {
+    if (detailItem?.type !== 'EVENT') return false;
+    if (isAdmin || isSuperAdmin) return true;
+    if (!currentStaffMemberId) return false;
+    return selectedEventParticipants.some(participant => participant.staffMemberId === currentStaffMemberId)
+      || detailItem.data.staffMemberIds?.includes(currentStaffMemberId)
+      || detailItem.data.teacherId === currentStaffMemberId;
+  }, [currentStaffMemberId, detailItem, isAdmin, isSuperAdmin, selectedEventParticipants]);
   const markAttendanceAria = (studentName: string, status: AttendanceStatus) => (
     t('attendance.panel.mark_aria')
       .replace('{student}', studentName)
@@ -941,6 +957,45 @@ export const CalendarView: React.FC<Props> = ({
     }
   };
 
+  const handlePrepareAttendanceRows = async () => {
+    if (detailItem?.type !== 'EVENT' || attendancePreparing) return;
+    setAttendancePreparing(true);
+    setAttendanceError(null);
+    const updatedAt = new Date().toISOString();
+    try {
+      const plan = buildLessonAttendancePreparation({
+        event: detailItem.data,
+        eventV2: eventsV2ById.get(detailItem.data.id) ?? null,
+        lessons: lessonRecords,
+        enrollments,
+        participants: selectedEventParticipants,
+        context: {
+          orgId: orgId || '',
+          timeZone: settings.timeZone || 'UTC',
+          adapterNow: nowTimestamp(),
+          updatedAt,
+          actor: {
+            userId: currentUser?.id ?? currentUser?.uid ?? null,
+            staffMemberId: currentStaffMemberId,
+            canAdminOverride: isAdmin || isSuperAdmin,
+          },
+        },
+        idFactory: generateId,
+      });
+      if (plan.preparedLessons.length === 0) {
+        setAttendanceError(t('attendance.panel.prepare_none'));
+        return;
+      }
+      const nextLessons = applyLessonAttendancePreparation(lessonRecords, plan.preparedLessons);
+      await setLessonRecords(nextLessons);
+    } catch (error) {
+      const code = error instanceof LessonAttendanceError ? error.code : 'UNKNOWN';
+      setAttendanceError(`${t('attendance.panel.prepare_error')} (${code})`);
+    } finally {
+      setAttendancePreparing(false);
+    }
+  };
+
   const renderAttendancePanel = () => {
     if (!eventAttendancePanel) return null;
 
@@ -976,9 +1031,26 @@ export const CalendarView: React.FC<Props> = ({
         <section data-testid="event-attendance-panel" dir={isRtl ? 'rtl' : 'ltr'} className={shellClass}>
           <div className="flex items-start gap-2">
             <ClipboardCheck size={16} className="mt-0.5 flex-shrink-0 text-slate-500 dark:text-slate-400" />
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{t('attendance.panel.no_rows_title')}</p>
               <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{t('attendance.panel.no_rows_body')}</p>
+              {attendanceError && (
+                <div data-testid="attendance-mark-error" className="mt-3 rounded-md border border-red-200 bg-red-50 px-2.5 py-2 text-xs font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+                  {attendanceError}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={handlePrepareAttendanceRows}
+                disabled={!canPrepareSelectedEvent || attendancePreparing}
+                className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-md border border-cadenza-200 bg-cadenza-50 px-3 py-1.5 text-xs font-semibold text-cadenza-800 transition-colors hover:border-cadenza-300 hover:bg-cadenza-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-cadenza-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-cadenza-900/70 dark:bg-cadenza-950/30 dark:text-cadenza-200"
+              >
+                {attendancePreparing ? <Loader2 size={14} className="animate-spin" /> : <ClipboardList size={14} />}
+                {attendancePreparing ? t('attendance.panel.preparing') : t('attendance.panel.prepare_rows')}
+              </button>
+              {!canPrepareSelectedEvent && (
+                <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">{t('attendance.panel.prepare_not_allowed')}</p>
+              )}
             </div>
           </div>
         </section>
@@ -996,9 +1068,22 @@ export const CalendarView: React.FC<Props> = ({
             {eventAttendancePanel.rows.length} {t('attendance.panel.rows_suffix')}
           </span>
         </div>
-        <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-          {t('attendance.panel.mark_hint')}
-        </p>
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            {t('attendance.panel.mark_hint')}
+          </p>
+          {canPrepareSelectedEvent && (
+            <button
+              type="button"
+              onClick={handlePrepareAttendanceRows}
+              disabled={attendancePreparing}
+              className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 transition-colors hover:border-cadenza-300 hover:bg-cadenza-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-cadenza-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200"
+            >
+              {attendancePreparing ? <Loader2 size={13} className="animate-spin" /> : <ClipboardList size={13} />}
+              {attendancePreparing ? t('attendance.panel.preparing') : t('attendance.panel.prepare_missing_rows')}
+            </button>
+          )}
+        </div>
         {attendanceError && (
           <div data-testid="attendance-mark-error" className="mt-3 rounded-md border border-red-200 bg-red-50 px-2.5 py-2 text-xs font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
             {attendanceError}

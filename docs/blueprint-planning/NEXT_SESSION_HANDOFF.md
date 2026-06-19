@@ -5,10 +5,10 @@
 > [`BUILD_LOOP_STATE.md`](BUILD_LOOP_STATE.md) and
 > [`NEXT_AGENT_LOOP.md`](NEXT_AGENT_LOOP.md) first. Branch `blueprint-supabase`
 > was committed and pushed at `37ad4df` (`Implement registration intake and
-> attendance workflows`). The active target is `lesson-details-attendance`; D-17
-> is now accepted as one `lesson_records` row per event/student, explicit
-> teacher/admin preparation/materialization only, and prepared rows start
-> unconfirmed. The next queue unit is BACKFILL/materialization.
+> attendance workflows`). The active `lesson-details-attendance` loop is now
+> complete and `BUILD_LOOP_STATE.md` starts with `BUILD COMPLETE`. D-17 is
+> accepted as one `lesson_records` row per event/student, explicit teacher/admin
+> preparation/materialization only, and prepared rows start unconfirmed.
 
 Date: 2026-06-17 · Branch: `blueprint-supabase` · Repo:
 `/Users/noamlitt/Documents/Cadenza Forte`
@@ -48,7 +48,7 @@ The next gate is **Phase C**: building the first P0 module
 wired at a real write boundary. Planning later parked D-16–D-27 Noam questions
 for packet-local conversion/migration gaps; Noam has since accepted D-16 for the
 P0 build path: use `families.guardians[]` jsonb for guardian/contact data and
-defer normalized guardian identity. D-18–D-27 remain parked; resolve those before
+defer normalized guardian identity. D-21–D-27 remain parked; resolve those before
 building any packet section marked `BLOCKED ON D-xx`.
 
 ---
@@ -294,11 +294,10 @@ blueprint planning work.
 - Finance policies allow finance capability holders to write ledger rows. If Noam
   wants adjustment approval or voiding to be admin-only later, refine those
   transitions in a follow-up migration.
-- D-18–D-27 are parked planning questions for payroll
-  consolidation, payroll rate stamping, ledger currency policy, operational
-  request calendar mutation rules, Academic Hub assessment/document pipeline
-  scope, concert public program exposure, agreement consent withdrawal/revocation
-  semantics, instrument deposit modeling, staff HR evaluation privacy/access
-  scope, and year-rollover grade/schedule copy rules.
+- D-21–D-27 are parked planning questions for operational request calendar
+  mutation rules, Academic Hub assessment/document pipeline scope, concert public
+  program exposure, agreement consent withdrawal/revocation semantics, instrument
+  deposit modeling, staff HR evaluation privacy/access scope, and year-rollover
+  grade/schedule copy rules.
 - Real RLS enforcement remains todo until a live Supabase test project exists.
 - No commit has been made.

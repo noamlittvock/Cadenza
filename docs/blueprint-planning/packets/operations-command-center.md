@@ -3,9 +3,7 @@
 Status: `planned` (per `features/forteTree.ts`) -> target `implemented`.
 Priority: p1
 Owner-decisions still blocking this packet: source-specific dashboard cards and
-rollups are **BLOCKED ON D-18** and **BLOCKED ON D-19** for
-pending-hours/payroll semantics, **BLOCKED ON D-20** for
-finance/currency work, **BLOCKED ON D-21** for absence/day-off operational
+rollups are **BLOCKED ON D-21** for absence/day-off operational
 impact, **BLOCKED ON D-22** for assessment/document-delivery work, **BLOCKED ON
 D-23** for public event/program exposure and endpoint health, **BLOCKED ON
 D-24** for revoked/withdrawn consent work, **BLOCKED ON D-25** for instrument
@@ -124,8 +122,8 @@ use one `lesson_records` row per event/student after lesson attendance ships).
   private source payloads into persisted dashboard state.
 - Derived/computed fields: `countOpenConflicts` from `detectRoomConflicts`;
   `listTodayEvents` from authorized Calendar events by org timezone/date window;
-  `countPendingHoursReports` from the accepted hours source after
-  **BLOCKED ON D-18** resolves; intake, finance, absence, assessment, public,
+  `countPendingHoursReports` from the accepted D-18/D-19 hours source; intake,
+  finance, absence, assessment, public,
   consent, instrument, HR, and rollover cards from their settled source helpers
   and source RLS.
 - Audit fields: generated snapshots are transient and need no audit row. If a
@@ -140,10 +138,10 @@ use one `lesson_records` row per event/student after lesson attendance ships).
   mutate only the owning source record through that source module's accepted
   conversion/status path.
 - Open schema decisions: grouped attendance/unmarked counts use accepted D-17
-  `lesson_records` rows after lesson attendance ships; legacy `hours_reports` vs normalized `hours_entries` pending-card
-  semantics are **BLOCKED ON D-18**; payroll amount/rate variance cards are
-  **BLOCKED ON D-19**; finance balance/payment work and currency-sensitive cards
-  are **BLOCKED ON D-20**; absence/day-off operational-impact cards are
+  `lesson_records` rows after lesson attendance ships; payroll pending/variance
+  cards use accepted D-18/D-19 `HoursEntry`/`HoursReport` and rate-stamp
+  semantics after payroll ships; finance balance/payment cards use accepted D-20
+  single-currency P0 semantics after payments ships; absence/day-off operational-impact cards are
   **BLOCKED ON D-21**; assessment/document-delivery cards are **BLOCKED ON
   D-22**; public event/program and website endpoint cards are **BLOCKED ON
   D-23**; consent withdrawal/revocation cards are **BLOCKED ON D-24**;
@@ -180,7 +178,7 @@ use one `lesson_records` row per event/student after lesson attendance ships).
 | Create | — | — | — | — | — | — | No command-center primary record in v1; create actions route to source modules and use source RLS. |
 | Edit | — | — | — | — | — | — | No source edits in the dashboard except delegated source quick actions that call owning module validation. |
 | Status transition (non-financial) | ✓ | ✓ | — | — | — | — | Admin may delegate Admin Inbox/Calendar/Settings source transitions only where the source packet allows them. Absence/HR/rollover transitions remain blocked where marked. |
-| Status transition (payroll/finance-affecting) | ✓ | ✓ | — | — | own | — | Finance-affecting actions are delegated to payments/payroll/report packets and are **BLOCKED ON D-18**, **BLOCKED ON D-19**, **BLOCKED ON D-20**, or **BLOCKED ON D-25** as applicable. |
+| Status transition (payroll/finance-affecting) | ✓ | ✓ | — | — | own | — | Finance-affecting actions are delegated to payments/payroll/report packets and use accepted D-18/D-19/D-20 semantics; instrument deposit/refund actions remain **BLOCKED ON D-25**. |
 | Archive/delete | — | — | — | — | — | — | No command-center hard delete. Source archive/delete rules apply in source modules. |
 | Export | ✓ | ✓ | — | — | own | — | Dashboard snapshot export only through reports-analytics; finance exports only finance-authorized cards/reports. |
 | Public submit/sign | — | — | — | — | — | — | No public/tokenized command-center route or status endpoint. |
@@ -217,8 +215,8 @@ Required RLS refinements/tests:
   RLS.
 - Playwright smoke: admin opens Admin Inbox -> Operations summary; sees open
   conflict count, today's event list, open inbox count, import error/session
-  card, private report-health card, and pending-hours card only after
-  **BLOCKED ON D-18** resolves; clicking a conflict opens the Calendar event,
+  card, private report-health card, and pending-hours card after payroll source
+  semantics are implemented; clicking a conflict opens the Calendar event,
   clicking an inbox card opens the source inbox item, and clicking report health
   opens Analytics after reports-analytics routes. Finance user sees only allowed
   finance/report cards; plain member cannot open the dashboard. HR, public,
@@ -243,11 +241,11 @@ Required RLS refinements/tests:
   source packets ship.
 - Blocked by: Admin Inbox and Calendar native spines; reports-analytics for
   report health/drill-downs; import-export-data-portability for import session
-  details; payroll-salaries-hours plus **BLOCKED ON D-18**/**BLOCKED ON D-19**
-  for pending-hours/payroll cards; public-registration-intake and accepted D-16
+  details; payroll-salaries-hours for pending-hours/payroll cards using accepted
+  D-18/D-19 semantics; public-registration-intake and accepted D-16
   jsonb guardian/contact source authorization for intake/family cards;
-  payments-charges plus **BLOCKED ON D-20** for
-  finance cards; rooms-absence-requests plus **BLOCKED ON D-21** for
+  payments-charges for finance cards using accepted D-20 semantics;
+  rooms-absence-requests plus **BLOCKED ON D-21** for
   absence-impact cards; exams-certificates-report-cards plus **BLOCKED ON D-22**
   for assessment cards; calendar-website-integrations and concert-programs-events
   plus **BLOCKED ON D-23** for public endpoint/event cards; agreements-consent

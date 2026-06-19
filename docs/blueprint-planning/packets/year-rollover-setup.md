@@ -2,11 +2,12 @@
 
 Status: `embedded` (per `features/forteTree.ts`) -> target `implemented`.
 Priority: p1
-Owner-decisions still blocking this packet: **BLOCKED ON D-20** for any
-ledger balance, charge, credit, statement, or currency carry-forward behavior;
-**BLOCKED ON D-24** for agreement/consent revocation effects on copied next-year
-agreement requests; and **BLOCKED ON D-27** for automatic grade advancement and
-recurring-event copy/date-shift rules.
+Owner-decisions still blocking this packet: **BLOCKED ON D-24** for
+agreement/consent revocation effects on copied next-year agreement requests; and
+**BLOCKED ON D-27** for automatic grade advancement and recurring-event copy/date-
+shift rules. Ledger balance, charge, credit, statement, and currency carry-
+forward behavior use the accepted D-20 single-currency org/family ledger policy
+once the payments-charges source module exists.
 Current accepted prerequisites: **D-12** (create next-year records; never mutate
 prior-year history), **D-13** (persisted `rollover_runs` audit entity), and
 **D-15** (packet-local backfill only).
@@ -48,8 +49,9 @@ prior-year history), **D-13** (persisted `rollover_runs` audit entity), and
 
 ## Users And Permissions
 - Actors: super_admin and admin for setup, preview, apply, cancellation, export,
-  and audit. Finance participates only in balance/carry-forward sections that
-  remain **BLOCKED ON D-20**. Teachers, general members, students/families, and
+  and audit. Finance participation in balance/carry-forward sections uses
+  accepted D-20 single-currency semantics after payments-charges defines the
+  source ledger behavior. Teachers, general members, students/families, and
   guardian/public users have no baseline rollover access.
 - Read access: admins read setup status, rollover previews, run history, warnings,
   and apply results. `onboarding_state` may remain broadly org-readable because
@@ -92,8 +94,8 @@ prior-year history), **D-13** (persisted `rollover_runs` audit entity), and
   source mutations.
 - Cross-links: Settings Academic Calendar, existing onboarding checklist, Student
   and family files, Enrollment/Activity/Calendar records, Agreements for copied
-  next-year requests, Payments/Charges for balance/carry-forward sections
-  **BLOCKED ON D-20**, Reports/Analytics for rollover audit reports, and
+  next-year requests, Payments/Charges for D-20 single-currency
+  balance/carry-forward sections, Reports/Analytics for rollover audit reports, and
   Import/Export for preview/result export.
 
 ## Data Contract
@@ -104,8 +106,8 @@ prior-year history), **D-13** (persisted `rollover_runs` audit entity), and
   `StudentV2`/`MinimalStudent` is needed, HYBRID `enrollments` carrying
   `EnrollmentV2`, HYBRID `events` and `event_participants` for schedule carry-
   forward, `AgreementTemplate`/`AgreementAcceptance` for next-year agreement
-  requests, and ledger tables only after **BLOCKED ON D-20** resolves
-  carry-forward behavior.
+  requests, and ledger tables after payments-charges implements D-20 single-
+  currency carry-forward behavior.
 - Required fields: `fromYearLabel`, `toYearLabel`, `status`, `preview`, `plan`,
   `result`, and `warnings`; `startedAt` when apply begins; `appliedAt` when the
   run completes; `failedAt` and `errorMessage` on failed runs.
@@ -128,9 +130,10 @@ prior-year history), **D-13** (persisted `rollover_runs` audit entity), and
   `APPLIED`; on failure, leave source records intact and mark the run `FAILED`.
 - Open schema decisions: automatic grade advancement, student-copy lineage, and
   recurring-event copy/date-shift rules are **BLOCKED ON D-27**; balance, charge,
-  credit, statement, and currency carry-forward behavior is **BLOCKED ON D-20**;
-  copied agreement-request behavior when prior consent was withdrawn/revoked is
-  **BLOCKED ON D-24**.
+  credit, statement, and currency carry-forward behavior use accepted D-20 P0
+  single-currency semantics after payments-charges defines the source ledger
+  rows; copied agreement-request behavior when prior consent was withdrawn/
+  revoked is **BLOCKED ON D-24**.
 
 ## UX Placement (obey route-nav-policy.md)
 - Home: **Settings -> Academic Calendar / Setup** submodule for school-year
@@ -145,8 +148,7 @@ prior-year history), **D-13** (persisted `rollover_runs` audit entity), and
 - Empty / loading / error states: no school-year settings, setup gate incomplete,
   no prior runs, no active enrollments to carry forward, stale source data since
   preview, warnings present, permission denied, failed apply, cancelled run, and
-  sections marked **BLOCKED ON D-20**, **BLOCKED ON D-24**, or
-  **BLOCKED ON D-27**.
+  sections marked **BLOCKED ON D-24** or **BLOCKED ON D-27**.
 - Hebrew/RTL requirements: setup milestone labels, school-year labels, warning
   text, student/enrollment names, dates, status chips, and preview/result tables
   must work in Hebrew/RTL. IDs, timestamps, file/export names, and currency
@@ -155,48 +157,47 @@ prior-year history), **D-13** (persisted `rollover_runs` audit entity), and
 ## Role / RLS Matrix
 | Operation | super_admin | admin | teacher (self) | teacher (others) | finance | guardian/public | RLS mechanism / refinement needed |
 |---|---|---|---|---|---|---|---|
-| List/read | ✓ | ✓ | — | — | — | — | Refine `rollover_runs_read` from uniform member-read to admin-only before launch. Finance read of balance/carry-forward sections is **BLOCKED ON D-20**. |
+| List/read | ✓ | ✓ | — | — | — | — | Refine `rollover_runs_read` from uniform member-read to admin-only before launch. Finance read of balance/carry-forward sections uses accepted D-20 single-currency semantics after payments-charges exists. |
 | Read detail | ✓ | ✓ | — | — | — | — | Same as list/read; detail can expose student, enrollment, agreement, and finance lineage. |
 | Create | ✓ | ✓ | — | — | — | — | Current admin-write policy covers preview-row creation; implementation should write previews through a validated server/RPC path. |
 | Edit | ✓ | ✓ | — | — | — | — | Admin may regenerate/cancel unapplied previews; applied runs are immutable except server-owned result/error metadata. |
 | Status transition (non-financial) | ✓ | ✓ | — | — | — | — | Admin transitions `PREVIEWED -> APPLIED|CANCELLED|FAILED`; apply must preserve D-12 prior-year immutability. |
-| Status transition (payroll/finance-affecting) | ✓ | ✓ | — | — | ⚠ | — | Any ledger balance/charge/credit/statement carry-forward is **BLOCKED ON D-20**. |
+| Status transition (payroll/finance-affecting) | ✓ | ✓ | — | — | ⚠ | — | Ledger balance/charge/credit/statement carry-forward uses accepted D-20 single-currency semantics after payments-charges exists. |
 | Archive/delete | — | — | — | — | — | — | No hard delete of runs; cancellation or retained failure state only. |
-| Export | ✓ | ✓ | — | — | — | — | Admin export of preview/result rows. Finance-specific exports are **BLOCKED ON D-20**. |
+| Export | ✓ | ✓ | — | — | — | — | Admin export of preview/result rows. Finance-specific exports use accepted D-20 single-currency semantics. |
 | Public submit/sign | — | — | — | — | — | — | No public/tokenized rollover path. |
 
 Required RLS refinements/tests:
 - Narrow `rollover_runs` read access from org-member to admin-only before any
   preview UI ships.
 - Verify admin/super_admin can create, cancel, apply, and export runs; plain
-  members, teachers, finance users without a scope accepted by
-  **BLOCKED ON D-20**, and guardian/public users cannot read or write rollover
-  runs.
+  members, teachers, finance users without an explicit payments-charges-derived
+  finance scope, and guardian/public users cannot read or write rollover runs.
 - Verify cross-org isolation for `rollover_runs`, `onboarding_state`, school-year
   settings, and all linked source/result rows.
-- If **BLOCKED ON D-20** resolves by granting finance access to carry-forward
-  finance sections, add a scoped view/RPC or table policy that exposes only the
-  accepted finance fields.
+- If finance access is added for D-20 carry-forward sections, add a scoped
+  view/RPC or table policy that exposes only the accepted finance fields.
 
 ## Acceptance Criteria
 - Unit: existing helper coverage for `previewYearRollover`,
   `applyYearRollover`, and `listSetupMilestones`; add tests that D-12 persistence
   treats `archiveEnrollmentIds` as not-copied source IDs rather than in-place
   source mutations, plus tests for stale preview detection, failed apply result
-  capture, run status terminality, and **BLOCKED ON D-27**/**BLOCKED ON D-20**/
-  **BLOCKED ON D-24** sections once resolved.
+  capture, run status terminality, D-20 single-currency finance sections once
+  payments-charges exists, and **BLOCKED ON D-27**/**BLOCKED ON D-24** sections
+  once resolved.
 - Supabase mapping: normalized camel<->snake mapping for `rolloverRuns`; HYBRID
   `systemConfigs`, `students`, `enrollments`, `events`, and `eventParticipants`
   remain wrapped/unwrapped through existing adapters. `preview`, `plan`,
   `result`, and `warnings` jsonb must round-trip without key loss.
 - RLS/security: real-role tests for admin full access, plain member denied from
   `rollover_runs`, teacher denied, guardian/public denied, optional finance scope
-  only after **BLOCKED ON D-20** resolves, no anon access, and cross-org
-  isolation.
+  only after an explicit payments-charges-derived scope exists, no anon access,
+  and cross-org isolation.
 - Playwright smoke: Settings -> Academic Calendar -> enter/confirm school-year
   dates -> generate rollover preview -> warnings and carry-forward counts render
-  -> cancel run. After **BLOCKED ON D-27**/**BLOCKED ON D-20**/
-  **BLOCKED ON D-24** sections are resolved, add apply smoke:
+  -> cancel run. After **BLOCKED ON D-27**/**BLOCKED ON D-24** sections are
+  resolved and payments-charges source ledger behavior exists, add apply smoke:
   generate preview -> apply -> next-year records exist -> prior-year records are
   unchanged -> run history shows `APPLIED`.
 - Hebrew/RTL: setup gate/checklist, Academic Calendar settings, rollover preview,
@@ -209,14 +210,14 @@ Required RLS refinements/tests:
   rows are preserved. Do not backfill historical `rollover_runs` unless there is
   deterministic source evidence for a past run. No global Student/Event/Enrollment
   persistence migration. Student grade advancement and recurring-event copy
-  backfill are **BLOCKED ON D-27**; finance carry-forward backfill is
-  **BLOCKED ON D-20**; copied agreement requests affected by withdrawn/revoked
-  consent are **BLOCKED ON D-24**.
+  backfill are **BLOCKED ON D-27**; finance carry-forward backfill uses
+  payments-charges rows under accepted D-20 single-currency semantics; copied
+  agreement requests affected by withdrawn/revoked consent are **BLOCKED ON
+  D-24**.
 
 ## Dependencies
 - Blocks: agreements-consent for copied next-year agreement requests,
-  payments-charges for balance/charge carry-forward once **BLOCKED ON D-20**
-  resolves,
+  payments-charges for D-20 single-currency balance/charge carry-forward,
   reports-analytics for rollover audit reports, calendar-website-integrations if
   copied public calendars depend on next-year schedule records, ensembles/theory/
   school-program rosters, exams/report-card carry-forward history, and
@@ -224,6 +225,6 @@ Required RLS refinements/tests:
 - Blocked by: student-family-files for first-class student/family context,
   agreements-consent for structured next-year agreement requests, payments-
   charges for any ledger carry-forward, real-role RLS refinement for
-  `rollover_runs`, **BLOCKED ON D-20** for finance carry-forward behavior,
-  **BLOCKED ON D-24** for agreement revocation effects, and **BLOCKED ON D-27**
-  for grade advancement plus recurring event copy/date-shift semantics.
+  `rollover_runs`, **BLOCKED ON D-24** for agreement revocation effects, and
+  **BLOCKED ON D-27** for grade advancement plus recurring event copy/date-shift
+  semantics.

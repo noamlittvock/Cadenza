@@ -1,25 +1,16 @@
 # Next Agent Loop Command
 
-The active build state is on `lesson-details-attendance`. D-17 is now accepted,
-so the next unit is packet-local BACKFILL/materialization.
+The `lesson-details-attendance` build loop is complete. `BUILD_LOOP_STATE.md`
+starts with `BUILD COMPLETE`, and there is no next queued unit for this loop.
 
-Start with this command from a fresh Codex session or terminal in the same
-workspace:
-
-```bash
-cd "/Users/noamlitt/Documents/Cadenza Forte"
-set -a
-source .env.local
-set +a
-unset SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD
-CODEX_SANDBOX=danger-full-access MAX_ITERS=1 ./build-loop.sh
-```
+To start a new autonomous build loop, seed a new `BUILD_LOOP_STATE.md` objective
+first; do not rerun the completed attendance loop as-is.
 
 Notes:
 
 - `build-loop.sh` defaults `CODEX_REASONING_EFFORT=high`.
-- `BUILD_LOOP_STATE.md` does not start with `BUILD COMPLETE`; the first queued
-  unit is `BACKFILL/materialization`.
+- `BUILD_LOOP_STATE.md` starts with `BUILD COMPLETE` for the completed
+  `lesson-details-attendance` loop.
 - D-17 accepted model: one `lesson_records` row per `(eventId, studentId)`;
   group lessons are multiple rows sharing one `eventId`; event-level attendance
   views are derived from rows; do not add an embedded event-level attendance

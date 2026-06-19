@@ -1,10 +1,11 @@
 # Payments And Charges  (`payments-charges`)
 
 Status: gap → planned (this packet)  ·  Priority: p0 (high-risk — finance)
-Owner-decisions still blocking this packet: **D-20** (ledger currency policy).
+Owner-decisions still blocking this packet: none for the P0 family-led ledger.
 Current accepted prerequisites: **D-07-FIN** (family-led ledger), **D-08**
 (finance visibility/capability), **D-10** (compute-live + audit snapshots), and
-**D-15** (backfill, recorded below).
+**D-15** (backfill, recorded below), and **D-20** (single-currency P0 with
+future-safe multi-currency mode).
 
 ## Current State (ground truth)
 - Existing UI: none. No charge/payment surface.
@@ -17,7 +18,7 @@ Current accepted prerequisites: **D-07-FIN** (family-led ledger), **D-08**
   - `listOpenBalances(charges, payments, adjustments, familyId?)` — sums charged/paid/adjusted → balance (optional family filter, so **family-led aggregation already supported**).
   - `listPaymentsByFamily(payments, familyId)`.
   - `reconcileEnrollmentCharges(charges, payments, adjustments, enrollmentId)` — per-enrollment balance + payment lineage.
-- Existing tests: `utils/blueprintQueries.test.ts` covers the three ledger helpers. **Missing:** money/currency-mixing property tests, partial-allocation edge tests, RLS, snapshot generation.
+- Existing tests: `utils/blueprintQueries.test.ts` covers the three ledger helpers. **Missing:** single-currency invariant/property tests, partial-allocation edge tests, RLS, snapshot generation.
 - Feature-tree declared queries: `listOpenBalances`, `reconcileEnrollmentCharges`, `listPaymentsByFamily` — all implemented.
 
 ## Users And Permissions
@@ -47,12 +48,16 @@ Current accepted prerequisites: **D-07-FIN** (family-led ledger), **D-08**
   lines. Payment allocation updates charge status (`OPEN/PARTIAL/PAID/VOID`) but
   live balance remains computed on demand; `balance_snapshots` are written only by
   periodic/audit jobs, not as the current-balance source of truth.
-- **Currency:** `Charge.currency` exists but no mixing guard. Single-currency vs
-  multi-currency behavior is **BLOCKED ON D-20**; add the resulting invariant or
-  multi-currency property tests before implementation.
+- **Currency (D-20 ACCEPTED):** P0 enforces single currency per org/family ledger.
+  Charges, payments, adjustments, live balances, snapshots, statements, and
+  exports for one family must share the configured currency. Mixed-currency
+  imports are rejected or flagged for manual cleanup. The model remains future-safe
+  for explicit multi-currency mode, where balances/statements are partitioned by
+  currency and cross-currency allocation requires explicit exchange/adjustment
+  semantics.
 - Audit: createdBy/approvedBy/server timestamps; VOID + adjustments are the mutation channel.
-- Schema decisions / parked items: currency policy is **BLOCKED ON D-20**.
-  Instrument deposit, replacement-fee, and refund modeling is **BLOCKED ON D-25**.
+- Schema decisions / parked items: instrument deposit, replacement-fee, and
+  refund modeling is **BLOCKED ON D-25**.
 
 ## UX Placement (per route-nav-policy)
 - Home: **top-level Finance view** (reuse dead-end `BILLING` ViewState; un-dead-end per route-nav-policy). Family/student ledger also surfaces as a **gated tab** in student-family files.
@@ -79,7 +84,7 @@ Required RLS refinements/tests:
 - Student/family finance tabs must rely on ledger-table RLS so a plain member cannot reach balances through a broader student profile query.
 
 ## Acceptance Criteria
-- Unit: `listOpenBalances`, `reconcileEnrollmentCharges`, `listPaymentsByFamily`; **add** partial-allocation + currency-mixing property tests + date-boundary tests.
+- Unit: `listOpenBalances`, `reconcileEnrollmentCharges`, `listPaymentsByFamily`; **add** partial-allocation + single-currency invariant/property tests + date-boundary tests.
 - Supabase mapping: `charges`/`payments`/`adjustments`/`balance_snapshots` camel↔snake + numeric/jsonb (appliedChargeIds).
 - RLS: real finance/admin roles; verify a plain member **cannot** read finance; verify cross-org isolation.
 - Playwright: create charge → record payment → verify open balance + family payment history; void path.
@@ -89,13 +94,14 @@ Required RLS refinements/tests:
   rows must be assigned or linked to `familyId` as the canonical aggregation key,
   while preserving per-student/per-enrollment charge lineage. Snapshot-history
   backfill may create periodic/audit baselines from existing ledger rows, but
-  current live balances stay computed on demand. Mixed-currency migration behavior
-  is **BLOCKED ON D-20**.
+  current live balances stay computed on demand. Mixed-currency imported rows are
+  rejected or flagged for manual cleanup per D-20 unless a future explicit
+  multi-currency mode is implemented.
 
 ## Dependencies
 - Blocks: reports-analytics (finance reports), year-rollover (balances),
   agreements (financial), and instrument-inventory only if D-25 accepts
   ledger-backed deposits, replacement fees, or refunds.
-- Blocked by: **D-20** currency policy, student-family-files (family/student
-  ledger owner), real-role finance RLS tests during implementation, and **D-25**
-  for instrument-specific deposit/fee/refund rows.
+- Blocked by: student-family-files (family/student ledger owner), real-role
+  finance RLS tests during implementation, and **D-25** for instrument-specific
+  deposit/fee/refund rows. D-20 is accepted for P0.

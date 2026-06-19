@@ -1,8 +1,8 @@
 # Cross-Module Decision Log
 
-> **STATUS — 2026-06-18:** D-01–D-17, D-STATUS, and D-STATUS-2 are **ACCEPTED or
+> **STATUS — 2026-06-18:** D-01–D-20, D-STATUS, and D-STATUS-2 are **ACCEPTED or
 > IMPLEMENTED working decisions** for implementation; the concrete locked form is
-> in [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md). D-18–D-27 are newly
+> in [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md). D-21–D-27 are newly
 > surfaced packet questions with no accepted default; they are parked in
 > [`LOOP_STATE.md`](LOOP_STATE.md) NEEDS NOAM and must stay marked `BLOCKED ON D-xx`
 > where they affect a packet.
@@ -21,9 +21,9 @@
 > holds. The seam is additive foundation the P0 modules write/read through.
 
 Decisions that span more than one module. Packets cite these IDs rather than
-re-deciding. D-01–D-17 have recommended defaults or explicit Noam confirmations
-that are now accepted per the banner above; D-18–D-27 intentionally have no
-default and are parked for Noam.
+re-deciding. D-01–D-20 have recommended defaults, explicit Noam confirmations, or
+accepted configurable assumptions that are now accepted per the banner above;
+D-21–D-27 intentionally have no default and are parked for Noam.
 
 Legend: 🔴 blocks a P0 packet · 🟡 blocks P1/P2 · ⚪ infra/cleanup
 
@@ -258,28 +258,50 @@ the explicit-preparation/no-silent-outcomes rule above.
 **Q:** Does legacy `hours_reports` become a period header for normalized
 `hours_entries`, get migrated into `hours_entries` and retired, or remain as a
 parallel reporting surface?
-**Recommended default:** none recorded; this is a payroll migration/product
-model call.
-**Blocks:** payroll-salaries-hours, import/export, reports-analytics.
-**State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
-sections are marked **BLOCKED ON D-18**.
+**Accepted model:** `HoursEntry` is the payroll source of truth. Each entry is an
+auditable line item for staff/date/event-or-work-source/rate/status. `HoursReport`
+remains as a period/submission header grouping `HoursEntry` rows for teacher
+submission, admin review, approval, export, and history. It must not maintain
+independent payable totals that can drift from entries. Legacy monthly workbooks
+or reports may be imported as immutable archive/opening context, not as a
+parallel payroll ledger.
+**Impacts:** payroll-salaries-hours, import/export, reports-analytics.
+**State:** ACCEPTED 2026-06-18 — configurable finance discovery assumption;
+details recorded in
+[`finance-configurable-model-scope.md`](finance-configurable-model-scope.md).
 
 ### D-19 — Payroll rate source and stamp timing  🔴
 **Q:** What is the rate resolution order for payroll entries (teaching assignment,
 org role, manual override, other), and is the rate stamped at teacher submit,
 admin approve, or payment close?
-**Recommended default:** none recorded; this is a finance/payroll policy call.
-**Blocks:** payroll-salaries-hours, finance exports/reports.
-**State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
-sections are marked **BLOCKED ON D-19**.
+**Accepted model:** rates are configurable. P0 default resolution order is:
+admin-approved manual override on the entry, then staff engagement / teaching
+assignment / role-department rate, then staff default rate, then org default
+rate. The payable rate is stamped on each `HoursEntry` at admin approval time;
+teacher draft/submission may show an estimate but does not create the final
+payable rate. `PAID` entries are immutable and corrections use adjusting entries.
+Fixed salaries and supplier/invoice compensation are separate compensation modes,
+not forced into the same hourly-rate calculation. Statutory deductions and
+employer-cost provisions stay outside P0 with the bookkeeper/payroll provider.
+**Impacts:** payroll-salaries-hours, finance exports/reports.
+**State:** ACCEPTED 2026-06-18 — configurable finance discovery assumption;
+details recorded in
+[`finance-configurable-model-scope.md`](finance-configurable-model-scope.md).
 
 ### D-20 — Ledger currency policy  🔴
 **Q:** Should the ledger enforce a single currency per family/org, or explicitly
 support multi-currency balances and statements?
-**Recommended default:** none recorded; money behavior is a product/finance call.
-**Blocks:** payments-charges, reports-analytics, agreement/statement outputs.
-**State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
-sections are marked **BLOCKED ON D-20**.
+**Accepted model:** P0 enforces single currency per organization/family ledger.
+Charges, payments, adjustments, live balances, snapshots, statements, and exports
+for one family must share that currency. Mixed-currency imports are rejected or
+flagged for manual cleanup. The model remains future-safe for explicit
+multi-currency mode: balances/statements must be partitioned by currency, and
+cross-currency allocation requires explicit exchange-rate or adjustment
+semantics. P0 must never silently offset one currency against another.
+**Impacts:** payments-charges, reports-analytics, agreement/statement outputs.
+**State:** ACCEPTED 2026-06-18 — configurable finance discovery assumption;
+details recorded in
+[`finance-configurable-model-scope.md`](finance-configurable-model-scope.md).
 
 ### D-21 — Operational request calendar mutation rules  🟡
 **Q:** When an `ABSENCE` or `DAY_OFF` operational request is approved, what exact
@@ -348,8 +370,10 @@ sections are marked **BLOCKED ON D-24**.
 as finance ledger rows, agreement-only terms, standalone fields on
 `instrument_loans`, or a mixed model; what lifecycle states, refund/forfeit
 rules, document links, and family/student/staff ownership should ship?
-**Recommended default:** none recorded; this is a money/product policy call and
-also depends on D-20 for currency behavior, so the loop must not decide it.
+**Recommended default:** none recorded; this is a money/product policy call, so
+the loop must not decide it. Any accepted deposit/fee/refund ledger rows will use
+D-20 P0 single-currency semantics unless a future explicit multi-currency mode is
+configured.
 **Blocks:** instrument-inventory deposit/fee/refund workflow, payments-charges
 ledger integration for instrument custody, agreements-consent loan/deposit terms,
 and reports-analytics deposit/refund reporting.
@@ -402,7 +426,8 @@ to `embedded`; keep `public-registration-intake`, `lesson-details-attendance`,
 `payroll-salaries-hours` as `embedded`; `public-registration-intake`,
 `lesson-details-attendance`, and `payments-charges` remained `gap`. Later Phase C
 work promoted `student-family-files` and `public-registration-intake` to
-`implemented`; `lesson-details-attendance` and `payments-charges` remain `gap`.
+`implemented`; the attendance build loop then promoted
+`lesson-details-attendance` to `implemented`; `payments-charges` remains `gap`.
 The packet headers are reconciled with current tree statuses, and
 `features/forteTree.consistency.test.ts` is the status-policy gate.
 

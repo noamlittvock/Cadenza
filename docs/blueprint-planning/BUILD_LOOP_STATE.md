@@ -1,4 +1,4 @@
-# Blueprint Implementation - Build Loop State
+BUILD COMPLETE
 
 This file is the implementation loop's durable memory. The next agent must read
 it in full before editing code. Authoritative specs remain:
@@ -27,13 +27,12 @@ BUILD COMPLETE
 
 ## Current Objective
 
-Continue Phase C with the next roadmap packet: `lesson-details-attendance`.
+Phase C packet `lesson-details-attendance` is complete.
 
-Build the attendance slice around Calendar event details and teacher mobile
-marking using the accepted D-17 group/materialization model.
-The target is eventually `implemented`, but do not mark this build complete until
-D-17 is answered and recorded, all non-blocked workflow pieces are shipped, live
-RLS passes against a real Supabase project, and the status-policy bar holds.
+The attendance slice around Calendar event details, teacher mobile marking, and
+explicit D-17 row preparation reached the status-policy `implemented` bar. D-17
+is answered and recorded, all queue units are complete, live RLS passed against a
+real Supabase project, and this loop is marked `BUILD COMPLETE`.
 
 ## Current Handoff Snapshot - 2026-06-18
 
@@ -48,8 +47,8 @@ RLS passes against a real Supabase project, and the status-policy bar holds.
   explicit teacher/admin setup or preparation action. Prepared rows start
   `attendance=UNMARKED` and `completion=PENDING`; no silent attendance,
   completion, or lesson outcome marking.
-- The next queue unit is `BACKFILL/materialization`; implement packet-local row
-  preparation for existing events according to accepted D-17.
+- The final queue unit was `Status promotion`; the feature tree and packet header
+  now mark `lesson-details-attendance` as `implemented`.
 - Existing-row attendance read/mark/worklist/history, Hebrew/RTL/mobile,
   Playwright, full Vitest, typecheck, and live RLS gates have already passed for
   the D-17-safe workflow. Re-run the relevant gates after any D-17 materialization
@@ -75,7 +74,11 @@ RLS passes against a real Supabase project, and the status-policy bar holds.
   (`attendance=UNMARKED`, `completion=PENDING`) and the system must not silently
   mark attendance, completion, or lesson outcomes without teacher/admin
   confirmation.
-- D-18-D-27 remain parked. Do not build packet sections marked `BLOCKED ON D-xx`
+- D-18-D-20 are accepted for configurable payroll/finance P0 assumptions:
+  `HoursEntry` source of truth, `HoursReport` period/submission header,
+  configurable admin-approval rate stamping, and single-currency org/family
+  ledger with future-safe multi-currency mode. D-21-D-27 remain parked. Do not
+  build packet sections marked `BLOCKED ON D-xx`
   until the matching decision is answered and the packet/decision log are updated.
 
 ## Initial Lesson Attendance Scope
@@ -109,7 +112,8 @@ lesson outcomes stay unconfirmed until a teacher/admin explicitly confirms them.
 - Git status is already dirty from the completed `public-registration-intake`
   build and `.build-loop/` logs. Preserve that work; do not stage, commit, branch,
   push, or run any git write operation.
-- `features/forteTree.ts` still marks `lesson-details-attendance` as `gap`.
+- At baseline, `features/forteTree.ts` marked `lesson-details-attendance` as
+  `gap`; the final promotion now marks it as `implemented`.
 - `types/blueprint.ts` defines `LessonRecord`; `lesson_records` exists in
   `supabase/migrations/0002_blueprint_schema.sql` as normalized columns with
   `event_id`, `student_id`, `staff_member_id`, `attendance`, `completion`,
@@ -279,12 +283,12 @@ lesson outcomes stay unconfirmed until a teacher/admin explicitly confirms them.
 - [x] D-17 answer intake: after Noam answers D-17, update `decision-log.md` and
   `packets/lesson-details-attendance.md` with the accepted group row/status
   container and materialization model before any blocked implementation work.
-- [ ] BACKFILL/materialization: only after D-17 is accepted, implement packet-local
+- [x] BACKFILL/materialization: only after D-17 is accepted, implement packet-local
   generation/backfill for existing events according to the accepted D-17 answer:
   explicit teacher/admin row preparation for one `lesson_records` row per
   event/student. Do not add lazy-on-open silent materialization or an event-level
   embedded-status model.
-- [ ] Status promotion: only after D-17 is accepted, every queue unit is complete,
+- [x] Status promotion: only after D-17 is accepted, every queue unit is complete,
   and every completion checklist item below is true, update
   `features/forteTree.ts` and the `lesson-details-attendance` packet header to
   `implemented`, append an iteration note here, and replace this file's first
@@ -309,17 +313,15 @@ lesson outcomes stay unconfirmed until a teacher/admin explicitly confirms them.
 - [x] Playwright attendance smoke passed.
 - [x] `npm run typecheck -- --diagnostics` passes.
 - [x] `npx vitest run --reporter=dot` passes.
-- [x] No D-18-D-27 blocked section was implemented without a decision update.
+- [x] No D-21-D-27 blocked section was implemented without a decision update.
 - [x] No unauthorized git staging, commit, branch, or push was performed. The
   later commit/push at `37ad4df` was explicitly requested by Noam outside the
   autonomous build-loop iteration.
 
 ## Next Unit
 
-- BACKFILL/materialization: implement packet-local explicit teacher/admin
-  preparation for existing events according to accepted D-17. Do not silently
-  materialize on event open, and keep prepared rows unconfirmed until
-  teacher/admin action.
+- None. `lesson-details-attendance` has reached the implemented bar and this
+  build loop is complete.
 
 ## Setup Notes For Next Agent
 
@@ -513,3 +515,36 @@ lesson outcomes stay unconfirmed until a teacher/admin explicitly confirms them.
   Verification: `git diff --check` passed;
   `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
   passed (19 files, 212 passed, 1 skipped).
+- 2026-06-18 BACKFILL/materialization for `lesson-details-attendance`: added
+  explicit Calendar event-detail row preparation from active enrollment roster
+  and event participant/legacy teacher facts. Preparation is user-initiated by
+  teacher/admin only, creates one missing `lesson_records` row per
+  `(eventId, studentId)`, de-dupes existing event/student rows, and leaves every
+  prepared row `attendance=UNMARKED` and `completion=PENDING`. Updated
+  Playwright coverage to prove event open does not create rows, then explicit
+  prepare creates unconfirmed rows. Changed files:
+  `utils/lessonAttendanceService.ts`,
+  `utils/lessonAttendanceService.test.ts`, `components/CalendarView.tsx`,
+  `constants.ts`, `e2e/lesson-attendance-read.spec.ts`, and
+  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
+  `npx vitest run utils/lessonAttendanceService.test.ts utils/lessonAttendancePanel.test.ts --reporter=dot`
+  passed (2 files, 13 tests);
+  `npm run test:e2e -- e2e/lesson-attendance-read.spec.ts` passed (3 tests);
+  `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
+  passed (19 files, 221 tests).
+- 2026-06-18 status promotion for `lesson-details-attendance`: verified the
+  completion checklist remained checked after D-17 materialization, promoted the
+  feature tree node and packet header to `implemented`, ticked the final queue
+  unit, and marked this loop `BUILD COMPLETE`. Changed files:
+  `features/forteTree.ts`,
+  `docs/blueprint-planning/decision-log.md`,
+  `docs/blueprint-planning/packets/lesson-details-attendance.md`,
+  `docs/blueprint-planning/IMPLEMENTATION_HANDOFF.md`,
+  `docs/blueprint-planning/NEXT_AGENT_LOOP.md`,
+  `docs/blueprint-planning/NEXT_SESSION_HANDOFF.md`,
+  `docs/blueprint-planning/status-policy.md`,
+  `utils/forteTreeQueries.test.ts`, and
+  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
+  `npm run test:e2e -- e2e/lesson-attendance-read.spec.ts` passed;
+  `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
+  passed.

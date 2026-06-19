@@ -2,17 +2,20 @@
 
 Status: `embedded` (per `features/forteTree.ts` + **D-STATUS-2**) → target
 `implemented`. ·  Priority: p0
-Owner-decisions still blocking this packet: **D-18** (HoursReport↔HoursEntry
-consolidation) and **D-19** (rate source/stamp timing). Current accepted
-prerequisites: **D-05** (canonical event adapter) and **D-06** (teacher self-write
-with admin approval gate) are implemented foundation, not open blockers.
+Owner-decisions still blocking this packet: none for the P0 payroll model.
+Current accepted prerequisites: **D-05** (canonical event adapter), **D-06**
+(teacher self-write with admin approval gate), **D-18** (HoursEntry source of
+truth with HoursReport period header), and **D-19** (configurable rate policy
+stamped at admin approval) are implemented/accepted foundation, not open blockers.
 
 ## Current State (ground truth)
 - Existing UI: existing hours-reporting surface (native-ish; `hours_reports` hybrid). No consolidated payroll module.
 - Existing schema:
   - `hours_entries` (normalized, `0002`): `staffMemberId, date, reportedMinutes, calendarMinutes, eventId, rate, status (DRAFT|SUBMITTED|APPROVED|PAID)`.
   - `hours_reports` (core hybrid, `0001`): legacy report docs with `staffMemberId, token, periodStart, periodEnd, createdBy`.
-  - **Consolidation needed:** two parallel models — `HoursReport` (hybrid, period-level) vs `HoursEntry` (normalized, line-level). Define the relationship (entries roll up into a report?).
+  - **D-18 accepted consolidation:** `HoursEntry` is source of truth;
+    `HoursReport` is a period/submission header grouping entries for teacher
+    submission, admin review, export, and history.
 - Existing query helpers (implemented + tested):
   - `listPendingHoursReports(hoursEntries)` — status=DRAFT.
   - `compareReportedVsCalendarHours(hoursEntries)` — reported vs calendar minutes per staff/date (variance).
@@ -39,20 +42,24 @@ with admin approval gate) are implemented foundation, not open blockers.
 - Cross-links: calendar events (source of "no event = no pay"), lesson attendance (completed lessons feed hours), finance (payslip), staff files.
 
 ## Data Contract
-- Primary record: `HoursEntry`; period roll-up: `HoursReport` (consolidation decision).
+- Primary record: `HoursEntry`; period roll-up/header: `HoursReport`.
 - Linked: staff (StaffMemberV2), event (canonical D-05), lesson completion.
-- **D-19 — rate source:** teaching assignment vs org role vs manual override.
-  `HoursEntry.rate` is per-entry; resolution order and stamp timing are **BLOCKED ON D-19**.
+- **D-19 — rate source:** configurable. P0 default resolution order is
+  admin-approved manual override, then staff engagement / teaching assignment /
+  role-department rate, then staff default rate, then org default rate.
+  `HoursEntry.rate` is stamped at admin approval time; teacher submission may show
+  an estimate but does not create the final payable rate.
 - Required: staffMemberId, date, reportedMinutes, status.
 - Derived: variance (reported−calendar), payslip amount (rate×minutes).
 - Audit: submittedBy/approvedBy/server timestamps; PAID immutable.
 - **Conversion semantics:** D-05/D-06 ACCEPTED — teacher self-report creates/edits
   own DRAFT/SUBMITTED `hours_entries`; admin approval moves entries to
   APPROVED/PAID. Calendar-derived entries link to events through the D-05 adapter
-  boundary and do not rewrite HYBRID `events`. Period roll-up semantics are
-  **BLOCKED ON D-18**; rate source/stamp timing is **BLOCKED ON D-19**.
-- Schema decisions / parked items: HoursReport↔HoursEntry consolidation is
-  **BLOCKED ON D-18**; payroll rate source/stamp timing is **BLOCKED ON D-19**.
+  boundary and do not rewrite HYBRID `events`. D-18 makes `HoursReport` a period
+  header over entries. D-19 stamps payable rates on approval using the configured
+  rate policy.
+- Schema decisions / parked items: statutory deductions, pension/social-security,
+  employer-cost provisions, and payroll-provider disbursement remain outside P0.
 
 ## UX Placement (per route-nav-policy)
 - Home: **Manage tab or Finance sub-view** (dead-end `PAYROLL` ViewState — route per route-nav-policy; likely a Manage tab given config-like cadence). Teacher self-report is a lightweight surface reachable by teachers.
@@ -87,11 +94,11 @@ Required RLS refinements/tests:
 - Hebrew/RTL: hours + payslip.
 - Data migration: D-15 ACCEPTED — packet-local reconciliation of existing
   `hours_reports` docs with `hours_entries`; no global student/event migration.
-  The exact report↔entry consolidation is **BLOCKED ON D-18** and rate stamping is
-  **BLOCKED ON D-19** before implementation.
+  D-18 accepts `hours_reports` as period/submission headers over `hours_entries`;
+  legacy monthly reports may be retained as immutable archive/opening context.
+  D-19 accepts admin-approval rate stamping via the configured rate policy.
 
 ## Dependencies
 - Blocks: reports-analytics (payroll reports), finance (payslip → payment).
-- Blocked by: **D-18**, **D-19**, and lesson-details-attendance
-  (completed-lesson hours source). D-05/D-06 are accepted/implemented
-  prerequisites, not open blockers.
+- Blocked by: lesson-details-attendance (completed-lesson hours source).
+  D-05/D-06/D-18/D-19 are accepted/implemented prerequisites, not open blockers.

@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CalendarEvent } from '../types';
 import type { LessonRecord } from '../types/blueprint';
+import type { EnrollmentV2, EventParticipant, EventV2 } from '../types/v2';
 import type { LessonAttendanceRepository } from './lessonAttendanceService';
 import {
   LessonAttendanceError,
+  applyLessonAttendancePreparation,
   applyLessonAttendanceUpdate,
   buildExistingLessonAttendanceUpdate,
+  buildLessonAttendancePreparation,
   markExistingLessonAttendance,
 } from './lessonAttendanceService';
 
@@ -43,6 +46,54 @@ const lesson = (overrides: Partial<LessonRecord> = {}): LessonRecord => ({
   updatedAt: T,
   createdBy: 'admin_1',
   updatedBy: null,
+  ...overrides,
+});
+
+const enrollment = (overrides: Partial<EnrollmentV2> = {}): EnrollmentV2 => ({
+  id: 'enrollment_1',
+  orgId: 'org_1',
+  studentId: 'student_1',
+  activityId: 'activity_1',
+  l2Id: 'l2_1',
+  startDate: '2026-01-01',
+  endDate: null,
+  status: 'ACTIVE',
+  createdAt: adapterNow,
+  updatedAt: adapterNow,
+  ...overrides,
+});
+
+const participant = (overrides: Partial<EventParticipant> = {}): EventParticipant => ({
+  id: 'participant_1',
+  orgId: 'org_1',
+  eventId: 'event_1',
+  staffMemberId: 'staff_1',
+  assignmentType: 'TEACHING',
+  teachingAssignmentId: null,
+  orgRoleId: null,
+  notes: null,
+  createdAt: adapterNow,
+  ...overrides,
+});
+
+const eventV2 = (overrides: Partial<EventV2> = {}): EventV2 => ({
+  id: 'event_1',
+  orgId: 'org_1',
+  name: 'Piano Lesson',
+  activityId: 'activity_1',
+  l1Id: null,
+  l2Id: 'l2_1',
+  location: 'Room 1',
+  date: '2026-06-18',
+  startTime: '15:00',
+  endTime: '16:00',
+  durationMinutes: 60,
+  isRecurring: false,
+  recurringGroupId: null,
+  status: 'SCHEDULED',
+  notes: null,
+  createdAt: adapterNow,
+  updatedAt: adapterNow,
   ...overrides,
 });
 
@@ -172,5 +223,96 @@ describe('lesson attendance existing-row marking service', () => {
     expect(repo.upsertLessonRecords).toHaveBeenCalledWith('org_1', [plan.lesson]);
     expect(plan.lesson.attendance).toBe('MAKEUP');
     expect(plan.lesson.makeupOfLessonId).toBe('lesson_missed_1');
+  });
+});
+
+describe('lesson attendance explicit preparation service', () => {
+  it('prepares one unconfirmed row per missing active roster student without duplicating existing rows', () => {
+    let seq = 0;
+    const plan = buildLessonAttendancePreparation({
+      event,
+      eventV2: eventV2(),
+      lessons: [lesson({ studentId: 'student_1' })],
+      enrollments: [
+        enrollment({ id: 'enrollment_1', studentId: 'student_1' }),
+        enrollment({ id: 'enrollment_2', studentId: 'student_2' }),
+        enrollment({ id: 'enrollment_archived', studentId: 'student_3', status: 'ARCHIVED' }),
+        enrollment({ id: 'enrollment_other_l2', studentId: 'student_4', l2Id: 'l2_2' }),
+      ],
+      participants: [participant()],
+      context,
+      idFactory: () => `prepared_${++seq}`,
+    });
+
+    expect(plan.event).toMatchObject({ id: 'event_1', l2Id: 'l2_1' });
+    expect(plan.skippedStudentIds).toEqual(['student_1']);
+    expect(plan.preparedLessons).toHaveLength(1);
+    expect(plan.preparedLessons[0]).toMatchObject({
+      id: 'prepared_1',
+      orgId: 'org_1',
+      eventId: 'event_1',
+      studentId: 'student_2',
+      staffMemberId: 'staff_1',
+      date: '2026-06-18',
+      attendance: 'UNMARKED',
+      completion: 'PENDING',
+      notes: null,
+      repertoire: [],
+      homework: null,
+      makeupOfLessonId: null,
+      createdAt: UPDATED,
+      updatedAt: UPDATED,
+      createdBy: 'teacher_user_1',
+      updatedBy: 'teacher_user_1',
+    });
+  });
+
+  it('allows admin preparation for group lessons using the event participant staff member', () => {
+    const plan = buildLessonAttendancePreparation({
+      event,
+      eventV2: eventV2({ l2Id: null }),
+      lessons: [],
+      enrollments: [
+        enrollment({ id: 'enrollment_1', studentId: 'student_1', l2Id: 'l2_1' }),
+        enrollment({ id: 'enrollment_2', studentId: 'student_2', l2Id: 'l2_2' }),
+      ],
+      participants: [participant({ staffMemberId: 'staff_7' })],
+      context: {
+        ...context,
+        actor: { userId: 'admin_user_1', canAdminOverride: true },
+      },
+      idFactory: vi.fn()
+        .mockReturnValueOnce('prepared_1')
+        .mockReturnValueOnce('prepared_2'),
+    });
+
+    expect(plan.preparedLessons.map(row => row.studentId)).toEqual(['student_1', 'student_2']);
+    expect(plan.preparedLessons.every(row => row.staffMemberId === 'staff_7')).toBe(true);
+    expect(plan.preparedLessons.every(row => row.attendance === 'UNMARKED' && row.completion === 'PENDING')).toBe(true);
+  });
+
+  it('denies preparation by a teacher who is not assigned to the event', () => {
+    expect(() => buildLessonAttendancePreparation({
+      event: { ...event, teacherId: 'staff_2', staffMemberIds: ['staff_2'] },
+      eventV2: eventV2(),
+      lessons: [],
+      enrollments: [enrollment({ studentId: 'student_2' })],
+      participants: [participant({ staffMemberId: 'staff_2' })],
+      context,
+      idFactory: () => 'prepared_1',
+    })).toThrowError(new LessonAttendanceError('PREPARE_NOT_ALLOWED', 'Only an assigned teacher or an admin can prepare attendance rows for this event.'));
+  });
+
+  it('applies prepared rows without duplicating an existing event/student pair', () => {
+    const existing = lesson({ id: 'lesson_existing', studentId: 'student_1' });
+    const next = applyLessonAttendancePreparation(
+      [existing],
+      [
+        lesson({ id: 'prepared_duplicate', studentId: 'student_1' }),
+        lesson({ id: 'prepared_new', studentId: 'student_2' }),
+      ],
+    );
+
+    expect(next.map(row => row.id)).toEqual(['lesson_existing', 'prepared_new']);
   });
 });

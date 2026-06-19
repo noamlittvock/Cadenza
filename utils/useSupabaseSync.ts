@@ -24,6 +24,23 @@ import {
 
 type NotifyFn = (items: unknown[], loaded: boolean) => void;
 
+const stableCollectionItem = (item: unknown): string => JSON.stringify(item);
+
+export function diffCollectionWriteSet<T extends { id: string }>(
+    currentData: T[],
+    resolvedData: T[]
+): { changedItems: T[]; deletedIds: string[] } {
+    const currentById = new Map(currentData.map(item => [item.id, item] as [string, T]));
+    const resolvedIds = new Set(resolvedData.map(item => item.id));
+    const deletedIds = currentData.filter(item => !resolvedIds.has(item.id)).map(item => item.id);
+    const changedItems = resolvedData.filter(item => {
+        const existing = currentById.get(item.id);
+        return !existing || stableCollectionItem(existing) !== stableCollectionItem(item);
+    });
+
+    return { changedItems, deletedIds };
+}
+
 // A generic hook for syncing a collection to React state.
 export function useSupabaseSync<T extends { id: string }>(
     collectionName: string,
@@ -106,9 +123,8 @@ export function useSupabaseSync<T extends { id: string }>(
 
         // ─── Supabase write (upsert changed, delete removed) ───────────────
         if (USE_SUPABASE) {
-            const newIds = new Set(resolvedData.map(i => i.id));
-            const deletedIds = currentData.filter(o => !newIds.has(o.id)).map(o => o.id);
-            await supaWriteCollectionItems(orgId, collectionName, resolvedData, deletedIds);
+            const { changedItems, deletedIds } = diffCollectionWriteSet(currentData, resolvedData);
+            await supaWriteCollectionItems(orgId, collectionName, changedItems, deletedIds);
             return;
         }
 

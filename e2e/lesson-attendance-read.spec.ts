@@ -37,25 +37,99 @@ async function seedAttendanceReadData(page: Page, language: 'en-US' | 'he-IL' = 
       localStorage.setItem(collectionKey('events'), JSON.stringify([
         {
           id: 'event-attendance-read',
+          orgId,
           name: 'Attendance Read Lesson',
           description: 'Persisted attendance rows',
           teacherId: 'staff-attendance',
           roomId: 'room-attendance',
+          activityId: 'activity-attendance',
+          l1Id: null,
+          l2Id: 'l2-attendance',
+          location: 'Room 2',
+          date,
+          startTime: '11:00',
+          endTime: '12:00',
+          durationMinutes: 60,
+          status: 'SCHEDULED',
           start: today.toISOString(),
           end: end.toISOString(),
           isCanceled: false,
           isHidden: false,
+          createdAt: { seconds: 0, nanoseconds: 0 },
+          updatedAt: { seconds: 0, nanoseconds: 0 },
         },
         {
           id: 'event-attendance-empty',
+          orgId,
           name: 'Unprepared Lesson',
           description: 'No saved lesson rows',
           teacherId: 'staff-attendance',
           roomId: 'room-attendance',
+          activityId: 'activity-attendance',
+          l1Id: null,
+          l2Id: 'l2-attendance',
+          location: 'Room 2',
+          date,
+          startTime: '13:00',
+          endTime: '14:00',
+          durationMinutes: 60,
+          status: 'SCHEDULED',
           start: openStart.toISOString(),
           end: openEnd.toISOString(),
           isCanceled: false,
           isHidden: false,
+          createdAt: { seconds: 0, nanoseconds: 0 },
+          updatedAt: { seconds: 0, nanoseconds: 0 },
+        },
+      ]));
+      localStorage.setItem(collectionKey('enrollments'), JSON.stringify([
+        {
+          id: 'enrollment-ari',
+          orgId,
+          studentId: 'student-ari',
+          activityId: 'activity-attendance',
+          l2Id: 'l2-attendance',
+          startDate: '2026-01-01',
+          endDate: null,
+          status: 'ACTIVE',
+          createdAt: { seconds: 0, nanoseconds: 0 },
+          updatedAt: { seconds: 0, nanoseconds: 0 },
+        },
+        {
+          id: 'enrollment-ziv',
+          orgId,
+          studentId: 'student-ziv',
+          activityId: 'activity-attendance',
+          l2Id: 'l2-attendance',
+          startDate: '2026-01-01',
+          endDate: null,
+          status: 'ACTIVE',
+          createdAt: { seconds: 0, nanoseconds: 0 },
+          updatedAt: { seconds: 0, nanoseconds: 0 },
+        },
+      ]));
+      localStorage.setItem(collectionKey('eventParticipants'), JSON.stringify([
+        {
+          id: 'participant-read',
+          orgId,
+          eventId: 'event-attendance-read',
+          staffMemberId: 'staff-attendance',
+          assignmentType: 'TEACHING',
+          teachingAssignmentId: null,
+          orgRoleId: null,
+          notes: null,
+          createdAt: { seconds: 0, nanoseconds: 0 },
+        },
+        {
+          id: 'participant-empty',
+          orgId,
+          eventId: 'event-attendance-empty',
+          staffMemberId: 'staff-attendance',
+          assignmentType: 'TEACHING',
+          teachingAssignmentId: null,
+          orgRoleId: null,
+          notes: null,
+          createdAt: { seconds: 0, nanoseconds: 0 },
         },
       ]));
       localStorage.setItem(collectionKey('students'), JSON.stringify([
@@ -148,7 +222,7 @@ test.describe('Calendar event attendance read panel', () => {
     await page.locator('[data-event-id="event-attendance-read"]').click();
     const panel = page.getByTestId('event-attendance-panel');
     await expect(panel).toBeVisible();
-    await expect(panel.getByText('Attendance')).toBeVisible();
+    await expect(panel.getByRole('heading', { name: 'Attendance' })).toBeVisible();
     await expect(panel.getByText(`Ari ${RUN_ID}`)).toBeVisible();
     await expect(panel.getByText(`Ziv ${RUN_ID}`)).toBeVisible();
     await expect(panel.locator('span').filter({ hasText: /^Present$/ })).toBeVisible();
@@ -182,7 +256,7 @@ test.describe('Calendar event attendance read panel', () => {
     await expect(detail.getByText('Present')).toBeVisible();
   });
 
-  test('shows the no-prepared-rows state without creating lesson records', async ({ page }) => {
+  test('prepares attendance rows only after explicit teacher/admin action', async ({ page }) => {
     await seedAttendanceReadData(page);
     await loadApp(page);
 
@@ -191,10 +265,25 @@ test.describe('Calendar event attendance read panel', () => {
     await expect(panel).toBeVisible();
     await expect(panel.getByText('No prepared attendance rows')).toBeVisible();
 
-    const persisted = await page.evaluate((orgId) => {
+    const beforePrepare = await page.evaluate((orgId) => {
       return JSON.parse(localStorage.getItem(`cadenza:local:${orgId}:col:lessonRecords`) || '[]');
     }, TEST_ORG);
-    expect(persisted).toHaveLength(2);
+    expect(beforePrepare).toHaveLength(2);
+
+    await panel.getByRole('button', { name: 'Prepare rows' }).click();
+    await expect(panel.getByTestId('attendance-lesson-row')).toHaveCount(2);
+    await expect(panel.locator('span').filter({ hasText: /^Unmarked$/ })).toHaveCount(2);
+    await expect(panel.getByText('Pending')).toHaveCount(2);
+
+    const afterPrepare = await page.evaluate((orgId) => {
+      return JSON.parse(localStorage.getItem(`cadenza:local:${orgId}:col:lessonRecords`) || '[]');
+    }, TEST_ORG);
+    const prepared = afterPrepare.filter((lesson: { eventId: string }) => lesson.eventId === 'event-attendance-empty');
+    expect(afterPrepare).toHaveLength(4);
+    expect(prepared).toHaveLength(2);
+    expect(prepared.every((lesson: { attendance: string; completion: string }) => (
+      lesson.attendance === 'UNMARKED' && lesson.completion === 'PENDING'
+    ))).toBe(true);
   });
 
   test('keeps Hebrew RTL attendance marking usable at 390x844 for existing rows', async ({ page }) => {
@@ -208,8 +297,8 @@ test.describe('Calendar event attendance read panel', () => {
     const panel = page.getByTestId('event-attendance-panel');
     await expect(panel).toBeVisible();
     await expect(panel).toHaveAttribute('dir', 'rtl');
-    await expect(panel.getByText('נוכחות')).toBeVisible();
-    await expect(panel.getByText('מעדכן רק רשומות שיעור שמורות. אין הכנת רשומות או הסקת תוצאות.')).toBeVisible();
+    await expect(panel.getByRole('heading', { name: 'נוכחות' })).toBeVisible();
+    await expect(panel.getByText('מעדכן רשומות שיעור שמורות. רשומות מוכנות נשארות לא מסומנות עד שמורה או מנהל מאשרים נוכחות.')).toBeVisible();
 
     const zivRow = panel.getByTestId('attendance-lesson-row').filter({ hasText: `Ziv ${RUN_ID}` });
     await expect(zivRow).toBeVisible();
