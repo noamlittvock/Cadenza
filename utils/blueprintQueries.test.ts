@@ -689,8 +689,56 @@ describe('payments/ledger', () => {
     expect(s1.balance).toBe(450);
     expect(s1.openChargeIds).toEqual(['ch1']);
   });
+  it('listOpenBalances defaults to family-led aggregation and sorts open charges by due date', () => {
+    const familyCharges: Charge[] = [
+      { ...base, id: 'ch_late', studentId: 's2', familyId: 'f1', enrollmentId: 'en2', description: 'Late fee', amount: 80, currency: 'ILS', dueDate: '2026-10-01', status: 'OPEN', periodLabel: 'Q4' },
+      { ...base, id: 'ch_early', studentId: 's1', familyId: 'f1', enrollmentId: 'en1', description: 'Early fee', amount: 120, currency: 'ILS', dueDate: '2026-05-01', status: 'PARTIAL', periodLabel: 'Q0' },
+      ...charges,
+    ];
+    const bals = Q.listOpenBalances(familyCharges, payments, adjustments);
+    expect(bals).toHaveLength(1);
+    expect(bals[0]).toMatchObject({
+      partyId: 'f1',
+      scope: 'FAMILY',
+      currency: 'ILS',
+      totalCharged: 1200,
+      totalPaid: 500,
+      totalAdjusted: -50,
+      balance: 650,
+    });
+    expect(bals[0].openChargeIds).toEqual(['ch_early', 'ch1', 'ch_late']);
+  });
+  it('listOpenBalances preserves partial allocation as an open balance', () => {
+    const partialPayments: Payment[] = [
+      { ...base, id: 'pay_partial', studentId: 's1', familyId: 'f1', amount: 125, currency: 'ILS', method: 'TRANSFER', receivedAt: '2026-06-15T10:00:00.000Z', reference: null, appliedChargeIds: ['ch1'], note: null },
+    ];
+    const partialAdjustments: Adjustment[] = [
+      { ...base, id: 'adj_partial', studentId: 's1', familyId: 'f1', chargeId: 'ch1', amount: -25, currency: 'ILS', reason: 'manual credit' },
+    ];
+    const [balance] = Q.listOpenBalances([charges[0]], partialPayments, partialAdjustments);
+    expect(balance.totalCharged).toBe(500);
+    expect(balance.totalPaid).toBe(125);
+    expect(balance.totalAdjusted).toBe(-25);
+    expect(balance.balance).toBe(350);
+    expect(balance.openChargeIds).toEqual(['ch1']);
+  });
+  it('listOpenBalances rejects mixed currencies for one family ledger', () => {
+    expect(() => Q.listOpenBalances([
+      charges[0],
+      { ...charges[1], id: 'ch_usd', currency: 'USD' },
+    ], payments, adjustments)).toThrow('Mixed currencies for family ledger f1');
+    expect(() => Q.listOpenBalances(charges, [
+      { ...payments[0], currency: 'USD' },
+    ], adjustments)).toThrow('Mixed currencies for family ledger f1');
+  });
   it('listPaymentsByFamily filters + sorts', () => {
-    expect(Q.listPaymentsByFamily(payments, 'f1').map(p => p.id)).toEqual(['pay1']);
+    const unsorted: Payment[] = [
+      { ...payments[0], id: 'pay_z', receivedAt: '2026-06-15T10:00:00.000Z' },
+      { ...payments[0], id: 'pay_a', receivedAt: '2026-06-15T10:00:00.000Z' },
+      { ...payments[0], id: 'pay_previous', receivedAt: '2026-06-15T00:00:00.000Z' },
+      { ...payments[0], id: 'pay_other_family', familyId: 'f2', receivedAt: '2026-06-14T00:00:00.000Z' },
+    ];
+    expect(Q.listPaymentsByFamily(unsorted, 'f1').map(p => p.id)).toEqual(['pay_previous', 'pay_a', 'pay_z']);
   });
   it('reconcileEnrollmentCharges flags missing periods', () => {
     const rec = Q.reconcileEnrollmentCharges('en1', charges, [
@@ -700,6 +748,41 @@ describe('payments/ledger', () => {
     expect(rec.expectedCharged).toBe(1500);
     expect(rec.missingPeriods).toEqual(['Q3']);
     expect(rec.matches).toBe(false);
+  });
+  it('reconcileEnrollmentCharges includes scoped payment and adjustment lineage', () => {
+    const scopedPayments: Payment[] = [
+      { ...base, id: 'pay_partial_en1', studentId: 's1', familyId: 'f1', amount: 200, currency: 'ILS', method: 'TRANSFER', receivedAt: '2026-06-15T10:00:00.000Z', reference: null, appliedChargeIds: ['ch1'], note: null },
+      { ...base, id: 'pay_cross_enrollments', studentId: null, familyId: 'f1', amount: 300, currency: 'ILS', method: 'TRANSFER', receivedAt: '2026-06-16T10:00:00.000Z', reference: null, appliedChargeIds: ['ch1', 'ch_other_enrollment'], note: null },
+    ];
+    const scopedAdjustments: Adjustment[] = [
+      { ...base, id: 'adj_en1', studentId: 's1', familyId: 'f1', chargeId: 'ch1', amount: -50, currency: 'ILS', reason: 'discount' },
+    ];
+    const rec = Q.reconcileEnrollmentCharges('en1', [
+      { ...charges[1], dueDate: '2026-09-30' },
+      { ...charges[0], dueDate: '2026-06-30' },
+      { ...base, id: 'ch_other_enrollment', studentId: 's2', familyId: 'f1', enrollmentId: 'en2', description: 'Other enrollment', amount: 300, currency: 'ILS', dueDate: '2026-06-01', status: 'OPEN', periodLabel: 'Q1' },
+    ], [
+      { label: 'Q1', amount: 500 },
+      { label: 'Q2', amount: 500 },
+    ], scopedPayments, scopedAdjustments);
+
+    expect(rec.charges.map(c => c.id)).toEqual(['ch1', 'ch2']);
+    expect(rec.paymentIds).toEqual(['pay_partial_en1', 'pay_cross_enrollments']);
+    expect(rec.ambiguousPaymentIds).toEqual(['pay_cross_enrollments']);
+    expect(rec.totalCharged).toBe(1000);
+    expect(rec.totalPaid).toBe(200);
+    expect(rec.totalAdjusted).toBe(-50);
+    expect(rec.balance).toBe(750);
+    expect(rec.matches).toBe(true);
+  });
+  it('reconcileEnrollmentCharges rejects mixed currencies for one enrollment ledger', () => {
+    expect(() => Q.reconcileEnrollmentCharges('en1', [
+      charges[0],
+      { ...charges[1], currency: 'USD' },
+    ], [])).toThrow('Mixed currencies for enrollment ledger en1');
+    expect(() => Q.reconcileEnrollmentCharges('en1', charges, [], [
+      { ...payments[0], currency: 'USD' },
+    ])).toThrow('Mixed currencies for enrollment ledger en1');
   });
 });
 

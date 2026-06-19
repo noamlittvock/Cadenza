@@ -99,6 +99,17 @@ function byDateAsc<T>(get: (x: T) => string | null | undefined) {
   return (a: T, b: T) => (get(a) ?? '').localeCompare(get(b) ?? '');
 }
 
+function byDateAscThenId<T extends { id: string }>(get: (x: T) => string | null | undefined) {
+  return (a: T, b: T) => {
+    const dateCompare = (get(a) ?? '').localeCompare(get(b) ?? '');
+    return dateCompare || a.id.localeCompare(b.id);
+  };
+}
+
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
 /** Inclusive date-range check on ISO date strings. */
 export function withinRange(date: IsoDate, from: IsoDate, to: IsoDate): boolean {
   return date >= from && date <= to;
@@ -1054,22 +1065,35 @@ export interface OpenBalance {
   openChargeIds: string[];
 }
 
+function assertSameLedgerCurrency(
+  current: string,
+  next: string,
+  context: { scope: 'STUDENT' | 'FAMILY' | 'ENROLLMENT'; id: string },
+): void {
+  if (current !== next) {
+    throw new Error(`Mixed currencies for ${context.scope.toLowerCase()} ledger ${context.id}: ${current} and ${next}`);
+  }
+}
+
 /** Computes per-party open balances. balance = charged + adjusted - paid. */
 export function listOpenBalances(
   charges: Charge[],
   payments: Payment[],
   adjustments: Adjustment[],
-  scope: 'STUDENT' | 'FAMILY' = 'STUDENT',
+  scope: 'STUDENT' | 'FAMILY' = 'FAMILY',
 ): OpenBalance[] {
   const key = (x: { studentId?: string | null; familyId?: string | null }) =>
     scope === 'STUDENT' ? x.studentId ?? null : x.familyId ?? null;
 
   const map = new Map<string, OpenBalance>();
+  const openChargeSortKeys = new Map<string, string>();
   const ensure = (id: string, currency: string): OpenBalance => {
     let b = map.get(id);
     if (!b) {
       b = { partyId: id, scope, currency, totalCharged: 0, totalPaid: 0, totalAdjusted: 0, balance: 0, openChargeIds: [] };
       map.set(id, b);
+    } else {
+      assertSameLedgerCurrency(b.currency, currency, { scope, id });
     }
     return b;
   };
@@ -1079,7 +1103,10 @@ export function listOpenBalances(
     if (!id || c.status === 'VOID') continue;
     const b = ensure(id, c.currency);
     b.totalCharged += c.amount;
-    if (c.status !== 'PAID') b.openChargeIds.push(c.id);
+    if (c.status !== 'PAID') {
+      b.openChargeIds.push(c.id);
+      openChargeSortKeys.set(c.id, `${c.dueDate ?? '9999-12-31'}:${c.id}`);
+    }
   }
   for (const p of payments) {
     const id = key(p);
@@ -1092,7 +1119,13 @@ export function listOpenBalances(
     ensure(id, a.currency).totalAdjusted += a.amount;
   }
   const out = Array.from(map.values());
-  out.forEach(b => { b.balance = Math.round((b.totalCharged + b.totalAdjusted - b.totalPaid) * 100) / 100; });
+  out.forEach(b => {
+    b.totalCharged = roundMoney(b.totalCharged);
+    b.totalPaid = roundMoney(b.totalPaid);
+    b.totalAdjusted = roundMoney(b.totalAdjusted);
+    b.balance = roundMoney(b.totalCharged + b.totalAdjusted - b.totalPaid);
+    b.openChargeIds.sort((a, bId) => (openChargeSortKeys.get(a) ?? a).localeCompare(openChargeSortKeys.get(bId) ?? bId));
+  });
   return out
     .filter(b => b.balance !== 0 || b.openChargeIds.length > 0)
     .sort((a, b) => b.balance - a.balance || a.partyId.localeCompare(b.partyId));
@@ -1101,29 +1134,71 @@ export function listOpenBalances(
 export function listPaymentsByFamily(payments: Payment[], familyId: string): Payment[] {
   return payments
     .filter(p => p.familyId === familyId)
-    .sort(byDateAsc(p => p.receivedAt));
+    .sort(byDateAscThenId(p => p.receivedAt));
 }
 
 export interface EnrollmentReconciliation {
   enrollmentId: string;
   charges: Charge[];
+  payments: Payment[];
   totalCharged: number;
+  totalPaid: number;
+  totalAdjusted: number;
+  balance: number;
   expectedCharged: number;
   matches: boolean;
   missingPeriods: string[];
+  paymentIds: string[];
+  ambiguousPaymentIds: string[];
 }
 
 /**
  * Checks that an enrollment's charges cover the expected billing periods.
  * `expectedPeriods` is passed in (deterministic — no calendar guessing here).
+ * Payment amounts are counted only when every applied charge belongs to this
+ * enrollment; cross-enrollment payment allocations are exposed as ambiguous so
+ * callers do not silently assign one payment amount to multiple ledgers.
  */
 export function reconcileEnrollmentCharges(
   enrollmentId: string,
   charges: Charge[],
   expectedPeriods: { label: string; amount: number }[],
+  payments: Payment[] = [],
+  adjustments: Adjustment[] = [],
 ): EnrollmentReconciliation {
   const mine = charges.filter(c => c.enrollmentId === enrollmentId && c.status !== 'VOID');
+  const sortedCharges = mine.sort(byDateAscThenId(c => c.dueDate));
+  const chargeIds = new Set(mine.map(c => c.id));
+  const currency = mine[0]?.currency ?? null;
+  if (currency) {
+    for (const c of mine) {
+      assertSameLedgerCurrency(currency, c.currency, { scope: 'ENROLLMENT', id: enrollmentId });
+    }
+  }
+
+  const relatedPayments = payments
+    .filter(p => p.appliedChargeIds.some(chargeId => chargeIds.has(chargeId)))
+    .sort(byDateAscThenId(p => p.receivedAt));
+  const scopedPayments = relatedPayments.filter(p => p.appliedChargeIds.every(chargeId => chargeIds.has(chargeId)));
+  const ambiguousPaymentIds = relatedPayments
+    .filter(p => !p.appliedChargeIds.every(chargeId => chargeIds.has(chargeId)))
+    .map(p => p.id);
+  const relatedAdjustments = adjustments
+    .filter(a => a.chargeId != null && chargeIds.has(a.chargeId))
+    .sort(byDateAscThenId(a => a.createdAt));
+
+  if (currency) {
+    for (const p of relatedPayments) {
+      assertSameLedgerCurrency(currency, p.currency, { scope: 'ENROLLMENT', id: enrollmentId });
+    }
+    for (const a of relatedAdjustments) {
+      assertSameLedgerCurrency(currency, a.currency, { scope: 'ENROLLMENT', id: enrollmentId });
+    }
+  }
+
   const totalCharged = mine.reduce((s, c) => s + c.amount, 0);
+  const totalPaid = scopedPayments.reduce((s, p) => s + p.amount, 0);
+  const totalAdjusted = relatedAdjustments.reduce((s, a) => s + a.amount, 0);
   const expectedCharged = expectedPeriods.reduce((s, p) => s + p.amount, 0);
   const presentLabels = new Set(mine.map(c => c.periodLabel).filter(Boolean));
   const missingPeriods = expectedPeriods
@@ -1131,11 +1206,17 @@ export function reconcileEnrollmentCharges(
     .map(p => p.label);
   return {
     enrollmentId,
-    charges: mine.sort(byDateAsc(c => c.dueDate)),
-    totalCharged: Math.round(totalCharged * 100) / 100,
-    expectedCharged: Math.round(expectedCharged * 100) / 100,
-    matches: missingPeriods.length === 0 && totalCharged === expectedCharged,
+    charges: sortedCharges,
+    payments: relatedPayments,
+    totalCharged: roundMoney(totalCharged),
+    totalPaid: roundMoney(totalPaid),
+    totalAdjusted: roundMoney(totalAdjusted),
+    balance: roundMoney(totalCharged + totalAdjusted - totalPaid),
+    expectedCharged: roundMoney(expectedCharged),
+    matches: missingPeriods.length === 0 && roundMoney(totalCharged) === roundMoney(expectedCharged),
     missingPeriods,
+    paymentIds: relatedPayments.map(p => p.id),
+    ambiguousPaymentIds,
   };
 }
 

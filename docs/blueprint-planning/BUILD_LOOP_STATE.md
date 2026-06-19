@@ -81,25 +81,52 @@ building the accepted P0 family-led finance ledger:
   partial-allocation edge coverage, single-currency invariant coverage, date
   boundary coverage, and mapping/RLS/UI workflow coverage for this packet.
 
+## Baseline Audit Findings - 2026-06-19
+
+- `App.tsx` still has no `BILLING` route, `routing.ts` keeps `BILLING` hidden
+  from the command palette, and `Layout.tsx` has no Finance sidebar entry.
+- `App.tsx` does not subscribe to `charges`, `payments`, `adjustments`, or
+  `balanceSnapshots`; there is no Finance workspace component yet.
+- `StudentFamilyWorkspace` has a finance tab placeholder only. It currently gates
+  with admin/super-admin props and does not surface real ledger rows.
+- `listOpenBalances` now defaults to `FAMILY`, rejects mixed currencies per
+  party, rounds totals, and sorts open charge ids by due date.
+- Helper tests now cover partial-allocation balances, family-led default
+  aggregation, mixed-currency rejection, and date/tie-boundary sorting.
+- `supabaseSync.test.ts` verifies the table map includes `charges`, but does not
+  yet cover full ledger row mapping for `charges`, `payments`, `adjustments`, or
+  `balanceSnapshots`, including `appliedChargeIds` jsonb.
+- Static schema tests prove admin-or-finance policies exist for all ledger
+  tables. The live RLS harness currently covers `charges` read visibility, but the
+  queued RLS-LIVE unit still needs all ledger tables plus write/denial cases.
+- No D-25 instrument deposit, replacement-fee, forfeit, or refund behavior was
+  found in the current finance code path.
+
 ## Build Queue
 
 ### Stage 0 - Audit And Split
 
-- [ ] Baseline audit: read handoff, roadmap, payments packet, decision log,
+- [x] Baseline audit: read handoff, roadmap, payments packet, decision log,
   route policy, status policy, finance scope doc, and current finance-related
   code/tests/RLS/mapping. Split the queue into smaller safe units if needed.
   Preserve D-25 blocked scope.
 
 ### Stage 1 - Ledger Foundation
 
-- [ ] MAP-UNIT: strengthen deterministic helper and Supabase mapping coverage for
-  `charges`, `payments`, `adjustments`, `balanceSnapshots`, family-led
-  aggregation, partial allocation, date boundaries, and D-20 single-currency
-  invariants.
-- [ ] Ledger service layer: implement small, tested helpers for manual charge
-  creation, payment recording/allocation, charge status derivation, adjustment
-  posting, void/audit semantics, computed family balances, and snapshot history.
-  Do not build instrument deposit/refund logic.
+- [x] MAP-UNIT-A helper coverage: strengthen deterministic helper coverage and
+  implementation for family-led aggregation, partial allocation semantics, date
+  boundaries/sorting, and D-20 single-currency invariants. Keep this limited to
+  helper behavior and tests; no service/UI work.
+- [ ] MAP-UNIT-B Supabase mapping coverage: add round-trip tests for `charges`,
+  `payments`, `adjustments`, and `balanceSnapshots`, including numeric fields,
+  nullable lineage fields, `approvedBy`, and `appliedChargeIds` jsonb. No service
+  or UI work.
+- [ ] Ledger service A: implement small, tested helpers for manual family-led
+  charge creation, payment recording/allocation, charge status derivation, and
+  computed family balances. Enforce D-20 and exclude D-25 instrument scope.
+- [ ] Ledger service B: implement small, tested helpers for adjustment posting,
+  void/audit semantics, and snapshot history as audit-only records. Live current
+  balances must remain computed on demand.
 - [ ] RLS-LIVE finance ledger run: prove admin and finance can read/write,
   plain member cannot read, anon denied, and cross-org denied against a real
   Supabase project.
@@ -150,10 +177,10 @@ building the accepted P0 family-led finance ledger:
 
 ## Next Unit
 
-- Baseline audit: read handoff, roadmap, payments packet, decision log, route
-  policy, status policy, finance scope doc, and current finance-related
-  code/tests/RLS/mapping. Split the queue into smaller safe units if needed.
-  Preserve D-25 blocked scope.
+- MAP-UNIT-B Supabase mapping coverage: add round-trip tests for `charges`,
+  `payments`, `adjustments`, and `balanceSnapshots`, including numeric fields,
+  nullable lineage fields, `approvedBy`, and `appliedChargeIds` jsonb. No service
+  or UI work.
 
 ## Setup Notes For Next Agent
 
@@ -176,3 +203,23 @@ building the accepted P0 family-led finance ledger:
 - 2026-06-19 seed for `payments-charges`: after committing and pushing completed
   payroll at `1037af8`, replaced the completed payroll loop memory with this
   payments queue. No payments code changes have been made in this seed step.
+- 2026-06-19 Stage 0 baseline audit: read the handoff, roadmap, payments and
+  payroll packets, decision log, route policy, status policy, finance scope doc,
+  and finance-related helpers/tests/RLS/mapping/UI placeholders. Changed file:
+  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
+  `npx vitest run routing.test.ts utils/blueprintQueries.test.ts
+  utils/supabaseSync.test.ts utils/supabaseSchema.test.ts utils/rlsLive.test.ts
+  --reporter=dot` passed (103 tests, live RLS harness ran); `npm run typecheck
+  -- --diagnostics` passed; `npx vitest run --reporter=dot` passed (246 tests).
+- 2026-06-19 MAP-UNIT-A helper coverage: changed `listOpenBalances` to default
+  to family-led aggregation, reject mixed currencies per party, round money
+  totals, and sort open charge ids deterministically by due date. Expanded
+  `reconcileEnrollmentCharges` with payment/adjustment lineage, scoped payment
+  totals, ambiguous cross-enrollment payment ids, balance totals, and enrollment
+  currency rejection. Changed files: `utils/blueprintQueries.ts`,
+  `utils/blueprintQueries.test.ts`, and
+  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
+  `npx vitest run utils/blueprintQueries.test.ts --reporter=dot` passed
+  (59 tests); `npm run typecheck -- --diagnostics` passed; `npx vitest run
+  --reporter=dot` passed (251 tests). Playwright not run because MAP-UNIT-A has
+  no UI workflow.
