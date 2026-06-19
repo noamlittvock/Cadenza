@@ -237,6 +237,113 @@ describe('Lesson details/attendance packet mapping contracts', () => {
   });
 });
 
+describe('Payroll packet mapping contracts', () => {
+  it('maps hours_entries as NORMALIZED rows with payroll line columns', () => {
+    const hoursEntrySpec = tableSpecFor('hoursEntries');
+    expect(hoursEntrySpec).toEqual({ table: 'hours_entries', mode: 'NORMALIZED' });
+
+    const hoursEntry = {
+      id: 'hours_entry_1',
+      orgId: 'ignored-client-org',
+      staffMemberId: 'staff_1',
+      hoursReportId: 'hours_report_1',
+      date: '2026-06-18',
+      reportedMinutes: 90,
+      calendarMinutes: 60,
+      eventId: 'event_1',
+      teachingAssignmentId: 'assignment_1',
+      orgRoleId: 'role_1',
+      rate: null,
+      status: 'SUBMITTED',
+      note: 'Teacher reported setup time.',
+      createdAt: '2026-06-18T08:30:00.000Z',
+      updatedAt: '2026-06-18T09:00:00.000Z',
+      createdBy: 'teacher_1',
+      updatedBy: undefined,
+    };
+
+    const row = appToRow(hoursEntrySpec, 'org_1', hoursEntry);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'hours_entry_1',
+      staff_member_id: 'staff_1',
+      hours_report_id: 'hours_report_1',
+      date: '2026-06-18',
+      reported_minutes: 90,
+      calendar_minutes: 60,
+      event_id: 'event_1',
+      teaching_assignment_id: 'assignment_1',
+      org_role_id: 'role_1',
+      rate: null,
+      status: 'SUBMITTED',
+      note: 'Teacher reported setup time.',
+      created_at: '2026-06-18T08:30:00.000Z',
+      updated_at: '2026-06-18T09:00:00.000Z',
+      created_by: 'teacher_1',
+    });
+    expect('updated_by' in row).toBe(false);
+
+    expect(rowToApp(hoursEntrySpec, row)).toEqual({
+      id: 'hours_entry_1',
+      orgId: 'org_1',
+      staffMemberId: 'staff_1',
+      hoursReportId: 'hours_report_1',
+      date: '2026-06-18',
+      reportedMinutes: 90,
+      calendarMinutes: 60,
+      eventId: 'event_1',
+      teachingAssignmentId: 'assignment_1',
+      orgRoleId: 'role_1',
+      rate: null,
+      status: 'SUBMITTED',
+      note: 'Teacher reported setup time.',
+      createdAt: '2026-06-18T08:30:00.000Z',
+      updatedAt: '2026-06-18T09:00:00.000Z',
+      createdBy: 'teacher_1',
+    });
+  });
+
+  it('maps hours_reports as HYBRID period headers without top-level snake conversion', () => {
+    const hoursReportSpec = tableSpecFor('hoursReports');
+    expect(hoursReportSpec).toEqual({ table: 'hours_reports', mode: 'HYBRID' });
+
+    const header = {
+      id: 'hours_report_1',
+      orgId: 'ignored-client-org',
+      staffMemberId: 'staff_1',
+      periodStart: '2026-06-01',
+      periodEnd: '2026-06-30',
+      status: 'SUBMITTED',
+      submittedAt: '2026-07-01T08:00:00.000Z',
+      entryIds: ['hours_entry_1', 'hours_entry_2'],
+      adminNotes: 'Reviewed against calendar variance.',
+      createdBy: 'teacher_1',
+      createdAt: '2026-06-01T08:00:00.000Z',
+    };
+
+    const row = appToRow(hoursReportSpec, 'org_1', header);
+    expect(row).toEqual({
+      id: 'hours_report_1',
+      org_id: 'org_1',
+      data: {
+        staffMemberId: 'staff_1',
+        periodStart: '2026-06-01',
+        periodEnd: '2026-06-30',
+        status: 'SUBMITTED',
+        submittedAt: '2026-07-01T08:00:00.000Z',
+        entryIds: ['hours_entry_1', 'hours_entry_2'],
+        adminNotes: 'Reviewed against calendar variance.',
+        createdBy: 'teacher_1',
+        createdAt: '2026-06-01T08:00:00.000Z',
+      },
+    });
+    expect('staff_member_id' in row).toBe(false);
+    expect('reported_total' in row).toBe(false);
+
+    expect(rowToApp(hoursReportSpec, row)).toEqual({ ...header, orgId: 'org_1' });
+  });
+});
+
 describe('Public registration intake mapping contracts', () => {
   it('maps public_endpoints as NORMALIZED while preserving scopes jsonb and token hashes', () => {
     const endpointSpec = tableSpecFor('publicEndpoints');

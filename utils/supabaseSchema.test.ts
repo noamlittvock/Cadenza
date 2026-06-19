@@ -138,6 +138,7 @@ describe('Phase B RLS refinements', () => {
     const lessonWrite = policySql('lesson_records', 'lesson_records_write');
     const lessonInsert = policySql('lesson_records', 'lesson_records_teacher_insert');
     const lessonUpdate = policySql('lesson_records', 'lesson_records_teacher_update');
+    const hoursWrite = policySql('hours_entries', 'hours_entries_write');
     const hoursRead = policySql('hours_entries', 'hours_entries_read');
     const hoursInsert = policySql('hours_entries', 'hours_entries_teacher_insert');
     const hoursUpdate = policySql('hours_entries', 'hours_entries_teacher_update');
@@ -148,10 +149,17 @@ describe('Phase B RLS refinements', () => {
     expect(lessonUpdate).toMatch(/public\.app_is_staff_self\(org_id,\s*staff_member_id\)/i);
     expect(lessonInsert).not.toMatch(/app_is_org_member|app_has_capability/i);
     expect(lessonUpdate).not.toMatch(/app_is_org_member|app_has_capability/i);
+    expect(hoursWrite).toMatch(/public\.app_is_org_admin\(org_id\)/i);
+    expect(hoursWrite).not.toMatch(/app_is_org_member|app_has_capability/i);
     expect(hoursRead).toMatch(/public\.app_is_staff_self\(org_id,\s*staff_member_id\)/i);
     expect(hoursRead).toMatch(/public\.app_has_capability\(org_id,\s*'finance'\)/i);
+    expect(hoursRead).not.toMatch(/app_is_org_member|auth\.role\(\)\s*=\s*'anon'/i);
     expect(hoursInsert).toMatch(/status\s+in\s+\('DRAFT','SUBMITTED'\)/i);
     expect(hoursUpdate).toMatch(/status\s+in\s+\('DRAFT','SUBMITTED'\)/i);
+    expect(hoursInsert).toMatch(/public\.app_is_staff_self\(org_id,\s*staff_member_id\)/i);
+    expect(hoursUpdate).toMatch(/public\.app_is_staff_self\(org_id,\s*staff_member_id\)/i);
+    expect(hoursInsert).not.toMatch(/app_is_org_member|app_has_capability|auth\.role\(\)\s*=\s*'anon'/i);
+    expect(hoursUpdate).not.toMatch(/app_is_org_member|app_has_capability|auth\.role\(\)\s*=\s*'anon'/i);
     expect(hoursInsert).not.toMatch(/APPROVED|PAID/i);
     expect(hoursUpdate).not.toMatch(/APPROVED|PAID/i);
   });

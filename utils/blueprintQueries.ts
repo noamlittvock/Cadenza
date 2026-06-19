@@ -938,6 +938,86 @@ export interface PayslipRow {
   sourceEntryId: string;
 }
 
+export type PayrollRateSource =
+  | 'ADMIN_OVERRIDE'
+  | 'TEACHING_ASSIGNMENT'
+  | 'ORG_ROLE'
+  | 'STAFF_DEFAULT'
+  | 'ORG_DEFAULT';
+
+export interface PayrollRateResolution {
+  rate: number | null;
+  source: PayrollRateSource | 'NONE';
+  sourceId: string | null;
+}
+
+export interface PayrollRatePolicy {
+  adminOverrideRate?: number | null;
+  teachingAssignmentRates?: Array<{ teachingAssignmentId: string; rate: number | null | undefined }>;
+  orgRoleRates?: Array<{ orgRoleId: string; rate: number | null | undefined }>;
+  staffDefaultRates?: Array<{ staffMemberId: string; rate: number | null | undefined }>;
+  orgDefaultRate?: number | null;
+}
+
+function validPayrollRate(rate: number | null | undefined): rate is number {
+  return typeof rate === 'number' && Number.isFinite(rate) && rate >= 0;
+}
+
+/**
+ * D-19 rate resolution for approval-time stamping.
+ * The existing entry.rate may be a draft estimate, so it is intentionally not
+ * considered final unless the caller passes an explicit admin override.
+ */
+export function resolveHoursEntryPayRate(
+  entry: HoursEntry,
+  policy: PayrollRatePolicy,
+): PayrollRateResolution {
+  if (validPayrollRate(policy.adminOverrideRate)) {
+    return { rate: policy.adminOverrideRate, source: 'ADMIN_OVERRIDE', sourceId: entry.id };
+  }
+
+  if (entry.teachingAssignmentId) {
+    const assignmentRate = policy.teachingAssignmentRates
+      ?.find(r => r.teachingAssignmentId === entry.teachingAssignmentId);
+    if (assignmentRate && validPayrollRate(assignmentRate.rate)) {
+      return {
+        rate: assignmentRate.rate,
+        source: 'TEACHING_ASSIGNMENT',
+        sourceId: entry.teachingAssignmentId,
+      };
+    }
+  }
+
+  if (entry.orgRoleId) {
+    const orgRoleRate = policy.orgRoleRates?.find(r => r.orgRoleId === entry.orgRoleId);
+    if (orgRoleRate && validPayrollRate(orgRoleRate.rate)) {
+      return { rate: orgRoleRate.rate, source: 'ORG_ROLE', sourceId: entry.orgRoleId };
+    }
+  }
+
+  const staffRate = policy.staffDefaultRates?.find(r => r.staffMemberId === entry.staffMemberId);
+  if (staffRate && validPayrollRate(staffRate.rate)) {
+    return { rate: staffRate.rate, source: 'STAFF_DEFAULT', sourceId: entry.staffMemberId };
+  }
+
+  if (validPayrollRate(policy.orgDefaultRate)) {
+    return { rate: policy.orgDefaultRate, source: 'ORG_DEFAULT', sourceId: null };
+  }
+
+  return { rate: null, source: 'NONE', sourceId: null };
+}
+
+export function stampHoursEntryPayRate(
+  entry: HoursEntry,
+  policy: PayrollRatePolicy,
+): HoursEntry {
+  const resolution = resolveHoursEntryPayRate(entry, policy);
+  if (resolution.rate === null) {
+    throw new Error(`No payroll rate configured for hours entry ${entry.id}`);
+  }
+  return { ...entry, rate: resolution.rate };
+}
+
 /** Deterministic payslip rows from approved hours entries (rate × hours). */
 export function calculatePayslipRows(entries: HoursEntry[]): PayslipRow[] {
   return entries

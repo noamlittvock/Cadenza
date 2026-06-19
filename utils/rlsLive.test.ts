@@ -259,7 +259,7 @@ if (!liveRlsEnv.ready) {
       expect(anonRows).toEqual([]);
     });
 
-    it('enforces teacher self-write scope for lesson and hours rows', async () => {
+    it('enforces teacher self-write scope for lesson and payroll hours rows', async () => {
       const lessonId = h.id('lesson');
       const deniedLessonId = h.id('lesson_denied');
       const hoursId = h.id('hours');
@@ -329,6 +329,275 @@ if (!liveRlsEnv.ready) {
       });
       expectRlsDenied(approvedHoursError, 'teacher should not insert approved/payroll-final hours rows');
     });
+
+    it('enforces payroll hours role boundaries for teacher, admin, finance, anon, and cross-org users', async () => {
+      const teacherDraftId = h.id('hours_teacher_draft');
+      const teacherSubmittedId = h.id('hours_teacher_submitted');
+      const otherStaffId = h.id('hours_other_staff');
+      const teacherApprovedId = h.id('hours_teacher_approved');
+      const teacherPaidId = h.id('hours_teacher_paid');
+      const adminApproveId = h.id('hours_admin_approve');
+      const adminPayId = h.id('hours_admin_pay');
+      const crossOrgHoursId = h.id('hours_cross_org');
+      const deniedTeacherOtherInsertId = h.id('hours_teacher_other_denied');
+      const deniedTeacherApprovedInsertId = h.id('hours_teacher_approved_denied');
+      const deniedTeacherPaidInsertId = h.id('hours_teacher_paid_denied');
+      const deniedFinanceInsertId = h.id('hours_finance_denied');
+      const deniedAnonInsertId = h.id('hours_anon_denied');
+      const deniedTeacherCrossOrgInsertId = h.id('hours_teacher_cross_org_denied');
+
+      for (const id of [
+        teacherDraftId,
+        teacherSubmittedId,
+        otherStaffId,
+        teacherApprovedId,
+        teacherPaidId,
+        adminApproveId,
+        adminPayId,
+        crossOrgHoursId,
+        deniedTeacherOtherInsertId,
+        deniedTeacherApprovedInsertId,
+        deniedTeacherPaidInsertId,
+        deniedFinanceInsertId,
+        deniedAnonInsertId,
+        deniedTeacherCrossOrgInsertId,
+      ]) {
+        h.track('hours_entries', id);
+      }
+
+      const otherStaffMemberId = `${config.teacher.staffMemberId}_other`;
+      const makeHoursRow = (
+        id: string,
+        status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'PAID',
+        overrides: Record<string, unknown> = {},
+      ): Record<string, unknown> => ({
+        id,
+        org_id: config.orgId,
+        staff_member_id: config.teacher.staffMemberId,
+        date: '2026-06-18',
+        reported_minutes: 45,
+        calendar_minutes: 45,
+        rate: status === 'APPROVED' || status === 'PAID' ? 100 : null,
+        status,
+        note: `seeded ${status}`,
+        created_by: 'rls-live-harness',
+        updated_by: 'rls-live-harness',
+        ...overrides,
+      });
+
+      const { error: seedError } = await h.service.from('hours_entries').insert([
+        makeHoursRow(teacherSubmittedId, 'SUBMITTED'),
+        makeHoursRow(otherStaffId, 'SUBMITTED', { staff_member_id: otherStaffMemberId, note: 'other staff seed' }),
+        makeHoursRow(teacherApprovedId, 'APPROVED'),
+        makeHoursRow(teacherPaidId, 'PAID'),
+        makeHoursRow(adminApproveId, 'SUBMITTED', { rate: null, note: 'awaiting admin approval' }),
+        makeHoursRow(adminPayId, 'APPROVED', { rate: 120, note: 'awaiting admin payment' }),
+        makeHoursRow(crossOrgHoursId, 'SUBMITTED', { org_id: config.crossOrgId, note: 'cross org seed' }),
+      ]);
+      expectNoSupabaseError(seedError, 'service should seed payroll RLS fixtures');
+
+      const { error: teacherDraftInsertError } = await h.teacher.client.from('hours_entries').insert(
+        makeHoursRow(teacherDraftId, 'DRAFT', { reported_minutes: 30, calendar_minutes: 30, note: 'teacher draft insert' }),
+      );
+      expectNoSupabaseError(teacherDraftInsertError, 'teacher should insert own DRAFT hours rows');
+
+      const { error: teacherDraftUpdateError } = await h.teacher.client
+        .from('hours_entries')
+        .update({
+          reported_minutes: 50,
+          status: 'SUBMITTED',
+          note: 'teacher submitted own draft',
+          updated_by: 'rls-live-harness',
+        })
+        .eq('id', teacherDraftId);
+      expectNoSupabaseError(teacherDraftUpdateError, 'teacher should update and submit own DRAFT hours rows');
+
+      const { error: teacherSubmittedUpdateError } = await h.teacher.client
+        .from('hours_entries')
+        .update({
+          reported_minutes: 60,
+          note: 'teacher edited own submitted row',
+          updated_by: 'rls-live-harness',
+        })
+        .eq('id', teacherSubmittedId);
+      expectNoSupabaseError(teacherSubmittedUpdateError, 'teacher should edit own SUBMITTED hours rows');
+
+      const { error: teacherOtherInsertError } = await h.teacher.client.from('hours_entries').insert(
+        makeHoursRow(deniedTeacherOtherInsertId, 'SUBMITTED', { staff_member_id: otherStaffMemberId }),
+      );
+      expectRlsDenied(teacherOtherInsertError, 'teacher should not insert another staff member hours row');
+
+      const { error: teacherApprovedInsertError } = await h.teacher.client.from('hours_entries').insert(
+        makeHoursRow(deniedTeacherApprovedInsertId, 'APPROVED'),
+      );
+      expectRlsDenied(teacherApprovedInsertError, 'teacher should not insert APPROVED hours rows');
+
+      const { error: teacherPaidInsertError } = await h.teacher.client.from('hours_entries').insert(
+        makeHoursRow(deniedTeacherPaidInsertId, 'PAID'),
+      );
+      expectRlsDenied(teacherPaidInsertError, 'teacher should not insert PAID hours rows');
+
+      const { error: teacherOtherUpdateError } = await h.teacher.client
+        .from('hours_entries')
+        .update({ note: 'teacher attempted other staff update', updated_by: 'rls-live-harness' })
+        .eq('id', otherStaffId);
+      expectNoSupabaseError(teacherOtherUpdateError, 'other-staff hours update should be filtered by RLS without mutating');
+
+      const { error: teacherApprovedUpdateError } = await h.teacher.client
+        .from('hours_entries')
+        .update({ status: 'SUBMITTED', note: 'teacher attempted approved reset', updated_by: 'rls-live-harness' })
+        .eq('id', teacherApprovedId);
+      expectNoSupabaseError(teacherApprovedUpdateError, 'APPROVED hours update should be filtered by RLS without mutating');
+
+      const { error: teacherPaidUpdateError } = await h.teacher.client
+        .from('hours_entries')
+        .update({ status: 'SUBMITTED', note: 'teacher attempted paid reset', updated_by: 'rls-live-harness' })
+        .eq('id', teacherPaidId);
+      expectNoSupabaseError(teacherPaidUpdateError, 'PAID hours update should be filtered by RLS without mutating');
+
+      const { error: adminApproveError } = await h.admin.client
+        .from('hours_entries')
+        .update({
+          status: 'APPROVED',
+          rate: 130,
+          note: 'admin approved with stamped rate',
+          updated_by: 'rls-live-harness',
+        })
+        .eq('id', adminApproveId);
+      expectNoSupabaseError(adminApproveError, 'admin should approve own-org hours rows');
+
+      const { error: adminPayError } = await h.admin.client
+        .from('hours_entries')
+        .update({
+          status: 'PAID',
+          note: 'admin marked paid',
+          updated_by: 'rls-live-harness',
+        })
+        .eq('id', adminPayId);
+      expectNoSupabaseError(adminPayError, 'admin should mark own-org approved hours rows paid');
+
+      const { data: financeRows, error: financeReadError } = await h.finance.client
+        .from('hours_entries')
+        .select('id')
+        .in('id', [teacherDraftId, teacherSubmittedId, adminApproveId, adminPayId]);
+      expectNoSupabaseError(financeReadError, 'finance should read payroll rows for export');
+      expect((financeRows ?? []).map(row => row.id).sort()).toEqual([
+        adminApproveId,
+        adminPayId,
+        teacherDraftId,
+        teacherSubmittedId,
+      ].sort());
+
+      const { error: financeInsertError } = await h.finance.client.from('hours_entries').insert(
+        makeHoursRow(deniedFinanceInsertId, 'APPROVED'),
+      );
+      expectRlsDenied(financeInsertError, 'finance-capable non-admin should not insert payroll rows');
+
+      const { error: financeUpdateError } = await h.finance.client
+        .from('hours_entries')
+        .update({ status: 'PAID', note: 'finance attempted payment', updated_by: 'rls-live-harness' })
+        .eq('id', adminApproveId);
+      expectNoSupabaseError(financeUpdateError, 'finance update should be filtered by RLS without mutating');
+
+      const { error: financeDeleteError } = await h.finance.client
+        .from('hours_entries')
+        .delete()
+        .eq('id', adminPayId);
+      expectNoSupabaseError(financeDeleteError, 'finance delete should be filtered by RLS without mutating');
+
+      const { data: anonRows, error: anonReadError } = await h.anon
+        .from('hours_entries')
+        .select('id')
+        .eq('id', teacherSubmittedId);
+      expectNoSupabaseError(anonReadError, 'anon payroll select should not error');
+      expect(anonRows).toEqual([]);
+
+      const { error: anonInsertError } = await h.anon.from('hours_entries').insert(
+        makeHoursRow(deniedAnonInsertId, 'SUBMITTED'),
+      );
+      expectRlsDenied(anonInsertError, 'anon should not insert payroll rows');
+
+      const { data: crossRows, error: crossReadError } = await h.crossOrg.client
+        .from('hours_entries')
+        .select('id')
+        .eq('id', teacherSubmittedId);
+      expectNoSupabaseError(crossReadError, 'cross-org payroll select should not error');
+      expect(crossRows).toEqual([]);
+
+      const { error: crossUpdateError } = await h.crossOrg.client
+        .from('hours_entries')
+        .update({ note: 'cross-org attempted update', updated_by: 'rls-live-harness' })
+        .eq('id', teacherSubmittedId);
+      expectNoSupabaseError(crossUpdateError, 'cross-org update should be filtered by RLS without mutating');
+
+      const { error: teacherCrossOrgInsertError } = await h.teacher.client.from('hours_entries').insert(
+        makeHoursRow(deniedTeacherCrossOrgInsertId, 'SUBMITTED', { org_id: config.crossOrgId }),
+      );
+      expectRlsDenied(teacherCrossOrgInsertError, 'teacher should not insert payroll rows in another org');
+
+      const { data: rows, error: verifyError } = await h.service
+        .from('hours_entries')
+        .select('id, org_id, staff_member_id, status, reported_minutes, rate, note')
+        .in('id', [
+          teacherDraftId,
+          teacherSubmittedId,
+          otherStaffId,
+          teacherApprovedId,
+          teacherPaidId,
+          adminApproveId,
+          adminPayId,
+          crossOrgHoursId,
+        ]);
+      expectNoSupabaseError(verifyError, 'service should verify payroll RLS mutation results');
+
+      const byId = new Map((rows ?? []).map(row => [row.id, row]));
+      expect(byId.get(teacherDraftId)).toMatchObject({
+        org_id: config.orgId,
+        staff_member_id: config.teacher.staffMemberId,
+        status: 'SUBMITTED',
+        reported_minutes: 50,
+        note: 'teacher submitted own draft',
+      });
+      expect(byId.get(teacherSubmittedId)).toMatchObject({
+        org_id: config.orgId,
+        staff_member_id: config.teacher.staffMemberId,
+        status: 'SUBMITTED',
+        reported_minutes: 60,
+        note: 'teacher edited own submitted row',
+      });
+      expect(byId.get(otherStaffId)).toMatchObject({
+        org_id: config.orgId,
+        staff_member_id: otherStaffMemberId,
+        status: 'SUBMITTED',
+        note: 'other staff seed',
+      });
+      expect(byId.get(teacherApprovedId)).toMatchObject({
+        org_id: config.orgId,
+        status: 'APPROVED',
+        note: 'seeded APPROVED',
+      });
+      expect(byId.get(teacherPaidId)).toMatchObject({
+        org_id: config.orgId,
+        status: 'PAID',
+        note: 'seeded PAID',
+      });
+      expect(byId.get(adminApproveId)).toMatchObject({
+        org_id: config.orgId,
+        status: 'APPROVED',
+        rate: 130,
+        note: 'admin approved with stamped rate',
+      });
+      expect(byId.get(adminPayId)).toMatchObject({
+        org_id: config.orgId,
+        status: 'PAID',
+        note: 'admin marked paid',
+      });
+      expect(byId.get(crossOrgHoursId)).toMatchObject({
+        org_id: config.crossOrgId,
+        status: 'SUBMITTED',
+        note: 'cross org seed',
+      });
+    }, LIVE_RLS_TIMEOUT_MS);
 
     it('enforces attendance marking boundaries for lesson rows', async () => {
       const ownLessonId = h.id('lesson_attendance_own');

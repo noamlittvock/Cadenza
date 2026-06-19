@@ -1,16 +1,16 @@
-BUILD COMPLETE
+BUILD ACTIVE
 
 This file is the implementation loop's durable memory. The next agent must read
 it in full before editing code. Authoritative specs remain:
 
 - `docs/blueprint-planning/IMPLEMENTATION_HANDOFF.md`
 - `docs/blueprint-planning/IMPLEMENTATION_ROADMAP.md`
+- `docs/blueprint-planning/packets/payroll-salaries-hours.md`
 - `docs/blueprint-planning/packets/lesson-details-attendance.md`
-- `docs/blueprint-planning/packets/student-family-files.md`
-- `docs/blueprint-planning/packets/public-registration-intake.md`
 - `docs/blueprint-planning/decision-log.md`
 - `docs/blueprint-planning/route-nav-policy.md`
 - `docs/blueprint-planning/status-policy.md`
+- `docs/blueprint-planning/finance-configurable-model-scope.md`
 
 On completion, replace the first line with exactly:
 BUILD COMPLETE
@@ -19,206 +19,167 @@ BUILD COMPLETE
 
 - `student-family-files` reached the implemented bar on 2026-06-18.
 - `public-registration-intake` reached the implemented bar on 2026-06-18.
-- `features/forteTree.ts` marks both completed People keystone packets as
-  `implemented`, and their packet headers are reconciled.
-- Completed verification for the prior target included live Supabase RLS,
-  Playwright public-submit -> admin-approve smoke, Hebrew/RTL, 390x844 public
-  mobile form, typecheck, and full Vitest.
+- `lesson-details-attendance` reached the implemented bar on 2026-06-18 under
+  accepted D-17: one `lesson_records` row per `(eventId, studentId)`, group
+  lessons sharing `eventId`, explicit teacher/admin row preparation only, and no
+  silent attendance/completion/outcome marking.
+- Latest committed checkpoint before this payroll loop:
+  `b071afd` (`Complete attendance build loop`) on branch `blueprint-supabase`.
 
 ## Current Objective
 
-Phase C packet `lesson-details-attendance` is complete.
+Phase C packet `payroll-salaries-hours`: promote from `embedded` to
+`implemented` by consolidating payroll around accepted D-18/D-19:
 
-The attendance slice around Calendar event details, teacher mobile marking, and
-explicit D-17 row preparation reached the status-policy `implemented` bar. D-17
-is answered and recorded, all queue units are complete, live RLS passed against a
-real Supabase project, and this loop is marked `BUILD COMPLETE`.
+- `HoursEntry` is the payroll source of truth.
+- `HoursReport` is only a period/submission header grouping entries.
+- Teachers may create/edit/submit only their own DRAFT/SUBMITTED entries.
+- Admin approval stamps the final payable rate using the accepted P0 order:
+  admin override > engagement/assignment role-department rate > staff default >
+  org default.
+- APPROVED/PAID transitions are admin-gated, finance is read/export only, and
+  PAID rows are immutable except by new adjusting entries.
 
-## Current Handoff Snapshot - 2026-06-18
-
-- Branch `blueprint-supabase` was committed and pushed at
-  `37ad4df` (`Implement registration intake and attendance workflows`) after the
-  D-17-safe attendance work and public-registration intake work.
-- Worktree was clean after that push; generated `.build-loop/` logs are now
-  ignored by `.gitignore`.
-- D-17 is now answered and recorded: use one `lesson_records` row per
-  `(eventId, studentId)`, derive event-level attendance views from shared
-  `eventId` rows, and prepare/materialize existing-event rows only through an
-  explicit teacher/admin setup or preparation action. Prepared rows start
-  `attendance=UNMARKED` and `completion=PENDING`; no silent attendance,
-  completion, or lesson outcome marking.
-- The final queue unit was `Status promotion`; the feature tree and packet header
-  now mark `lesson-details-attendance` as `implemented`.
-- Existing-row attendance read/mark/worklist/history, Hebrew/RTL/mobile,
-  Playwright, full Vitest, typecheck, and live RLS gates have already passed for
-  the D-17-safe workflow. Re-run the relevant gates after any D-17 materialization
-  code changes.
+Do not build statutory deductions, pension/social-security, employer-cost
+provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
 
 ## Locked Build Decisions
 
 - D-05: Event canonical write-model is `EventV2`; legacy `CalendarEvent` remains
-  at read edges. Use `utils/canonicalAdapters.ts` (`eventToV2`,
-  `eventV2ToMinimal`, `eventV2ToLegacy`) at module boundaries. Do not add a
-  second inline event conversion or rewrite HYBRID `events` persistence.
-- D-06: teachers may self-write their own attendance/hour rows; admin approval
-  remains the gate for payroll-affecting hours transitions. `0004` already added
-  row-scoped teacher policies for `lesson_records` and `hours_entries`.
-- D-15: packet-local backfill only. There is no global `CalendarEvent` ->
-  `EventV2` persistence migration in this build.
-- D-17: ACCEPTED 2026-06-18. Use one `lesson_records` row per
-  `(eventId, studentId)`. Group lessons are multiple rows sharing one `eventId`;
-  event-level attendance views are derived from those rows. Existing-event row
-  preparation/materialization must be explicit teacher/admin setup or preparation,
-  not silent event-open materialization. Attendance rows may be prepared from real
-  schedule/roster data, but prepared rows start unconfirmed
-  (`attendance=UNMARKED`, `completion=PENDING`) and the system must not silently
-  mark attendance, completion, or lesson outcomes without teacher/admin
-  confirmation.
-- D-18-D-20 are accepted for configurable payroll/finance P0 assumptions:
-  `HoursEntry` source of truth, `HoursReport` period/submission header,
-  configurable admin-approval rate stamping, and single-currency org/family
-  ledger with future-safe multi-currency mode. D-21-D-27 remain parked. Do not
-  build packet sections marked `BLOCKED ON D-xx`
-  until the matching decision is answered and the packet/decision log are updated.
+  at read edges. Use `utils/canonicalAdapters.ts` at module boundaries.
+- D-06: teachers may self-write own attendance/hour rows; payroll-affecting
+  approval remains admin-gated. Do not broaden staff write scope beyond row
+  ownership.
+- D-17: lesson attendance source rows are one row per `(eventId, studentId)`.
+  Attendance/completion/outcomes must remain explicit, not silently inferred.
+- D-18: `HoursEntry` is payroll source of truth; `HoursReport` is a
+  period/submission header, not a parallel totals ledger.
+- D-19: payroll rates are configurable; payable rate is stamped at admin
+  approval using the accepted P0 order.
+- D-20: finance uses a single currency per org/family ledger for P0 and must
+  never silently offset currencies.
+- D-21-D-27 remain parked. Do not implement packet sections marked
+  `BLOCKED ON D-21` through `BLOCKED ON D-27`.
 
-## Initial Lesson Attendance Scope
+## Initial Payroll Scope
 
-- Home is a contextual panel in Calendar event detail, per route-nav-policy tier
-  3. Do not add a sidebar or command-palette destination for attendance.
-- Mobile attendance marking is a primary workflow at 390x844 and must not inherit
-  Manage/Admin-Inbox mobile hiding.
-- Public/token access is not part of this packet.
-- Settled workflows: teacher/admin read existing lesson records, teacher marks
-  own rows, admin overrides, unmarked attendance worklist, student lesson
-  history, Hebrew/RTL labels, and retained status/history semantics where the
-  current schema supports them.
-- Remaining workflows after D-17: productized explicit preparation/materialization
-  for existing events, then final status promotion if the completion checklist
-  still holds.
-
-## D-17 Accepted Decision
-
-D-17 was answered by Noam on 2026-06-18. Group lessons use multiple
-`lesson_records` rows sharing one `eventId`, one row per event/student. Do not
-introduce an event-level embedded per-student attendance container. Existing
-events should get rows/status containers through an explicit teacher/admin setup
-or preparation action, not silently on event open. Batch/admin preparation is
-allowed only when explicitly initiated by an admin and audited. Prepared defaults
-may use schedule/roster facts to reduce work, but attendance, completion, and
-lesson outcomes stay unconfirmed until a teacher/admin explicitly confirms them.
+- Home: admin review belongs in an existing Manage/Finance-style operational
+  surface; teacher self-report must be reachable on mobile and cannot be hidden
+  behind desktop-only admin navigation.
+- Primary records: normalized `hours_entries`; legacy/hybrid `hours_reports`
+  may remain only as submission headers/archive context.
+- Public/token access: none. Do not revive legacy `hours_reports.token` as a
+  public write path.
+- Calendar-derived comparison may use completed attendance/event minutes, but do
+  not build D-21 absence/day-off side effects or any payroll-provider export.
+- Implement dense operator UI consistent with existing app patterns; no new
+  marketing or explanatory landing page.
 
 ## Baseline Known Findings - 2026-06-18
 
-- Git status is already dirty from the completed `public-registration-intake`
-  build and `.build-loop/` logs. Preserve that work; do not stage, commit, branch,
-  push, or run any git write operation.
-- At baseline, `features/forteTree.ts` marked `lesson-details-attendance` as
-  `gap`; the final promotion now marks it as `implemented`.
-- `types/blueprint.ts` defines `LessonRecord`; `lesson_records` exists in
-  `supabase/migrations/0002_blueprint_schema.sql` as normalized columns with
-  `event_id`, `student_id`, `staff_member_id`, `attendance`, `completion`,
-  `repertoire`, `homework`, and `makeup_of_lesson_id`.
-- `utils/supabaseSync.ts` maps `lessonRecords` to `lesson_records` in
-  `NORMALIZED` mode, but focused lesson-record mapping coverage should be audited
-  and strengthened.
-- Existing deterministic helpers in `utils/blueprintQueries.ts`:
-  `listStudentLessonHistory`, `listUnmarkedAttendance`, and
-  `summarizeLessonCompletion`; existing unit coverage lives in
-  `utils/blueprintQueries.test.ts`.
-- Existing RLS coverage includes static checks for row-scoped lesson/hour teacher
-  policies in `utils/supabaseSchema.test.ts` and a live real-role test for
-  teacher own lesson insert plus other-teacher denial in `utils/rlsLive.test.ts`.
-  The lesson packet still needs focused live coverage for the final workflow,
-  admin override, and cross-org/role denial as applicable.
-- `components/StudentFamilyWorkspace.tsx` already has a lessons tab and renders
-  `detail.lessonHistory`; the Calendar event-detail attendance entry point still
-  needs audit before UI changes.
+- `components/TeacherHoursForm.tsx` currently appears to use legacy
+  `HoursReport.reportedEntries` nesting and direct/fetch helpers for
+  `hoursReports`; audit before changing.
+- `components/HoursComparisonView.tsx` currently consumes `HoursReport[]`; it
+  likely needs D-18 consolidation around `HoursEntry[]`.
+- `App.tsx` currently syncs `hoursReports`; audit whether `hoursEntries` is
+  already synced anywhere before adding another collection.
+- `utils/blueprintQueries.ts` already has `listPendingHoursReports`,
+  `compareReportedVsCalendarHours`, and `calculatePayslipRows`, but packet
+  acceptance still requires variance-edge tests and D-19 rate-resolution tests.
+- `utils/supabaseSync.ts` maps `hoursEntries` to normalized `hours_entries` and
+  `hoursReports` to hybrid `hours_reports`; focused mapping coverage needs audit
+  and strengthening.
+- `supabase/migrations/0004_blueprint_rls_foundation.sql` has row-scoped
+  teacher insert/update policies for `hours_entries`; live RLS must prove own
+  DRAFT/SUBMITTED allowed, other staff denied, APPROVED/PAID denied to teacher,
+  admin approval/pay allowed, finance read/export only.
 
 ## Baseline Audit Findings - 2026-06-18
 
-- Worktree audit: `git status --short --branch` shows existing dirty tracked
-  work in app, planning, feature tree, RLS/schema/mapping tests, plus untracked
-  public-registration intake files, e2e specs, migrations, and `.build-loop/`.
-  Treat all of that as prior-user/prior-loop work; do not stage, commit, branch,
-  push, or revert it.
-- Calendar event detail extension point: `components/CalendarView.tsx` owns the
-  contextual event/Gantt `detailItem` modal. Event chips call
-  `setDetailItem({ type: 'EVENT', data: evt })` from day/week and month views;
-  the modal currently renders time, teacher, room, cancel/recurrence badges, and
-  admin edit/cancel/delete controls. There is no attendance panel, no lesson
-  record sync, and no event-detail test id yet.
-- Calendar data boundary: `App.tsx` syncs legacy HYBRID `events` as
-  `CalendarEvent[]` and passes them to `CalendarView`. `CalendarView` also syncs
-  `EventV2`/participants internally for the v2 form, but it still constructs
-  some V2 event objects inline for calendar saves. Do not add another
-  `CalendarEvent`/`EventV2` converter for attendance; new attendance module
-  boundaries must call `utils/canonicalAdapters.ts` (`eventToV2` or
-  `eventToMinimal`) directly.
-- Mobile/nav behavior: `components/Layout.tsx` hides `ADMIN_INBOX` and `MANAGE`
-  on mobile, but `CALENDAR` remains mobile-reachable through the sidebar drawer.
-  Attendance UI must therefore live in/near Calendar event detail, not under a
-  mobile-hidden Manage/Admin Inbox path. The current detail modal is centered
-  `max-w-sm`, which is a likely 390x844 starting point but needs real smoke
-  coverage once controls are added.
-- `LessonRecord` contract: `types/blueprint.ts` defines `eventId`, `studentId`,
-  nullable `staffMemberId`, `date`, `attendance`, `completion`, `notes`,
-  `repertoire: string[]`, `homework`, and `makeupOfLessonId`.
-  `supabase/migrations/0002_blueprint_schema.sql` matches those normalized
-  columns, with `repertoire jsonb default []`, attendance/completion checks, and
-  indexes on `(org_id, student_id, date)`, `(org_id, event_id)`, and
-  `(org_id, attendance)`.
-- Helper behavior: `utils/blueprintQueries.ts` already implements
-  `listStudentLessonHistory` (student filter, date ascending),
-  `listUnmarkedAttendance` (`UNMARKED`, optional cutoff, date ascending), and
-  `summarizeLessonCompletion` (attendance counts and completion rate excluding
-  cancelled lessons). Current `utils/blueprintQueries.test.ts` has basic coverage
-  for those helpers, but not richer mapping/adapter boundary cases.
-- Supabase mapping: `utils/supabaseSync.ts` maps `lessonRecords` to
-  `lesson_records` in `NORMALIZED` mode, so top-level camel/snake conversion
-  should handle `staffMemberId` and `makeupOfLessonId`, while nested/jsonb values
-  such as `repertoire` pass through unchanged. `utils/supabaseSync.test.ts`
-  currently covers normalized students/families/public intake paths but has no
-  focused lesson-record mapping case; that is the next MAP-UNIT.
-- RLS coverage: `supabase/migrations/0004_blueprint_rls_foundation.sql` replaced
-  broad admin-only lesson writes with admin write plus row-scoped
-  `lesson_records_teacher_insert`/`lesson_records_teacher_update` using
-  `app_is_staff_self(org_id, staff_member_id)`. Static coverage exists in
-  `utils/supabaseSchema.test.ts`; live coverage in `utils/rlsLive.test.ts`
-  currently proves teacher own insert and other-staff insert denial, but still
-  needs the packet-specific final workflow/admin override/cross-org denial
-  coverage before RLS-LIVE can be checked off.
-- Student/family lesson-history rendering: `components/StudentFamilyWorkspace.tsx`
-  has a Lessons tab, but `utils/studentFamilyDetail.ts` populates it from legacy
-  `student.pedagogicalRecord.lessonHistory` strings. It is not yet connected to
-  normalized `LessonRecord` rows or event-linked attendance history.
-- Playwright patterns: current e2e specs seed local collections with
-  `page.addInitScript`, navigate with `e2e/helpers/navigate.ts`, and include
-  RTL/mobile examples in `e2e/student-family.spec.ts`. There is no attendance
-  smoke yet; the eventual spec should seed events/students/lessonRecords, open a
-  Calendar event, mark attendance, and verify the unmarked count plus student
-  history at desktop, Hebrew/RTL, and 390x844 mobile.
-- D-17 accepted seams: implement explicit teacher/admin preparation for
-  `lesson_records` rows; do not create lazy-on-open silent materialization; do
-  not synthesize attendance/completion/outcomes beyond unconfirmed prepared rows;
-  do not promote `lesson-details-attendance` to `implemented` until
-  BACKFILL/materialization is complete and gates are rerun as needed.
+- Worktree at audit start: branch `blueprint-supabase` tracking
+  `origin/blueprint-supabase`; pre-existing modified files were
+  `docs/blueprint-planning/BUILD_LOOP_STATE.md` and
+  `docs/blueprint-planning/NEXT_AGENT_LOOP.md`. Preserve both.
+- Current teacher hours surface is the unauthenticated legacy
+  `/report/:token` path in `App.tsx`, rendering `components/TeacherHoursForm.tsx`.
+  It queries `hours_reports` by `data->>token`, reads/writes `hoursReports`
+  through `utils/supabaseSync.ts`, and submits nested
+  `HoursReport.reportedEntries`. This conflicts with the payroll packet's "no
+  public/token payroll write" rule and must be replaced or gated by an
+  authenticated teacher self-report surface before launch.
+- `components/TeacherHoursForm.tsx` initializes event rows as
+  confirmed-by-default. Do not preserve that behavior when moving to D-18/D-19:
+  teacher entries must write normalized `hours_entries`, and final payable rate
+  must be stamped only by admin approval.
+- Current admin comparison UI exists in `components/HoursComparisonView.tsx`, but
+  it consumes legacy `HoursReport[]` and nested entries, supports only
+  `SUBMITTED -> REVIEWED`, and was not found mounted in active app routes.
+  `ManageHub` passes `hoursReports` to `StaffMemberManager`, but the current
+  manager implementation does not consume those payroll props.
+- Mobile/nav placement constraints: `PAYROLL` is still hidden by
+  `routing.ts`/`routing.test.ts` because it is not routed. `ManageHub` is
+  desktop/admin-oriented, while the payroll packet requires teacher self-report
+  to be mobile-reachable and not hidden behind desktop-only Manage/Admin Inbox.
+  Any command-palette entry must route to a real surface or alias to one; public
+  token routes get no sidebar or palette entry.
+- Runtime sync state: `App.tsx` syncs only legacy `hoursReports`; no active
+  `hoursEntries` state was found. `utils/supabaseSync.ts` maps
+  `hoursReports -> hours_reports` as HYBRID and
+  `hoursEntries -> hours_entries` as NORMALIZED, but current mapping tests cover
+  Student/Family, attendance, and intake, not payroll-specific
+  `hours_entries`/`hours_reports`.
+- Type split: legacy `types.ts` has `HoursReportStatus =
+  PENDING|SUBMITTED|REVIEWED` and nested `HoursEntry` with decimal `hours` plus
+  `entryType`; canonical Blueprint `types/blueprint.ts` has normalized
+  `HoursEntry` with `reportedMinutes`, `calendarMinutes`, `rate`, and
+  `DRAFT|SUBMITTED|APPROVED|PAID`. D-18/D-19 work must consolidate around the
+  Blueprint entry and keep `HoursReport` as a period/submission header only.
+- Existing payroll helpers in `utils/blueprintQueries.ts` operate on Blueprint
+  `HoursEntry[]`: `listPendingHoursReports`, `compareReportedVsCalendarHours`,
+  and `calculatePayslipRows`. Current tests cover only one happy-path variance
+  and approved-row payslip case; missing coverage includes variance edge cases,
+  payslip filtering, rate resolution, and approval-time stamping.
+- Rate-config candidates are currently schema-light: `EventParticipant` has
+  `teachingAssignmentId`/`orgRoleId`, and Staff/Assignment/OrgRole surfaces
+  exist, but `StaffMemberV2`, `TeachingAssignmentV2`, and `OrgRoleV2` currently
+  do not expose explicit rate fields. The next unit likely needs a pure rate
+  resolver with narrowly typed optional config inputs before UI/schema wiring.
+- D-05 adapter usage for attendance is established in
+  `utils/lessonAttendanceService.ts` and `components/CalendarView.tsx` through
+  `eventToV2`; payroll code currently reads legacy `CalendarEvent` directly in
+  `TeacherHoursForm.tsx`/`HoursComparisonView.tsx`. Future payroll event-derived
+  comparisons must use `utils/canonicalAdapters.ts` at the module boundary.
+- Static RLS coverage in `utils/supabaseSchema.test.ts` now asserts
+  `hours_entries` admin-only broad writes, teacher self DRAFT/SUBMITTED-only
+  insert/update policies, finance read access, and no member/finance/anon
+  shortcut in teacher write policies. Live RLS coverage in
+  `utils/rlsLive.test.ts` now proves teacher own DRAFT/SUBMITTED insert/update,
+  teacher-other denial, teacher APPROVED/PAID denial, admin approve/pay, finance
+  read/export-only behavior, anon denial, and cross-org denial for payroll.
+- Live RLS env readiness was checked with presence-only output; all currently
+  required `CADENZA_RLS_*` variables were present. Do not record secret values.
+- Existing Playwright coverage includes student/family, public registration, and
+  lesson attendance (including 390x844 Hebrew RTL), but no payroll workflow
+  smoke exists yet.
+- D-21-D-27 remain parked. Payroll implementation must not add absence/day-off
+  payroll side effects (D-21), public concert/program exposure (D-23),
+  consent-revocation effects (D-24), instrument deposit/refund finance rows
+  (D-25), HR/evaluation scope (D-26), or rollover grade/schedule-copy behavior
+  (D-27).
 
 ## Non-Negotiable Guardrails
 
 - Preserve unrelated dirty work. Do not stage, commit, branch, push, or run git
-  write operations.
-- Do exactly one queue unit per iteration. If the next unit is too large, split it
-  into smaller unchecked subunits in this file, then complete only the first
+  write operations inside `build-loop.sh`.
+- Do exactly one queue unit per iteration. If the next unit is too large, split
+  it into smaller unchecked subunits in this file, then complete only the first
   subunit.
 - Never print or record secret values. Docs and logs may name required variables
   but must never include tokens, passwords, service-role keys, anon keys, access
   tokens, or database passwords.
-- Use existing app patterns and helpers. Do not introduce a new design language,
-  router style, data store, or ad hoc mapping layer when a local one exists.
-- Attendance UI must match the existing app language: dense operator workflows,
-  warm paper workspace, dark espresso sidebar, bordeaux/navy accents, compact
-  headers, segmented controls, 8px-radius panels/cards, lucide icons, and no
-  marketing page.
+- Use existing app patterns and helpers. Do not add a duplicate event conversion
+  seam, new datastore, or broad HYBRID rewrite.
 - If live Supabase credentials or remote schema state are missing, add env-gated
   tests that skip with a clear message, record the exact env vars or blocker
   here, and do not mark RLS-LIVE or BUILD COMPLETE until tests run against a real
@@ -229,99 +190,78 @@ lesson outcomes stay unconfirmed until a teacher/admin explicitly confirms them.
 ### Stage 0 - Audit And Contract
 
 - [x] Baseline audit: read this file plus authoritative specs, run
-  `git status --short --branch`, identify Calendar event-detail extension
-  points, current mobile behavior, `LessonRecord` schema/types/helpers,
-  `lessonRecords` Supabase mapping, D-05 event adapter usage, D-06 RLS coverage,
-  Student/Family lesson-history rendering, Playwright patterns, and every D-17
-  blocked seam. Update this file with discovered constraints before code edits.
-- [x] MAP-UNIT: add focused lesson-record mapping/unit coverage for
-  camel/snake/jsonb `repertoire`, current helper behavior, completion summaries,
-  and D-05 event adapter boundary usage before broad UI wiring.
-- [x] RLS refinement/test audit: prove the existing `0004` teacher self-write
-  policy and any packet-required refinements with static and env-gated live tests
-  for teacher own mark, teacher-other denial, admin override, and cross-org/role
-  denial. Do not mark RLS-LIVE if live credentials/schema are absent.
-- [x] D-17 decision gate: if D-17 is still unanswered, split the remaining queue
-  into explicit D-17-safe subunits and D-17-blocked subunits, record the exact
-  Noam question, and complete only the first safe subunit. If Noam answers D-17,
-  update `decision-log.md` and the packet before implementing materialization.
-  - [x] D-17-safe subunit completed in this iteration: recorded the exact Noam
-    question and split the remaining queue into D-17-safe existing-row work and
-    D-17-blocked materialization/promotion work.
+  `git status --short --branch`, identify current teacher hours surfaces,
+  admin comparison surfaces, mobile/nav placement, `HoursEntry` and
+  `HoursReport` types/schema/helpers, `hoursEntries` and `hoursReports`
+  Supabase mapping, D-05 event adapter usage, D-06 RLS coverage, rate-config
+  candidates, Playwright patterns, and all D-21-D-27 blocked seams. Update this
+  file with discovered constraints before code edits.
+- [x] MAP-UNIT: add focused coverage for `hours_entries` camel/snake mapping,
+  `hours_reports` header wrap/unwrap, variance edge cases, payslip filtering,
+  and D-19 rate-resolution/stamping helpers. If a rate helper does not exist,
+  create a pure helper with unit tests before UI wiring.
+- [x] RLS refinement/test audit: prove static and env-gated live coverage for
+  teacher own DRAFT/SUBMITTED insert/update, teacher-other denial, teacher
+  APPROVED/PAID denial, admin approve/pay, finance read-only/export-only,
+  anon denial, and cross-org denial.
 
-### Stage 1A - D-17-Safe Attendance Workflow (existing rows only)
+### Stage 1 - Payroll Workflow Core
 
-- [x] Calendar event detail existing-row read surface: add or extend the
-  contextual Calendar event detail panel for attendance without adding a new
-  route/palette entry. It may read and display `lesson_records` already linked to
-  the event, including empty/loading/error and "no prepared rows" states, but it
-  must not create, synthesize, or backfill lesson rows while D-17 is parked.
-- [x] Teacher/admin existing-row marking service: implement event-bound
-  attendance update helpers through existing Supabase/local sync patterns and
-  D-05 adapters, limited to existing `lesson_records` rows. Do not invent event
-  materialization semantics while D-17 is parked.
-- [x] Existing-row unmarked worklist and student history links: expose unmarked
-  attendance and updated student lesson history through existing Calendar/Student
-  surfaces using only persisted `lesson_records`; no roster-derived row creation.
-- [x] Hebrew/RTL/mobile existing-row UI: cover event panel/worklist labels, RTL
-  layout, and 390x844 teacher marking usability for existing rows only.
-- [x] Playwright existing-row workflow smoke: preseed an event, students, and
-  `lesson_records`; open event -> mark attendance -> verify student history and
-  unmarked counter update, plus mobile/RTL checks. Do not mark complete if browser
-  binaries or live services are unavailable; record the blocker here.
+- [x] HoursEntry service layer: implement D-18/D-19 helpers for teacher
+  self-report create/edit/submit, period header grouping, admin approval with
+  payable-rate stamping, admin mark-paid, PAID immutability, and correction via
+  new adjusting entries. Keep helpers pure where possible and verify with unit
+  tests before UI.
+- [ ] Teacher self-report UI: wire a mobile-reachable teacher surface to
+  normalized `hours_entries` and `hours_reports` period headers. Teachers may
+  edit only own DRAFT/SUBMITTED entries; submission locks teacher edits that
+  should require admin action. Do not use public/token writes.
+- [ ] Admin review/approval UI: add or adapt the existing comparison surface to
+  list pending/submitted entries by staff/period, show reported-vs-calendar
+  variance, stamp rates on approval, mark approved entries paid, and preview or
+  export payslip rows. Finance may read/export but not approve/pay.
+- [ ] Legacy consolidation/backfill: reconcile existing `hours_reports`
+  reported-entry docs into the D-18 model as period headers plus normalized
+  `hours_entries` where packet-local safe. Retain legacy reports as archive or
+  opening context only; do not create a parallel payroll ledger.
 
-### Stage 2 - Live Verification And Promotion
+### Stage 2 - Verification And Promotion
 
-- [x] RLS-LIVE existing-row run: after the existing-row attendance workflow ships,
-  run the attendance live-role harness against a real Supabase project, including
-  teacher own write, teacher-other denial, admin override, finance/plain-member
-  denial, anon denial, and cross-org denial. Do not mark complete if only
-  local/e2e bypass or skipped env-gated tests are exercised.
-
-### Stage 3 - D-17-Blocked Materialization And Promotion
-
-- [x] D-17 answer intake: after Noam answers D-17, update `decision-log.md` and
-  `packets/lesson-details-attendance.md` with the accepted group row/status
-  container and materialization model before any blocked implementation work.
-- [x] BACKFILL/materialization: only after D-17 is accepted, implement packet-local
-  generation/backfill for existing events according to the accepted D-17 answer:
-  explicit teacher/admin row preparation for one `lesson_records` row per
-  event/student. Do not add lazy-on-open silent materialization or an event-level
-  embedded-status model.
-- [x] Status promotion: only after D-17 is accepted, every queue unit is complete,
-  and every completion checklist item below is true, update
-  `features/forteTree.ts` and the `lesson-details-attendance` packet header to
-  `implemented`, append an iteration note here, and replace this file's first
-  line with `BUILD COMPLETE`.
+- [ ] Playwright payroll workflow smoke: teacher submit hours -> admin compare
+  variance -> approve with stamped rate -> payslip rows/export; include Hebrew
+  RTL and 390x844 teacher self-report coverage.
+- [ ] RLS-LIVE payroll run: run the live-role harness against a real Supabase
+  project for the payroll workflow. Do not mark complete if only skipped local
+  tests ran.
+- [ ] Status promotion: only after every queue unit is complete and every
+  completion checklist item below is true, update `features/forteTree.ts` and
+  the `payroll-salaries-hours` packet header to `implemented`, refresh handoff
+  docs, append an iteration note here, and replace this file's first line with
+  `BUILD COMPLETE`.
 
 ## Completion Checklist (all required before BUILD COMPLETE)
 
-- [x] D-17 is answered, recorded in `decision-log.md`, and reflected in the packet.
-- [x] Attendance defaults reduce work without inventing facts: no silent
-  present/completed/outcome marking occurs without teacher/admin confirmation.
-- [x] Attendance remains a Calendar contextual panel; no new sidebar or
-  command-palette destination was added.
-- [x] Event conversion uses `utils/canonicalAdapters.ts`; no second inline
-  `CalendarEvent`/`EventV2` conversion was added.
-- [x] Teacher can mark only own lesson rows; admin can override; other-teacher,
-  cross-org, finance/plain-member, and anon write paths are denied as applicable.
-- [x] Event -> mark attendance -> student lesson history and unmarked counter
-  workflow is implemented with retained status semantics.
-- [x] Hebrew/RTL event panel/worklist states are covered.
-- [x] Teacher attendance marking works at 390x844 mobile.
-- [x] RLS-LIVE passed against a real project for the attendance workflow.
-- [x] Playwright attendance smoke passed.
-- [x] `npm run typecheck -- --diagnostics` passes.
-- [x] `npx vitest run --reporter=dot` passes.
-- [x] No D-21-D-27 blocked section was implemented without a decision update.
-- [x] No unauthorized git staging, commit, branch, or push was performed. The
-  later commit/push at `37ad4df` was explicitly requested by Noam outside the
-  autonomous build-loop iteration.
+- [ ] D-18/D-19 are reflected in code, tests, packet docs, and handoffs.
+- [ ] `HoursEntry` is the payroll source of truth; `HoursReport` is not used as
+  a parallel totals ledger.
+- [ ] Teacher can create/edit/submit only own DRAFT/SUBMITTED entries.
+- [ ] Admin approval stamps the final payable rate using accepted P0 order.
+- [ ] Finance read/export cannot mutate approval/payment status.
+- [ ] PAID entries are immutable; corrections use new adjusting entries.
+- [ ] Teacher self-report is mobile-reachable and covered at 390x844.
+- [ ] Hebrew/RTL hours and payslip states are covered with LTR-isolated numbers.
+- [ ] Playwright payroll smoke passed.
+- [ ] RLS-LIVE passed against a real project for payroll.
+- [ ] `npm run typecheck -- --diagnostics` passes.
+- [ ] `npx vitest run --reporter=dot` passes.
+- [ ] No D-21-D-27 blocked section was implemented without a decision update.
 
 ## Next Unit
 
-- None. `lesson-details-attendance` has reached the implemented bar and this
-  build loop is complete.
+- Teacher self-report UI: wire a mobile-reachable teacher surface to normalized
+  `hours_entries` and `hours_reports` period headers. Teachers may edit only own
+  DRAFT/SUBMITTED entries; submission locks teacher edits that should require
+  admin action. Do not use public/token writes.
 
 ## Setup Notes For Next Agent
 
@@ -343,208 +283,56 @@ lesson outcomes stay unconfirmed until a teacher/admin explicitly confirms them.
 
 ## Iteration Notes
 
-- 2026-06-18 preparation for `lesson-details-attendance`: Noam explicitly asked
-  to continue the Blueprint build loop after `public-registration-intake` reached
-  `BUILD COMPLETE`. Seeded this state for the next roadmap packet and preserved a
-  D-17-first boundary so the next agent can begin with a baseline audit without
-  accidentally deciding group lesson materialization.
-- 2026-06-18 baseline audit for `lesson-details-attendance`: read
-  `BUILD_LOOP_STATE.md` plus authoritative handoff, roadmap, packet,
-  decision-log, route/nav policy, and status policy; ran
-  `git status --short --branch`; audited Calendar event detail, mobile nav,
-  LessonRecord schema/types/helpers, lessonRecords Supabase mapping, D-05 adapter
-  usage, D-06 RLS coverage, Student/Family lesson-history rendering, Playwright
-  patterns, and D-17 blocked seams. Changed file:
+- 2026-06-18 seed for `payroll-salaries-hours`: after committing and pushing the
+  completed D-17 attendance loop at `b071afd`, replaced the completed attendance
+  loop memory with this payroll queue. No payroll code changes have been made in
+  this seed step.
+- 2026-06-18 baseline audit: read the loop state, handoff, roadmap, payroll and
+  attendance packets, decision log, route/nav policy, status policy, and finance
+  scope doc; audited payroll surfaces, routing, types, Supabase mapping, D-05
+  adapter usage, RLS/static/live coverage, rate-source candidates, Playwright
+  coverage, and D-21-D-27 parked seams. Changed only
   `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
-  passed (17 files, 201 tests).
-- 2026-06-18 MAP-UNIT for `lesson-details-attendance`: added focused coverage for
-  `lessonRecords` normalized camel/snake mapping including `repertoire` jsonb and
-  `makeupOfLessonId`, richer attendance helper behavior for cutoff sorting and
-  completion summaries, and a D-05 adapter-boundary assertion that attendance
-  helper projections flow through `EventV2`. Changed files:
-  `utils/supabaseSync.test.ts`, `utils/blueprintQueries.test.ts`,
-  `utils/canonicalAdapters.test.ts`, and
+  `npx vitest run utils/supabaseSync.test.ts utils/blueprintQueries.test.ts utils/supabaseSchema.test.ts routing.test.ts --reporter=dot`
+  passed (90 tests);
+  `npm run typecheck -- --diagnostics` passed;
+  `npx vitest run --reporter=dot` passed (20 files, 224 tests).
+- 2026-06-18 MAP-UNIT for `payroll-salaries-hours`: added normalized
+  `hours_entries` camel/snake mapping coverage, HYBRID `hours_reports` period
+  header wrap/unwrap coverage, payroll variance edge tests, payslip filtering
+  tests, and pure D-19 rate resolution/stamping helpers that do not trust a
+  teacher-submitted draft `HoursEntry.rate` without an explicit admin override.
+  Changed files: `utils/supabaseSync.test.ts`,
+  `utils/blueprintQueries.ts`, `utils/blueprintQueries.test.ts`, and
   `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npx vitest run utils/supabaseSync.test.ts utils/blueprintQueries.test.ts utils/canonicalAdapters.test.ts --reporter=dot`
-  passed (3 files, 98 tests); `npm run typecheck -- --diagnostics` passed;
-  `npx vitest run --reporter=dot` passed (17 files, 206 tests).
-- 2026-06-18 RLS refinement/test audit for `lesson-details-attendance`: tightened
-  static policy assertions so `lesson_records` teacher write remains row-scoped
-  and not widened through member/finance access; extended the env-gated live RLS
-  harness to prove teacher own attendance mark, other-teacher no-mutation, admin
-  override, finance/plain-member insert denial, anon insert denial, and cross-org
-  update/insert denial. Live RLS env readiness check reported all required
-  `CADENZA_RLS_*` vars set without printing values. Changed files:
-  `utils/supabaseSchema.test.ts`, `utils/rlsLive.test.ts`, and
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
+  `npx vitest run utils/blueprintQueries.test.ts utils/supabaseSync.test.ts --reporter=dot`
+  passed (2 files, 75 tests);
+  `npm run typecheck -- --diagnostics` passed;
+  `npx vitest run --reporter=dot` passed (20 files, 229 tests).
+- 2026-06-18 RLS refinement/test audit for `payroll-salaries-hours`: tightened
+  static RLS assertions for `hours_entries` policy shape and added a live
+  real-role payroll matrix proving teacher own DRAFT/SUBMITTED insert/update,
+  teacher-other denial, teacher APPROVED/PAID denial, admin approve/pay, finance
+  read/export-only behavior, anon denial, and cross-org denial. Required live RLS
+  env vars were present by presence-only check; no secret values were printed or
+  recorded. Changed files: `utils/supabaseSchema.test.ts`,
+  `utils/rlsLive.test.ts`, and `docs/blueprint-planning/BUILD_LOOP_STATE.md`.
+  Verification:
   `npx vitest run utils/supabaseSchema.test.ts utils/rlsLive.test.ts --reporter=dot`
-  passed against the live project (2 files, 18 tests);
-  `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
-  passed (17 files, 207 tests). Stage 2 `RLS-LIVE run` remains unticked because
-  the final attendance workflow and D-17-blocked pieces have not shipped yet.
-- 2026-06-18 D-17 decision gate for `lesson-details-attendance`: confirmed D-17
-  is still `NEEDS NOAM` in `decision-log.md`, recorded the exact group
-  row/materialization question in this file, and split the remaining queue into
-  D-17-safe existing-row attendance work versus D-17-blocked materialization and
-  promotion work. Changed file:
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
-  passed (17 files, 207 tests).
-- 2026-06-18 Calendar event detail existing-row read surface: added a D-17-safe,
-  read-only attendance panel inside the existing Calendar event detail modal. The
-  panel subscribes to persisted `lessonRecords`, adapts the selected
-  `CalendarEvent` through `eventToV2`, filters only existing rows by event id,
-  renders loading/error/no-prepared-row states plus row summaries, and adds EN/HE
-  labels. No route, sidebar, command-palette, row creation, row synthesis, or
-  backfill semantics were added. Changed files: `components/CalendarView.tsx`,
-  `constants.ts`, `utils/lessonAttendancePanel.ts`,
-  `utils/lessonAttendancePanel.test.ts`,
-  `e2e/lesson-attendance-read.spec.ts`, and
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npx vitest run utils/lessonAttendancePanel.test.ts --reporter=dot` passed (1
-  file, 2 tests); `npm run test:e2e -- e2e/lesson-attendance-read.spec.ts`
-  passed (2 tests); `npm run typecheck -- --diagnostics` passed;
-  `npx vitest run --reporter=dot` passed (18 files, 209 tests).
-- 2026-06-18 Teacher/admin existing-row marking service: added a D-17-safe
-  attendance marking service that converts the selected `CalendarEvent` through
-  `eventToV2`, validates org/event binding, updates only found existing
-  `lesson_records` rows, enforces teacher row ownership unless admin override is
-  explicit, and preserves completion unless the caller explicitly sets it. Added
-  repository and in-memory collection helpers for existing sync patterns; no row
-  creation, materialization, route, or UI marking controls were added. Changed
-  files: `utils/lessonAttendanceService.ts`,
-  `utils/lessonAttendanceService.test.ts`, and
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npx vitest run utils/lessonAttendanceService.test.ts --reporter=dot` passed
-  (1 file, 6 tests); `npm run typecheck -- --diagnostics` passed;
-  `npx vitest run --reporter=dot` passed (19 files, 215 tests).
-- 2026-06-18 Existing-row unmarked worklist and student history links: added a
-  Calendar-local unmarked attendance popover that lists only persisted
-  `lesson_records`, opens linked existing Calendar events, and does not add a
-  route/sidebar/palette destination or create/synthesize rows. Student/Family
-  lesson tabs now consume persisted normalized lesson history with retained
-  attendance/completion/status details while keeping legacy notes as fallback.
-  Changed files: `App.tsx`, `components/CalendarView.tsx`,
-  `components/StudentFamilyWorkspace.tsx`, `constants.ts`,
-  `utils/lessonAttendancePanel.ts`, `utils/lessonAttendancePanel.test.ts`,
-  `utils/studentFamilyDetail.ts`, `utils/studentFamilyDetail.test.ts`,
-  `e2e/lesson-attendance-read.spec.ts`, and
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npx vitest run utils/lessonAttendancePanel.test.ts utils/studentFamilyDetail.test.ts --reporter=dot`
-  passed (2 files, 7 tests);
-  `npm run test:e2e -- e2e/lesson-attendance-read.spec.ts` passed (2 tests);
+  passed (2 files, 19 tests);
   `npm run typecheck -- --diagnostics` passed;
-  `npx vitest run --reporter=dot` passed (19 files, 217 tests).
-- 2026-06-18 Hebrew/RTL/mobile existing-row UI: wired existing-row attendance
-  marking controls into the Calendar event detail panel through the D-05-safe
-  marking service, added EN/HE labels for mark states/errors, set explicit RTL
-  direction on the event panel and unmarked worklist, and added a 390x844 Hebrew
-  Playwright check that marks an existing persisted row without creating or
-  preparing rows. Changed files: `components/CalendarView.tsx`, `constants.ts`,
-  `e2e/lesson-attendance-read.spec.ts`, and
+  `npx vitest run --reporter=dot` passed (20 files, 230 tests).
+- 2026-06-18 HoursEntry service layer for `payroll-salaries-hours`: added a pure
+  payroll service for teacher-owned DRAFT/SUBMITTED create/edit/period submit,
+  `HoursReport` period-header grouping without totals, admin-only D-19 approval
+  rate stamping, admin mark-paid, PAID immutability, and separate adjusting
+  entries for paid corrections. The submit helper now rejects explicitly selected
+  wrong-org, wrong-teacher, or outside-period entries instead of silently
+  filtering them out. Added repository hooks for normalized `hoursEntries` and
+  hybrid `hoursReports` without changing UI routes or public token writes.
+  Changed files: `utils/hoursEntryService.ts`,
+  `utils/hoursEntryService.test.ts`, and
   `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npx vitest run utils/lessonAttendanceService.test.ts utils/lessonAttendancePanel.test.ts --reporter=dot`
-  passed (2 files, 9 tests);
-  `npm run test:e2e -- e2e/lesson-attendance-read.spec.ts` passed (3 tests);
-  `npm run typecheck -- --diagnostics` passed;
-  `npx vitest run --reporter=dot` passed (19 files, 217 tests).
-- 2026-06-18 Playwright existing-row workflow smoke: extended the attendance
-  Playwright smoke to seed an existing event, students, and persisted
-  `lessonRecords`, then open the Calendar event, mark Ziv's existing row present,
-  verify local persistence and the unmarked counter dropping to zero, and confirm
-  Ziv's Student lesson history reflects the updated attendance. Existing
-  no-prepared-rows and 390x844 Hebrew/RTL marking checks remain in the same spec.
-  Changed files: `e2e/lesson-attendance-read.spec.ts` and
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npm run test:e2e -- e2e/lesson-attendance-read.spec.ts` passed (3 tests);
-  `npm run typecheck -- --diagnostics` passed;
-  `npx vitest run --reporter=dot` passed (19 files, 217 tests).
-- 2026-06-18 RLS-LIVE existing-row run: confirmed all required
-  `CADENZA_RLS_*` live harness variables were present using presence-only output,
-  then ran the attendance live-role harness against the configured Supabase
-  project. The existing-row attendance RLS test covered teacher own write,
-  other-teacher no-mutation, admin override, finance/plain-member insert denial,
-  anon insert denial, teacher cross-org insert denial, and cross-org update
-  no-mutation. Changed file:
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npx vitest run utils/rlsLive.test.ts --reporter=dot` passed against the live
-  project (1 file, 5 tests); `npm run typecheck -- --diagnostics` passed;
-  `npx vitest run --reporter=dot` passed (19 files, 217 tests).
-- 2026-06-18 blocked D-17 answer intake: read the full loop state and
-  authoritative handoff, roadmap, packet, decision log, route/nav policy, and
-  status policy; searched planning docs and repo text for any newer D-17 answer.
-  D-17 remains `NEEDS NOAM`, so the next queue unit cannot be completed without
-  choosing the group lesson row/status-container and materialization model. Queue
-  state remains unchanged and no implementation, materialization, promotion, git
-  write operation, or test run was performed.
-- 2026-06-18 blocked D-17 answer intake recheck: read the full loop state and
-  authoritative handoff, roadmap, current packet, decision log, route/nav policy,
-  and status policy; ran `git status --short --branch`; searched planning docs
-  and repo text for any newer D-17 answer. D-17 still remains `NEEDS NOAM`, and
-  the current user prompt did not supply the group row/status-container or
-  materialization choice. Queue state remains unticked; no implementation,
-  materialization, promotion, git write operation, or test run was performed.
-- 2026-06-18 blocked D-17 answer intake third recheck: read the full loop state
-  and authoritative handoff, roadmap, current packet, decision log, route/nav
-  policy, and status policy; ran `git status --short --branch`; searched
-  planning docs and repo text for any newer D-17 answer. D-17 still remains
-  `NEEDS NOAM`, so the next queue unit cannot be completed without Noam choosing
-  the group lesson row/status-container and materialization model. Queue state
-  remains unticked; no implementation, materialization, promotion, git write
-  operation, or test run was performed.
-- 2026-06-18 D-17 answer intake accepted: Noam confirmed the proposed D-17 model:
-  one `lesson_records` row per `(eventId, studentId)`, group lessons represented
-  by multiple rows sharing one `eventId`, no event-level embedded attendance
-  container, and existing-event preparation/materialization only through explicit
-  teacher/admin setup or preparation action. Prepared rows may use real
-  schedule/roster facts but start unconfirmed (`attendance=UNMARKED`,
-  `completion=PENDING`) and must not silently mark attendance, completion, or
-  lesson outcomes. Changed files: `docs/blueprint-planning/decision-log.md`,
-  `docs/blueprint-planning/packets/lesson-details-attendance.md`,
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md`,
-  `docs/blueprint-planning/NEXT_AGENT_LOOP.md`,
-  `docs/blueprint-planning/IMPLEMENTATION_HANDOFF.md`,
-  `docs/blueprint-planning/NEXT_SESSION_HANDOFF.md`,
-  `docs/blueprint-planning/LOOP_STATE.md`,
-  `docs/blueprint-planning/IMPLEMENTATION_ROADMAP.md`,
-  `docs/blueprint-planning/README.md`,
-  `docs/blueprint-planning/packets/ensembles-theory-school-programs.md`,
-  `docs/blueprint-planning/packets/reports-analytics.md`, and
-  `docs/blueprint-planning/packets/operations-command-center.md`.
-  Verification: `git diff --check` passed;
-  `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
-  passed (19 files, 212 passed, 1 skipped).
-- 2026-06-18 BACKFILL/materialization for `lesson-details-attendance`: added
-  explicit Calendar event-detail row preparation from active enrollment roster
-  and event participant/legacy teacher facts. Preparation is user-initiated by
-  teacher/admin only, creates one missing `lesson_records` row per
-  `(eventId, studentId)`, de-dupes existing event/student rows, and leaves every
-  prepared row `attendance=UNMARKED` and `completion=PENDING`. Updated
-  Playwright coverage to prove event open does not create rows, then explicit
-  prepare creates unconfirmed rows. Changed files:
-  `utils/lessonAttendanceService.ts`,
-  `utils/lessonAttendanceService.test.ts`, `components/CalendarView.tsx`,
-  `constants.ts`, `e2e/lesson-attendance-read.spec.ts`, and
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npx vitest run utils/lessonAttendanceService.test.ts utils/lessonAttendancePanel.test.ts --reporter=dot`
-  passed (2 files, 13 tests);
-  `npm run test:e2e -- e2e/lesson-attendance-read.spec.ts` passed (3 tests);
-  `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
-  passed (19 files, 221 tests).
-- 2026-06-18 status promotion for `lesson-details-attendance`: verified the
-  completion checklist remained checked after D-17 materialization, promoted the
-  feature tree node and packet header to `implemented`, ticked the final queue
-  unit, and marked this loop `BUILD COMPLETE`. Changed files:
-  `features/forteTree.ts`,
-  `docs/blueprint-planning/decision-log.md`,
-  `docs/blueprint-planning/packets/lesson-details-attendance.md`,
-  `docs/blueprint-planning/IMPLEMENTATION_HANDOFF.md`,
-  `docs/blueprint-planning/NEXT_AGENT_LOOP.md`,
-  `docs/blueprint-planning/NEXT_SESSION_HANDOFF.md`,
-  `docs/blueprint-planning/status-policy.md`,
-  `utils/forteTreeQueries.test.ts`, and
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npm run test:e2e -- e2e/lesson-attendance-read.spec.ts` passed;
-  `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
-  passed.
+  `npx vitest run utils/hoursEntryService.test.ts --reporter=dot` passed (1
+  file, 11 tests); `npm run typecheck -- --diagnostics` passed;
+  `npx vitest run --reporter=dot` passed (21 files, 241 tests).

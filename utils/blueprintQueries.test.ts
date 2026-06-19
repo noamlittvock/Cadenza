@@ -528,30 +528,120 @@ describe('payroll/hours', () => {
   const entries: HoursEntry[] = [
     { ...base, id: 'h1', staffMemberId: 't1', hoursReportId: null, date: '2026-06-01', reportedMinutes: 120, calendarMinutes: 120, eventId: 'ev1', teachingAssignmentId: null, orgRoleId: null, rate: 100, status: 'APPROVED', note: null },
     { ...base, id: 'h2', staffMemberId: 't1', hoursReportId: null, date: '2026-06-02', reportedMinutes: 90, calendarMinutes: 60, eventId: 'ev2', teachingAssignmentId: null, orgRoleId: null, rate: 100, status: 'SUBMITTED', note: null },
+    { ...base, id: 'h3', staffMemberId: 't1', hoursReportId: null, date: '2026-06-03', reportedMinutes: 30, calendarMinutes: 30, eventId: 'ev3', teachingAssignmentId: null, orgRoleId: null, rate: null, status: 'DRAFT', note: null },
+    { ...base, id: 'h4', staffMemberId: 't1', hoursReportId: null, date: '2026-06-04', reportedMinutes: 60, calendarMinutes: 60, eventId: 'ev4', teachingAssignmentId: null, orgRoleId: null, rate: null, status: 'APPROVED', note: null },
+    { ...base, id: 'h5', staffMemberId: 't1', hoursReportId: null, date: '2026-06-05', reportedMinutes: 45, calendarMinutes: 45, eventId: 'ev5', teachingAssignmentId: null, orgRoleId: null, rate: 80, status: 'PAID', note: null },
+    { ...base, id: 'h6', staffMemberId: 't2', hoursReportId: null, date: '2026-06-01', reportedMinutes: 60, calendarMinutes: 60, eventId: 'ev1', teachingAssignmentId: null, orgRoleId: null, rate: 90, status: 'SUBMITTED', note: null },
   ];
   const events: MinimalEvent[] = [
     { id: 'ev1', date: '2026-06-01', durationMinutes: 120 },
     { id: 'ev2', date: '2026-06-02', durationMinutes: 60 },
+    { id: 'ev3', date: '2026-06-03', durationMinutes: 30 },
+    { id: 'ev4', date: '2026-06-04', durationMinutes: 60 },
+    { id: 'ev5', date: '2026-06-05' },
   ];
   const participants: MinimalParticipant[] = [
     { eventId: 'ev1', staffMemberId: 't1' },
     { eventId: 'ev2', staffMemberId: 't1' },
+    { eventId: 'ev3', staffMemberId: 't1' },
+    { eventId: 'ev4', staffMemberId: 't1' },
+    { eventId: 'ev5', staffMemberId: 't1' },
+    { eventId: 'ev_missing', staffMemberId: 't1' },
+    { eventId: 'ev1', staffMemberId: 't2' },
   ];
   it('listPendingHoursReports returns draft/submitted', () => {
-    expect(Q.listPendingHoursReports(entries).map(e => e.id)).toEqual(['h2']);
+    expect(Q.listPendingHoursReports(entries).map(e => e.id)).toEqual(['h6', 'h2', 'h3']);
   });
   it('compareReportedVsCalendarHours computes variance + lineage', () => {
     const rec = Q.compareReportedVsCalendarHours('t1', entries, events, participants);
-    expect(rec.reportedMinutes).toBe(210);
-    expect(rec.calendarMinutes).toBe(180);
-    expect(rec.varianceMinutes).toBe(30);
-    expect(rec.sourceEntryIds).toEqual(['h1', 'h2']);
+    expect(rec.reportedMinutes).toBe(345);
+    expect(rec.calendarMinutes).toBe(270);
+    expect(rec.varianceMinutes).toBe(75);
+    expect(rec.sourceEntryIds).toEqual(['h1', 'h2', 'h3', 'h4', 'h5']);
     expect(rec.matchesCalendar).toBe(false);
+  });
+  it('compareReportedVsCalendarHours handles exact matches and missing calendar duration', () => {
+    const rec = Q.compareReportedVsCalendarHours('t2', entries, events, participants);
+    expect(rec).toMatchObject({
+      staffMemberId: 't2',
+      reportedMinutes: 60,
+      calendarMinutes: 120,
+      varianceMinutes: -60,
+      entries: 1,
+      sourceEntryIds: ['h6'],
+      matchesCalendar: false,
+    });
+
+    const exact = Q.compareReportedVsCalendarHours(
+      't3',
+      [{ ...entries[0], id: 'h7', staffMemberId: 't3', reportedMinutes: 45, eventId: 'ev6' }],
+      [{ id: 'ev6', date: '2026-06-06', durationMinutes: 45 }],
+      [{ eventId: 'ev6', staffMemberId: 't3' }],
+    );
+    expect(exact.matchesCalendar).toBe(true);
+    expect(exact.varianceMinutes).toBe(0);
   });
   it('calculatePayslipRows only includes approved/paid with rate', () => {
     const rows = Q.calculatePayslipRows(entries);
-    expect(rows).toHaveLength(1);
+    expect(rows).toHaveLength(2);
     expect(rows[0].amount).toBe(200); // 2h * 100
+    expect(rows[1]).toMatchObject({
+      sourceEntryId: 'h5',
+      hours: 0.75,
+      rate: 80,
+      amount: 60,
+    });
+    expect(rows.map(r => r.sourceEntryId)).not.toContain('h4');
+  });
+  it('resolveHoursEntryPayRate follows D-19 source order without trusting draft entry.rate', () => {
+    const entry: HoursEntry = {
+      ...entries[1],
+      id: 'h_rate',
+      rate: 999,
+      teachingAssignmentId: 'ta_1',
+      orgRoleId: 'role_1',
+    };
+
+    expect(Q.resolveHoursEntryPayRate(entry, {
+      adminOverrideRate: 145,
+      teachingAssignmentRates: [{ teachingAssignmentId: 'ta_1', rate: 125 }],
+      orgRoleRates: [{ orgRoleId: 'role_1', rate: 115 }],
+      staffDefaultRates: [{ staffMemberId: 't1', rate: 105 }],
+      orgDefaultRate: 95,
+    })).toEqual({ rate: 145, source: 'ADMIN_OVERRIDE', sourceId: 'h_rate' });
+
+    expect(Q.resolveHoursEntryPayRate(entry, {
+      teachingAssignmentRates: [{ teachingAssignmentId: 'ta_1', rate: 125 }],
+      orgRoleRates: [{ orgRoleId: 'role_1', rate: 115 }],
+      staffDefaultRates: [{ staffMemberId: 't1', rate: 105 }],
+      orgDefaultRate: 95,
+    })).toEqual({ rate: 125, source: 'TEACHING_ASSIGNMENT', sourceId: 'ta_1' });
+
+    expect(Q.resolveHoursEntryPayRate({ ...entry, teachingAssignmentId: null }, {
+      orgRoleRates: [{ orgRoleId: 'role_1', rate: 115 }],
+      staffDefaultRates: [{ staffMemberId: 't1', rate: 105 }],
+      orgDefaultRate: 95,
+    })).toEqual({ rate: 115, source: 'ORG_ROLE', sourceId: 'role_1' });
+
+    expect(Q.resolveHoursEntryPayRate({ ...entry, teachingAssignmentId: null, orgRoleId: null }, {
+      staffDefaultRates: [{ staffMemberId: 't1', rate: 105 }],
+      orgDefaultRate: 95,
+    })).toEqual({ rate: 105, source: 'STAFF_DEFAULT', sourceId: 't1' });
+
+    expect(Q.resolveHoursEntryPayRate({ ...entry, staffMemberId: 'missing', teachingAssignmentId: null, orgRoleId: null }, {
+      orgDefaultRate: 95,
+    })).toEqual({ rate: 95, source: 'ORG_DEFAULT', sourceId: null });
+  });
+  it('stampHoursEntryPayRate stamps a resolved approval rate immutably', () => {
+    const submitted = { ...entries[1], rate: null };
+    const stamped = Q.stampHoursEntryPayRate(submitted, {
+      staffDefaultRates: [{ staffMemberId: 't1', rate: 110 }],
+      orgDefaultRate: 95,
+    });
+
+    expect(stamped).toEqual({ ...submitted, rate: 110 });
+    expect(submitted.rate).toBeNull();
+    expect(() => Q.stampHoursEntryPayRate(submitted, {})).toThrow('No payroll rate configured');
   });
 });
 
