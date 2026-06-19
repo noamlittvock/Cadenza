@@ -1,12 +1,12 @@
-BUILD COMPLETE
+BUILD ACTIVE
 
 This file is the implementation loop's durable memory. The next agent must read
 it in full before editing code. Authoritative specs remain:
 
 - `docs/blueprint-planning/IMPLEMENTATION_HANDOFF.md`
 - `docs/blueprint-planning/IMPLEMENTATION_ROADMAP.md`
+- `docs/blueprint-planning/packets/payments-charges.md`
 - `docs/blueprint-planning/packets/payroll-salaries-hours.md`
-- `docs/blueprint-planning/packets/lesson-details-attendance.md`
 - `docs/blueprint-planning/decision-log.md`
 - `docs/blueprint-planning/route-nav-policy.md`
 - `docs/blueprint-planning/status-policy.md`
@@ -23,245 +23,137 @@ BUILD COMPLETE
   accepted D-17: one `lesson_records` row per `(eventId, studentId)`, group
   lessons sharing `eventId`, explicit teacher/admin row preparation only, and no
   silent attendance/completion/outcome marking.
-- Latest committed checkpoint before this payroll loop:
-  `b071afd` (`Complete attendance build loop`) on branch `blueprint-supabase`.
+- `payroll-salaries-hours` reached the implemented bar on 2026-06-19 under
+  accepted D-18/D-19: `HoursEntry` is source of truth, `HoursReport` is a period
+  header, teachers self-report own DRAFT/SUBMITTED entries, admins approve/pay
+  with stamped rates, finance can read/export only, live RLS and Playwright
+  workflow passed.
+- Latest committed checkpoint before this payments loop:
+  `1037af8` (`Promote payroll build loop complete`) on branch
+  `blueprint-supabase`.
 
-## Completed Objective
+## Current Objective
 
-Phase C packet `payroll-salaries-hours`: promote from `embedded` to
-`implemented` by consolidating payroll around accepted D-18/D-19:
+Phase C packet `payments-charges`: promote from `gap` to `implemented` by
+building the accepted P0 family-led finance ledger:
 
-- `HoursEntry` is the payroll source of truth.
-- `HoursReport` is only a period/submission header grouping entries.
-- Teachers may create/edit/submit only their own DRAFT/SUBMITTED entries.
-- Admin approval stamps the final payable rate using the accepted P0 order:
-  admin override > engagement/assignment role-department rate > staff default >
-  org default.
-- APPROVED/PAID transitions are admin-gated, finance is read/export only, and
-  PAID rows are immutable except by new adjusting entries.
-
-Do not build statutory deductions, pension/social-security, employer-cost
-provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
+- D-07-FIN: family-led ledger is canonical; charges may retain student and
+  enrollment lineage, but aggregation key is `familyId`.
+- D-08: finance visibility/write access is admin plus explicit `finance`
+  capability; plain members must not read ledger rows.
+- D-10: live balances are computed on demand; `balanceSnapshots` are periodic or
+  audit history only, not current-balance source of truth.
+- D-20: P0 enforces a single currency per org/family ledger while staying
+  future-safe for explicit multi-currency. Never silently offset currencies.
+- D-25 remains parked. Do not implement instrument deposits, replacement fees,
+  forfeits, or refunds.
 
 ## Locked Build Decisions
 
-- D-05: Event canonical write-model is `EventV2`; legacy `CalendarEvent` remains
-  at read edges. Use `utils/canonicalAdapters.ts` at module boundaries.
-- D-06: teachers may self-write own attendance/hour rows; payroll-affecting
-  approval remains admin-gated. Do not broaden staff write scope beyond row
-  ownership.
-- D-17: lesson attendance source rows are one row per `(eventId, studentId)`.
-  Attendance/completion/outcomes must remain explicit, not silently inferred.
-- D-18: `HoursEntry` is payroll source of truth; `HoursReport` is a
-  period/submission header, not a parallel totals ledger.
-- D-19: payroll rates are configurable; payable rate is stamped at admin
-  approval using the accepted P0 order.
-- D-20: finance uses a single currency per org/family ledger for P0 and must
-  never silently offset currencies.
-- D-21-D-27 remain parked. Do not implement packet sections marked
-  `BLOCKED ON D-21` through `BLOCKED ON D-27`.
+- D-03: `Family` is a first-class source-of-truth record and the finance ledger
+  owner for P0.
+- D-04/D-05: Student/Event canonical write models use the adapter seam in
+  `utils/canonicalAdapters.ts`; do not perform broad HYBRID rewrites.
+- D-07: no public unauthenticated finance writes. Do not add guardian payment
+  portals or public payment submission paths.
+- D-07-FIN: family-led ledger with per-enrollment charge line lineage.
+- D-08: finance access is admin or `finance` capability only.
+- D-10: compute live balances on demand; snapshots are history/audit.
+- D-15: packet-local ledger backfill only; no global student/family migration.
+- D-20: single-currency P0; reject or flag mixed-currency data.
+- D-21-D-27 remain parked. In this packet, D-25 blocks instrument-specific
+  deposit/fee/refund behavior.
 
-## Initial Payroll Scope
+## Baseline Known Findings - 2026-06-19
 
-- Home: admin review belongs in an existing Manage/Finance-style operational
-  surface; teacher self-report must be reachable on mobile and cannot be hidden
-  behind desktop-only admin navigation.
-- Primary records: normalized `hours_entries`; legacy/hybrid `hours_reports`
-  may remain only as submission headers/archive context.
-- Public/token access: none. Do not revive legacy `hours_reports.token` as a
-  public write path.
-- Calendar-derived comparison may use completed attendance/event minutes, but do
-  not build D-21 absence/day-off side effects or any payroll-provider export.
-- Implement dense operator UI consistent with existing app patterns; no new
-  marketing or explanatory landing page.
+- `payments-charges` packet is still `gap`; there is no routed Finance UI yet.
+- `BILLING` exists in `ViewState` but remains hidden/unrouted as a top-level
+  Finance view per route-nav-policy until this packet routes it.
+- Normalized tables already exist from `0002`: `charges`, `payments`,
+  `adjustments`, and `balance_snapshots`.
+- `0004` ledger RLS grants admin or finance capability access for ledger tables;
+  live tests must prove admin/finance allowed, plain member denied, cross-org
+  denied, and no anon access.
+- Deterministic helpers already exist in `utils/blueprintQueries.ts`:
+  `listOpenBalances`, `reconcileEnrollmentCharges`, and
+  `listPaymentsByFamily`.
+- Existing tests cover happy paths for those helpers but still need
+  partial-allocation edge coverage, single-currency invariant coverage, date
+  boundary coverage, and mapping/RLS/UI workflow coverage for this packet.
 
-## Baseline Known Findings - 2026-06-18
+## Build Queue
 
-- `components/TeacherHoursForm.tsx` no longer writes payroll data; legacy
-  `/report/:token` links now render a closed reference notice only.
-- `components/HoursComparisonView.tsx` now consumes normalized `HoursEntry[]`
-  and `HoursReport` period headers; do not reintroduce nested report review.
-- `App.tsx` syncs both normalized `hoursEntries` and `hoursReports` period
-  headers for the authenticated payroll workspace.
-- `utils/blueprintQueries.ts` already has `listPendingHoursReports`,
-  `compareReportedVsCalendarHours`, and `calculatePayslipRows`, but packet
-  acceptance still requires variance-edge tests and D-19 rate-resolution tests.
-- `utils/supabaseSync.ts` maps `hoursEntries` to normalized `hours_entries` and
-  `hoursReports` to hybrid `hours_reports`; focused mapping coverage needs audit
-  and strengthening.
-- `supabase/migrations/0004_blueprint_rls_foundation.sql` has row-scoped
-  teacher insert/update policies for `hours_entries`; live RLS must prove own
-  DRAFT/SUBMITTED allowed, other staff denied, APPROVED/PAID denied to teacher,
-  admin approval/pay allowed, finance read/export only.
+### Stage 0 - Audit And Split
 
-## Baseline Audit Findings - 2026-06-18
+- [ ] Baseline audit: read handoff, roadmap, payments packet, decision log,
+  route policy, status policy, finance scope doc, and current finance-related
+  code/tests/RLS/mapping. Split the queue into smaller safe units if needed.
+  Preserve D-25 blocked scope.
 
-- Worktree at audit start: branch `blueprint-supabase` tracking
-  `origin/blueprint-supabase`; pre-existing modified files were
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md` and
-  `docs/blueprint-planning/NEXT_AGENT_LOOP.md`. Preserve both.
-- At audit start, the only teacher hours surface was the unauthenticated legacy
-  `/report/:token` path in `App.tsx`, rendering `components/TeacherHoursForm.tsx`.
-  It queried `hours_reports` by `data->>token`, read/wrote `hoursReports`
-  through `utils/supabaseSync.ts`, and submitted nested
-  `HoursReport.reportedEntries`. The legacy consolidation/backfill unit has now
-  retired that public write path to a closed reference notice and added
-  admin-only reconciliation from legacy nested entries into normalized
-  `hours_entries`.
-- The retired legacy token form previously initialized event rows as
-  confirmed-by-default. Do not reintroduce that behavior: teacher entries must
-  write normalized `hours_entries`, and final payable rate must be stamped only
-  by admin approval.
-- Current admin comparison UI exists in `components/HoursComparisonView.tsx`, but
-  it consumes legacy `HoursReport[]` and nested entries, supports only
-  `SUBMITTED -> REVIEWED`, and was not found mounted in active app routes.
-  `ManageHub` passes `hoursReports` to `StaffMemberManager`, but the current
-  manager implementation does not consume those payroll props.
-- Mobile/nav placement constraints: `PAYROLL` is now routed and palette-visible
-  as the authenticated payroll workspace, with sidebar access outside
-  desktop-only Manage/Admin Inbox and `/org/payroll` deep-link initialization.
-  It contains the teacher self-report tab plus the admin review/export tab.
-  Any command-palette entry must route to a real surface or alias to one; public
-  token routes get no sidebar or palette entry.
-- Runtime sync state: `App.tsx` now syncs normalized `hoursEntries` for the
-  teacher route and also reads `hoursReports` as period headers for submission
-  grouping. Legacy `hoursReports` state remains for older surfaces until the
-  consolidation/backfill unit. `utils/supabaseSync.ts` maps
-  `hoursReports -> hours_reports` as HYBRID and
-  `hoursEntries -> hours_entries` as NORMALIZED with focused mapping tests.
-- Type split: legacy `types.ts` has `HoursReportStatus =
-  PENDING|SUBMITTED|REVIEWED` and nested `HoursEntry` with decimal `hours` plus
-  `entryType`; canonical Blueprint `types/blueprint.ts` has normalized
-  `HoursEntry` with `reportedMinutes`, `calendarMinutes`, `rate`, and
-  `DRAFT|SUBMITTED|APPROVED|PAID`. D-18/D-19 work must consolidate around the
-  Blueprint entry and keep `HoursReport` as a period/submission header only.
-- Existing payroll helpers in `utils/blueprintQueries.ts` operate on Blueprint
-  `HoursEntry[]`: `listPendingHoursReports`, `compareReportedVsCalendarHours`,
-  and `calculatePayslipRows`. Current tests cover only one happy-path variance
-  and approved-row payslip case; missing coverage includes variance edge cases,
-  payslip filtering, rate resolution, and approval-time stamping.
-- Rate-config candidates are currently schema-light: `EventParticipant` has
-  `teachingAssignmentId`/`orgRoleId`, and Staff/Assignment/OrgRole surfaces
-  exist, but `StaffMemberV2`, `TeachingAssignmentV2`, and `OrgRoleV2` currently
-  do not expose explicit rate fields. The next unit likely needs a pure rate
-  resolver with narrowly typed optional config inputs before UI/schema wiring.
-- D-05 adapter usage for attendance is established in
-  `utils/lessonAttendanceService.ts` and `components/CalendarView.tsx` through
-  `eventToV2`; the authenticated teacher payroll route uses `eventToV2` for
-  calendar-derived draft rows, and the payroll review surface uses
-  `eventToMinimal` for calendar variance. The legacy token form no longer reads
-  events or writes payroll data.
-- Static RLS coverage in `utils/supabaseSchema.test.ts` now asserts
-  `hours_entries` admin-only broad writes, teacher self DRAFT/SUBMITTED-only
-  insert/update policies, finance read access, and no member/finance/anon
-  shortcut in teacher write policies. Live RLS coverage in
-  `utils/rlsLive.test.ts` now proves teacher own DRAFT/SUBMITTED insert/update,
-  teacher-other denial, teacher APPROVED/PAID denial, admin approve/pay, finance
-  read/export-only behavior, anon denial, and cross-org denial for payroll.
-- Live RLS env readiness was checked with presence-only output; all currently
-  required `CADENZA_RLS_*` variables were present. Do not record secret values.
-- Existing Playwright coverage includes student/family, public registration,
-  lesson attendance, and a focused payroll teacher self-report smoke including
-  390x844 Hebrew RTL. The full payroll workflow smoke
-  (teacher submit -> admin variance -> approval/rate stamp -> payslip/export)
-  is still a separate Stage 2 queue unit.
-- D-21-D-27 remain parked. Payroll implementation must not add absence/day-off
-  payroll side effects (D-21), public concert/program exposure (D-23),
-  consent-revocation effects (D-24), instrument deposit/refund finance rows
-  (D-25), HR/evaluation scope (D-26), or rollover grade/schedule-copy behavior
-  (D-27).
+### Stage 1 - Ledger Foundation
 
-## Non-Negotiable Guardrails
+- [ ] MAP-UNIT: strengthen deterministic helper and Supabase mapping coverage for
+  `charges`, `payments`, `adjustments`, `balanceSnapshots`, family-led
+  aggregation, partial allocation, date boundaries, and D-20 single-currency
+  invariants.
+- [ ] Ledger service layer: implement small, tested helpers for manual charge
+  creation, payment recording/allocation, charge status derivation, adjustment
+  posting, void/audit semantics, computed family balances, and snapshot history.
+  Do not build instrument deposit/refund logic.
+- [ ] RLS-LIVE finance ledger run: prove admin and finance can read/write,
+  plain member cannot read, anon denied, and cross-org denied against a real
+  Supabase project.
 
-- Preserve unrelated dirty work. Do not stage, commit, branch, push, or run git
-  write operations inside `build-loop.sh`.
-- Do exactly one queue unit per iteration. If the next unit is too large, split
-  it into smaller unchecked subunits in this file, then complete only the first
-  subunit.
-- Never print or record secret values. Docs and logs may name required variables
-  but must never include tokens, passwords, service-role keys, anon keys, access
-  tokens, or database passwords.
-- Use existing app patterns and helpers. Do not add a duplicate event conversion
-  seam, new datastore, or broad HYBRID rewrite.
-- If live Supabase credentials or remote schema state are missing, add env-gated
-  tests that skip with a clear message, record the exact env vars or blocker
-  here, and do not mark RLS-LIVE or BUILD COMPLETE until tests run against a real
-  project.
+### Stage 2 - Finance UI
 
-## Queue (dependency order - do the first unticked unit, exactly one)
+- [ ] Finance route/nav: route `BILLING` as top-level Finance, unhide palette
+  only when the route renders a real surface, and keep public routes out of
+  sidebar/palette.
+- [ ] Family-led ledger UI: list/search/filter families with balances; detail
+  view for charges/payments/adjustments; create charge, record payment, void or
+  adjust; export/read-only states for finance; empty/loading/error states.
+- [ ] Student/family finance tab or link: surface the family ledger from the
+  student/family context without bypassing ledger-table RLS.
 
-### Stage 0 - Audit And Contract
+### Stage 3 - Verification And Promotion
 
-- [x] Baseline audit: read this file plus authoritative specs, run
-  `git status --short --branch`, identify current teacher hours surfaces,
-  admin comparison surfaces, mobile/nav placement, `HoursEntry` and
-  `HoursReport` types/schema/helpers, `hoursEntries` and `hoursReports`
-  Supabase mapping, D-05 event adapter usage, D-06 RLS coverage, rate-config
-  candidates, Playwright patterns, and all D-21-D-27 blocked seams. Update this
-  file with discovered constraints before code edits.
-- [x] MAP-UNIT: add focused coverage for `hours_entries` camel/snake mapping,
-  `hours_reports` header wrap/unwrap, variance edge cases, payslip filtering,
-  and D-19 rate-resolution/stamping helpers. If a rate helper does not exist,
-  create a pure helper with unit tests before UI wiring.
-- [x] RLS refinement/test audit: prove static and env-gated live coverage for
-  teacher own DRAFT/SUBMITTED insert/update, teacher-other denial, teacher
-  APPROVED/PAID denial, admin approve/pay, finance read-only/export-only,
-  anon denial, and cross-org denial.
-
-### Stage 1 - Payroll Workflow Core
-
-- [x] HoursEntry service layer: implement D-18/D-19 helpers for teacher
-  self-report create/edit/submit, period header grouping, admin approval with
-  payable-rate stamping, admin mark-paid, PAID immutability, and correction via
-  new adjusting entries. Keep helpers pure where possible and verify with unit
-  tests before UI.
-- [x] Teacher self-report UI: wire a mobile-reachable teacher surface to
-  normalized `hours_entries` and `hours_reports` period headers. Teachers may
-  edit only own DRAFT/SUBMITTED entries; submission locks teacher edits that
-  should require admin action. Do not use public/token writes.
-- [x] Admin review/approval UI: add or adapt the existing comparison surface to
-  list pending/submitted entries by staff/period, show reported-vs-calendar
-  variance, stamp rates on approval, mark approved entries paid, and preview or
-  export payslip rows. Finance may read/export but not approve/pay.
-- [x] Legacy consolidation/backfill: reconcile existing `hours_reports`
-  reported-entry docs into the D-18 model as period headers plus normalized
-  `hours_entries` where packet-local safe. Retain legacy reports as archive or
-  opening context only; do not create a parallel payroll ledger.
-
-### Stage 2 - Verification And Promotion
-
-- [x] Playwright payroll workflow smoke: teacher submit hours -> admin compare
-  variance -> approve with stamped rate -> payslip rows/export; include Hebrew
-  RTL and 390x844 teacher self-report coverage.
-- [x] RLS-LIVE payroll run: run the live-role harness against a real Supabase
-  project for the payroll workflow. Do not mark complete if only skipped local
-  tests ran.
-- [x] Status promotion: only after every queue unit is complete and every
+- [ ] Playwright finance smoke: create charge -> record payment -> verify open
+  balance and family payment history -> void/adjustment path; include Hebrew/RTL
+  amount formatting.
+- [ ] Status promotion: only after every queue unit is complete and every
   completion checklist item below is true, update `features/forteTree.ts` and
-  the `payroll-salaries-hours` packet header to `implemented`, refresh handoff
-  docs, append an iteration note here, and replace this file's first line with
+  the `payments-charges` packet header to `implemented`, refresh handoff docs,
+  append an iteration note here, and replace this file's first line with
   `BUILD COMPLETE`.
 
 ## Completion Checklist (all required before BUILD COMPLETE)
 
-- [x] D-18/D-19 are reflected in code, tests, packet docs, and handoffs.
-- [x] `HoursEntry` is the payroll source of truth; `HoursReport` is not used as
-  a parallel totals ledger.
-- [x] Teacher can create/edit/submit only own DRAFT/SUBMITTED entries.
-- [x] Admin approval stamps the final payable rate using accepted P0 order.
-- [x] Finance read/export cannot mutate approval/payment status.
-- [x] PAID entries are immutable; corrections use new adjusting entries.
-- [x] Teacher self-report is mobile-reachable and covered at 390x844.
-- [x] Hebrew/RTL hours and payslip states are covered with LTR-isolated numbers.
-- [x] Playwright payroll smoke passed.
-- [x] RLS-LIVE passed against a real project for payroll.
-- [x] `npm run typecheck -- --diagnostics` passes.
-- [x] `npx vitest run --reporter=dot` passes.
-- [x] No D-21-D-27 blocked section was implemented without a decision update.
+- [ ] D-07-FIN/D-08/D-10/D-20 are reflected in code, tests, packet docs, and
+  handoffs.
+- [ ] Finance ledger is family-led with per-student/per-enrollment charge lineage.
+- [ ] Single-currency invariant is enforced in helpers/UI/import-facing paths.
+- [ ] Mixed-currency rows are rejected or flagged; no silent cross-currency
+  offset exists.
+- [ ] Live balances are computed on demand; snapshots are audit/history only.
+- [ ] Admin/finance ledger access passes real-role RLS; plain member/anon/cross
+  org are denied.
+- [ ] `BILLING` routes to a real Finance surface before it is palette-visible.
+- [ ] Finance UI covers charge creation, payment recording/allocation, balance
+  display, void/adjustment path, empty/loading/error states, and export/read-only
+  behavior.
+- [ ] Hebrew/RTL ledger states and LTR-isolated amounts are covered.
+- [ ] `npm run typecheck -- --diagnostics` passes.
+- [ ] `npx vitest run --reporter=dot` passes.
+- [ ] Finance Playwright smoke passes.
+- [ ] No D-21-D-27 blocked section was implemented without a decision update,
+  especially D-25 instrument deposit/refund behavior.
 
 ## Next Unit
 
-- None. The `payroll-salaries-hours` build loop is complete.
+- Baseline audit: read handoff, roadmap, payments packet, decision log, route
+  policy, status policy, finance scope doc, and current finance-related
+  code/tests/RLS/mapping. Split the queue into smaller safe units if needed.
+  Preserve D-25 blocked scope.
 
 ## Setup Notes For Next Agent
 
@@ -277,153 +169,10 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
   `CADENZA_RLS_TEACHER_PASSWORD`, `CADENZA_RLS_TEACHER_STAFF_MEMBER_ID`,
   `CADENZA_RLS_FINANCE_EMAIL`, `CADENZA_RLS_FINANCE_PASSWORD`,
   `CADENZA_RLS_CROSS_ORG_EMAIL`, and `CADENZA_RLS_CROSS_ORG_PASSWORD`.
-- Supabase CLI is installed and the project was previously linked locally, but
-  do not apply migrations unless the active queue unit explicitly requires it.
-- `build-loop.sh` defaults `CODEX_REASONING_EFFORT=high`.
+- Build-loop logs in `.build-loop/` are ignored.
 
 ## Iteration Notes
 
-- 2026-06-18 seed for `payroll-salaries-hours`: after committing and pushing the
-  completed D-17 attendance loop at `b071afd`, replaced the completed attendance
-  loop memory with this payroll queue. No payroll code changes have been made in
-  this seed step.
-- 2026-06-18 baseline audit: read the loop state, handoff, roadmap, payroll and
-  attendance packets, decision log, route/nav policy, status policy, and finance
-  scope doc; audited payroll surfaces, routing, types, Supabase mapping, D-05
-  adapter usage, RLS/static/live coverage, rate-source candidates, Playwright
-  coverage, and D-21-D-27 parked seams. Changed only
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npx vitest run utils/supabaseSync.test.ts utils/blueprintQueries.test.ts utils/supabaseSchema.test.ts routing.test.ts --reporter=dot`
-  passed (90 tests);
-  `npm run typecheck -- --diagnostics` passed;
-  `npx vitest run --reporter=dot` passed (20 files, 224 tests).
-- 2026-06-18 MAP-UNIT for `payroll-salaries-hours`: added normalized
-  `hours_entries` camel/snake mapping coverage, HYBRID `hours_reports` period
-  header wrap/unwrap coverage, payroll variance edge tests, payslip filtering
-  tests, and pure D-19 rate resolution/stamping helpers that do not trust a
-  teacher-submitted draft `HoursEntry.rate` without an explicit admin override.
-  Changed files: `utils/supabaseSync.test.ts`,
-  `utils/blueprintQueries.ts`, `utils/blueprintQueries.test.ts`, and
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npx vitest run utils/blueprintQueries.test.ts utils/supabaseSync.test.ts --reporter=dot`
-  passed (2 files, 75 tests);
-  `npm run typecheck -- --diagnostics` passed;
-  `npx vitest run --reporter=dot` passed (20 files, 229 tests).
-- 2026-06-18 RLS refinement/test audit for `payroll-salaries-hours`: tightened
-  static RLS assertions for `hours_entries` policy shape and added a live
-  real-role payroll matrix proving teacher own DRAFT/SUBMITTED insert/update,
-  teacher-other denial, teacher APPROVED/PAID denial, admin approve/pay, finance
-  read/export-only behavior, anon denial, and cross-org denial. Required live RLS
-  env vars were present by presence-only check; no secret values were printed or
-  recorded. Changed files: `utils/supabaseSchema.test.ts`,
-  `utils/rlsLive.test.ts`, and `docs/blueprint-planning/BUILD_LOOP_STATE.md`.
-  Verification:
-  `npx vitest run utils/supabaseSchema.test.ts utils/rlsLive.test.ts --reporter=dot`
-  passed (2 files, 19 tests);
-  `npm run typecheck -- --diagnostics` passed;
-  `npx vitest run --reporter=dot` passed (20 files, 230 tests).
-- 2026-06-18 HoursEntry service layer for `payroll-salaries-hours`: added a pure
-  payroll service for teacher-owned DRAFT/SUBMITTED create/edit/period submit,
-  `HoursReport` period-header grouping without totals, admin-only D-19 approval
-  rate stamping, admin mark-paid, PAID immutability, and separate adjusting
-  entries for paid corrections. The submit helper now rejects explicitly selected
-  wrong-org, wrong-teacher, or outside-period entries instead of silently
-  filtering them out. Added repository hooks for normalized `hoursEntries` and
-  hybrid `hoursReports` without changing UI routes or public token writes.
-  Changed files: `utils/hoursEntryService.ts`,
-  `utils/hoursEntryService.test.ts`, and
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npx vitest run utils/hoursEntryService.test.ts --reporter=dot` passed (1
-  file, 11 tests); `npm run typecheck -- --diagnostics` passed;
-  `npx vitest run --reporter=dot` passed (21 files, 241 tests).
-- 2026-06-18 Teacher self-report UI for `payroll-salaries-hours`: added a routed
-  authenticated `PAYROLL` surface for teacher self-report, mobile-visible sidebar
-  access, `/org/payroll` deep-link initialization, normalized `hours_entries`
-  draft creation/editing, calendar-derived draft entry creation through the D-05
-  event adapter, `hours_reports` period header submission, and a focused
-  Playwright smoke covering submit plus Hebrew RTL at 390x844. Admin approval,
-  payable-rate stamping UI, and finance export remain the next queue unit.
-  Changed files: `App.tsx`, `components/Layout.tsx`,
-  `components/TeacherSelfReportWorkspace.tsx`, `routing.ts`,
-  `routing.test.ts`, `e2e/helpers/navigate.ts`,
-  `e2e/payroll-teacher.spec.ts`, `utils/hoursEntryService.ts`,
-  `docs/blueprint-planning/route-nav-policy.md`,
-  `docs/blueprint-planning/decision-log.md`, and
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npm run typecheck -- --diagnostics` passed;
-  `npx vitest run routing.test.ts utils/hoursEntryService.test.ts --reporter=dot`
-  passed (2 files, 19 tests);
-  `npm run test:e2e -- e2e/payroll-teacher.spec.ts` passed (2 tests);
-  `npx vitest run --reporter=dot` passed (21 files, 242 tests).
-- 2026-06-19 Admin review/approval UI for `payroll-salaries-hours`: replaced the
-  legacy nested-report comparison component with a normalized `hours_entries`
-  review/export surface, added a Payroll workspace tab wrapper preserving teacher
-  self-report, grouped entries by staff/period header, showed
-  reported-vs-calendar variance through the D-05 event adapter boundary, stamped
-  approval rates via `hoursEntryService`, marked approved entries PAID, and
-  exposed read/export-only CSV payslip rows without finance approval/payment
-  controls. Payslip rows now use approved `HoursEntry.reportedMinutes` rather
-  than the calendar comparison baseline. Changed files: `App.tsx`,
-  `components/HoursComparisonView.tsx`, `components/PayrollWorkspace.tsx`,
-  `utils/blueprintQueries.ts`, `utils/blueprintQueries.test.ts`,
-  `e2e/payroll-teacher.spec.ts`, and
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npx vitest run utils/hoursEntryService.test.ts utils/blueprintQueries.test.ts --reporter=dot`
-  passed (2 files, 64 tests);
-  `npx playwright test e2e/payroll-teacher.spec.ts --project=ui` passed (3
-  tests, including Hebrew mobile self-report and admin approve/pay);
-  `npm run typecheck -- --diagnostics` passed;
-  `npx vitest run --reporter=dot` passed (21 files, 242 tests).
-- 2026-06-19 Legacy consolidation/backfill for `payroll-salaries-hours`: added
-  an idempotent `hours_reports.reportedEntries` reconciliation helper that
-  converts legacy nested lines into normalized `hours_entries`, strips legacy
-  report tokens/nested entries into header-only archive/opening context, runs
-  only for admin-capable app sessions, and leaves reviewed legacy rows awaiting
-  D-19 approval-time rate stamping. Retired the unauthenticated `/report/:token`
-  write surface to a closed reference notice so public payroll submissions no
-  longer bypass authenticated Payroll. Changed files: `App.tsx`,
-  `components/TeacherHoursForm.tsx`, `utils/hoursEntryService.ts`,
-  `utils/hoursEntryService.test.ts`, and
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npx vitest run utils/hoursEntryService.test.ts --reporter=dot` passed (1
-  file, 14 tests); `npm run typecheck -- --diagnostics` passed;
-  `npx vitest run --reporter=dot` passed (21 files, 246 tests);
-  `npm run test:e2e -- e2e/payroll-teacher.spec.ts` passed (3 tests).
-  Playwright payroll workflow smoke remains the next queue unit.
-- 2026-06-19 Playwright payroll workflow smoke for `payroll-salaries-hours`:
-  expanded `e2e/payroll-teacher.spec.ts` with an end-to-end local-mode workflow
-  carrying teacher-created DRAFT rows through period submission, admin variance
-  comparison, D-19 approval-time rate stamping, payslip CSV export, and PAID
-  transition. Strengthened Hebrew RTL coverage by saving mobile teacher hours at
-  390x844 and approving a Hebrew review row with visible LTR payslip numbers.
-  Changed files: `e2e/payroll-teacher.spec.ts` and
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npm run test:e2e -- e2e/payroll-teacher.spec.ts` passed (5 tests);
-  `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
-  passed (21 files, 246 tests). RLS-LIVE payroll run remains the next queue
-  unit.
-- 2026-06-19 RLS-LIVE payroll run for `payroll-salaries-hours`: sourced live
-  RLS credentials from `.env.local` without printing secret values, confirmed
-  all required `CADENZA_RLS_*` variables by presence-only output, and ran the
-  focused live payroll role-boundary harness against the real Supabase project.
-  Changed files: `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npx vitest run utils/rlsLive.test.ts -t "teacher self-write scope|payroll hours role boundaries" --reporter=dot`
-  passed (2 payroll tests; unrelated live tests skipped by name filter);
-  `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
-  passed (21 files, 246 tests).
-- 2026-06-19 Status promotion for `payroll-salaries-hours`: promoted the feature
-  tree node and packet header to `implemented`, refreshed implementation
-  handoff, roadmap, and status-policy docs, confirmed completion checklist
-  coverage, and marked the payroll build loop complete. No D-21-D-27 blocked
-  section was implemented. Changed files: `features/forteTree.ts`,
-  `docs/blueprint-planning/packets/payroll-salaries-hours.md`,
-  `docs/blueprint-planning/IMPLEMENTATION_HANDOFF.md`,
-  `docs/blueprint-planning/IMPLEMENTATION_ROADMAP.md`,
-  `docs/blueprint-planning/status-policy.md`,
-  `docs/blueprint-planning/decision-log.md`, and
-  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
-  `npx vitest run features/forteTree.consistency.test.ts utils/hoursEntryService.test.ts utils/blueprintQueries.test.ts routing.test.ts --reporter=dot`
-  passed (4 files, 79 tests);
-  `npm run typecheck -- --diagnostics` passed;
-  `npx vitest run --reporter=dot` passed (21 files, 246 tests);
-  `npm run test:e2e -- e2e/payroll-teacher.spec.ts` passed (5 tests).
+- 2026-06-19 seed for `payments-charges`: after committing and pushing completed
+  payroll at `1037af8`, replaced the completed payroll loop memory with this
+  payments queue. No payments code changes have been made in this seed step.
