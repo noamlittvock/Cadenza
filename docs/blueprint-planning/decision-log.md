@@ -37,8 +37,10 @@ Registration / Finance / Reports / Academic Hub become top-level sidebar views?
 together with [`route-nav-policy.md`](route-nav-policy.md).
 **Blocks:** every P0 packet's UX Placement. **State:** ACCEPTED 2026-06-17 —
 locked in [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md) and
-[`route-nav-policy.md`](route-nav-policy.md): top-level Students + Finance only;
-lower-frequency modules stay in Manage/contextual/public tiers unless the route
+[`route-nav-policy.md`](route-nav-policy.md): top-level Students + Finance for
+operator surfaces, with `PAYROLL` amended on 2026-06-18 as an authenticated
+teacher self-report route because the packet requires mobile teacher reachability.
+Lower-frequency modules stay in Manage/contextual/public tiers unless the route
 policy is amended.
 
 ### D-02 — Dead-end command-palette entries  🔴
@@ -54,9 +56,10 @@ locked in [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md) and
 allowlist (`routing.ts`), anti-drift coverage (`routing.test.ts`), palette
 filtering (`CommandPalette.tsx`), and the `INVENTORY → Manage?tab=inventory`
 alias. `STUDENTS`, `BILLING`, `ACADEMICS`, `PAYROLL`, and `ANALYTICS` stay hidden
-until their route and packet ship together. 2026-06-18 route-shell update:
-`STUDENTS` is now routed as the Student/Family top-level shell and palette-visible;
-`BILLING`, `ACADEMICS`, `PAYROLL`, and `ANALYTICS` remain hidden.
+until their route and packet ship together. 2026-06-18 route-shell updates:
+`STUDENTS` is routed as the Student/Family top-level shell and palette-visible.
+`PAYROLL` is routed as the authenticated teacher self-report surface and
+palette-visible. `BILLING`, `ACADEMICS`, and `ANALYTICS` remain hidden.
 
 ### D-03 — Family as first-class record  🔴
 **Q:** Is `Family` a real editable source-of-truth table now, or a grouping

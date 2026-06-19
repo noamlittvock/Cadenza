@@ -13,7 +13,7 @@ import type { ViewState } from './types';
  * `ViewState` here in the SAME change that adds the `App.tsx` case.
  *
  * Currently unrouted (deliberately absent — they fall through to `app.not_found`):
- * `BILLING`, `ACADEMICS`, `PAYROLL`, `ANALYTICS`. `INVENTORY` is also
+ * `BILLING`, `ACADEMICS`, `ANALYTICS`. `INVENTORY` is also
  * unrouted as a top-level view but is surfaced via `VIEW_ALIASES` below.
  */
 export const ROUTED_VIEWS: ReadonlySet<ViewState> = new Set<ViewState>([
@@ -23,6 +23,7 @@ export const ROUTED_VIEWS: ReadonlySet<ViewState> = new Set<ViewState>([
   'ADMIN_INBOX',
   'BLUEPRINT',
   'STUDENTS',
+  'PAYROLL',
   'SUPER_ADMIN',
   'SETTINGS',
 ]);

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronRight, ChevronLeft, X, Filter, Zap, List, Sparkles } from 'lucide-react';
 import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, Student, CalendarSubscription, HoursReport, AdminInboxItem } from './types';
 import type { ActivityV2, L1Subcategory, L2Subcategory, StaffMemberV2, StudentV2 } from './types/v2';
-import type { Family, LessonRecord } from './types/blueprint';
+import type { Family, LessonRecord, HoursEntry } from './types/blueprint';
 import { BLUEPRINT_COLLECTIONS } from './types/blueprint';
 import type { CalendarSidebarTab } from './types/calendarFilters';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, TRANSLATIONS, migrateTeacher, generateId } from './constants';
@@ -30,6 +30,7 @@ import { ConservatoryBlueprint } from './components/ConservatoryBlueprint';
 import { SuperAdmin } from './components/SuperAdmin';
 import { AdminInbox } from './components/AdminInbox';
 import { StudentFamilyWorkspace } from './components/StudentFamilyWorkspace';
+import { TeacherSelfReportWorkspace } from './components/TeacherSelfReportWorkspace';
 import { OnboardingChecklist } from './components/OnboardingChecklist';
 
 import { TeacherHoursForm } from './components/TeacherHoursForm';
@@ -43,11 +44,15 @@ import { DevSimulationBanner } from './components/DevSimulationBanner';
 import { ScenarioBanner } from './components/ScenarioBanner';
 import { CommandPalette } from './components/CommandPalette';
 import { BotChatPanel } from './components/BotChatPanel';
+import type { HoursPeriodHeader } from './utils/hoursEntryService';
 
 const MANAGE_TABS = new Set(['staff', 'rooms', 'activities', 'subscriptions', 'inventory']);
 
 const initialViewFromUrl = (): ViewState => {
   if (typeof window === 'undefined') return 'CALENDAR';
+  const pathParts = window.location.pathname.split('/').filter(Boolean);
+  const section = pathParts[1]?.toLowerCase();
+  if (section === 'payroll') return 'PAYROLL';
   const tab = new URLSearchParams(window.location.search).get('tab');
   return tab && MANAGE_TABS.has(tab) ? 'MANAGE' : 'CALENDAR';
 };
@@ -133,6 +138,8 @@ function AppContent() {
   const [lessonRecords] = useSupabaseSync<LessonRecord>(BLUEPRINT_COLLECTIONS.lessonRecords, []);
   const [calendarSubscriptions, setCalendarSubscriptions] = useSupabaseSync<CalendarSubscription>('calendarSubscriptions', []);
   const [hoursReports, setHoursReports] = useSupabaseSync<HoursReport>('hoursReports', []);
+  const [hoursEntries, setHoursEntries] = useSupabaseSync<HoursEntry>(BLUEPRINT_COLLECTIONS.hoursEntries, []);
+  const [hoursPeriodHeaders, setHoursPeriodHeaders] = useSupabaseSync<HoursPeriodHeader>('hoursReports', []);
   const [adminInboxItems, setAdminInboxItems] = useSupabaseSync<AdminInboxItem>('adminInboxItems', []);
   // Seed initial language from localStorage so first render matches the persisted state
   // and the useEffect below doesn't flip <html lang/dir> away from what index.tsx pre-applied.
@@ -652,6 +659,22 @@ function AppContent() {
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
           />
         );
+      case 'PAYROLL':
+        return (
+          <TeacherSelfReportWorkspace
+            settings={settings}
+            currentUser={currentUser}
+            orgId={orgId}
+            staffMembers={staffMembersV2}
+            teachers={teachers}
+            events={events}
+            hoursEntries={hoursEntries}
+            setHoursEntries={setHoursEntries}
+            periodHeaders={hoursPeriodHeaders}
+            setPeriodHeaders={setHoursPeriodHeaders}
+            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+          />
+        );
       case 'SUPER_ADMIN':
         return (
           <SuperAdmin
@@ -689,6 +712,7 @@ function AppContent() {
                       wipeCol('ganttBlocks'),
                       wipeCol('adminInboxItems'),
                       wipeCol('hoursReports'),
+                      wipeCol(BLUEPRINT_COLLECTIONS.hoursEntries),
                       wipeCol('calendarSubscriptions'),
                       // v2 collections
                       wipeCol(V2_COLLECTIONS.staffMembers),

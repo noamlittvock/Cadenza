@@ -101,13 +101,14 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
   `origin/blueprint-supabase`; pre-existing modified files were
   `docs/blueprint-planning/BUILD_LOOP_STATE.md` and
   `docs/blueprint-planning/NEXT_AGENT_LOOP.md`. Preserve both.
-- Current teacher hours surface is the unauthenticated legacy
+- At audit start, the only teacher hours surface was the unauthenticated legacy
   `/report/:token` path in `App.tsx`, rendering `components/TeacherHoursForm.tsx`.
   It queries `hours_reports` by `data->>token`, reads/writes `hoursReports`
   through `utils/supabaseSync.ts`, and submits nested
-  `HoursReport.reportedEntries`. This conflicts with the payroll packet's "no
-  public/token payroll write" rule and must be replaced or gated by an
-  authenticated teacher self-report surface before launch.
+  `HoursReport.reportedEntries`. The teacher self-report unit added an
+  authenticated `PAYROLL` route backed by normalized `hours_entries`, but the
+  legacy token path still exists and must be reconciled/gated in the legacy
+  consolidation/backfill unit before payroll is promoted.
 - `components/TeacherHoursForm.tsx` initializes event rows as
   confirmed-by-default. Do not preserve that behavior when moving to D-18/D-19:
   teacher entries must write normalized `hours_entries`, and final payable rate
@@ -117,18 +118,18 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
   `SUBMITTED -> REVIEWED`, and was not found mounted in active app routes.
   `ManageHub` passes `hoursReports` to `StaffMemberManager`, but the current
   manager implementation does not consume those payroll props.
-- Mobile/nav placement constraints: `PAYROLL` is still hidden by
-  `routing.ts`/`routing.test.ts` because it is not routed. `ManageHub` is
-  desktop/admin-oriented, while the payroll packet requires teacher self-report
-  to be mobile-reachable and not hidden behind desktop-only Manage/Admin Inbox.
-  Any command-palette entry must route to a real surface or alias to one; public
-  token routes get no sidebar or palette entry.
-- Runtime sync state: `App.tsx` syncs only legacy `hoursReports`; no active
-  `hoursEntries` state was found. `utils/supabaseSync.ts` maps
+- Mobile/nav placement constraints: `PAYROLL` is now routed and palette-visible
+  as the authenticated teacher self-report surface, with sidebar access outside
+  desktop-only Manage/Admin Inbox and `/org/payroll` deep-link initialization.
+  Admin review placement is still the next unit. Any command-palette entry must
+  route to a real surface or alias to one; public token routes get no sidebar or
+  palette entry.
+- Runtime sync state: `App.tsx` now syncs normalized `hoursEntries` for the
+  teacher route and also reads `hoursReports` as period headers for submission
+  grouping. Legacy `hoursReports` state remains for older surfaces until the
+  consolidation/backfill unit. `utils/supabaseSync.ts` maps
   `hoursReports -> hours_reports` as HYBRID and
-  `hoursEntries -> hours_entries` as NORMALIZED, but current mapping tests cover
-  Student/Family, attendance, and intake, not payroll-specific
-  `hours_entries`/`hours_reports`.
+  `hoursEntries -> hours_entries` as NORMALIZED with focused mapping tests.
 - Type split: legacy `types.ts` has `HoursReportStatus =
   PENDING|SUBMITTED|REVIEWED` and nested `HoursEntry` with decimal `hours` plus
   `entryType`; canonical Blueprint `types/blueprint.ts` has normalized
@@ -147,9 +148,10 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
   resolver with narrowly typed optional config inputs before UI/schema wiring.
 - D-05 adapter usage for attendance is established in
   `utils/lessonAttendanceService.ts` and `components/CalendarView.tsx` through
-  `eventToV2`; payroll code currently reads legacy `CalendarEvent` directly in
-  `TeacherHoursForm.tsx`/`HoursComparisonView.tsx`. Future payroll event-derived
-  comparisons must use `utils/canonicalAdapters.ts` at the module boundary.
+  `eventToV2`; the authenticated teacher payroll route uses `eventToV2` for
+  calendar-derived draft rows. Legacy `TeacherHoursForm.tsx` and
+  `HoursComparisonView.tsx` still read legacy `CalendarEvent` directly and must
+  not be carried forward without the canonical adapter boundary.
 - Static RLS coverage in `utils/supabaseSchema.test.ts` now asserts
   `hours_entries` admin-only broad writes, teacher self DRAFT/SUBMITTED-only
   insert/update policies, finance read access, and no member/finance/anon
@@ -159,9 +161,11 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
   read/export-only behavior, anon denial, and cross-org denial for payroll.
 - Live RLS env readiness was checked with presence-only output; all currently
   required `CADENZA_RLS_*` variables were present. Do not record secret values.
-- Existing Playwright coverage includes student/family, public registration, and
-  lesson attendance (including 390x844 Hebrew RTL), but no payroll workflow
-  smoke exists yet.
+- Existing Playwright coverage includes student/family, public registration,
+  lesson attendance, and a focused payroll teacher self-report smoke including
+  390x844 Hebrew RTL. The full payroll workflow smoke
+  (teacher submit -> admin variance -> approval/rate stamp -> payslip/export)
+  is still a separate Stage 2 queue unit.
 - D-21-D-27 remain parked. Payroll implementation must not add absence/day-off
   payroll side effects (D-21), public concert/program exposure (D-23),
   consent-revocation effects (D-24), instrument deposit/refund finance rows
@@ -212,7 +216,7 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
   payable-rate stamping, admin mark-paid, PAID immutability, and correction via
   new adjusting entries. Keep helpers pure where possible and verify with unit
   tests before UI.
-- [ ] Teacher self-report UI: wire a mobile-reachable teacher surface to
+- [x] Teacher self-report UI: wire a mobile-reachable teacher surface to
   normalized `hours_entries` and `hours_reports` period headers. Teachers may
   edit only own DRAFT/SUBMITTED entries; submission locks teacher edits that
   should require admin action. Do not use public/token writes.
@@ -248,7 +252,7 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
 - [ ] Admin approval stamps the final payable rate using accepted P0 order.
 - [ ] Finance read/export cannot mutate approval/payment status.
 - [ ] PAID entries are immutable; corrections use new adjusting entries.
-- [ ] Teacher self-report is mobile-reachable and covered at 390x844.
+- [x] Teacher self-report is mobile-reachable and covered at 390x844.
 - [ ] Hebrew/RTL hours and payslip states are covered with LTR-isolated numbers.
 - [ ] Playwright payroll smoke passed.
 - [ ] RLS-LIVE passed against a real project for payroll.
@@ -258,10 +262,10 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
 
 ## Next Unit
 
-- Teacher self-report UI: wire a mobile-reachable teacher surface to normalized
-  `hours_entries` and `hours_reports` period headers. Teachers may edit only own
-  DRAFT/SUBMITTED entries; submission locks teacher edits that should require
-  admin action. Do not use public/token writes.
+- Admin review/approval UI: add or adapt the existing comparison surface to list
+  pending/submitted entries by staff/period, show reported-vs-calendar variance,
+  stamp rates on approval, mark approved entries paid, and preview or export
+  payslip rows. Finance may read/export but not approve/pay.
 
 ## Setup Notes For Next Agent
 
@@ -336,3 +340,22 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
   `npx vitest run utils/hoursEntryService.test.ts --reporter=dot` passed (1
   file, 11 tests); `npm run typecheck -- --diagnostics` passed;
   `npx vitest run --reporter=dot` passed (21 files, 241 tests).
+- 2026-06-18 Teacher self-report UI for `payroll-salaries-hours`: added a routed
+  authenticated `PAYROLL` surface for teacher self-report, mobile-visible sidebar
+  access, `/org/payroll` deep-link initialization, normalized `hours_entries`
+  draft creation/editing, calendar-derived draft entry creation through the D-05
+  event adapter, `hours_reports` period header submission, and a focused
+  Playwright smoke covering submit plus Hebrew RTL at 390x844. Admin approval,
+  payable-rate stamping UI, and finance export remain the next queue unit.
+  Changed files: `App.tsx`, `components/Layout.tsx`,
+  `components/TeacherSelfReportWorkspace.tsx`, `routing.ts`,
+  `routing.test.ts`, `e2e/helpers/navigate.ts`,
+  `e2e/payroll-teacher.spec.ts`, `utils/hoursEntryService.ts`,
+  `docs/blueprint-planning/route-nav-policy.md`,
+  `docs/blueprint-planning/decision-log.md`, and
+  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
+  `npm run typecheck -- --diagnostics` passed;
+  `npx vitest run routing.test.ts utils/hoursEntryService.test.ts --reporter=dot`
+  passed (2 files, 19 tests);
+  `npm run test:e2e -- e2e/payroll-teacher.spec.ts` passed (2 tests);
+  `npx vitest run --reporter=dot` passed (21 files, 242 tests).

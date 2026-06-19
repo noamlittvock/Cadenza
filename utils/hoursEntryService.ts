@@ -396,7 +396,7 @@ export function buildHoursEntryCorrection(params: {
   };
 }
 
-export function applyHoursEntryUpdates(entries: HoursEntry[], updates: HoursEntry[]): HoursEntry[] {
+export function applyHoursEntryUpdates<T extends { id: string }>(entries: T[], updates: T[]): T[] {
   const updateById = new Map(updates.map(update => [update.id, update]));
   const seen = new Set<string>();
   const replaced = entries.map(entry => {

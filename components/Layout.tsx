@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ViewState } from '../types';
-import { Calendar, Users, AlertOctagon, Sun, Moon, ChevronLeft, ChevronRight, Settings, Smartphone, Sliders, Mail, Lock, ListTree, GraduationCap } from 'lucide-react';
+import { Calendar, Users, AlertOctagon, Sun, Moon, ChevronLeft, ChevronRight, Settings, Smartphone, Sliders, Mail, Lock, ListTree, GraduationCap, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { TRANSLATIONS } from '../constants';
 import { AppSettings } from '../types';
@@ -189,6 +189,14 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             label={t('nav.calendar')}
             collapsed={isCollapsed}
             locked={isGated}
+          />
+
+          <NavItem
+            active={currentView === 'PAYROLL'}
+            onClick={() => { setView('PAYROLL'); setIsMobileMenuOpen(false); }}
+            icon={Clock}
+            label={t('nav.payroll')}
+            collapsed={isCollapsed}
           />
 
           {isAdmin && (
