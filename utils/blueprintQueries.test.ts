@@ -593,6 +593,29 @@ describe('payroll/hours', () => {
     });
     expect(rows.map(r => r.sourceEntryId)).not.toContain('h4');
   });
+  it('calculatePayslipRows uses approved reported minutes, not the calendar baseline', () => {
+    const rows = Q.calculatePayslipRows([
+      {
+        ...entries[1],
+        id: 'h_variance_payable',
+        status: 'APPROVED',
+        rate: 100,
+        reportedMinutes: 90,
+        calendarMinutes: 60,
+      },
+    ]);
+
+    expect(rows).toEqual([
+      {
+        staffMemberId: 't1',
+        date: '2026-06-02',
+        hours: 1.5,
+        rate: 100,
+        amount: 150,
+        sourceEntryId: 'h_variance_payable',
+      },
+    ]);
+  });
   it('resolveHoursEntryPayRate follows D-19 source order without trusting draft entry.rate', () => {
     const entry: HoursEntry = {
       ...entries[1],

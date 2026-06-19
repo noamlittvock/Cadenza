@@ -1024,7 +1024,7 @@ export function calculatePayslipRows(entries: HoursEntry[]): PayslipRow[] {
     .filter(e => e.status === 'APPROVED' || e.status === 'PAID')
     .filter(e => typeof e.rate === 'number')
     .map(e => {
-      const hours = e.calendarMinutes / 60;
+      const hours = e.reportedMinutes / 60;
       const rate = e.rate as number;
       return {
         staffMemberId: e.staffMemberId,

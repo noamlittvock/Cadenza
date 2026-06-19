@@ -119,11 +119,11 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
   `ManageHub` passes `hoursReports` to `StaffMemberManager`, but the current
   manager implementation does not consume those payroll props.
 - Mobile/nav placement constraints: `PAYROLL` is now routed and palette-visible
-  as the authenticated teacher self-report surface, with sidebar access outside
+  as the authenticated payroll workspace, with sidebar access outside
   desktop-only Manage/Admin Inbox and `/org/payroll` deep-link initialization.
-  Admin review placement is still the next unit. Any command-palette entry must
-  route to a real surface or alias to one; public token routes get no sidebar or
-  palette entry.
+  It contains the teacher self-report tab plus the admin review/export tab.
+  Any command-palette entry must route to a real surface or alias to one; public
+  token routes get no sidebar or palette entry.
 - Runtime sync state: `App.tsx` now syncs normalized `hoursEntries` for the
   teacher route and also reads `hoursReports` as period headers for submission
   grouping. Legacy `hoursReports` state remains for older surfaces until the
@@ -220,7 +220,7 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
   normalized `hours_entries` and `hours_reports` period headers. Teachers may
   edit only own DRAFT/SUBMITTED entries; submission locks teacher edits that
   should require admin action. Do not use public/token writes.
-- [ ] Admin review/approval UI: add or adapt the existing comparison surface to
+- [x] Admin review/approval UI: add or adapt the existing comparison surface to
   list pending/submitted entries by staff/period, show reported-vs-calendar
   variance, stamp rates on approval, mark approved entries paid, and preview or
   export payslip rows. Finance may read/export but not approve/pay.
@@ -262,10 +262,10 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
 
 ## Next Unit
 
-- Admin review/approval UI: add or adapt the existing comparison surface to list
-  pending/submitted entries by staff/period, show reported-vs-calendar variance,
-  stamp rates on approval, mark approved entries paid, and preview or export
-  payslip rows. Finance may read/export but not approve/pay.
+- Legacy consolidation/backfill: reconcile existing `hours_reports`
+  reported-entry docs into the D-18 model as period headers plus normalized
+  `hours_entries` where packet-local safe. Retain legacy reports as archive or
+  opening context only; do not create a parallel payroll ledger.
 
 ## Setup Notes For Next Agent
 
@@ -358,4 +358,23 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
   `npx vitest run routing.test.ts utils/hoursEntryService.test.ts --reporter=dot`
   passed (2 files, 19 tests);
   `npm run test:e2e -- e2e/payroll-teacher.spec.ts` passed (2 tests);
+  `npx vitest run --reporter=dot` passed (21 files, 242 tests).
+- 2026-06-19 Admin review/approval UI for `payroll-salaries-hours`: replaced the
+  legacy nested-report comparison component with a normalized `hours_entries`
+  review/export surface, added a Payroll workspace tab wrapper preserving teacher
+  self-report, grouped entries by staff/period header, showed
+  reported-vs-calendar variance through the D-05 event adapter boundary, stamped
+  approval rates via `hoursEntryService`, marked approved entries PAID, and
+  exposed read/export-only CSV payslip rows without finance approval/payment
+  controls. Payslip rows now use approved `HoursEntry.reportedMinutes` rather
+  than the calendar comparison baseline. Changed files: `App.tsx`,
+  `components/HoursComparisonView.tsx`, `components/PayrollWorkspace.tsx`,
+  `utils/blueprintQueries.ts`, `utils/blueprintQueries.test.ts`,
+  `e2e/payroll-teacher.spec.ts`, and
+  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
+  `npx vitest run utils/hoursEntryService.test.ts utils/blueprintQueries.test.ts --reporter=dot`
+  passed (2 files, 64 tests);
+  `npx playwright test e2e/payroll-teacher.spec.ts --project=ui` passed (3
+  tests, including Hebrew mobile self-report and admin approve/pay);
+  `npm run typecheck -- --diagnostics` passed;
   `npx vitest run --reporter=dot` passed (21 files, 242 tests).

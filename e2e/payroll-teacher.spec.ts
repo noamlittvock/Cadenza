@@ -120,3 +120,130 @@ test.describe('Payroll teacher self-report', () => {
     await expect(page.getByRole('button', { name: 'שלח תקופה' })).toBeVisible();
   });
 });
+
+test.describe('Payroll admin review', () => {
+  test('admin approves submitted hours, stamps a rate, marks paid, and sees export', async ({ page }) => {
+    await page.addInitScript(
+      ({ orgId, staffId }) => {
+        localStorage.setItem(`cadenza:local:${orgId}:col:staffMembers`, JSON.stringify([
+          {
+            id: staffId,
+            orgId,
+            uid: 'payroll-teacher-uid',
+            role: 'STAFF',
+            fullName: 'Payroll Teacher',
+            email: 'teacher@cadenza.test',
+            phone: null,
+            startDate: null,
+            isArchived: false,
+            createdAt: '2026-01-01T00:00:00Z',
+            updatedAt: '2026-01-01T00:00:00Z',
+            isFirstAdmin: false,
+            onboardingDismissed: true,
+            firstUseFlags: { activityHub: true, staffModule: true, eventCreation: true, enrollment: true },
+            documents: [],
+          },
+        ]));
+        localStorage.setItem(`cadenza:local:${orgId}:col:teachers`, JSON.stringify([
+          {
+            id: staffId,
+            fullName: 'Payroll Teacher',
+            positions: ['Teacher'],
+            positionAssignments: [],
+            tags: [],
+            phone: '',
+            email: 'teacher@cadenza.test',
+            color: '#7b2d36',
+          },
+        ]));
+        localStorage.setItem(`cadenza:local:${orgId}:col:events`, JSON.stringify([
+          {
+            id: 'payroll-review-event',
+            name: 'Review lesson',
+            description: '',
+            teacherId: staffId,
+            staffMemberIds: [staffId],
+            roomId: '',
+            start: '2026-06-10T15:00:00.000Z',
+            end: '2026-06-10T16:30:00.000Z',
+            isCanceled: false,
+            isHidden: false,
+          },
+        ]));
+        localStorage.setItem(`cadenza:local:${orgId}:col:hoursReports`, JSON.stringify([
+          {
+            id: 'payroll-review-header',
+            orgId,
+            staffMemberId: staffId,
+            periodStart: '2026-06-01',
+            periodEnd: '2026-06-30',
+            status: 'SUBMITTED',
+            submittedAt: '2026-06-18T08:00:00.000Z',
+            createdAt: '2026-06-18T08:00:00.000Z',
+            updatedAt: '2026-06-18T08:00:00.000Z',
+          },
+        ]));
+        localStorage.setItem(`cadenza:local:${orgId}:col:hoursEntries`, JSON.stringify([
+          {
+            id: 'payroll-review-entry',
+            orgId,
+            staffMemberId: staffId,
+            hoursReportId: 'payroll-review-header',
+            date: '2026-06-10',
+            reportedMinutes: 90,
+            calendarMinutes: 90,
+            eventId: 'payroll-review-event',
+            teachingAssignmentId: null,
+            orgRoleId: null,
+            rate: null,
+            status: 'SUBMITTED',
+            note: 'Review lesson',
+            createdAt: '2026-06-18T08:00:00.000Z',
+            updatedAt: '2026-06-18T08:00:00.000Z',
+            createdBy: 'payroll-teacher-uid',
+            updatedBy: 'payroll-teacher-uid',
+          },
+        ]));
+        localStorage.setItem(`cadenza:local:${orgId}:settings:settings`, JSON.stringify({
+          language: 'en-US',
+          dateFormat: 'YYYY-MM-DD',
+          timeFormat: '24h',
+          timeZone: 'Asia/Jerusalem',
+          defaultEventDuration: 60,
+          weekNumberDisplay: 'none',
+          developerMode: false,
+        }));
+      },
+      { orgId: TEST_ORG, staffId: STAFF_ID },
+    );
+
+    await loadApp(page);
+    await gotoView(page, 'PAYROLL');
+    await page.getByRole('button', { name: 'Review' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Payroll Review' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Payroll Teacher/ })).toBeVisible();
+    await expect(page.getByText('1:30').first()).toBeVisible();
+    await page.getByRole('button', { name: /Payroll Teacher/ }).click();
+    await expect(page.getByRole('button', { name: 'Export CSV' })).toBeVisible();
+    const payrollGroup = page.locator('section').filter({ hasText: 'Payroll Teacher' }).first();
+
+    await page.getByRole('button', { name: 'Approve submitted' }).click();
+    await expect(payrollGroup.getByText('Approved').first()).toBeVisible();
+
+    let stored = await page.evaluate(({ orgId }) => (
+      JSON.parse(localStorage.getItem(`cadenza:local:${orgId}:col:hoursEntries`) || '[]')
+    ), { orgId: TEST_ORG });
+    expect(stored[0].status).toBe('APPROVED');
+    expect(stored[0].rate).toBe(100);
+
+    await page.getByRole('button', { name: 'Mark approved paid' }).click();
+    await expect(payrollGroup.getByText('Paid').first()).toBeVisible();
+
+    stored = await page.evaluate(({ orgId }) => (
+      JSON.parse(localStorage.getItem(`cadenza:local:${orgId}:col:hoursEntries`) || '[]')
+    ), { orgId: TEST_ORG });
+    expect(stored[0].status).toBe('PAID');
+    expect(stored[0].rate).toBe(100);
+  });
+});

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronRight, ChevronLeft, X, Filter, Zap, List, Sparkles } from 'lucide-react';
 import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, Student, CalendarSubscription, HoursReport, AdminInboxItem } from './types';
-import type { ActivityV2, L1Subcategory, L2Subcategory, StaffMemberV2, StudentV2 } from './types/v2';
+import type { ActivityV2, L1Subcategory, L2Subcategory, OrgRoleV2, StaffMemberV2, StudentV2, TeachingAssignmentV2 } from './types/v2';
 import type { Family, LessonRecord, HoursEntry } from './types/blueprint';
 import { BLUEPRINT_COLLECTIONS } from './types/blueprint';
 import type { CalendarSidebarTab } from './types/calendarFilters';
@@ -30,7 +30,7 @@ import { ConservatoryBlueprint } from './components/ConservatoryBlueprint';
 import { SuperAdmin } from './components/SuperAdmin';
 import { AdminInbox } from './components/AdminInbox';
 import { StudentFamilyWorkspace } from './components/StudentFamilyWorkspace';
-import { TeacherSelfReportWorkspace } from './components/TeacherSelfReportWorkspace';
+import { PayrollWorkspace } from './components/PayrollWorkspace';
 import { OnboardingChecklist } from './components/OnboardingChecklist';
 
 import { TeacherHoursForm } from './components/TeacherHoursForm';
@@ -185,6 +185,8 @@ function AppContent() {
   const [l2Subs] = useSupabaseSync<L2Subcategory>(V2_COLLECTIONS.l2Subcategories, []);
   const [staffMembersV2] = useSupabaseSync<StaffMemberV2>(V2_COLLECTIONS.staffMembers, []);
   const [studentsV2] = useSupabaseSync<StudentV2>(V2_COLLECTIONS.students, []);
+  const [teachingAssignmentsV2] = useSupabaseSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
+  const [orgRolesV2] = useSupabaseSync<OrgRoleV2>(V2_COLLECTIONS.orgRoles, []);
 
   // Persistent Calendar State
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -661,17 +663,20 @@ function AppContent() {
         );
       case 'PAYROLL':
         return (
-          <TeacherSelfReportWorkspace
+          <PayrollWorkspace
             settings={settings}
             currentUser={currentUser}
             orgId={orgId}
             staffMembers={staffMembersV2}
             teachers={teachers}
+            teachingAssignments={teachingAssignmentsV2}
+            orgRoles={orgRolesV2}
             events={events}
             hoursEntries={hoursEntries}
             setHoursEntries={setHoursEntries}
             periodHeaders={hoursPeriodHeaders}
             setPeriodHeaders={setHoursPeriodHeaders}
+            canApprovePay={isAdmin || isSuperAdmin}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
           />
         );
