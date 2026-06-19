@@ -517,6 +517,235 @@ describe('Public registration intake mapping contracts', () => {
   });
 });
 
+describe('Payments/charges packet mapping contracts', () => {
+  it('maps charges as NORMALIZED rows with family-led lineage and numeric amount', () => {
+    const chargeSpec = tableSpecFor('charges');
+    expect(chargeSpec).toEqual({ table: 'charges', mode: 'NORMALIZED' });
+
+    const charge = {
+      id: 'charge_1',
+      orgId: 'ignored-client-org',
+      studentId: null,
+      familyId: 'family_1',
+      enrollmentId: 'enrollment_1',
+      description: 'September tuition',
+      amount: 1250.75,
+      currency: 'ILS',
+      dueDate: '2026-09-10',
+      status: 'PARTIAL',
+      periodLabel: '2026-09',
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T09:00:00.000Z',
+      createdBy: 'finance_1',
+      updatedBy: undefined,
+    };
+
+    const row = appToRow(chargeSpec, 'org_1', charge);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'charge_1',
+      student_id: null,
+      family_id: 'family_1',
+      enrollment_id: 'enrollment_1',
+      description: 'September tuition',
+      amount: 1250.75,
+      currency: 'ILS',
+      due_date: '2026-09-10',
+      status: 'PARTIAL',
+      period_label: '2026-09',
+      created_at: '2026-06-19T08:30:00.000Z',
+      updated_at: '2026-06-19T09:00:00.000Z',
+      created_by: 'finance_1',
+    });
+    expect('updated_by' in row).toBe(false);
+
+    expect(rowToApp(chargeSpec, row)).toEqual({
+      id: 'charge_1',
+      orgId: 'org_1',
+      studentId: null,
+      familyId: 'family_1',
+      enrollmentId: 'enrollment_1',
+      description: 'September tuition',
+      amount: 1250.75,
+      currency: 'ILS',
+      dueDate: '2026-09-10',
+      status: 'PARTIAL',
+      periodLabel: '2026-09',
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T09:00:00.000Z',
+      createdBy: 'finance_1',
+    });
+  });
+
+  it('maps payments as NORMALIZED rows while preserving appliedChargeIds jsonb', () => {
+    const paymentSpec = tableSpecFor('payments');
+    expect(paymentSpec).toEqual({ table: 'payments', mode: 'NORMALIZED' });
+
+    const payment = {
+      id: 'payment_1',
+      orgId: 'ignored-client-org',
+      studentId: null,
+      familyId: 'family_1',
+      amount: 750.25,
+      currency: 'ILS',
+      method: 'TRANSFER',
+      receivedAt: '2026-09-12T10:15:00.000Z',
+      reference: 'bank-ref-123',
+      appliedChargeIds: ['charge_1', 'charge_2'],
+      note: null,
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T09:00:00.000Z',
+      createdBy: 'finance_1',
+      updatedBy: undefined,
+    };
+
+    const row = appToRow(paymentSpec, 'org_1', payment);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'payment_1',
+      student_id: null,
+      family_id: 'family_1',
+      amount: 750.25,
+      currency: 'ILS',
+      method: 'TRANSFER',
+      received_at: '2026-09-12T10:15:00.000Z',
+      reference: 'bank-ref-123',
+      applied_charge_ids: ['charge_1', 'charge_2'],
+      note: null,
+      created_at: '2026-06-19T08:30:00.000Z',
+      updated_at: '2026-06-19T09:00:00.000Z',
+      created_by: 'finance_1',
+    });
+    expect('updated_by' in row).toBe(false);
+
+    expect(rowToApp(paymentSpec, row)).toEqual({
+      id: 'payment_1',
+      orgId: 'org_1',
+      studentId: null,
+      familyId: 'family_1',
+      amount: 750.25,
+      currency: 'ILS',
+      method: 'TRANSFER',
+      receivedAt: '2026-09-12T10:15:00.000Z',
+      reference: 'bank-ref-123',
+      appliedChargeIds: ['charge_1', 'charge_2'],
+      note: null,
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T09:00:00.000Z',
+      createdBy: 'finance_1',
+    });
+  });
+
+  it('maps adjustments as NORMALIZED rows with nullable charge lineage and approvedBy', () => {
+    const adjustmentSpec = tableSpecFor('adjustments');
+    expect(adjustmentSpec).toEqual({ table: 'adjustments', mode: 'NORMALIZED' });
+
+    const adjustment = {
+      id: 'adjustment_1',
+      orgId: 'ignored-client-org',
+      studentId: null,
+      familyId: 'family_1',
+      chargeId: null,
+      amount: -50.5,
+      currency: 'ILS',
+      reason: 'Sibling discount',
+      approvedBy: 'admin_1',
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T09:00:00.000Z',
+      createdBy: 'finance_1',
+      updatedBy: undefined,
+    };
+
+    const row = appToRow(adjustmentSpec, 'org_1', adjustment);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'adjustment_1',
+      student_id: null,
+      family_id: 'family_1',
+      charge_id: null,
+      amount: -50.5,
+      currency: 'ILS',
+      reason: 'Sibling discount',
+      approved_by: 'admin_1',
+      created_at: '2026-06-19T08:30:00.000Z',
+      updated_at: '2026-06-19T09:00:00.000Z',
+      created_by: 'finance_1',
+    });
+    expect('updated_by' in row).toBe(false);
+
+    expect(rowToApp(adjustmentSpec, row)).toEqual({
+      id: 'adjustment_1',
+      orgId: 'org_1',
+      studentId: null,
+      familyId: 'family_1',
+      chargeId: null,
+      amount: -50.5,
+      currency: 'ILS',
+      reason: 'Sibling discount',
+      approvedBy: 'admin_1',
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T09:00:00.000Z',
+      createdBy: 'finance_1',
+    });
+  });
+
+  it('maps balance_snapshots as NORMALIZED audit rows with computed totals', () => {
+    const snapshotSpec = tableSpecFor('balanceSnapshots');
+    expect(snapshotSpec).toEqual({ table: 'balance_snapshots', mode: 'NORMALIZED' });
+
+    const snapshot = {
+      id: 'snapshot_1',
+      orgId: 'ignored-client-org',
+      studentId: null,
+      familyId: 'family_1',
+      asOf: '2026-09-30T23:59:59.000Z',
+      totalCharged: 2500.5,
+      totalPaid: 750.25,
+      totalAdjusted: -50.5,
+      balance: 1699.75,
+      currency: 'ILS',
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T09:00:00.000Z',
+      createdBy: 'finance_1',
+      updatedBy: undefined,
+    };
+
+    const row = appToRow(snapshotSpec, 'org_1', snapshot);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'snapshot_1',
+      student_id: null,
+      family_id: 'family_1',
+      as_of: '2026-09-30T23:59:59.000Z',
+      total_charged: 2500.5,
+      total_paid: 750.25,
+      total_adjusted: -50.5,
+      balance: 1699.75,
+      currency: 'ILS',
+      created_at: '2026-06-19T08:30:00.000Z',
+      updated_at: '2026-06-19T09:00:00.000Z',
+      created_by: 'finance_1',
+    });
+    expect('updated_by' in row).toBe(false);
+
+    expect(rowToApp(snapshotSpec, row)).toEqual({
+      id: 'snapshot_1',
+      orgId: 'org_1',
+      studentId: null,
+      familyId: 'family_1',
+      asOf: '2026-09-30T23:59:59.000Z',
+      totalCharged: 2500.5,
+      totalPaid: 750.25,
+      totalAdjusted: -50.5,
+      balance: 1699.75,
+      currency: 'ILS',
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T09:00:00.000Z',
+      createdBy: 'finance_1',
+    });
+  });
+});
+
 describe('NORMALIZED mapping (real snake_case columns, nested jsonb)', () => {
   it('rowToApp converts top-level columns snake→camel and leaves nested jsonb intact', () => {
     const row = {

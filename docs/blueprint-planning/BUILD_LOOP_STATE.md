@@ -93,9 +93,9 @@ building the accepted P0 family-led finance ledger:
   party, rounds totals, and sorts open charge ids by due date.
 - Helper tests now cover partial-allocation balances, family-led default
   aggregation, mixed-currency rejection, and date/tie-boundary sorting.
-- `supabaseSync.test.ts` verifies the table map includes `charges`, but does not
-  yet cover full ledger row mapping for `charges`, `payments`, `adjustments`, or
-  `balanceSnapshots`, including `appliedChargeIds` jsonb.
+- `supabaseSync.test.ts` now covers full ledger row mapping for `charges`,
+  `payments`, `adjustments`, and `balanceSnapshots`, including numeric fields,
+  nullable lineage fields, `approvedBy`, and `appliedChargeIds` jsonb.
 - Static schema tests prove admin-or-finance policies exist for all ledger
   tables. The live RLS harness currently covers `charges` read visibility, but the
   queued RLS-LIVE unit still needs all ledger tables plus write/denial cases.
@@ -117,7 +117,7 @@ building the accepted P0 family-led finance ledger:
   implementation for family-led aggregation, partial allocation semantics, date
   boundaries/sorting, and D-20 single-currency invariants. Keep this limited to
   helper behavior and tests; no service/UI work.
-- [ ] MAP-UNIT-B Supabase mapping coverage: add round-trip tests for `charges`,
+- [x] MAP-UNIT-B Supabase mapping coverage: add round-trip tests for `charges`,
   `payments`, `adjustments`, and `balanceSnapshots`, including numeric fields,
   nullable lineage fields, `approvedBy`, and `appliedChargeIds` jsonb. No service
   or UI work.
@@ -177,10 +177,9 @@ building the accepted P0 family-led finance ledger:
 
 ## Next Unit
 
-- MAP-UNIT-B Supabase mapping coverage: add round-trip tests for `charges`,
-  `payments`, `adjustments`, and `balanceSnapshots`, including numeric fields,
-  nullable lineage fields, `approvedBy`, and `appliedChargeIds` jsonb. No service
-  or UI work.
+- Ledger service A: implement small, tested helpers for manual family-led charge
+  creation, payment recording/allocation, charge status derivation, and computed
+  family balances. Enforce D-20 and exclude D-25 instrument scope.
 
 ## Setup Notes For Next Agent
 
@@ -223,3 +222,12 @@ building the accepted P0 family-led finance ledger:
   (59 tests); `npm run typecheck -- --diagnostics` passed; `npx vitest run
   --reporter=dot` passed (251 tests). Playwright not run because MAP-UNIT-A has
   no UI workflow.
+- 2026-06-19 MAP-UNIT-B Supabase mapping coverage: added normalized ledger
+  mapping contract tests for `charges`, `payments`, `adjustments`, and
+  `balanceSnapshots`, covering numeric fields, nullable lineage fields,
+  `approvedBy`, `appliedChargeIds` jsonb, and undefined audit-column omission.
+  Changed files: `utils/supabaseSync.test.ts` and
+  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
+  `npx vitest run utils/supabaseSync.test.ts --reporter=dot` passed (26 tests);
+  `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
+  passed (255 tests). Playwright not run because MAP-UNIT-B has no UI workflow.
