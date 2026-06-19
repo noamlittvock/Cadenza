@@ -124,7 +124,7 @@ building the accepted P0 family-led finance ledger:
 - [x] Ledger service A: implement small, tested helpers for manual family-led
   charge creation, payment recording/allocation, charge status derivation, and
   computed family balances. Enforce D-20 and exclude D-25 instrument scope.
-- [ ] Ledger service B: implement small, tested helpers for adjustment posting,
+- [x] Ledger service B: implement small, tested helpers for adjustment posting,
   void/audit semantics, and snapshot history as audit-only records. Live current
   balances must remain computed on demand.
 - [ ] RLS-LIVE finance ledger run: prove admin and finance can read/write,
@@ -177,9 +177,9 @@ building the accepted P0 family-led finance ledger:
 
 ## Next Unit
 
-- Ledger service B: implement small, tested helpers for adjustment posting,
-  void/audit semantics, and snapshot history as audit-only records. Live current
-  balances must remain computed on demand.
+- RLS-LIVE finance ledger run: prove admin and finance can read/write, plain
+  member cannot read, anon denied, and cross-org denied against a real Supabase
+  project.
 
 ## Setup Notes For Next Agent
 
@@ -246,3 +246,17 @@ building the accepted P0 family-led finance ledger:
   tests); `npm run typecheck -- --diagnostics` passed; `npx vitest run
   --reporter=dot` passed (266 tests). Playwright not run because Ledger service
   A has no UI workflow.
+- 2026-06-19 Ledger service B: extended `utils/ledgerService.ts` with
+  admin/finance adjustment posting, audited charge voiding, explicit audit-only
+  balance snapshot recording, repository wrappers for `adjustments` and
+  `balanceSnapshots`, and live balance computation that remains sourced from
+  charges/payments/adjustments rather than snapshots. Added
+  `utils/ledgerService.test.ts` coverage for signed adjustments, void semantics,
+  snapshot history separation, immutable apply helpers, repository write behavior,
+  D-20 currency checks, and write-access denials. Changed files:
+  `utils/ledgerService.ts`, `utils/ledgerService.test.ts`, and
+  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
+  `npx vitest run utils/ledgerService.test.ts --reporter=dot` passed (18 tests);
+  `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
+  passed (273 tests). Playwright not run because Ledger service B has no UI
+  workflow.

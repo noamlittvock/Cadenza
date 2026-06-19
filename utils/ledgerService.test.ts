@@ -1,16 +1,23 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { Adjustment, Charge, Payment } from '../types/blueprint';
+import type { Adjustment, BalanceSnapshot, Charge, Payment } from '../types/blueprint';
 import {
   LedgerServiceError,
+  applyLedgerAdjustmentPlan,
   applyLedgerPaymentPlan,
+  buildFamilyAdjustment,
+  buildFamilyBalanceSnapshot,
   buildFamilyPaymentAllocation,
   buildManualFamilyCharge,
+  buildVoidFamilyCharge,
   computeFamilyLedgerBalance,
   createManualFamilyCharge,
   deriveFamilyChargeStatuses,
+  postFamilyAdjustment,
   recordFamilyPayment,
+  recordFamilyBalanceSnapshot,
   type LedgerRepository,
   type LedgerServiceContext,
+  voidFamilyCharge,
 } from './ledgerService';
 
 const T = '2026-06-19T10:00:00.000Z';
@@ -92,6 +99,8 @@ function repository(fixtures: {
     fetchAdjustments: vi.fn(async () => fixtures.adjustments ?? []),
     upsertCharges: vi.fn(async () => undefined),
     upsertPayments: vi.fn(async () => undefined),
+    upsertAdjustments: vi.fn(async () => undefined),
+    upsertBalanceSnapshots: vi.fn(async () => undefined),
   };
 }
 
@@ -406,5 +415,263 @@ describe('ledger service - computed family balances and repositories', () => {
     expect(repo.upsertPayments).toHaveBeenCalledWith('org_1', [plan.payment]);
     expect(repo.upsertCharges).toHaveBeenCalledWith('org_1', plan.updatedCharges);
     expect(repo.fetchAdjustments).toHaveBeenCalled();
+  });
+});
+
+describe('ledger service - adjustments, voids, and audit snapshots', () => {
+  it('posts signed adjustments with approval audit and derives the affected charge status', () => {
+    const plan = buildFamilyAdjustment({
+      input: {
+        familyId: 'family_1',
+        chargeId: 'charge_1',
+        amount: -500,
+        reason: 'Scholarship approval',
+      },
+      charges: [charge()],
+      payments: [],
+      adjustments: [],
+      context: financeContext,
+      idFactory: () => 'adjustment_new',
+    });
+
+    expect(plan.adjustment).toMatchObject({
+      id: 'adjustment_new',
+      orgId: 'org_1',
+      studentId: 'student_1',
+      familyId: 'family_1',
+      chargeId: 'charge_1',
+      amount: -500,
+      currency: 'ILS',
+      reason: 'Scholarship approval',
+      approvedBy: 'finance_user_1',
+      createdBy: 'finance_user_1',
+      updatedBy: 'finance_user_1',
+    });
+    expect(plan.updatedCharges.map(item => [item.id, item.status])).toEqual([['charge_1', 'PAID']]);
+    expect(plan.familyBalance).toMatchObject({
+      totalCharged: 500,
+      totalPaid: 0,
+      totalAdjusted: -500,
+      balance: 0,
+      openChargeIds: [],
+    });
+    expect('snapshot' in plan).toBe(false);
+  });
+
+  it('supports family-level adjustments without a charge while preserving immutable collection inputs', () => {
+    const charges = [charge()];
+    const adjustments: Adjustment[] = [];
+    const plan = buildFamilyAdjustment({
+      input: {
+        familyId: 'family_1',
+        studentId: 'student_1',
+        amount: 25,
+        reason: 'Late payment fee',
+        approvedBy: 'admin_override',
+      },
+      charges,
+      payments: [],
+      adjustments,
+      context: adminContext,
+      idFactory: () => 'adjustment_fee',
+    });
+    const next = applyLedgerAdjustmentPlan(charges, adjustments, plan);
+
+    expect(plan.adjustment).toMatchObject({
+      chargeId: null,
+      studentId: 'student_1',
+      amount: 25,
+      approvedBy: 'admin_override',
+    });
+    expect(plan.updatedCharges).toEqual([]);
+    expect(plan.familyBalance.balance).toBe(525);
+    expect(next.adjustments.map(item => item.id)).toEqual(['adjustment_fee']);
+    expect(adjustments).toHaveLength(0);
+    expect(charges[0].status).toBe('OPEN');
+  });
+
+  it('rejects adjustment writes without finance/admin access, reason, valid target charge, or single currency', () => {
+    expect(() => buildFamilyAdjustment({
+      input: { familyId: 'family_1', chargeId: 'charge_1', amount: -10, reason: 'Discount' },
+      charges: [charge()],
+      payments: [],
+      adjustments: [],
+      context: plainContext,
+      idFactory: () => 'adjustment_bad',
+    })).toThrowError(new LedgerServiceError(
+      'WRITE_ACCESS_REQUIRED',
+      'Only admin or finance users can write family ledger rows.',
+    ));
+
+    expect(() => buildFamilyAdjustment({
+      input: { familyId: 'family_1', chargeId: 'charge_1', amount: -10, reason: '  ' },
+      charges: [charge()],
+      payments: [],
+      adjustments: [],
+      context: adminContext,
+      idFactory: () => 'adjustment_bad',
+    })).toThrowError(new LedgerServiceError(
+      'ADJUSTMENT_REASON_REQUIRED',
+      'Ledger adjustments require an approval reason.',
+    ));
+
+    expect(() => buildFamilyAdjustment({
+      input: { familyId: 'family_1', chargeId: 'charge_1', amount: 0, reason: 'No-op' },
+      charges: [charge()],
+      payments: [],
+      adjustments: [],
+      context: adminContext,
+      idFactory: () => 'adjustment_bad',
+    })).toThrowError(new LedgerServiceError(
+      'INVALID_AMOUNT',
+      'amount must be a non-zero amount.',
+    ));
+
+    expect(() => buildFamilyAdjustment({
+      input: { familyId: 'family_1', chargeId: 'charge_1', amount: -10, currency: 'USD', reason: 'Discount' },
+      charges: [charge()],
+      payments: [],
+      adjustments: [],
+      context: adminContext,
+      idFactory: () => 'adjustment_bad',
+    })).toThrowError(new LedgerServiceError(
+      'INVALID_CURRENCY',
+      'Family ledger currency must be ILS; received USD.',
+    ));
+
+    expect(() => buildFamilyAdjustment({
+      input: { familyId: 'family_1', chargeId: 'charge_1', amount: -10, reason: 'Discount' },
+      charges: [charge({ status: 'VOID' })],
+      payments: [],
+      adjustments: [],
+      context: adminContext,
+      idFactory: () => 'adjustment_bad',
+    })).toThrowError(new LedgerServiceError(
+      'CHARGE_VOID',
+      'Charge charge_1 is void and cannot receive an adjustment.',
+    ));
+  });
+
+  it('voids charges as an audited status transition without deleting rows or writing snapshots', () => {
+    const plan = buildVoidFamilyCharge({
+      input: { familyId: 'family_1', chargeId: 'charge_1' },
+      charges: [charge(), charge({ id: 'charge_2', amount: 100, dueDate: '2026-07-01' })],
+      payments: [],
+      adjustments: [adjustment({ amount: -50 })],
+      context: financeContext,
+    });
+
+    expect(plan.charge).toMatchObject({
+      id: 'charge_1',
+      status: 'VOID',
+      updatedAt: LATER,
+      updatedBy: 'finance_user_1',
+    });
+    expect(plan.updatedCharges).toEqual([plan.charge]);
+    expect(plan.familyBalance).toMatchObject({
+      totalCharged: 100,
+      totalPaid: 0,
+      totalAdjusted: 0,
+      balance: 100,
+      openChargeIds: ['charge_2'],
+    });
+    expect('snapshot' in plan).toBe(false);
+  });
+
+  it('keeps live balances computed from ledger rows, not from existing snapshot history', () => {
+    const charges = [charge({ amount: 500 })];
+    const payments = [payment({ amount: 125 })];
+    const adjustments = [adjustment({ amount: -25 })];
+    const staleSnapshot: BalanceSnapshot = {
+      ...base,
+      id: 'snapshot_stale',
+      studentId: null,
+      familyId: 'family_1',
+      asOf: '2026-06-01T00:00:00.000Z',
+      totalCharged: 1,
+      totalPaid: 1,
+      totalAdjusted: 1,
+      balance: 1,
+      currency: 'ILS',
+    };
+
+    const liveBalance = computeFamilyLedgerBalance({
+      familyId: 'family_1',
+      charges,
+      payments,
+      adjustments,
+      context: adminContext,
+    });
+    const snapshot = buildFamilyBalanceSnapshot({
+      familyId: 'family_1',
+      charges,
+      payments,
+      adjustments,
+      context: adminContext,
+      idFactory: () => 'snapshot_new',
+      asOf: '2026-06-30T23:59:59.000Z',
+    });
+
+    expect(staleSnapshot.balance).toBe(1);
+    expect(liveBalance).toMatchObject({
+      totalCharged: 500,
+      totalPaid: 125,
+      totalAdjusted: -25,
+      balance: 350,
+    });
+    expect(snapshot).toMatchObject({
+      id: 'snapshot_new',
+      familyId: 'family_1',
+      studentId: null,
+      asOf: '2026-06-30T23:59:59.000Z',
+      totalCharged: 500,
+      totalPaid: 125,
+      totalAdjusted: -25,
+      balance: 350,
+      currency: 'ILS',
+      createdBy: 'admin_user_1',
+    });
+  });
+
+  it('persists adjustment rows and only the derived charge status updates', async () => {
+    const repo = repository({ charges: [charge()] });
+    const plan = await postFamilyAdjustment({
+      input: { familyId: 'family_1', chargeId: 'charge_1', amount: -500, reason: 'Scholarship' },
+      context: adminContext,
+      idFactory: () => 'adjustment_repo',
+      repository: repo,
+    });
+
+    expect(plan.adjustment.id).toBe('adjustment_repo');
+    expect(repo.upsertAdjustments).toHaveBeenCalledWith('org_1', [plan.adjustment]);
+    expect(repo.upsertCharges).toHaveBeenCalledWith('org_1', plan.updatedCharges);
+    expect(repo.upsertPayments).not.toHaveBeenCalled();
+    expect(repo.upsertBalanceSnapshots).not.toHaveBeenCalled();
+  });
+
+  it('persists void status updates and audit snapshots through separate explicit calls', async () => {
+    const repo = repository({
+      charges: [charge()],
+      payments: [payment({ amount: 100 })],
+      adjustments: [adjustment({ amount: -50 })],
+    });
+
+    const voidPlan = await voidFamilyCharge({
+      input: { familyId: 'family_1', chargeId: 'charge_1' },
+      context: adminContext,
+      repository: repo,
+    });
+    const snapshot = await recordFamilyBalanceSnapshot({
+      familyId: 'family_1',
+      context: adminContext,
+      idFactory: () => 'snapshot_repo',
+      repository: repo,
+      asOf: '2026-06-30T23:59:59.000Z',
+    });
+
+    expect(voidPlan.charge.status).toBe('VOID');
+    expect(repo.upsertCharges).toHaveBeenCalledWith('org_1', [voidPlan.charge]);
+    expect(snapshot.id).toBe('snapshot_repo');
+    expect(repo.upsertBalanceSnapshots).toHaveBeenCalledWith('org_1', [snapshot]);
   });
 });

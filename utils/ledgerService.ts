@@ -1,4 +1,4 @@
-import type { Adjustment, Charge, IsoDate, IsoTimestamp, LedgerStatus, Payment } from '../types/blueprint';
+import type { Adjustment, BalanceSnapshot, Charge, IsoDate, IsoTimestamp, LedgerStatus, Payment } from '../types/blueprint';
 import { BLUEPRINT_COLLECTIONS } from '../types/blueprint';
 import { fetchCollectionItems, upsertCollectionItems } from './supabaseSync';
 
@@ -9,6 +9,7 @@ export type LedgerServiceErrorCode =
   | 'INVALID_AMOUNT'
   | 'INVALID_CURRENCY'
   | 'MIXED_CURRENCY'
+  | 'ADJUSTMENT_REASON_REQUIRED'
   | 'PAYMENT_ALLOCATION_REQUIRED'
   | 'CHARGE_NOT_FOUND'
   | 'CHARGE_FAMILY_MISMATCH'
@@ -44,6 +45,8 @@ export interface LedgerRepository {
   fetchAdjustments(orgId: string): Promise<Adjustment[]>;
   upsertCharges(orgId: string, charges: Charge[]): Promise<void>;
   upsertPayments(orgId: string, payments: Payment[]): Promise<void>;
+  upsertAdjustments(orgId: string, adjustments: Adjustment[]): Promise<void>;
+  upsertBalanceSnapshots(orgId: string, snapshots: BalanceSnapshot[]): Promise<void>;
 }
 
 export const supabaseLedgerRepository: LedgerRepository = {
@@ -52,6 +55,8 @@ export const supabaseLedgerRepository: LedgerRepository = {
   fetchAdjustments: orgId => fetchCollectionItems<Adjustment>(orgId, BLUEPRINT_COLLECTIONS.adjustments),
   upsertCharges: (orgId, charges) => upsertCollectionItems<Charge>(orgId, BLUEPRINT_COLLECTIONS.charges, charges),
   upsertPayments: (orgId, payments) => upsertCollectionItems<Payment>(orgId, BLUEPRINT_COLLECTIONS.payments, payments),
+  upsertAdjustments: (orgId, adjustments) => upsertCollectionItems<Adjustment>(orgId, BLUEPRINT_COLLECTIONS.adjustments, adjustments),
+  upsertBalanceSnapshots: (orgId, snapshots) => upsertCollectionItems<BalanceSnapshot>(orgId, BLUEPRINT_COLLECTIONS.balanceSnapshots, snapshots),
 };
 
 export interface ManualFamilyChargeInput {
@@ -77,6 +82,21 @@ export interface FamilyPaymentInput {
   appliedChargeIds: string[];
 }
 
+export interface FamilyAdjustmentInput {
+  familyId: string;
+  studentId?: string | null;
+  chargeId?: string | null;
+  amount: number;
+  currency?: string | null;
+  reason: string;
+  approvedBy?: string | null;
+}
+
+export interface VoidFamilyChargeInput {
+  familyId: string;
+  chargeId: string;
+}
+
 export interface FamilyBalanceSummary {
   familyId: string;
   currency: string;
@@ -89,6 +109,18 @@ export interface FamilyBalanceSummary {
 
 export interface LedgerPaymentAllocationPlan {
   payment: Payment;
+  updatedCharges: Charge[];
+  familyBalance: FamilyBalanceSummary;
+}
+
+export interface LedgerAdjustmentPlan {
+  adjustment: Adjustment;
+  updatedCharges: Charge[];
+  familyBalance: FamilyBalanceSummary;
+}
+
+export interface LedgerVoidChargePlan {
+  charge: Charge;
   updatedCharges: Charge[];
   familyBalance: FamilyBalanceSummary;
 }
@@ -110,6 +142,12 @@ function roundMoney(value: number): number {
 function assertPositiveMoney(value: number, field: string): void {
   if (!Number.isFinite(value) || value <= 0) {
     throw new LedgerServiceError('INVALID_AMOUNT', `${field} must be a positive amount.`);
+  }
+}
+
+function assertNonZeroMoney(value: number, field: string): void {
+  if (!Number.isFinite(value) || value === 0) {
+    throw new LedgerServiceError('INVALID_AMOUNT', `${field} must be a non-zero amount.`);
   }
 }
 
@@ -166,10 +204,14 @@ function familyPayments(payments: Payment[], familyId: string, orgId: string): P
 }
 
 function relatedFamilyAdjustments(adjustments: Adjustment[], charges: Charge[], familyId: string, orgId: string): Adjustment[] {
-  const familyChargeIds = new Set(familyCharges(charges, familyId, orgId).map(charge => charge.id));
+  const familyChargeById = new Map(familyCharges(charges, familyId, orgId).map(charge => [charge.id, charge]));
   return adjustments.filter(adjustment => (
     adjustment.orgId === orgId
-    && (adjustment.familyId === familyId || (adjustment.chargeId != null && familyChargeIds.has(adjustment.chargeId)))
+    && (adjustment.familyId === familyId || (adjustment.chargeId != null && familyChargeById.has(adjustment.chargeId)))
+    && (
+      adjustment.chargeId == null
+      || familyChargeById.get(adjustment.chargeId)?.status !== 'VOID'
+    )
   ));
 }
 
@@ -241,6 +283,24 @@ function deriveStatus(charge: Charge, adjustedAmount: number, paidAmount: number
   if (adjustedAmount <= 0 || paidAmount >= adjustedAmount) return 'PAID';
   if (paidAmount > 0 || adjustedAmount < charge.amount) return 'PARTIAL';
   return 'OPEN';
+}
+
+function findFamilyCharge(params: {
+  charges: Charge[];
+  familyId: string;
+  chargeId: string;
+  context: Pick<LedgerServiceContext, 'orgId'>;
+}): Charge {
+  const charge = params.charges.find(item => item.id === params.chargeId);
+  if (!charge) throw new LedgerServiceError('CHARGE_NOT_FOUND', `Charge ${params.chargeId} was not found.`);
+  assertOrg(charge, params.context.orgId);
+  if (charge.familyId !== params.familyId) {
+    throw new LedgerServiceError(
+      'CHARGE_FAMILY_MISMATCH',
+      `Charge ${params.chargeId} is not owned by family ${params.familyId}.`,
+    );
+  }
+  return charge;
 }
 
 export function buildManualFamilyCharge(params: {
@@ -499,6 +559,186 @@ export function applyLedgerPaymentPlan(charges: Charge[], payments: Payment[], p
   };
 }
 
+export function buildFamilyAdjustment(params: {
+  input: FamilyAdjustmentInput;
+  charges: Charge[];
+  payments: Payment[];
+  adjustments: Adjustment[];
+  context: LedgerServiceContext;
+  idFactory: () => string;
+}): LedgerAdjustmentPlan {
+  const { input, context } = params;
+  assertCanWrite(context);
+  assertFamilyId(input.familyId);
+  assertNonZeroMoney(input.amount, 'amount');
+  const reason = input.reason.trim();
+  if (!reason) {
+    throw new LedgerServiceError('ADJUSTMENT_REASON_REQUIRED', 'Ledger adjustments require an approval reason.');
+  }
+  const currency = inputCurrency(input.currency, context);
+  assertSingleFamilyCurrency({
+    familyId: input.familyId,
+    currency,
+    orgId: context.orgId,
+    charges: params.charges,
+    payments: params.payments,
+    adjustments: params.adjustments,
+  });
+
+  const targetCharge = input.chargeId
+    ? findFamilyCharge({
+      charges: params.charges,
+      familyId: input.familyId,
+      chargeId: input.chargeId,
+      context,
+    })
+    : null;
+  if (targetCharge) {
+    if (targetCharge.status === 'VOID') {
+      throw new LedgerServiceError('CHARGE_VOID', `Charge ${targetCharge.id} is void and cannot receive an adjustment.`);
+    }
+    assertCurrency(targetCharge.currency, currency, input.familyId);
+  }
+
+  const adjustment: Adjustment = {
+    id: params.idFactory(),
+    orgId: context.orgId,
+    studentId: input.studentId ?? targetCharge?.studentId ?? null,
+    familyId: input.familyId,
+    chargeId: targetCharge?.id ?? null,
+    amount: roundMoney(input.amount),
+    currency,
+    reason,
+    approvedBy: input.approvedBy ?? actorId(context.actor),
+    createdAt: context.now,
+    updatedAt: context.now,
+    createdBy: actorId(context.actor),
+    updatedBy: actorId(context.actor),
+  };
+
+  const nextAdjustments = [...params.adjustments, adjustment];
+  const derivedCharges = deriveFamilyChargeStatuses({
+    familyId: input.familyId,
+    charges: params.charges,
+    payments: params.payments,
+    adjustments: nextAdjustments,
+    context,
+  });
+  const originalById = new Map(params.charges.map(charge => [charge.id, charge]));
+  const updatedCharges = derivedCharges.filter(charge => originalById.get(charge.id)?.status !== charge.status);
+  const nextCharges = applyChargeUpdates(params.charges, updatedCharges);
+
+  return {
+    adjustment,
+    updatedCharges,
+    familyBalance: computeFamilyLedgerBalance({
+      familyId: input.familyId,
+      charges: nextCharges,
+      payments: params.payments,
+      adjustments: nextAdjustments,
+      context,
+    }),
+  };
+}
+
+export function applyLedgerAdjustmentPlan(charges: Charge[], adjustments: Adjustment[], plan: LedgerAdjustmentPlan): {
+  charges: Charge[];
+  adjustments: Adjustment[];
+} {
+  return {
+    charges: applyChargeUpdates(charges, plan.updatedCharges),
+    adjustments: [...adjustments, plan.adjustment],
+  };
+}
+
+export function buildVoidFamilyCharge(params: {
+  input: VoidFamilyChargeInput;
+  charges: Charge[];
+  payments: Payment[];
+  adjustments: Adjustment[];
+  context: LedgerServiceContext;
+}): LedgerVoidChargePlan {
+  const { input, context } = params;
+  assertCanWrite(context);
+  assertFamilyId(input.familyId);
+  const currency = contextCurrency(context);
+  assertSingleFamilyCurrency({
+    familyId: input.familyId,
+    currency,
+    orgId: context.orgId,
+    charges: params.charges,
+    payments: params.payments,
+    adjustments: params.adjustments,
+  });
+  const existing = findFamilyCharge({
+    charges: params.charges,
+    familyId: input.familyId,
+    chargeId: input.chargeId,
+    context,
+  });
+  if (existing.status === 'VOID') {
+    throw new LedgerServiceError('CHARGE_VOID', `Charge ${input.chargeId} is already void.`);
+  }
+  assertCurrency(existing.currency, currency, input.familyId);
+
+  const charge: Charge = {
+    ...existing,
+    status: 'VOID',
+    updatedAt: context.now,
+    updatedBy: actorId(context.actor),
+  };
+  const nextCharges = applyChargeUpdates(params.charges, [charge]);
+
+  return {
+    charge,
+    updatedCharges: [charge],
+    familyBalance: computeFamilyLedgerBalance({
+      familyId: input.familyId,
+      charges: nextCharges,
+      payments: params.payments,
+      adjustments: params.adjustments,
+      context,
+    }),
+  };
+}
+
+export function buildFamilyBalanceSnapshot(params: {
+  familyId: string;
+  charges: Charge[];
+  payments: Payment[];
+  adjustments: Adjustment[];
+  context: LedgerServiceContext;
+  idFactory: () => string;
+  asOf?: IsoTimestamp;
+  studentId?: string | null;
+}): BalanceSnapshot {
+  assertCanWrite(params.context);
+  const balance = computeFamilyLedgerBalance({
+    familyId: params.familyId,
+    charges: params.charges,
+    payments: params.payments,
+    adjustments: params.adjustments,
+    context: params.context,
+  });
+
+  return {
+    id: params.idFactory(),
+    orgId: params.context.orgId,
+    studentId: params.studentId ?? null,
+    familyId: params.familyId,
+    asOf: params.asOf ?? params.context.now,
+    totalCharged: balance.totalCharged,
+    totalPaid: balance.totalPaid,
+    totalAdjusted: balance.totalAdjusted,
+    balance: balance.balance,
+    currency: balance.currency,
+    createdAt: params.context.now,
+    updatedAt: params.context.now,
+    createdBy: actorId(params.context.actor),
+    updatedBy: actorId(params.context.actor),
+  };
+}
+
 export async function createManualFamilyCharge(params: {
   input: ManualFamilyChargeInput;
   context: LedgerServiceContext;
@@ -548,4 +788,81 @@ export async function recordFamilyPayment(params: {
     await repository.upsertCharges(params.context.orgId, plan.updatedCharges);
   }
   return plan;
+}
+
+export async function postFamilyAdjustment(params: {
+  input: FamilyAdjustmentInput;
+  context: LedgerServiceContext;
+  idFactory: () => string;
+  repository?: LedgerRepository;
+}): Promise<LedgerAdjustmentPlan> {
+  const repository = params.repository ?? supabaseLedgerRepository;
+  const [charges, payments, adjustments] = await Promise.all([
+    repository.fetchCharges(params.context.orgId),
+    repository.fetchPayments(params.context.orgId),
+    repository.fetchAdjustments(params.context.orgId),
+  ]);
+  const plan = buildFamilyAdjustment({
+    input: params.input,
+    charges,
+    payments,
+    adjustments,
+    context: params.context,
+    idFactory: params.idFactory,
+  });
+  await repository.upsertAdjustments(params.context.orgId, [plan.adjustment]);
+  if (plan.updatedCharges.length > 0) {
+    await repository.upsertCharges(params.context.orgId, plan.updatedCharges);
+  }
+  return plan;
+}
+
+export async function voidFamilyCharge(params: {
+  input: VoidFamilyChargeInput;
+  context: LedgerServiceContext;
+  repository?: LedgerRepository;
+}): Promise<LedgerVoidChargePlan> {
+  const repository = params.repository ?? supabaseLedgerRepository;
+  const [charges, payments, adjustments] = await Promise.all([
+    repository.fetchCharges(params.context.orgId),
+    repository.fetchPayments(params.context.orgId),
+    repository.fetchAdjustments(params.context.orgId),
+  ]);
+  const plan = buildVoidFamilyCharge({
+    input: params.input,
+    charges,
+    payments,
+    adjustments,
+    context: params.context,
+  });
+  await repository.upsertCharges(params.context.orgId, plan.updatedCharges);
+  return plan;
+}
+
+export async function recordFamilyBalanceSnapshot(params: {
+  familyId: string;
+  context: LedgerServiceContext;
+  idFactory: () => string;
+  repository?: LedgerRepository;
+  asOf?: IsoTimestamp;
+  studentId?: string | null;
+}): Promise<BalanceSnapshot> {
+  const repository = params.repository ?? supabaseLedgerRepository;
+  const [charges, payments, adjustments] = await Promise.all([
+    repository.fetchCharges(params.context.orgId),
+    repository.fetchPayments(params.context.orgId),
+    repository.fetchAdjustments(params.context.orgId),
+  ]);
+  const snapshot = buildFamilyBalanceSnapshot({
+    familyId: params.familyId,
+    charges,
+    payments,
+    adjustments,
+    context: params.context,
+    idFactory: params.idFactory,
+    asOf: params.asOf,
+    studentId: params.studentId,
+  });
+  await repository.upsertBalanceSnapshots(params.context.orgId, [snapshot]);
+  return snapshot;
 }
