@@ -164,10 +164,10 @@ of the actual primary workflow. Update the `forteTree` node status + packet head
 ## Traps (learned in the audit)
 
 - **Uniform RLS today:** every write is admin-only (`app_is_org_admin`), every read is any-member (`app_is_org_member`). Teacher self-write, finance-only read, and public submit each need an explicit refinement — they do **not** work out of the box.
-- **Dead-end ViewStates** stay hidden from the palette (`BILLING`, `ACADEMICS`,
-  `PAYROLL`, `ANALYTICS`); don't unhide one until its view is actually routed.
-  `STUDENTS` is now routed, and `INVENTORY` is intentionally an alias to
-  `Manage?tab=inventory`, not a top-level route.
+- **Dead-end ViewStates** stay hidden from the palette (`ACADEMICS`,
+  `ANALYTICS`); don't unhide one until its view is actually routed. `STUDENTS`,
+  `PAYROLL`, and `BILLING` are now routed, and `INVENTORY` is intentionally an
+  alias to `Manage?tab=inventory`, not a top-level route.
 - **`PublicEndpoint` is a ghost** (`forteTree.ts:1370`, no table) — Phase B `0004` creates it.
 - **Hybrid vs normalized mapping:** core tables store the doc under `data jsonb`; Blueprint tables use real columns with nested arrays as jsonb. `supabaseSync.ts` handles both — but it's untested, so a key typo silently corrupts normalized data.
 - **Type duplication:** `Student`/`StudentV2`, `Teacher`/`StaffMemberV2`, `CalendarEvent`/`EventV2`. Blueprint references V2; legacy hybrid tables may carry old shapes. **Student/Event conversion now lives in exactly one place — `utils/canonicalAdapters.ts`; route all legacy↔V2 conversion through it, never inline a second copy.** (`v2DocBuilders.ts` still has its own inline `Student→StudentV2` + `Teacher→StaffMemberV2` seed mapping — fold the student half into `studentToV2` when seeds next change; left as-is now to keep step 6 additive. Staff `Teacher`/`StaffMemberV2` has no D-04/D-05 mandate yet.)

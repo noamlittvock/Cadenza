@@ -7,6 +7,7 @@ export const BASE_URL = `http://localhost:3000/${TEST_ORG}`;
 const NAV_LABELS: Record<string, string> = {
   CALENDAR: 'Smart Calendar',
   PAYROLL: 'Payroll',
+  BILLING: 'Finance',
   STUDENTS: 'Students',
   STAFF_MEMBERS: 'Manage',
   MANAGE: 'Manage',

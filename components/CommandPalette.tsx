@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Search, Calendar, Users, GraduationCap, Cog, LayoutGrid, Inbox, Wrench, Shield, ListChecks, ListTree } from 'lucide-react';
+import { Search, Calendar, Users, GraduationCap, Cog, LayoutGrid, Inbox, Wrench, Shield, ListChecks, ListTree, Landmark } from 'lucide-react';
 import { ViewState, Teacher, Student, CalendarEvent } from '../types';
 import type { CalendarSidebarTab } from '../types/calendarFilters';
 import { isPaletteVisible, VIEW_ALIASES } from '../routing';
@@ -33,7 +33,7 @@ const NAV_ICONS: Record<ViewState, React.ReactNode> = {
   ADMIN_INBOX: <Inbox className="h-4 w-4" />,
   BLUEPRINT: <ListTree className="h-4 w-4" />,
   STUDENTS: <GraduationCap className="h-4 w-4" />,
-  BILLING: <ListChecks className="h-4 w-4" />,
+  BILLING: <Landmark className="h-4 w-4" />,
   ACADEMICS: <ListTree className="h-4 w-4" />,
   INVENTORY: <LayoutGrid className="h-4 w-4" />,
   PAYROLL: <ListChecks className="h-4 w-4" />,

@@ -66,9 +66,9 @@ building the accepted P0 family-led finance ledger:
 
 ## Baseline Known Findings - 2026-06-19
 
-- `payments-charges` packet is still `gap`; there is no routed Finance UI yet.
-- `BILLING` exists in `ViewState` but remains hidden/unrouted as a top-level
-  Finance view per route-nav-policy until this packet routes it.
+- `payments-charges` packet is still `gap`; `BILLING` now routes to the
+  top-level Finance surface and is palette-visible, but the full ledger workflow
+  remains queued.
 - Normalized tables already exist from `0002`: `charges`, `payments`,
   `adjustments`, and `balance_snapshots`.
 - `0004` ledger RLS grants admin or finance capability access for ledger tables;
@@ -83,10 +83,11 @@ building the accepted P0 family-led finance ledger:
 
 ## Baseline Audit Findings - 2026-06-19
 
-- `App.tsx` still has no `BILLING` route, `routing.ts` keeps `BILLING` hidden
-  from the command palette, and `Layout.tsx` has no Finance sidebar entry.
-- `App.tsx` does not subscribe to `charges`, `payments`, `adjustments`, or
-  `balanceSnapshots`; there is no Finance workspace component yet.
+- `BILLING` now routes to a real Finance surface, is included in `ROUTED_VIEWS`,
+  appears in the sidebar, and has a navigation smoke.
+- `App.tsx` now subscribes to `charges`, `payments`, `adjustments`, and
+  `balanceSnapshots` for the Finance surface. The full ledger list/detail/write
+  workflow remains queued.
 - `StudentFamilyWorkspace` has a finance tab placeholder only. It currently gates
   with admin/super-admin props and does not surface real ledger rows.
 - `listOpenBalances` now defaults to `FAMILY`, rejects mixed currencies per
@@ -133,7 +134,7 @@ building the accepted P0 family-led finance ledger:
 
 ### Stage 2 - Finance UI
 
-- [ ] Finance route/nav: route `BILLING` as top-level Finance, unhide palette
+- [x] Finance route/nav: route `BILLING` as top-level Finance, unhide palette
   only when the route renders a real surface, and keep public routes out of
   sidebar/palette.
 - [ ] Family-led ledger UI: list/search/filter families with balances; detail
@@ -164,7 +165,7 @@ building the accepted P0 family-led finance ledger:
 - [ ] Live balances are computed on demand; snapshots are audit/history only.
 - [x] Admin/finance ledger access passes real-role RLS; plain member/anon/cross
   org are denied.
-- [ ] `BILLING` routes to a real Finance surface before it is palette-visible.
+- [x] `BILLING` routes to a real Finance surface before it is palette-visible.
 - [ ] Finance UI covers charge creation, payment recording/allocation, balance
   display, void/adjustment path, empty/loading/error states, and export/read-only
   behavior.
@@ -177,9 +178,9 @@ building the accepted P0 family-led finance ledger:
 
 ## Next Unit
 
-- Finance route/nav: route `BILLING` as top-level Finance, unhide palette only
-  when the route renders a real surface, and keep public routes out of
-  sidebar/palette.
+- Family-led ledger UI: list/search/filter families with balances; detail view
+  for charges/payments/adjustments; create charge, record payment, void or
+  adjust; export/read-only states for finance; empty/loading/error states.
 
 ## Setup Notes For Next Agent
 
@@ -272,3 +273,20 @@ building the accepted P0 family-led finance ledger:
   --reporter=dot` passed (6 live tests); `npm run typecheck -- --diagnostics`
   passed; `npx vitest run --reporter=dot` passed (273 tests). Playwright not run
   because this RLS-LIVE unit has no UI workflow.
+- 2026-06-19 Finance route/nav: routed `BILLING` as the top-level Finance view,
+  added a real ledger-backed Finance surface with loading/empty/error states,
+  added the Finance sidebar entry and palette visibility through `ROUTED_VIEWS`,
+  updated route/navigation policy docs, and tightened the navigation smoke
+  locators while adding a Finance route assertion. Changed files: `App.tsx`,
+  `components/FinanceWorkspace.tsx`, `components/Layout.tsx`,
+  `components/CommandPalette.tsx`, `constants.ts`, `routing.ts`,
+  `routing.test.ts`, `e2e/helpers/navigate.ts`, `e2e/navigation.spec.ts`,
+  `docs/blueprint-planning/IMPLEMENTATION_HANDOFF.md`,
+  `docs/blueprint-planning/decision-log.md`,
+  `docs/blueprint-planning/packets/payments-charges.md`,
+  `docs/blueprint-planning/route-nav-policy.md`, and
+  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
+  `npx vitest run routing.test.ts --reporter=dot` passed (9 tests);
+  `npm run test:e2e -- e2e/navigation.spec.ts` passed (7 tests);
+  `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
+  passed (274 tests).

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronRight, ChevronLeft, X, Filter, Zap, List, Sparkles } from 'lucide-react';
 import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, Student, CalendarSubscription, HoursReport, AdminInboxItem } from './types';
 import type { ActivityV2, L1Subcategory, L2Subcategory, OrgRoleV2, StaffMemberV2, StudentV2, TeachingAssignmentV2 } from './types/v2';
-import type { Family, LessonRecord, HoursEntry } from './types/blueprint';
+import type { Adjustment, BalanceSnapshot, Charge, Family, LessonRecord, HoursEntry, Payment } from './types/blueprint';
 import { BLUEPRINT_COLLECTIONS } from './types/blueprint';
 import type { CalendarSidebarTab } from './types/calendarFilters';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, TRANSLATIONS, migrateTeacher, generateId } from './constants';
@@ -31,6 +31,7 @@ import { SuperAdmin } from './components/SuperAdmin';
 import { AdminInbox } from './components/AdminInbox';
 import { StudentFamilyWorkspace } from './components/StudentFamilyWorkspace';
 import { PayrollWorkspace } from './components/PayrollWorkspace';
+import { FinanceWorkspace } from './components/FinanceWorkspace';
 import { OnboardingChecklist } from './components/OnboardingChecklist';
 
 import { TeacherHoursForm } from './components/TeacherHoursForm';
@@ -54,6 +55,7 @@ const initialViewFromUrl = (): ViewState => {
   const pathParts = window.location.pathname.split('/').filter(Boolean);
   const section = pathParts[1]?.toLowerCase();
   if (section === 'payroll') return 'PAYROLL';
+  if (section === 'finance' || section === 'billing') return 'BILLING';
   const tab = new URLSearchParams(window.location.search).get('tab');
   return tab && MANAGE_TABS.has(tab) ? 'MANAGE' : 'CALENDAR';
 };
@@ -137,6 +139,10 @@ function AppContent() {
   const [students, setStudents, studentsLoading] = useSupabaseSync<Student>('students', []);
   const [families, setFamilies, familiesLoading] = useSupabaseSync<Family>(BLUEPRINT_COLLECTIONS.families, []);
   const [lessonRecords] = useSupabaseSync<LessonRecord>(BLUEPRINT_COLLECTIONS.lessonRecords, []);
+  const [charges, , chargesLoading] = useSupabaseSync<Charge>(BLUEPRINT_COLLECTIONS.charges, []);
+  const [payments, , paymentsLoading] = useSupabaseSync<Payment>(BLUEPRINT_COLLECTIONS.payments, []);
+  const [adjustments, , adjustmentsLoading] = useSupabaseSync<Adjustment>(BLUEPRINT_COLLECTIONS.adjustments, []);
+  const [balanceSnapshots, , balanceSnapshotsLoading] = useSupabaseSync<BalanceSnapshot>(BLUEPRINT_COLLECTIONS.balanceSnapshots, []);
   const [calendarSubscriptions, setCalendarSubscriptions] = useSupabaseSync<CalendarSubscription>('calendarSubscriptions', []);
   const [hoursReports, setHoursReports, hoursReportsLoading] = useSupabaseSync<HoursReport>('hoursReports', []);
   const [hoursEntries, setHoursEntries, hoursEntriesLoading] = useSupabaseSync<HoursEntry>(BLUEPRINT_COLLECTIONS.hoursEntries, []);
@@ -694,6 +700,19 @@ function AppContent() {
             canViewFinance={isAdmin || isSuperAdmin}
             studentsLoading={studentsLoading}
             familiesLoading={familiesLoading}
+            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+          />
+        );
+      case 'BILLING':
+        return (
+          <FinanceWorkspace
+            settings={settings}
+            families={families}
+            charges={charges}
+            payments={payments}
+            adjustments={adjustments}
+            balanceSnapshots={balanceSnapshots}
+            loading={chargesLoading || paymentsLoading || adjustmentsLoading || balanceSnapshotsLoading || familiesLoading}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
           />
         );

@@ -60,8 +60,8 @@ future-safe multi-currency mode).
   refund modeling is **BLOCKED ON D-25**.
 
 ## UX Placement (per route-nav-policy)
-- Home: **top-level Finance view** (reuse dead-end `BILLING` ViewState; un-dead-end per route-nav-policy). Family/student ledger also surfaces as a **gated tab** in student-family files.
-- Navigation entry: sidebar (add Finance) + palette (unhide BILLING when routed).
+- Home: **top-level Finance view** (routed through the `BILLING` ViewState per route-nav-policy). Family/student ledger also surfaces as a **gated tab** in student-family files.
+- Navigation entry: sidebar Finance + palette-visible `BILLING` destination.
 - Mobile: desktop-first (dense finance tables; PRODUCT.md operator displays). Not a mobile-primary workflow.
 - Empty/loading/error: no-charges state; payment-exceeds-balance warning; void confirmation.
 - Hebrew/RTL: currency/number formatting RTL-safe; amounts LTR-isolated within RTL.

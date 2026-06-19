@@ -59,7 +59,9 @@ alias. `STUDENTS`, `BILLING`, `ACADEMICS`, `PAYROLL`, and `ANALYTICS` stay hidde
 until their route and packet ship together. 2026-06-18 route-shell updates:
 `STUDENTS` is routed as the Student/Family top-level shell and palette-visible.
 `PAYROLL` is routed as the authenticated teacher self-report surface and
-palette-visible. `BILLING`, `ACADEMICS`, and `ANALYTICS` remain hidden.
+palette-visible. 2026-06-19 payments route update: `BILLING` is routed as the
+top-level Finance surface and palette-visible. `ACADEMICS` and `ANALYTICS`
+remain hidden.
 
 ### D-03 — Family as first-class record  🔴
 **Q:** Is `Family` a real editable source-of-truth table now, or a grouping
