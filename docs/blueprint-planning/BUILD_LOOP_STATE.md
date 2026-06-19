@@ -1,4 +1,4 @@
-BUILD ACTIVE
+BUILD COMPLETE
 
 This file is the implementation loop's durable memory. The next agent must read
 it in full before editing code. Authoritative specs remain:
@@ -26,7 +26,7 @@ BUILD COMPLETE
 - Latest committed checkpoint before this payroll loop:
   `b071afd` (`Complete attendance build loop`) on branch `blueprint-supabase`.
 
-## Current Objective
+## Completed Objective
 
 Phase C packet `payroll-salaries-hours`: promote from `embedded` to
 `implemented` by consolidating payroll around accepted D-18/D-19:
@@ -236,7 +236,7 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
 - [x] RLS-LIVE payroll run: run the live-role harness against a real Supabase
   project for the payroll workflow. Do not mark complete if only skipped local
   tests ran.
-- [ ] Status promotion: only after every queue unit is complete and every
+- [x] Status promotion: only after every queue unit is complete and every
   completion checklist item below is true, update `features/forteTree.ts` and
   the `payroll-salaries-hours` packet header to `implemented`, refresh handoff
   docs, append an iteration note here, and replace this file's first line with
@@ -244,28 +244,24 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
 
 ## Completion Checklist (all required before BUILD COMPLETE)
 
-- [ ] D-18/D-19 are reflected in code, tests, packet docs, and handoffs.
-- [ ] `HoursEntry` is the payroll source of truth; `HoursReport` is not used as
+- [x] D-18/D-19 are reflected in code, tests, packet docs, and handoffs.
+- [x] `HoursEntry` is the payroll source of truth; `HoursReport` is not used as
   a parallel totals ledger.
-- [ ] Teacher can create/edit/submit only own DRAFT/SUBMITTED entries.
-- [ ] Admin approval stamps the final payable rate using accepted P0 order.
-- [ ] Finance read/export cannot mutate approval/payment status.
-- [ ] PAID entries are immutable; corrections use new adjusting entries.
+- [x] Teacher can create/edit/submit only own DRAFT/SUBMITTED entries.
+- [x] Admin approval stamps the final payable rate using accepted P0 order.
+- [x] Finance read/export cannot mutate approval/payment status.
+- [x] PAID entries are immutable; corrections use new adjusting entries.
 - [x] Teacher self-report is mobile-reachable and covered at 390x844.
 - [x] Hebrew/RTL hours and payslip states are covered with LTR-isolated numbers.
 - [x] Playwright payroll smoke passed.
 - [x] RLS-LIVE passed against a real project for payroll.
 - [x] `npm run typecheck -- --diagnostics` passes.
 - [x] `npx vitest run --reporter=dot` passes.
-- [ ] No D-21-D-27 blocked section was implemented without a decision update.
+- [x] No D-21-D-27 blocked section was implemented without a decision update.
 
 ## Next Unit
 
-- Status promotion: only after every queue unit is complete and every completion
-  checklist item below is true, update `features/forteTree.ts` and the
-  `payroll-salaries-hours` packet header to `implemented`, refresh handoff docs,
-  append an iteration note here, and replace this file's first line with
-  `BUILD COMPLETE`.
+- None. The `payroll-salaries-hours` build loop is complete.
 
 ## Setup Notes For Next Agent
 
@@ -415,3 +411,19 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
   passed (2 payroll tests; unrelated live tests skipped by name filter);
   `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
   passed (21 files, 246 tests).
+- 2026-06-19 Status promotion for `payroll-salaries-hours`: promoted the feature
+  tree node and packet header to `implemented`, refreshed implementation
+  handoff, roadmap, and status-policy docs, confirmed completion checklist
+  coverage, and marked the payroll build loop complete. No D-21-D-27 blocked
+  section was implemented. Changed files: `features/forteTree.ts`,
+  `docs/blueprint-planning/packets/payroll-salaries-hours.md`,
+  `docs/blueprint-planning/IMPLEMENTATION_HANDOFF.md`,
+  `docs/blueprint-planning/IMPLEMENTATION_ROADMAP.md`,
+  `docs/blueprint-planning/status-policy.md`,
+  `docs/blueprint-planning/decision-log.md`, and
+  `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
+  `npx vitest run features/forteTree.consistency.test.ts utils/hoursEntryService.test.ts utils/blueprintQueries.test.ts routing.test.ts --reporter=dot`
+  passed (4 files, 79 tests);
+  `npm run typecheck -- --diagnostics` passed;
+  `npx vitest run --reporter=dot` passed (21 files, 246 tests);
+  `npm run test:e2e -- e2e/payroll-teacher.spec.ts` passed (5 tests).

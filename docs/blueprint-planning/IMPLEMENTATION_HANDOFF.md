@@ -41,6 +41,13 @@ header, rates are resolved by configurable policy and stamped at admin approval,
 and family ledgers use a single org/family currency in P0 while remaining
 future-safe for explicit multi-currency mode.
 
+**Phase C update — 2026-06-19:** `payroll-salaries-hours` is implemented under
+D-18/D-19. Payroll now uses normalized `HoursEntry` rows as source of truth,
+`HoursReport` period headers only, mobile teacher self-report, admin
+approval/rate stamping, PAID transition, finance read/export, legacy
+`hours_reports` reconciliation, Playwright workflow coverage, and live real-role
+RLS coverage.
+
 ## Orientation (read in this order)
 
 1. [`README.md`](README.md) — planning index + "what the audit changed".
@@ -92,7 +99,7 @@ RLS refinement + the missing mapping/RLS/schema tests.**
 | D-15 | Per-module backfill defined in each packet. D-04/D-05 settled as adapter, not rename, so there is **no global Student/Event data migration** for Phase C; any future runtime/persistence migration to V2 needs Noam. |
 | D-16 | **Use existing `families.guardians[]` jsonb for P0 guardian/contact data.** Do not block student/family, intake, or agreement P0 workflows on normalized guardian/contact identity. A future normalized guardian identity migration needs a new explicit decision. |
 | D-STATUS | `instrument-inventory` `gap → implemented` after the consistency check is green. |
-| D-STATUS-2 | Historical Pass 0 correction: `student-family-files` + `payroll-salaries-hours` -> `embedded`; registration/lesson/payments stayed `gap` at that time. Phase C later promoted `student-family-files` and `public-registration-intake` to `implemented`. |
+| D-STATUS-2 | Historical Pass 0 correction: `student-family-files` + `payroll-salaries-hours` -> `embedded`; registration/lesson/payments stayed `gap` at that time. Phase C later promoted `student-family-files`, `public-registration-intake`, `lesson-details-attendance`, and `payroll-salaries-hours` to `implemented`. |
 
 ## Parked Noam questions
 
@@ -130,7 +137,8 @@ allow and mark affected sections `BLOCKED ON D-xx`.
    `families.guardians[]` jsonb per accepted D-16).
 8. ✅ **public-registration-intake** (depends on 7 as conversion target; D-07/D-14 ready from Phase B). Extend `approveIntakeRecord` from student-only → student+family+enrollment+agreement-request+inbox-history, transactionally; guardian/contact data uses current `families.guardians[]` jsonb per accepted D-16.
 9. ✅ **lesson-details-attendance** (Calendar event-detail panel, mobile-reachable marking, unmarked worklist, student lesson history, and explicit teacher/admin preparation/materialization per accepted D-17 are implemented).
-10. **payroll-salaries-hours** (teacher self-report; D-18/D-19 accepted for P0).
+10. ✅ **payroll-salaries-hours** (teacher self-report, admin review/pay,
+    finance export; D-18/D-19 implemented for P0).
 11. **payments-charges** (Finance top-level view + gated student/family ledger tab; D-20 accepted for P0).
 
 P1/P2 modules (Pass 3) come after — packets are drafted and sequenced in

@@ -523,7 +523,7 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
   {
     id: 'payroll-salaries-hours',
     domain: 'finance',
-    status: 'embedded',
+    status: 'implemented',
     priority: 'p0',
     label: 'Payroll, salaries, and hours',
     labelHe: 'משכורות ודיווח שעות',
@@ -532,9 +532,9 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
     industryStandard:
       'Payroll must reconcile staff assignments and completed events against reported hours and approved exceptions.',
     cadenzaFit:
-      'Cadenza has HoursReport, TeacherHoursForm, EventParticipant, and financial specs; surface consolidation is the missing piece.',
+      'Cadenza now routes Payroll around normalized HoursEntry source rows, HoursReport period headers, teacher self-report, admin approval, and finance export.',
     nextStep:
-      'Restore or expose the finance dashboard route around HoursComparisonView and event participant cost rows.',
+      'Keep rate-card configuration, fixed compensation modes, and provider-specific payroll export as later scoped enhancements.',
     dataEntities: ['HoursReport', 'HoursEntry', 'EventParticipant', 'TeachingAssignmentV2', 'OrgRoleV2'],
     deterministicQueries: ['listPendingHoursReports', 'compareReportedVsCalendarHours', 'calculatePayslipRows'],
     embeddingText:
@@ -542,9 +542,9 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
     sourceSignalIds: ['app-nav-hebrew', 'cadenza-native-spine'],
     agentReadable: {
       stableId: 'payroll-salaries-hours',
-      canonicalFields: ['id', 'orgId', 'staffMemberId', 'periodStart', 'periodEnd', 'status', 'reportedEntries'],
-      readableJoins: ['events.id', 'eventParticipants.staffMemberId', 'teachingAssignments.id'],
-      auditFields: ['createdAt', 'submittedAt', 'reviewedAt', 'reviewedBy'],
+      canonicalFields: ['id', 'orgId', 'staffMemberId', 'date', 'reportedMinutes', 'calendarMinutes', 'eventId', 'rate', 'status'],
+      readableJoins: ['hoursReports.id', 'events.id', 'eventParticipants.staffMemberId', 'teachingAssignments.id'],
+      auditFields: ['createdAt', 'submittedAt', 'approvedAt', 'approvedBy', 'paidAt'],
     },
   },
   {

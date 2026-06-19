@@ -1,7 +1,6 @@
 # Payroll, Salaries, And Hours  (`payroll-salaries-hours`)
 
-Status: `embedded` (per `features/forteTree.ts` + **D-STATUS-2**) → target
-`implemented`. ·  Priority: p0
+Status: `implemented` (per `features/forteTree.ts`). ·  Priority: p0
 Owner-decisions still blocking this packet: none for the P0 payroll model.
 Current accepted prerequisites: **D-05** (canonical event adapter), **D-06**
 (teacher self-write with admin approval gate), **D-18** (HoursEntry source of
@@ -9,7 +8,9 @@ truth with HoursReport period header), and **D-19** (configurable rate policy
 stamped at admin approval) are implemented/accepted foundation, not open blockers.
 
 ## Current State (ground truth)
-- Existing UI: existing hours-reporting surface (native-ish; `hours_reports` hybrid). No consolidated payroll module.
+- Implemented UI: authenticated Payroll workspace with mobile-reachable teacher
+  self-report, admin review/approval, variance comparison, payable-rate
+  stamping, PAID transition, and finance read/export path.
 - Existing schema:
   - `hours_entries` (normalized, `0002`): `staffMemberId, date, reportedMinutes, calendarMinutes, eventId, rate, status (DRAFT|SUBMITTED|APPROVED|PAID)`.
   - `hours_reports` (core hybrid, `0001`): legacy report docs with `staffMemberId, token, periodStart, periodEnd, createdBy`.
@@ -20,7 +21,10 @@ stamped at admin approval) are implemented/accepted foundation, not open blocker
   - `listPendingHoursReports(hoursEntries)` — status=DRAFT.
   - `compareReportedVsCalendarHours(hoursEntries)` — reported vs calendar minutes per staff/date (variance).
   - `calculatePayslipRows(hoursEntries)` — rate × minutes per entry.
-- Existing tests: `utils/blueprintQueries.test.ts` covers all three. No payroll **workflow/UI** or variance-approval tests.
+- Existing tests: `utils/blueprintQueries.test.ts`,
+  `utils/hoursEntryService.test.ts`, Supabase mapping/RLS tests, live RLS
+  harness, and `e2e/payroll-teacher.spec.ts` cover payroll helper, workflow,
+  variance, approval/rate-stamping, Hebrew RTL, and mobile self-report paths.
 - Feature-tree declared queries: `listPendingHoursReports`, `compareReportedVsCalendarHours` (+ `calculatePayslipRows`) — implemented.
 
 ## Users And Permissions
@@ -62,9 +66,14 @@ stamped at admin approval) are implemented/accepted foundation, not open blocker
   employer-cost provisions, and payroll-provider disbursement remain outside P0.
 
 ## UX Placement (per route-nav-policy)
-- Home: **Manage tab or Finance sub-view** (dead-end `PAYROLL` ViewState — route per route-nav-policy; likely a Manage tab given config-like cadence). Teacher self-report is a lightweight surface reachable by teachers.
-- Navigation entry: admin via Manage/Finance; teacher self-report via own surface (not Manage, which is mobile-hidden/admin-gated).
-- Mobile: teacher self-report should be mobile-reachable (submit from phone); admin approval desktop-first.
+- Home: routed authenticated `PAYROLL` workspace. Teacher self-report is
+  mobile-reachable; admin review/export is available in the same operational
+  workspace for authorized users.
+- Navigation entry: `PAYROLL` is a real routed destination and is
+  command-palette visible. Public/tokenized routes do not get sidebar or palette
+  entries.
+- Mobile: teacher self-report is covered at 390x844; admin approval remains
+  desktop-first.
 - Empty/loading/error: nothing-pending state; variance-mismatch warning.
 - Hebrew/RTL: hours/amounts LTR-isolated within RTL; period labels Hebrew-calendar aware.
 
@@ -82,8 +91,12 @@ stamped at admin approval) are implemented/accepted foundation, not open blocker
 | Public submit/sign | — | — | — | — | — | — | No public payroll write; legacy `hours_reports.token` must not become a D-07 bypass. |
 
 Required RLS refinements/tests:
-- `0004` implements own-row teacher insert/update for DRAFT/SUBMITTED `hours_entries`; add real-role tests for own vs other staff rows and blocked APPROVED/PAID writes.
-- HoursReport↔HoursEntry consolidation must apply the same teacher-own/admin/finance-read scope to any legacy `hours_reports` surface.
+- `0004` implements own-row teacher insert/update for DRAFT/SUBMITTED
+  `hours_entries`; real-role tests prove own vs other staff rows and blocked
+  APPROVED/PAID writes.
+- HoursReport↔HoursEntry consolidation applies the same teacher-own/admin/
+  finance-read scope to legacy `hours_reports` surfaces; unauthenticated legacy
+  token writes are closed.
 
 ## Acceptance Criteria
 - Unit: `listPendingHoursReports`, `compareReportedVsCalendarHours`, `calculatePayslipRows`; add variance-edge + rate-resolution tests.

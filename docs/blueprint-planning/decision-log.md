@@ -430,7 +430,8 @@ to `embedded`; keep `public-registration-intake`, `lesson-details-attendance`,
 `lesson-details-attendance`, and `payments-charges` remained `gap`. Later Phase C
 work promoted `student-family-files` and `public-registration-intake` to
 `implemented`; the attendance build loop then promoted
-`lesson-details-attendance` to `implemented`; `payments-charges` remains `gap`.
+`lesson-details-attendance` to `implemented`; the payroll build loop promoted
+`payroll-salaries-hours` to `implemented`; `payments-charges` remains `gap`.
 The packet headers are reconciled with current tree statuses, and
 `features/forteTree.consistency.test.ts` is the status-policy gate.
 
