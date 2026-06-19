@@ -233,7 +233,7 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
 - [x] Playwright payroll workflow smoke: teacher submit hours -> admin compare
   variance -> approve with stamped rate -> payslip rows/export; include Hebrew
   RTL and 390x844 teacher self-report coverage.
-- [ ] RLS-LIVE payroll run: run the live-role harness against a real Supabase
+- [x] RLS-LIVE payroll run: run the live-role harness against a real Supabase
   project for the payroll workflow. Do not mark complete if only skipped local
   tests ran.
 - [ ] Status promotion: only after every queue unit is complete and every
@@ -254,16 +254,18 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
 - [x] Teacher self-report is mobile-reachable and covered at 390x844.
 - [x] Hebrew/RTL hours and payslip states are covered with LTR-isolated numbers.
 - [x] Playwright payroll smoke passed.
-- [ ] RLS-LIVE passed against a real project for payroll.
+- [x] RLS-LIVE passed against a real project for payroll.
 - [x] `npm run typecheck -- --diagnostics` passes.
 - [x] `npx vitest run --reporter=dot` passes.
 - [ ] No D-21-D-27 blocked section was implemented without a decision update.
 
 ## Next Unit
 
-- RLS-LIVE payroll run: run the live-role harness against a real Supabase
-  project for the payroll workflow. Do not mark complete if only skipped local
-  tests ran.
+- Status promotion: only after every queue unit is complete and every completion
+  checklist item below is true, update `features/forteTree.ts` and the
+  `payroll-salaries-hours` packet header to `implemented`, refresh handoff docs,
+  append an iteration note here, and replace this file's first line with
+  `BUILD COMPLETE`.
 
 ## Setup Notes For Next Agent
 
@@ -404,3 +406,12 @@ provisions, payroll-provider disbursement, or D-21-D-27 blocked side effects.
   `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
   passed (21 files, 246 tests). RLS-LIVE payroll run remains the next queue
   unit.
+- 2026-06-19 RLS-LIVE payroll run for `payroll-salaries-hours`: sourced live
+  RLS credentials from `.env.local` without printing secret values, confirmed
+  all required `CADENZA_RLS_*` variables by presence-only output, and ran the
+  focused live payroll role-boundary harness against the real Supabase project.
+  Changed files: `docs/blueprint-planning/BUILD_LOOP_STATE.md`. Verification:
+  `npx vitest run utils/rlsLive.test.ts -t "teacher self-write scope|payroll hours role boundaries" --reporter=dot`
+  passed (2 payroll tests; unrelated live tests skipped by name filter);
+  `npm run typecheck -- --diagnostics` passed; `npx vitest run --reporter=dot`
+  passed (21 files, 246 tests).
