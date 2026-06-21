@@ -287,7 +287,7 @@ export function computeScenarioDrift(base: ScenarioBaseData, scenario: Scenario,
           recordId: delta.recordId,
           title: delta.recordId,
           severity: 'missing' as const,
-          message: 'Referenced live event no longer exists.',
+          message: 'This event was deleted from the real schedule.',
         }];
       }
       if (delta.baseHash && delta.baseHash !== hashScenarioEventSource(current)) {
@@ -297,7 +297,7 @@ export function computeScenarioDrift(base: ScenarioBaseData, scenario: Scenario,
           recordId: delta.recordId,
           title: current.name || delta.recordId,
           severity: 'changed' as const,
-          message: 'Referenced live event changed after the scenario edit was made.',
+          message: 'This event changed in the real schedule after you edited it here.',
         }];
       }
       return [];
@@ -318,7 +318,7 @@ export function computeScenarioStaffReferenceDrift(base: ScenarioBaseData, scena
       recordId: event.id,
       title: event.name || event.id,
       severity: 'missing',
-      message: `Referenced staff member ${staffId} no longer exists.`,
+      message: `A staff member assigned here no longer exists.`,
     }));
   });
 }
@@ -435,8 +435,8 @@ export function buildScenarioPromoteRequest(params: {
     orgId: params.orgId,
     type: 'APPROVAL_REQUEST',
     status: 'OPEN',
-    title: `Promote scenario: ${params.scenario.name}`,
-    message: `${summary.changedRecords} changes, ${summary.conflictCount} conflicts, ${summary.driftCount} drift items.`,
+    title: `Apply plan: ${params.scenario.name}`,
+    message: `${summary.changedRecords} changes, ${summary.conflictCount} clashes, ${summary.driftCount} out-of-date items.`,
     relatedEntityType: 'SCENARIO_PROMOTE_REQUEST',
     relatedEntityIds: [params.scenario.id],
     requestedBy: params.requestedBy ?? undefined,

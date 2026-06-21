@@ -226,8 +226,8 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
           <div className="h-12 w-12 rounded-lg border border-white/30 flex items-center justify-center">
             <FlaskConical size={24} />
           </div>
-          <div className="[writing-mode:vertical-rl] rotate-180 text-xs font-black tracking-[0.28em]">SANDBOX</div>
-          <div className="mt-auto [writing-mode:vertical-rl] rotate-180 text-[10px] uppercase tracking-[0.22em] opacity-80">No live writes</div>
+          <div className="[writing-mode:vertical-rl] rotate-180 text-xs font-black tracking-[0.28em]">DRAFT</div>
+          <div className="mt-auto [writing-mode:vertical-rl] rotate-180 text-[10px] uppercase tracking-[0.22em] opacity-80">Not live</div>
         </aside>
 
         <main className="flex-1 min-w-0 flex flex-col">
@@ -237,33 +237,33 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                 <button className="lg:hidden p-2 -ms-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800" onClick={onMobileMenuOpen}>
                   <Menu size={20} />
                 </button>
-                <div className="rounded bg-amber-600 text-white px-2 py-1 text-[11px] font-black tracking-widest">SANDBOX</div>
+                <div className="rounded bg-amber-600 text-white px-2 py-1 text-[11px] font-black tracking-widest">DRAFT</div>
                 <div className="min-w-0">
                   <h2 className="text-lg font-bold truncate">{scenario.name}</h2>
-                  <p className="text-xs text-slate-500">Base snapshot {formatStamp}</p>
+                  <p className="text-xs text-slate-500">Copied from the live schedule on {formatStamp}</p>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-1.5 bg-slate-50 dark:bg-slate-950">{eventSet.events.length} events</span>
                 <span className={`rounded-lg border px-3 py-1.5 ${conflicts.length > 0 ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300' : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950'}`}>
-                  {conflicts.length} conflicts
+                  {conflicts.length} clashes
                 </span>
                 <span className={`rounded-lg border px-3 py-1.5 ${drift.length > 0 ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950'}`}>
-                  {drift.length} drift
+                  {drift.length} out of date
                 </span>
                 <button onClick={onBackToPlanning} className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 flex items-center gap-2">
-                  <ArrowLeft size={16} /> Planning
+                  <ArrowLeft size={16} /> Back to plan
                 </button>
               </div>
             </div>
           </div>
 
           <div className="shrink-0 px-4 py-2 bg-amber-100 dark:bg-amber-950/30 border-b border-amber-300 dark:border-amber-800 flex flex-wrap items-center gap-3 text-xs text-amber-900 dark:text-amber-100">
-            <span className="font-bold">Sandbox branch active</span>
-            <span>Edits write to scenario deltas only.</span>
-            <span>{diff.length} changed records</span>
-            <span>{eventSet.lockedContextEventIds.length} locked context records</span>
-            {eventSet.hiddenBaseEventIds.length > 0 && <span>{eventSet.hiddenBaseEventIds.length} hidden by lens</span>}
+            <span className="font-bold">You're editing a draft</span>
+            <span>Changes here don't affect the real calendar.</span>
+            <span>{diff.length} changes</span>
+            <span>{eventSet.lockedContextEventIds.length} read-only events</span>
+            {eventSet.hiddenBaseEventIds.length > 0 && <span>{eventSet.hiddenBaseEventIds.length} hidden</span>}
           </div>
 
           <div className="flex-1 overflow-hidden grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -271,8 +271,8 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
               <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
                   <div>
-                    <h3 className="font-bold">Calendar and room assignments</h3>
-                    <p className="text-xs text-slate-500">Room, date, and time edits are scenario-only.</p>
+                    <h3 className="font-bold">Schedule & rooms</h3>
+                    <p className="text-xs text-slate-500">Room, date, and time edits stay in this draft.</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden flex">
@@ -354,7 +354,7 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                           <option value="WEEK">Week</option>
                         </select>
                       </div>
-                      <div className="text-xs text-slate-500">Drag cards across day and room lanes. Time edits remain scenario deltas.</div>
+                      <div className="text-xs text-slate-500">Drag cards between days and rooms. Time edits stay in this draft.</div>
                     </div>
                     <div className="overflow-x-auto">
                       <div
@@ -498,14 +498,14 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                             className={`border-t border-slate-100 dark:border-slate-800 ${changed ? 'bg-amber-50/70 dark:bg-amber-950/20' : ''} ${hasConflict ? 'outline outline-1 outline-red-300 dark:outline-red-900' : ''}`}
                           >
                             <td className="px-3 py-2">
-                              {changed && <span className="block h-2.5 w-2.5 rounded-full bg-amber-600" title="Changed in scenario" />}
+                              {changed && <span className="block h-2.5 w-2.5 rounded-full bg-amber-600" title="Changed in this plan" />}
                             </td>
                             <td className="px-3 py-2">
                               <div className="font-semibold flex items-center gap-2">
                                 {hasConflict && <AlertTriangle size={14} className="text-red-600" />}
                                 <span className="truncate">{event.name}</span>
                               </div>
-                              <div className="text-xs text-slate-500 truncate">{roomName(liveById.get(event.id)?.roomId)} live source</div>
+                              <div className="text-xs text-slate-500 truncate">{roomName(liveById.get(event.id)?.roomId)} (now)</div>
                             </td>
                             <td className="px-3 py-2">
                               <input
@@ -570,8 +570,8 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                                 {changed && <span className="rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200 px-1.5 py-0.5 text-[11px] font-semibold">changed</span>}
                                 {staffChanged && <span className="rounded bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-200 px-1.5 py-0.5 text-[11px] font-semibold">staff</span>}
                                 {meta?.delta?.operation === 'create' && <span className="rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 px-1.5 py-0.5 text-[11px] font-semibold">created</span>}
-                                {locked && <span className="rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 text-[11px] font-semibold">locked</span>}
-                                {hasConflict && <span className="rounded bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 px-1.5 py-0.5 text-[11px] font-semibold">conflict</span>}
+                                {locked && <span className="rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 text-[11px] font-semibold">read-only</span>}
+                                {hasConflict && <span className="rounded bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 px-1.5 py-0.5 text-[11px] font-semibold">clash</span>}
                               </div>
                             </td>
                             <td className="px-3 py-2">
@@ -579,7 +579,7 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                                 disabled={locked}
                                 onClick={() => deleteEventDelta(event)}
                                 className="p-2 rounded text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/30 disabled:opacity-40"
-                                title="Delete in scenario"
+                                title="Remove from this draft"
                               >
                                 <Trash2 size={16} />
                               </button>
@@ -589,7 +589,7 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                       })}
                       {eventSet.events.length === 0 && (
                         <tr>
-                          <td colSpan={9} className="px-3 py-10 text-center text-slate-500">No events loaded by this sandbox lens.</td>
+                          <td colSpan={9} className="px-3 py-10 text-center text-slate-500">No events match this plan's setup.</td>
                         </tr>
                       )}
                     </tbody>
@@ -600,16 +600,16 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
 
             <aside className="border-s border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 overflow-y-auto custom-scrollbar p-4 space-y-4">
               <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-                <h3 className="font-bold mb-3 flex items-center gap-2"><GitBranch size={16} /> Scenario stamp</h3>
+                <h3 className="font-bold mb-3 flex items-center gap-2"><GitBranch size={16} /> Plan setup</h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2"><CalendarDays size={15} className="text-slate-400" /> {scenario.lens.dateRange.start} to {scenario.lens.dateRange.end}</div>
-                  <div className="flex items-center gap-2"><DoorOpen size={15} className="text-slate-400" /> {scenario.lens.includedRoomIds.length || 'All'} room scope</div>
-                  <div className="flex items-center gap-2"><Clock size={15} className="text-slate-400" /> {scenario.lens.startMode === 'BLANK_SLATE' ? 'Blank slate' : 'Live snapshot'}</div>
+                  <div className="flex items-center gap-2"><DoorOpen size={15} className="text-slate-400" /> {scenario.lens.includedRoomIds.length || 'All'} rooms</div>
+                  <div className="flex items-center gap-2"><Clock size={15} className="text-slate-400" /> {scenario.lens.startMode === 'BLANK_SLATE' ? 'Empty schedule' : 'Current schedule'}</div>
                 </div>
               </div>
 
               <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-                <h3 className="font-bold mb-3">Conflicts</h3>
+                <h3 className="font-bold mb-3">Double-bookings</h3>
                 <div className="space-y-2">
                   {conflicts.slice(0, 8).map(conflict => (
                     <div key={`${conflict.eventA.id}-${conflict.eventB.id}`} className="rounded border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/20 p-2 text-xs">
@@ -617,12 +617,12 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                       <div>{conflict.eventA.name} / {conflict.eventB.name}</div>
                     </div>
                   ))}
-                  {conflicts.length === 0 && <div className="text-sm text-slate-500">No room conflicts in the sandbox event set.</div>}
+                  {conflicts.length === 0 && <div className="text-sm text-slate-500">No double-bookings in this draft.</div>}
                 </div>
               </div>
 
               <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-                <h3 className="font-bold mb-3">Drift</h3>
+                <h3 className="font-bold mb-3">Out of date</h3>
                 <div className="space-y-2">
                   {drift.map(item => (
                     <div key={item.id} className="rounded border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/20 p-2 text-xs">
@@ -630,7 +630,7 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                       <div>{item.message}</div>
                     </div>
                   ))}
-                  {drift.length === 0 && <div className="text-sm text-slate-500">No stale source records detected.</div>}
+                  {drift.length === 0 && <div className="text-sm text-slate-500">The real schedule hasn't changed since you started.</div>}
                 </div>
               </div>
             </aside>

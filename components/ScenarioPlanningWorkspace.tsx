@@ -44,9 +44,9 @@ const defaultLens = (): ScenarioLens => ({
 });
 
 const behaviorLabels: Record<ScenarioExcludedRecordsBehavior, string> = {
-  HIDDEN: 'Hidden',
-  LOCKED_CONTEXT: 'Locked context',
-  IGNORED: 'Ignored',
+  HIDDEN: 'Hide them',
+  LOCKED_CONTEXT: "Show, but don't allow edits",
+  IGNORED: 'Leave them out',
 };
 
 export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps> = ({
@@ -104,7 +104,7 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
     const scenario: Scenario = {
       id: generateId(),
       orgId: orgId || undefined,
-      name: draftName.trim() || `Scenario ${scenarios.length + 1}`,
+      name: draftName.trim() || `Plan ${scenarios.length + 1}`,
       createdAt: now,
       updatedAt: now,
       baseSnapshotAt: now,
@@ -149,7 +149,7 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
   };
 
   const deleteScenario = (scenario: Scenario) => {
-    if (!window.confirm(`Delete "${scenario.name}"? Scenario deltas will be discarded.`)) return;
+    if (!window.confirm(`Delete "${scenario.name}"? Any changes in this plan will be discarded.`)) return;
     void setScenarios(prev => prev.filter(item => item.id !== scenario.id));
     void setScenarioDeltas(prev => prev.filter(delta => delta.scenarioId !== scenario.id));
     setSelectedScenarioId(null);
@@ -203,25 +203,25 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
           </button>
           <FlaskConical size={19} className="text-amber-600" />
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-wide">Scenario Planning</h2>
-            <p className="text-[11px] text-slate-500">Rooms and calendar sandbox setup</p>
+            <h2 className="text-sm font-bold uppercase tracking-wide">What-if Plans</h2>
+            <p className="text-[11px] text-slate-500">Try schedule changes without affecting the real calendar</p>
           </div>
         </div>
         <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex gap-2">
           <input
             value={draftName}
             onChange={event => setDraftName(event.target.value)}
-            placeholder="New scenario name"
+            placeholder="New plan name"
             className="min-w-0 flex-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
           />
-          <button onClick={createScenario} className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white px-3 py-2 rounded-lg" title="Create scenario">
+          <button onClick={createScenario} className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white px-3 py-2 rounded-lg" title="Create plan">
             <Plus size={18} />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
           {scenarioRows.length === 0 && (
             <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-700 p-5 text-sm text-slate-500">
-              Create a scenario to configure a sandbox launch.
+              Create a plan to start trying out schedule changes.
             </div>
           )}
           {scenarioRows.map(({ scenario, summary }) => (
@@ -239,12 +239,12 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
                   <div className="font-semibold truncate">{scenario.name}</div>
                   <div className="text-xs text-slate-500 mt-0.5">{scenario.lens.dateRange.start} to {scenario.lens.dateRange.end}</div>
                 </div>
-                <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-600 text-white">SANDBOX</span>
+                <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-600 text-white">DRAFT</span>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
-                <span className="rounded bg-slate-100 dark:bg-slate-800 py-1">{summary.changedRecords} changed</span>
-                <span className="rounded bg-slate-100 dark:bg-slate-800 py-1">{summary.conflictCount} conflicts</span>
-                <span className="rounded bg-slate-100 dark:bg-slate-800 py-1">{summary.driftCount} drift</span>
+                <span className="rounded bg-slate-100 dark:bg-slate-800 py-1">{summary.changedRecords} changes</span>
+                <span className="rounded bg-slate-100 dark:bg-slate-800 py-1">{summary.conflictCount} clashes</span>
+                <span className="rounded bg-slate-100 dark:bg-slate-800 py-1">{summary.driftCount} out of date</span>
               </div>
             </button>
           ))}
@@ -253,7 +253,7 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
 
       <main className="flex-1 overflow-y-auto custom-scrollbar">
         {!selectedScenario ? (
-          <div className="p-8 text-slate-500">Select or create a scenario.</div>
+          <div className="p-8 text-slate-500">Select or create a plan.</div>
         ) : (
           <div className="p-6 max-w-7xl mx-auto space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -261,16 +261,16 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
                 <div className="flex items-center gap-2">
                   <input
                     value={selectedScenario.name}
-                    onChange={event => updateSelectedScenario({ name: event.target.value || 'Untitled scenario' })}
+                    onChange={event => updateSelectedScenario({ name: event.target.value || 'Untitled plan' })}
                     className="text-2xl font-bold bg-transparent border-b border-transparent hover:border-slate-300 focus:border-amber-500 focus:outline-none"
                   />
                   {selectedDrift.length > 0 && <AlertTriangle size={18} className="text-amber-600" />}
                 </div>
                 <p className="text-sm text-slate-500 mt-1">
-                  Base snapshot {new Date(selectedScenario.baseSnapshotAt).toLocaleString(settings.language)}
+                  Copied from the live schedule on {new Date(selectedScenario.baseSnapshotAt).toLocaleString(settings.language)}
                   {selectedPromoteRequest?.scenarioPromoteRequest && (
                     <span className="ms-2 rounded bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-200 px-2 py-0.5 text-xs font-semibold">
-                      Promote {selectedPromoteRequest.scenarioPromoteRequest.status}
+                      Approval {selectedPromoteRequest.scenarioPromoteRequest.status}
                     </span>
                   )}
                 </p>
@@ -294,37 +294,37 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
                   className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 disabled:border-slate-200 disabled:dark:border-slate-800 disabled:text-slate-400 text-sm flex items-center gap-2 disabled:cursor-not-allowed"
                   title={
                     !selectedSummary || selectedSummary.changedRecords === 0
-                      ? 'No scenario changes to request'
+                      ? 'No changes to send yet'
                       : selectedSummary.conflictCount > 0 || selectedSummary.driftCount > 0
-                        ? 'Resolve conflicts and drift before requesting promotion'
-                        : 'Create a scenario promote request'
+                        ? 'Resolve clashes and out-of-date items before sending'
+                        : 'Send these changes for approval'
                   }
                 >
-                  <Save size={16} /> Request promote
+                  <Save size={16} /> Send for approval
                 </button>
                 <button onClick={() => onLaunchSandbox(selectedScenario.id)} className="btn-cadenza bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
-                  <Play size={16} /> Open sandbox
+                  <Play size={16} /> Open draft
                 </button>
               </div>
             </div>
 
             <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-5">
               <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-                <h3 className="font-bold mb-4">Launch setup</h3>
+                <h3 className="font-bold mb-4">What's included</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <label className="text-sm">
-                    <span className="block text-xs font-semibold text-slate-500 mb-1">Start mode</span>
+                    <span className="block text-xs font-semibold text-slate-500 mb-1">Start from</span>
                     <select
                       value={selectedScenario.lens.startMode}
                       onChange={event => updateLens({ startMode: event.target.value as ScenarioStartMode })}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2"
                     >
-                      <option value="LIVE_SNAPSHOT">Live snapshot</option>
-                      <option value="BLANK_SLATE">Blank slate</option>
+                      <option value="LIVE_SNAPSHOT">The current schedule</option>
+                      <option value="BLANK_SLATE">An empty schedule</option>
                     </select>
                   </label>
                   <label className="text-sm">
-                    <span className="block text-xs font-semibold text-slate-500 mb-1">Excluded records</span>
+                    <span className="block text-xs font-semibold text-slate-500 mb-1">Events outside this plan</span>
                     <select
                       value={selectedScenario.lens.excludedRecordsBehavior}
                       onChange={event => updateLens({ excludedRecordsBehavior: event.target.value as ScenarioExcludedRecordsBehavior })}
@@ -354,7 +354,7 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
                 </div>
 
                 <div className="mt-5">
-                  <div className="text-xs font-semibold text-slate-500 mb-2">Included rooms</div>
+                  <div className="text-xs font-semibold text-slate-500 mb-2">Rooms in this plan</div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                     {rooms.map(room => (
                       <label key={room.id} className="flex items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 text-sm">
@@ -363,12 +363,12 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
                       </label>
                     ))}
                   </div>
-                  <p className="text-xs text-slate-500 mt-2">No selected rooms means all rooms are included.</p>
+                  <p className="text-xs text-slate-500 mt-2">Leave empty to include all rooms.</p>
                 </div>
 
                 <div className="mt-5 grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div>
-                    <div className="text-xs font-semibold text-slate-500 mb-2">Activity filters</div>
+                    <div className="text-xs font-semibold text-slate-500 mb-2">Activities</div>
                     <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800 p-2 space-y-1">
                       {activities.slice(0, 20).map(activity => (
                         <label key={activity.id} className="flex items-center gap-2 px-2 py-1 text-sm">
@@ -376,11 +376,11 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
                           <span className="truncate">{activity.name}</span>
                         </label>
                       ))}
-                      {activities.length === 0 && <div className="text-sm text-slate-500 p-2">No activities loaded.</div>}
+                      {activities.length === 0 && <div className="text-sm text-slate-500 p-2">No activities available.</div>}
                     </div>
                   </div>
                   <div>
-                    <div className="text-xs font-semibold text-slate-500 mb-2">Staff filters</div>
+                    <div className="text-xs font-semibold text-slate-500 mb-2">Teachers & staff</div>
                     <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800 p-2 space-y-1">
                       {staff.slice(0, 30).map(member => (
                         <label key={member.id} className="flex items-center gap-2 px-2 py-1 text-sm">
@@ -388,7 +388,7 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
                           <span className="truncate">{member.fullName}</span>
                         </label>
                       ))}
-                      {staff.length === 0 && <div className="text-sm text-slate-500 p-2">No staff loaded.</div>}
+                      {staff.length === 0 && <div className="text-sm text-slate-500 p-2">No staff available.</div>}
                     </div>
                   </div>
                   <label className="text-sm">
@@ -396,11 +396,11 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
                     <input
                       value={selectedScenario.lens.includedEventTags.join(', ')}
                       onChange={event => updateLens({ includedEventTags: event.target.value.split(',').map(tag => tag.trim()).filter(Boolean) })}
-                      placeholder="Comma-separated tags"
+                      placeholder="e.g. recital, makeup"
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2"
                     />
                     <div className="mt-4 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3 text-xs text-slate-500">
-                      Editable: calendar events, room assignments. Reference-only: rooms, activities, staff.
+                      You can edit events and their rooms, dates, times, and staff. Rooms, activities, and staff lists themselves stay read-only.
                     </div>
                   </label>
                 </div>
@@ -409,23 +409,23 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
               <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <GitCompareArrows size={17} className="text-amber-600" />
-                  <h3 className="font-bold">Scenario impact</h3>
+                  <h3 className="font-bold">Plan summary</h3>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center text-sm mb-4">
-                  <div className="rounded-lg bg-slate-100 dark:bg-slate-800 py-3"><div className="text-xl font-bold">{selectedDiff.length}</div><div className="text-xs text-slate-500">changed</div></div>
-                  <div className="rounded-lg bg-slate-100 dark:bg-slate-800 py-3"><div className="text-xl font-bold">{computeScenarioSummary(base, selectedScenario, scenarioDeltas).conflictCount}</div><div className="text-xs text-slate-500">conflicts</div></div>
-                  <div className="rounded-lg bg-slate-100 dark:bg-slate-800 py-3"><div className="text-xl font-bold">{selectedDrift.length}</div><div className="text-xs text-slate-500">drift</div></div>
+                  <div className="rounded-lg bg-slate-100 dark:bg-slate-800 py-3"><div className="text-xl font-bold">{selectedDiff.length}</div><div className="text-xs text-slate-500">changes</div></div>
+                  <div className="rounded-lg bg-slate-100 dark:bg-slate-800 py-3"><div className="text-xl font-bold">{computeScenarioSummary(base, selectedScenario, scenarioDeltas).conflictCount}</div><div className="text-xs text-slate-500">clashes</div></div>
+                  <div className="rounded-lg bg-slate-100 dark:bg-slate-800 py-3"><div className="text-xl font-bold">{selectedDrift.length}</div><div className="text-xs text-slate-500">out of date</div></div>
                 </div>
                 {selectedFinanceImpact && (
                   <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3 mb-4">
                     <div className="flex items-center justify-between gap-2 mb-2">
-                      <div className="font-semibold text-sm">Finance impact</div>
+                      <div className="font-semibold text-sm">Cost & hours preview</div>
                       <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">estimate/reference only</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-center text-xs">
                       <div className="rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-2">
                         <div className="text-lg font-bold">{selectedFinanceImpact.estimatedScheduledHoursDelta.toFixed(2)}</div>
-                        <div className="text-slate-500">hours delta</div>
+                        <div className="text-slate-500">hours change</div>
                       </div>
                       <div className="rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-2">
                         <div className="text-lg font-bold">{selectedFinanceImpact.createdEventCount}</div>
@@ -443,7 +443,7 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
                           <span className="font-semibold">{bucket.estimatedHoursDelta.toFixed(2)}h / {bucket.eventCount} events</span>
                         </div>
                       ))}
-                      {selectedFinanceImpact.changedEventCount === 0 && <div className="text-slate-500">No changed calendar events to summarize.</div>}
+                      {selectedFinanceImpact.changedEventCount === 0 && <div className="text-slate-500">No changes to summarize yet.</div>}
                     </div>
                   </div>
                 )}
@@ -461,7 +461,7 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
                     </div>
                   ))}
                   {selectedDiff.length === 0 && selectedDrift.length === 0 && (
-                    <div className="text-sm text-slate-500 py-6 text-center">No scenario changes yet.</div>
+                    <div className="text-sm text-slate-500 py-6 text-center">No changes yet.</div>
                   )}
                 </div>
               </div>
