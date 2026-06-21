@@ -240,7 +240,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 active={currentView === 'SCENARIOS' || currentView === 'SANDBOX'}
                 onClick={() => { setView('SCENARIOS'); setIsMobileMenuOpen(false); }}
                 icon={FlaskConical}
-                label="Scenarios"
+                label="What-if Plans"
                 collapsed={isCollapsed}
               />
 
