@@ -5,6 +5,7 @@ import type { ActivityV2, EnrollmentV2, ImportSession, L1Subcategory, L2Subcateg
 import type { Adjustment, AgreementAcceptance, AgreementTemplate, BalanceSnapshot, Certificate, Charge, ConcertProgram, ExamSession, ExaminerSubmission, Family, Instrument, LessonRecord, HoursEntry, OperationalRequest, Payment, ReportCard, ReportDefinition, ReportSourceEntity } from './types/blueprint';
 import { BLUEPRINT_COLLECTIONS } from './types/blueprint';
 import type { CalendarSidebarTab } from './types/calendarFilters';
+import type { Scenario, ScenarioDelta } from './types/scenario';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, TRANSLATIONS, migrateTeacher, generateId } from './constants';
 
 const t = (key: string) => {
@@ -35,6 +36,8 @@ import { PayrollWorkspace } from './components/PayrollWorkspace';
 import { FinanceWorkspace } from './components/FinanceWorkspace';
 import { ReportsWorkspace, buildReportSourceRows, type ReportSourceRow } from './components/ReportsWorkspace';
 import { OnboardingChecklist } from './components/OnboardingChecklist';
+import { ScenarioPlanningWorkspace } from './components/ScenarioPlanningWorkspace';
+import { SandboxWorkspace } from './components/SandboxWorkspace';
 
 import { TeacherHoursForm } from './components/TeacherHoursForm';
 import { PublicRegistrationForm } from './components/PublicRegistrationForm';
@@ -57,10 +60,12 @@ const MANAGE_TABS = new Set(['staff', 'rooms', 'activities', 'subscriptions', 'i
 const initialViewFromUrl = (): ViewState => {
   if (typeof window === 'undefined') return 'CALENDAR';
   const pathParts = window.location.pathname.split('/').filter(Boolean);
-  const section = pathParts[1]?.toLowerCase();
+  const section = (pathParts[1] || pathParts[0])?.toLowerCase();
   if (section === 'payroll') return 'PAYROLL';
   if (section === 'finance' || section === 'billing') return 'BILLING';
   if (section === 'analytics' || section === 'reports') return 'ANALYTICS';
+  if (section === 'scenarios') return 'SCENARIOS';
+  if (section === 'sandbox') return 'SANDBOX';
   const tab = new URLSearchParams(window.location.search).get('tab');
   return tab && MANAGE_TABS.has(tab) ? 'MANAGE' : 'CALENDAR';
 };
@@ -165,6 +170,8 @@ function AppContent() {
   const [hoursEntries, setHoursEntries, hoursEntriesLoading] = useSupabaseSync<HoursEntry>(BLUEPRINT_COLLECTIONS.hoursEntries, []);
   const [hoursPeriodHeaders, setHoursPeriodHeaders] = useSupabaseSync<HoursPeriodHeader>('hoursReports', []);
   const [adminInboxItems, setAdminInboxItems] = useSupabaseSync<AdminInboxItem>('adminInboxItems', []);
+  const [scenarios, setScenarios] = useSupabaseSync<Scenario>('scenarios', []);
+  const [scenarioDeltas, setScenarioDeltas] = useSupabaseSync<ScenarioDelta>('scenarioDeltas', []);
   // Seed initial language from localStorage so first render matches the persisted state
   // and the useEffect below doesn't flip <html lang/dir> away from what index.tsx pre-applied.
   // useSupabaseSettings reads its initial value once at mount, so a plain inline call is enough.
@@ -189,6 +196,7 @@ function AppContent() {
   // Calendar Sidebar Tab (null = closed)
   const [sidebarTab, setSidebarTab] = useState<CalendarSidebarTab | null>(null);
   const [hasFinanceCapability, setHasFinanceCapability] = useState(false);
+  const [activeSandboxScenarioId, setActiveSandboxScenarioId] = useState<string | null>(null);
 
   // Calendar Filter State (hoisted so sidebar Filters tab shares the same instance)
   const { state: filterState, set: filterSet, clear: filterClear, isActive: filterIsActive } = useCalendarFilters(orgId || '');
@@ -786,6 +794,73 @@ function AppContent() {
     // Standard Full Page Views
     switch (currentView) {
       // CALENDAR handled above
+      case 'SCENARIOS':
+        return (
+          <ScenarioPlanningWorkspace
+            scenarios={scenarios}
+            setScenarios={setScenarios}
+            scenarioDeltas={scenarioDeltas}
+            setScenarioDeltas={setScenarioDeltas}
+            adminInboxItems={adminInboxItems}
+            setAdminInboxItems={setAdminInboxItems}
+            events={events}
+            rooms={rooms}
+            activities={activities}
+            staff={staffMembersV2}
+            settings={settings}
+            orgId={orgId}
+            actorId={currentUser?.uid || currentUser?.id || null}
+            onLaunchSandbox={(scenarioId) => {
+              setActiveSandboxScenarioId(scenarioId);
+              setCurrentView('SANDBOX');
+            }}
+            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+          />
+        );
+      case 'SANDBOX': {
+        const sandboxScenario =
+          scenarios.find(scenario => scenario.id === activeSandboxScenarioId) ??
+          scenarios.find(scenario => scenario.status !== 'ARCHIVED') ??
+          null;
+        if (!sandboxScenario) {
+          return (
+            <ScenarioPlanningWorkspace
+              scenarios={scenarios}
+              setScenarios={setScenarios}
+              scenarioDeltas={scenarioDeltas}
+              setScenarioDeltas={setScenarioDeltas}
+              adminInboxItems={adminInboxItems}
+              setAdminInboxItems={setAdminInboxItems}
+              events={events}
+              rooms={rooms}
+              activities={activities}
+              staff={staffMembersV2}
+              settings={settings}
+              orgId={orgId}
+              actorId={currentUser?.uid || currentUser?.id || null}
+              onLaunchSandbox={(scenarioId) => {
+                setActiveSandboxScenarioId(scenarioId);
+                setCurrentView('SANDBOX');
+              }}
+              onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+            />
+          );
+        }
+        return (
+          <SandboxWorkspace
+            scenario={sandboxScenario}
+            scenarioDeltas={scenarioDeltas}
+            setScenarioDeltas={setScenarioDeltas}
+            events={events}
+            rooms={rooms}
+            activities={activities}
+            staff={staffMembersV2}
+            settings={settings}
+            onBackToPlanning={() => setCurrentView('SCENARIOS')}
+            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+          />
+        );
+      }
       case 'STAFF_MEMBERS':
       case 'MANAGE':
         return (
@@ -958,6 +1033,8 @@ function AppContent() {
                 setCalendarSubscriptions([]);
                 setConcertPrograms([]);
                 setOperationalRequests([]);
+                setScenarios([]);
+                setScenarioDeltas([]);
 
                 // 2. Delete persisted data so listeners don't re-populate state.
                 if (LOCAL_MODE && orgId) {
@@ -977,6 +1054,8 @@ function AppContent() {
                       wipeCol(BLUEPRINT_COLLECTIONS.concertPrograms),
                       wipeCol(BLUEPRINT_COLLECTIONS.operationalRequests),
                       wipeCol('calendarSubscriptions'),
+                      wipeCol('scenarios'),
+                      wipeCol('scenarioDeltas'),
                       // v2 collections
                       wipeCol(V2_COLLECTIONS.staffMembers),
                       wipeCol(V2_COLLECTIONS.teachingAssignments),

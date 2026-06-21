@@ -352,6 +352,19 @@ export interface AdminInboxItem {
   decidedBy?: string;
   decidedAt?: string;
   decisionNote?: string;
+  scenarioPromoteRequest?: {
+    scenarioId: string;
+    scenarioName: string;
+    diffSummary: {
+      changedRecords: number;
+      conflictCount: number;
+      driftCount: number;
+      eventCount: number;
+    };
+    requestedBy: string | null;
+    requestedAt: string;
+    status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  };
 }
 
 // Native operator surfaces. Blueprint hubs (Forte-informed) are dense, tabbed,
@@ -369,7 +382,9 @@ export type ViewState =
   | 'ACADEMICS'
   | 'INVENTORY'
   | 'PAYROLL'
-  | 'ANALYTICS';
+  | 'ANALYTICS'
+  | 'SCENARIOS'
+  | 'SANDBOX';
 
 // ─── v2.0 Type Re-exports ────────────────────────────────────────────────────
 // Canonical v2.0 types from the Cadenza v2.0 Final spec (Section 05).

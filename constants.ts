@@ -81,6 +81,8 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'nav.academics': 'Academics',
     'nav.payroll': 'Payroll',
     'nav.analytics': 'Analytics',
+    'nav.scenarios': 'Scenarios',
+    'nav.sandbox': 'Sandbox',
     'layout.open_sidebar': 'Open sidebar',
     'student_family.title': 'Student/Family Files',
     'student_family.subtitle': 'Roster, family, guardian, and profile workspace',

@@ -24,6 +24,8 @@ export const COLLECTION_TO_TABLE: Record<string, TableSpec> = {
   adminInboxItems: { table: 'admin_inbox_items', mode: 'HYBRID' },
   hoursReports: { table: 'hours_reports', mode: 'HYBRID' },
   calendarSubscriptions: { table: 'calendar_subscriptions', mode: 'HYBRID' },
+  scenarios: { table: 'scenarios', mode: 'HYBRID' },
+  scenarioDeltas: { table: 'scenario_deltas', mode: 'HYBRID' },
   students: { table: 'students', mode: 'HYBRID' },
   activities: { table: 'activities', mode: 'HYBRID' },
   l1Subcategories: { table: 'l1_subcategories', mode: 'HYBRID' },

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Search, Calendar, Users, GraduationCap, Cog, LayoutGrid, Inbox, Wrench, Shield, ListChecks, ListTree, Landmark } from 'lucide-react';
+import { Search, Calendar, Users, GraduationCap, Cog, LayoutGrid, Inbox, Wrench, Shield, ListChecks, ListTree, Landmark, FlaskConical } from 'lucide-react';
 import { ViewState, Teacher, Student, CalendarEvent } from '../types';
 import type { CalendarSidebarTab } from '../types/calendarFilters';
 import { isPaletteVisible, VIEW_ALIASES } from '../routing';
@@ -38,6 +38,8 @@ const NAV_ICONS: Record<ViewState, React.ReactNode> = {
   INVENTORY: <LayoutGrid className="h-4 w-4" />,
   PAYROLL: <ListChecks className="h-4 w-4" />,
   ANALYTICS: <LayoutGrid className="h-4 w-4" />,
+  SCENARIOS: <FlaskConical className="h-4 w-4" />,
+  SANDBOX: <FlaskConical className="h-4 w-4" />,
   SETTINGS: <Cog className="h-4 w-4" />,
   SUPER_ADMIN: <Shield className="h-4 w-4" />,
 };
@@ -54,6 +56,8 @@ const NAV_KEY_BY_VIEW: Record<ViewState, string> = {
   INVENTORY: 'nav.inventory',
   PAYROLL: 'nav.payroll',
   ANALYTICS: 'nav.analytics',
+  SCENARIOS: 'nav.scenarios',
+  SANDBOX: 'nav.sandbox',
   SETTINGS: 'bl01_palette.action.settings',
   SUPER_ADMIN: 'bl01_palette.action.super_admin',
 };

@@ -20,6 +20,8 @@ const ALL_VIEWS: ViewState[] = [
   'INVENTORY',
   'PAYROLL',
   'ANALYTICS',
+  'SCENARIOS',
+  'SANDBOX',
 ];
 
 // Views deliberately NOT routed today (fall through to `app.not_found`). INVENTORY
@@ -77,6 +79,13 @@ describe('routing: routed-views allowlist', () => {
   it('routes ANALYTICS as the Reports workspace destination', () => {
     expect(ROUTED_VIEWS.has('ANALYTICS')).toBe(true);
     expect(isPaletteVisible('ANALYTICS')).toBe(true);
+  });
+
+  it('routes scenario planning and sandbox surfaces', () => {
+    expect(ROUTED_VIEWS.has('SCENARIOS')).toBe(true);
+    expect(ROUTED_VIEWS.has('SANDBOX')).toBe(true);
+    expect(isPaletteVisible('SCENARIOS')).toBe(true);
+    expect(isPaletteVisible('SANDBOX')).toBe(true);
   });
 });
 
