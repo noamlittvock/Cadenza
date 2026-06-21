@@ -32,6 +32,16 @@ A node is `implemented` only when it has:
 Backend-only readiness (schema + queries + tests, no workflow) caps a node at
 `planned`. Workflow-inside-another-surface caps it at `embedded`.
 
+## Bird's-Eye Build Mode
+
+For the bird's-eye Blueprint completion campaign, live Supabase RLS is a
+**release gate**, not an implementation-loop blocker. A module may be treated as
+product-complete for the bird's-eye build when it has the route/tab/panel,
+workflow, deterministic coverage, static migration/schema coverage, local/e2e
+verification, and a documented live-RLS release gate. Do not claim production
+security or clear release hardening until the real-role live RLS tests pass
+against the remote project without skips.
+
 ## Transition rule
 
 - Status changes only via a packet update, never ad hoc.
@@ -41,8 +51,15 @@ Backend-only readiness (schema + queries + tests, no workflow) caps a node at
 - Pass 0 corrected the known-stale statuses tracked by D-STATUS and D-STATUS-2.
   Current Phase C implementation status as of 2026-06-19:
   **`instrument-inventory`**, **`student-family-files`**,
-  **`public-registration-intake`**, **`lesson-details-attendance`**, and
-  **`payroll-salaries-hours`**, and **`payments-charges`** are `implemented`.
+  **`public-registration-intake`**, **`lesson-details-attendance`**,
+  **`payroll-salaries-hours`**, **`payments-charges`**,
+  **`agreements-consent`**, **`ensembles-theory-school-programs`**,
+  **`exams-certificates-report-cards`**, **`concert-programs-events`**, and
+  **`rooms-absence-requests`** are
+  `implemented`. Agreements, ensembles/programs, exams/report-cards, and
+  concert programs, and rooms/absence requests are promoted under bird's-eye
+  mode with live RLS recorded as release-hardening gates where remote migrations
+  are not yet applied.
 
 ## Consistency check (brief item 6)
 

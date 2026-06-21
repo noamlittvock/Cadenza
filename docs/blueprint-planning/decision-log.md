@@ -1,11 +1,21 @@
 # Cross-Module Decision Log
 
-> **STATUS — 2026-06-18:** D-01–D-20, D-STATUS, and D-STATUS-2 are **ACCEPTED or
+> **STATUS — 2026-06-19:** D-01–D-20, D-STATUS, and D-STATUS-2 are **ACCEPTED or
 > IMPLEMENTED working decisions** for implementation; the concrete locked form is
-> in [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md). D-21–D-27 are newly
-> surfaced packet questions with no accepted default; they are parked in
-> [`LOOP_STATE.md`](LOOP_STATE.md) NEEDS NOAM and must stay marked `BLOCKED ON D-xx`
-> where they affect a packet.
+> in [`IMPLEMENTATION_HANDOFF.md`](IMPLEMENTATION_HANDOFF.md). D-21–D-27 are now
+> **ACCEPTED PROVISIONAL** for the bird's-eye build so the whole app can be
+> assembled before final policy tuning. These defaults must stay reversible,
+> auditable, conservative, and easy to carve later.
+>
+> Provisional defaults: D-21 approvals create review tasks/flags, not automatic
+> schedule/payroll mutation; D-22 assessment/report delivery is private and
+> explicitly released; D-23 public/media exposure is private by default and
+> redacts missing consent; D-24 revocation disables future/public use while
+> preserving audit; D-25 instrument deposits/refunds are explicit approved ledger
+> liability/credit rows with no automatic forfeiture; D-26 HR is superadmin/
+> HR-admin scoped with explicit acknowledgment only; D-27 rollover is preview
+> first, copy-forward into draft next-year records, and never mutates prior-year
+> records.
 
 > **PHASE B step 5 — 2026-06-17:** The full `0004` path was selected: create
 > `rollover_runs`, create inert/admin-only `public_endpoints`, add a `finance`
@@ -23,7 +33,8 @@
 Decisions that span more than one module. Packets cite these IDs rather than
 re-deciding. D-01–D-20 have recommended defaults, explicit Noam confirmations, or
 accepted configurable assumptions that are now accepted per the banner above;
-D-21–D-27 intentionally have no default and are parked for Noam.
+D-21–D-27 now have provisional bird's-eye defaults per the 2026-06-19 banner
+above and remain flagged for later release/policy review.
 
 Legend: 🔴 blocks a P0 packet · 🟡 blocks P1/P2 · ⚪ infra/cleanup
 
@@ -315,13 +326,16 @@ reschedule affected events, create makeup tasks, affect lesson/payroll records,
 or only notify admins? How should the feature-tree "extra teaching day" case be
 represented: a new `RequestKind`, a staff availability/schedule record, or out of
 scope for v1?
-**Recommended default:** none recorded; this is a scheduling/payroll product
-semantics call.
+**Recommended default:** approval creates review tasks/flags, not automatic
+schedule/payroll mutation; human operators confirm destructive changes.
 **Blocks:** rooms-absence-requests; may also affect lesson-details-attendance,
 payroll-salaries-hours, reports-analytics, and calendar-website-integrations
-depending on the chosen side effects. **State:** NEEDS NOAM — parked in
-[`LOOP_STATE.md`](LOOP_STATE.md); blocked packet sections are marked
-**BLOCKED ON D-21**.
+depending on the chosen side effects. **State:** ACCEPTED PROVISIONAL
+2026-06-19 for bird's-eye build; review before production automation.
+Bird's-eye rooms/absence implementation follows this default: Admin Inbox
+approval records decisions and applies room-change event room updates, while
+absence/day-off approval remains a review-task flag with no automatic schedule,
+attendance, or payroll mutation.
 
 ### D-22 — Academic Hub assessment scope and document pipeline  🟡
 **Q:** For exams/certificates/report cards, should v1 use the current normalized
@@ -332,13 +346,13 @@ explicit pass/fail thresholds and overrides, AI-assisted summaries, generated PD
 templates, guardian email delivery, and/or tokenized examiner or guardian-facing
 links? If the richer model is required, what exact stored fields, document paths,
 consent/setup steps, and public-token rules should ship?
-**Recommended default:** none recorded; this is a product/scope and
-consent-sensitive data-access call.
+**Recommended default:** private/authenticated assessment records first; guardian
+delivery requires explicit release and auditable send/view/export events.
 **Blocks:** exams-certificates-report-cards; may also affect
 calendar-website-integrations, reports-analytics, student-family-files assessment
 history, and agreements/consent language if guardian-facing delivery is required.
-**State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
-sections are marked **BLOCKED ON D-22**.
+**State:** ACCEPTED PROVISIONAL 2026-06-19 for bird's-eye build; review before
+production guardian delivery.
 
 ### D-23 — Concert public program exposure and consent  🟡
 **Q:** May concert/event publishing expose event details, venue, repertoire,
@@ -346,14 +360,18 @@ student/staff performer names, and downloadable or embeddable program files to
 unauthenticated website/calendar visitors? If yes, what consent/release setup,
 redaction rules, performer display names, revocation/unpublish behavior, and
 `public_endpoints`/calendar-website integration scope should ship?
-**Recommended default:** none recorded; this is a public exposure and student
-personal-data disclosure call, so the loop must not decide it.
+**Recommended default:** private by default; public exposure requires
+participant-level release and missing consent redacts/hides the participant or
+media.
 **Blocks:** public/website-facing concert-program pages, public program PDFs,
 public embeds, and public performer lists in concert-programs-events; may also
 affect calendar-website-integrations, agreements-consent consent language, and
 reports-analytics if public publication/audit reports are required.
-**State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
-sections are marked **BLOCKED ON D-23**.
+**State:** ACCEPTED PROVISIONAL 2026-06-19 for bird's-eye build; review before
+public publication. Bird's-eye concert implementation keeps event/program
+surfaces private/authenticated only: admins manage private programs and linked
+teachers/performers can read their own mobile run-of-show, while public
+website/program/PDF exposure remains off pending D-23 release review.
 
 ### D-24 — Agreement consent withdrawal / revocation semantics  🟡
 **Q:** Should agreement/consent v1 support guardian/family withdrawal or
@@ -361,29 +379,27 @@ revocation after acceptance, and if yes what status value, audit fields
 (`revokedAt`, revokedBy, reason), public-token behavior, and downstream effects
 should ship for enrollments, media/public releases, instrument loans, and
 reports?
-**Recommended default:** none recorded; this is a consent/personal-data policy
-call and the current `AgreementAcceptance` schema has no `REVOKED` status or
-`revokedAt` field, so the loop must not decide it.
+**Recommended default:** revocation disables future/public use and opens a review
+task while preserving historical records and audit; do not delete records.
 **Blocks:** agreements-consent revocation/withdrawal workflow and any downstream
 module that relies on revoking previously accepted media, public-performance,
 instrument-loan, enrollment, or report-card consent.
-**State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
-sections are marked **BLOCKED ON D-24**.
+**State:** ACCEPTED PROVISIONAL 2026-06-19 for bird's-eye build; review
+downstream effects before production revocation automation.
 
 ### D-25 — Instrument deposit model  🟡
 **Q:** Should instrument deposits, replacement fees, and refunds be represented
 as finance ledger rows, agreement-only terms, standalone fields on
 `instrument_loans`, or a mixed model; what lifecycle states, refund/forfeit
 rules, document links, and family/student/staff ownership should ship?
-**Recommended default:** none recorded; this is a money/product policy call, so
-the loop must not decide it. Any accepted deposit/fee/refund ledger rows will use
-D-20 P0 single-currency semantics unless a future explicit multi-currency mode is
-configured.
+**Recommended default:** deposits/refunds are explicit approved finance ledger
+liability or credit rows using D-20 P0 single-currency semantics; no automatic
+forfeiture.
 **Blocks:** instrument-inventory deposit/fee/refund workflow, payments-charges
 ledger integration for instrument custody, agreements-consent loan/deposit terms,
 and reports-analytics deposit/refund reporting.
-**State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
-sections are marked **BLOCKED ON D-25**.
+**State:** ACCEPTED PROVISIONAL 2026-06-19 for bird's-eye build; review with
+finance/bookkeeping policy before production billing.
 
 ### D-26 — Staff HR evaluation privacy, consent/notice, and access scope  🟡
 **Q:** For teacher evaluation/HR, may Cadenza collect and store staff
@@ -393,15 +409,15 @@ notice/consent or HR policy setup? If yes, what exact privacy scope should ship:
 all admins, a dedicated HR capability, assigned reviewers, subject staff
 self-read/self-edit/acknowledgment, storage visibility, retention/deletion, and
 export rules?
-**Recommended default:** none recorded; this is staff personal-performance data
-with privacy, retention, and employment-policy implications, so the loop must not
-decide it.
+**Recommended default:** superadmin/HR-admin scoped by default; staff subject
+visibility is limited to explicit acknowledgment flows, with retention/export
+flags kept reviewable.
 **Blocks:** teacher-evaluation-hr workflow, RLS/storage scope for
 `staff_evaluations`, evaluation document attachments, HR exports, and any
 reports-analytics or operations-command-center rollups that expose staff
 evaluation data.
-**State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md); blocked packet
-sections are marked **BLOCKED ON D-26**.
+**State:** ACCEPTED PROVISIONAL 2026-06-19 for bird's-eye build; review HR
+privacy/retention before production use.
 
 ### D-27 — Year rollover grade and recurring-event copy rules  🟡
 **Q:** For year rollover, should Cadenza automatically advance
@@ -410,12 +426,13 @@ year; if yes, what grade vocabulary/increment rules, non-graded/adult-student
 exceptions, manual override behavior, date-shift method, holiday/blackout
 handling, room/staff conflict behavior, and predecessor/successor lineage fields
 should ship?
-**Recommended default:** none recorded; this is a school-operations product and
-data-model call, and it affects student grade data plus schedule generation.
+**Recommended default:** preview-first rollover, copy-forward into draft
+next-year records, never mutate prior-year records, and preserve
+predecessor/successor lineage.
 **Blocks:** year-rollover-setup grade advancement, next-year student copy
 lineage, recurring-event/schedule copy, and any rollover backfill for those
-records. **State:** NEEDS NOAM — parked in [`LOOP_STATE.md`](LOOP_STATE.md);
-blocked packet sections are marked **BLOCKED ON D-27**.
+records. **State:** ACCEPTED PROVISIONAL 2026-06-19 for bird's-eye build; review
+school-year policy before production apply.
 
 ### D-STATUS-2 — P0 node status drift  ⚪
 **Q:** `features/forteTree.ts` marks `student-family-files`, `lesson-details-attendance`,

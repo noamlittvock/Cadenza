@@ -72,6 +72,58 @@ describe('HYBRID mapping (jsonb document under `data`)', () => {
     const restored = rowToApp(HYBRID, appToRow(HYBRID, 'org1', item) as Record<string, unknown>);
     expect(restored).toEqual(item);
   });
+
+  it('maps calendar_subscriptions as HYBRID and keeps filters under data', () => {
+    const spec = tableSpecFor('calendarSubscriptions');
+    expect(spec).toEqual({ table: 'calendar_subscriptions', mode: 'HYBRID' });
+
+    const subscription = {
+      id: 'sub_1',
+      orgId: 'ignored-client-org',
+      name: 'Cello studio feed',
+      token: undefined,
+      filters: {
+        staffMemberIds: ['staff_1'],
+        roomIds: ['room_1'],
+        tags: ['recital'],
+      },
+      createdBy: 'admin_1',
+      createdAt: '2026-06-20T08:00:00.000Z',
+      isActive: true,
+    };
+
+    const row = appToRow(spec, 'org_1', subscription);
+    expect(row).toEqual({
+      id: 'sub_1',
+      org_id: 'org_1',
+      data: {
+        name: 'Cello studio feed',
+        filters: {
+          staffMemberIds: ['staff_1'],
+          roomIds: ['room_1'],
+          tags: ['recital'],
+        },
+        createdBy: 'admin_1',
+        createdAt: '2026-06-20T08:00:00.000Z',
+        isActive: true,
+      },
+    });
+    expect(JSON.stringify(row)).not.toContain('legacy-token');
+
+    expect(rowToApp(spec, row)).toEqual({
+      id: 'sub_1',
+      orgId: 'org_1',
+      name: 'Cello studio feed',
+      filters: {
+        staffMemberIds: ['staff_1'],
+        roomIds: ['room_1'],
+        tags: ['recital'],
+      },
+      createdBy: 'admin_1',
+      createdAt: '2026-06-20T08:00:00.000Z',
+      isActive: true,
+    });
+  });
 });
 
 describe('Student/Family packet mapping contracts', () => {
@@ -239,6 +291,341 @@ describe('Lesson details/attendance packet mapping contracts', () => {
   });
 });
 
+describe('Rooms/absence request packet mapping contracts', () => {
+  it('maps operational_requests as NORMALIZED rows with request and decision lineage', () => {
+    const requestSpec = tableSpecFor('operationalRequests');
+    expect(requestSpec).toEqual({ table: 'operational_requests', mode: 'NORMALIZED' });
+
+    const request = {
+      id: 'request_1',
+      orgId: 'ignored-client-org',
+      kind: 'ROOM_CHANGE',
+      status: 'PENDING',
+      requestedByStaffId: 'staff_1',
+      requestedFor: '2026-06-20',
+      endDate: null,
+      eventId: 'event_1',
+      currentRoomId: 'room_1',
+      requestedRoomId: 'room_2',
+      reason: 'Piano needed',
+      decidedBy: null,
+      decidedAt: null,
+      decisionNote: null,
+      adminInboxItemId: 'inbox_1',
+      createdAt: '2026-06-19T08:00:00.000Z',
+      updatedAt: '2026-06-19T08:30:00.000Z',
+      createdBy: 'staff_1',
+      updatedBy: undefined,
+    };
+
+    const row = appToRow(requestSpec, 'org_1', request);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'request_1',
+      kind: 'ROOM_CHANGE',
+      status: 'PENDING',
+      requested_by_staff_id: 'staff_1',
+      requested_for: '2026-06-20',
+      end_date: null,
+      event_id: 'event_1',
+      current_room_id: 'room_1',
+      requested_room_id: 'room_2',
+      reason: 'Piano needed',
+      decided_by: null,
+      decided_at: null,
+      decision_note: null,
+      admin_inbox_item_id: 'inbox_1',
+      created_at: '2026-06-19T08:00:00.000Z',
+      updated_at: '2026-06-19T08:30:00.000Z',
+      created_by: 'staff_1',
+    });
+    expect('updated_by' in row).toBe(false);
+
+    expect(rowToApp(requestSpec, row)).toEqual({
+      ...request,
+      orgId: 'org_1',
+    });
+  });
+});
+
+describe('Exams/certificates/report-cards packet mapping contracts', () => {
+  it('maps exam_sessions as NORMALIZED rows while preserving examiner and student arrays', () => {
+    const sessionSpec = tableSpecFor('examSessions');
+    expect(sessionSpec).toEqual({ table: 'exam_sessions', mode: 'NORMALIZED' });
+
+    const session = {
+      id: 'exam_session_1',
+      orgId: 'ignored-client-org',
+      name: 'Spring assessment',
+      activityId: 'activity_1',
+      date: '2026-06-20',
+      status: 'IN_PROGRESS',
+      examinerStaffIds: ['staff_1', 'staff_2'],
+      studentIds: ['student_1', 'student_2'],
+      notes: 'Panel exam',
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T09:00:00.000Z',
+      createdBy: 'admin_1',
+    };
+
+    const row = appToRow(sessionSpec, 'org_1', session);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'exam_session_1',
+      name: 'Spring assessment',
+      activity_id: 'activity_1',
+      date: '2026-06-20',
+      status: 'IN_PROGRESS',
+      examiner_staff_ids: ['staff_1', 'staff_2'],
+      student_ids: ['student_1', 'student_2'],
+      notes: 'Panel exam',
+      created_at: '2026-06-19T08:30:00.000Z',
+      updated_at: '2026-06-19T09:00:00.000Z',
+      created_by: 'admin_1',
+    });
+    expect('updated_by' in row).toBe(false);
+    expect(rowToApp(sessionSpec, row)).toEqual({ ...session, orgId: 'org_1' });
+  });
+
+  it('maps examiner_submissions as NORMALIZED rows with nullable score and submittedAt fields', () => {
+    const submissionSpec = tableSpecFor('examinerSubmissions');
+    expect(submissionSpec).toEqual({ table: 'examiner_submissions', mode: 'NORMALIZED' });
+
+    const submission = {
+      id: 'submission_1',
+      orgId: 'ignored-client-org',
+      examSessionId: 'exam_session_1',
+      studentId: 'student_1',
+      examinerStaffId: 'staff_1',
+      score: null,
+      grade: null,
+      remarks: 'Draft feedback',
+      submittedAt: null,
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T09:00:00.000Z',
+      createdBy: 'staff_1',
+    };
+
+    const row = appToRow(submissionSpec, 'org_1', submission);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'submission_1',
+      exam_session_id: 'exam_session_1',
+      student_id: 'student_1',
+      examiner_staff_id: 'staff_1',
+      score: null,
+      grade: null,
+      remarks: 'Draft feedback',
+      submitted_at: null,
+      created_at: '2026-06-19T08:30:00.000Z',
+      updated_at: '2026-06-19T09:00:00.000Z',
+      created_by: 'staff_1',
+    });
+    expect(rowToApp(submissionSpec, row)).toEqual({ ...submission, orgId: 'org_1' });
+  });
+
+  it('maps certificates and private assessment document paths without widening storage metadata', () => {
+    const certificateSpec = tableSpecFor('certificates');
+    expect(certificateSpec).toEqual({ table: 'certificates', mode: 'NORMALIZED' });
+
+    const certificate = {
+      id: 'certificate_1',
+      orgId: 'ignored-client-org',
+      studentId: 'student_1',
+      examSessionId: 'exam_session_1',
+      title: 'Grade 3 Violin',
+      level: '3',
+      status: 'REVOKED',
+      issuedAt: '2026-06-19T10:00:00.000Z',
+      documentUrl: null,
+      documentPath: 'org_1/assessments/certificate_1/certificate.pdf',
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T09:00:00.000Z',
+      createdBy: 'admin_1',
+    };
+
+    const row = appToRow(certificateSpec, 'org_1', certificate);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'certificate_1',
+      student_id: 'student_1',
+      exam_session_id: 'exam_session_1',
+      title: 'Grade 3 Violin',
+      level: '3',
+      status: 'REVOKED',
+      issued_at: '2026-06-19T10:00:00.000Z',
+      document_url: null,
+      document_path: 'org_1/assessments/certificate_1/certificate.pdf',
+      created_at: '2026-06-19T08:30:00.000Z',
+      updated_at: '2026-06-19T09:00:00.000Z',
+      created_by: 'admin_1',
+    });
+    expect(rowToApp(certificateSpec, row)).toEqual({ ...certificate, orgId: 'org_1' });
+  });
+
+  it('maps report_cards as NORMALIZED rows while preserving lines[] jsonb and draft/released state', () => {
+    const reportCardSpec = tableSpecFor('reportCards');
+    expect(reportCardSpec).toEqual({ table: 'report_cards', mode: 'NORMALIZED' });
+
+    const lines = [
+      { subject: 'Technique', grade: 'A', comment: 'Secure intonation' },
+      { subject: 'Musicianship', grade: null, comment: null },
+    ];
+    const reportCard = {
+      id: 'report_card_1',
+      orgId: 'ignored-client-org',
+      studentId: 'student_1',
+      periodLabel: '2026 Spring',
+      activityId: 'activity_1',
+      lines,
+      summary: 'Private draft pending guardian release.',
+      publishedAt: null,
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T09:00:00.000Z',
+      createdBy: 'admin_1',
+    };
+
+    const row = appToRow(reportCardSpec, 'org_1', reportCard);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'report_card_1',
+      student_id: 'student_1',
+      period_label: '2026 Spring',
+      activity_id: 'activity_1',
+      lines,
+      summary: 'Private draft pending guardian release.',
+      published_at: null,
+      created_at: '2026-06-19T08:30:00.000Z',
+      updated_at: '2026-06-19T09:00:00.000Z',
+      created_by: 'admin_1',
+    });
+    expect(rowToApp(reportCardSpec, row)).toEqual({ ...reportCard, orgId: 'org_1' });
+  });
+});
+
+describe('Ensembles/theory/programs packet mapping contracts', () => {
+  it('keeps activity-program roster source records on existing HYBRID tables', () => {
+    const sourceCollections = [
+      ['activities', 'activities'],
+      ['enrollments', 'enrollments'],
+      ['teachingAssignments', 'teaching_assignments'],
+      ['l1Subcategories', 'l1_subcategories'],
+      ['l2Subcategories', 'l2_subcategories'],
+    ] as const;
+
+    for (const [collection, table] of sourceCollections) {
+      expect(tableSpecFor(collection)).toEqual({ table, mode: 'HYBRID' });
+    }
+  });
+
+  it('round-trips roster source fields without case conversion or normalization', () => {
+    const activity = {
+      id: 'activity_1',
+      orgId: 'ignored-client-org',
+      name: 'Youth Orchestra',
+      template: 'ENSEMBLE',
+      activityType: 'PERFORMANCE',
+      modules: ['strings'],
+      isArchived: false,
+    };
+    const enrollment = {
+      id: 'enrollment_1',
+      orgId: 'ignored-client-org',
+      studentId: 'student_1',
+      activityId: 'activity_1',
+      l1Id: 'l1_1',
+      l2Id: 'l2_1',
+      startDate: '2026-09-01',
+      endDate: null,
+      status: 'ACTIVE',
+    };
+    const assignment = {
+      id: 'assignment_1',
+      orgId: 'ignored-client-org',
+      staffMemberId: 'staff_1',
+      scope: 'L2',
+      activityId: 'activity_1',
+      l1Id: 'l1_1',
+      l2Id: 'l2_1',
+      startDate: '2026-09-01',
+      endDate: null,
+      isArchived: false,
+    };
+
+    for (const [collection, item] of [
+      ['activities', activity],
+      ['enrollments', enrollment],
+      ['teachingAssignments', assignment],
+    ] as const) {
+      const spec = tableSpecFor(collection);
+      const row = appToRow(spec, 'org_1', item);
+      expect(row).toEqual({
+        id: item.id,
+        org_id: 'org_1',
+        data: Object.fromEntries(Object.entries(item).filter(([key]) => key !== 'id' && key !== 'orgId')),
+      });
+      expect(rowToApp(spec, row)).toEqual({ ...item, orgId: 'org_1' });
+    }
+  });
+});
+
+describe('Concert programs/events packet mapping contracts', () => {
+  it('maps concert_programs as NORMALIZED rows while preserving pieces[] jsonb and nullable event link', () => {
+    const programSpec = tableSpecFor('concertPrograms');
+    expect(programSpec).toEqual({ table: 'concert_programs', mode: 'NORMALIZED' });
+
+    const pieces = [
+      {
+        order: 1,
+        title: 'Trio in D',
+        composer: 'Haydn',
+        performerStudentIds: ['student_1', 'student_2'],
+        performerStaffIds: ['staff_1'],
+        durationMinutes: 8,
+      },
+      {
+        order: 2,
+        title: 'New Work',
+        composer: null,
+        performerStudentIds: ['stale_student'],
+        performerStaffIds: [],
+        durationMinutes: null,
+      },
+    ];
+    const program = {
+      id: 'concert_program_1',
+      orgId: 'ignored-client-org',
+      title: 'Winter Program',
+      eventId: null,
+      date: '2026-12-20',
+      venue: 'Main Hall',
+      status: 'DRAFT',
+      pieces,
+      notes: 'Private planning draft.',
+      createdAt: '2026-06-19T08:30:00.000Z',
+      updatedAt: '2026-06-19T09:00:00.000Z',
+      createdBy: 'admin_1',
+    };
+
+    const row = appToRow(programSpec, 'org_1', program);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'concert_program_1',
+      title: 'Winter Program',
+      event_id: null,
+      date: '2026-12-20',
+      venue: 'Main Hall',
+      status: 'DRAFT',
+      pieces,
+      notes: 'Private planning draft.',
+      created_at: '2026-06-19T08:30:00.000Z',
+      updated_at: '2026-06-19T09:00:00.000Z',
+      created_by: 'admin_1',
+    });
+    expect(rowToApp(programSpec, row)).toEqual({ ...program, orgId: 'org_1' });
+  });
+});
+
 describe('Payroll packet mapping contracts', () => {
   it('maps hours_entries as NORMALIZED rows with payroll line columns', () => {
     const hoursEntrySpec = tableSpecFor('hoursEntries');
@@ -403,6 +790,67 @@ describe('Public registration intake mapping contracts', () => {
       revokedAt: null,
       createdAt: '2026-06-18T08:30:00.000Z',
       updatedAt: '2026-06-18T08:30:00.000Z',
+      createdBy: 'admin_1',
+    });
+  });
+
+  it('maps CALENDAR_SUBSCRIPTION public endpoints without raw token columns', () => {
+    const endpointSpec = tableSpecFor('publicEndpoints');
+    const persistedEndpoint = {
+      id: 'calendar_endpoint_1',
+      orgId: 'ignored-client-org',
+      kind: 'CALENDAR_SUBSCRIPTION',
+      label: 'Private iCal feed',
+      tokenHash: 'sha256-calendar-token-hash',
+      status: 'ACTIVE',
+      scopes: ['calendar_subscription:read'],
+      targetId: 'calendar_subscription_1',
+      consentAgreementId: null,
+      expiresAt: '2026-08-01T00:00:00.000Z',
+      lastUsedAt: null,
+      revokedAt: null,
+      createdAt: '2026-06-20T08:30:00.000Z',
+      updatedAt: '2026-06-20T08:30:00.000Z',
+      createdBy: 'admin_1',
+      updatedBy: undefined,
+    };
+
+    const row = appToRow(endpointSpec, 'org_1', persistedEndpoint);
+    expect(row).toEqual({
+      org_id: 'org_1',
+      id: 'calendar_endpoint_1',
+      kind: 'CALENDAR_SUBSCRIPTION',
+      label: 'Private iCal feed',
+      token_hash: 'sha256-calendar-token-hash',
+      status: 'ACTIVE',
+      scopes: ['calendar_subscription:read'],
+      target_id: 'calendar_subscription_1',
+      consent_agreement_id: null,
+      expires_at: '2026-08-01T00:00:00.000Z',
+      last_used_at: null,
+      revoked_at: null,
+      created_at: '2026-06-20T08:30:00.000Z',
+      updated_at: '2026-06-20T08:30:00.000Z',
+      created_by: 'admin_1',
+    });
+    expect('raw_token' in row).toBe(false);
+    expect('token' in row).toBe(false);
+
+    expect(rowToApp(endpointSpec, row)).toEqual({
+      id: 'calendar_endpoint_1',
+      orgId: 'org_1',
+      kind: 'CALENDAR_SUBSCRIPTION',
+      label: 'Private iCal feed',
+      tokenHash: 'sha256-calendar-token-hash',
+      status: 'ACTIVE',
+      scopes: ['calendar_subscription:read'],
+      targetId: 'calendar_subscription_1',
+      consentAgreementId: null,
+      expiresAt: '2026-08-01T00:00:00.000Z',
+      lastUsedAt: null,
+      revokedAt: null,
+      createdAt: '2026-06-20T08:30:00.000Z',
+      updatedAt: '2026-06-20T08:30:00.000Z',
       createdBy: 'admin_1',
     });
   });

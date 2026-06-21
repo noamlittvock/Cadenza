@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef, useId } from 'react';
 import { nowTimestamp } from '../utils/appTimestamp';
-import { AppSettings, CalendarEvent } from '../types';
+import { AppSettings, CalendarEvent, Student, Teacher } from '../types';
+import type { ConcertProgram } from '../types/blueprint';
 import type {
   ActivityV2, L1Subcategory, L2Subcategory,
   ActivityTemplate, ModulesConfig, EventNameMode,
@@ -17,13 +18,23 @@ import {
   Plus, Edit2, Archive, RotateCcw, Layers, Trash2, Menu, LayoutGrid, List, Table2, X,
   GraduationCap, Briefcase, Music, Globe, Settings2, ArrowLeft, HelpCircle,
   ChevronRight, Sparkles, ArrowUp, ArrowDown, CheckSquare,
-  ChevronDown, Upload, Download, FileDown,
+  ChevronDown, Upload, Download, FileDown, Search, UserPlus, Link2, AlertTriangle, Users,
 } from 'lucide-react';
 import { useListStyle } from '../utils/useListStyle';
 import { useSortState } from '../utils/useSortState';
 import { CsvImportModal } from './CsvImportModal';
 import { ExportScopeModal } from './ExportScopeModal';
 import { generateTemplate, downloadCSV } from '../utils/csvUtils';
+import {
+  activeStudents,
+  activeTeachers,
+  activityL2Options,
+  buildRosterWorkspaceRows,
+  displayNameById,
+  RosterWorkspaceKind,
+  RosterWorkspaceStatus,
+} from '../utils/rosterProgramWorkspace';
+import { ConcertProgramPlanner } from './ConcertProgramPlanner';
 
 // ─── Template configuration (Section 06) ────────────────────────────────────
 
@@ -344,6 +355,13 @@ interface Props {
   setActivities: React.Dispatch<React.SetStateAction<ActivityV2[]>>;
   settings: AppSettings;
   events: CalendarEvent[];
+  students: Student[];
+  teachers: Teacher[];
+  concertPrograms: ConcertProgram[];
+  setConcertPrograms: (data: ConcertProgram[] | ((prev: ConcertProgram[]) => ConcertProgram[])) => Promise<void>;
+  concertProgramsLoading?: boolean;
+  orgId: string | null;
+  actorId?: string | null;
   onMobileMenuOpen?: () => void;
   embedded?: boolean;
 }
@@ -351,33 +369,43 @@ interface Props {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export const ActivityManager: React.FC<Props> = ({
-  activities, setActivities, settings, events,
+  activities, setActivities, settings, events, students, teachers,
+  concertPrograms, setConcertPrograms, concertProgramsLoading = false, orgId, actorId,
   onMobileMenuOpen, embedded = false,
 }) => {
-  const { currentUser, isSuperAdmin } = useAuth();
+  const { currentUser, isSuperAdmin, isAdmin } = useAuth();
   const uid = currentUser?.id || '';
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
   const templatePickerTitleId = useId();
+  const rosterModalTitleId = useId();
+  const canManageRosters = isSuperAdmin || isAdmin;
 
   // ─── Internal Supabase hooks for v2.0 collections ────────────────────────
-  const [l1Subs, setL1Subs] = useSupabaseSync<L1Subcategory>(V2_COLLECTIONS.l1Subcategories, []);
-  const [l2Subs, setL2Subs] = useSupabaseSync<L2Subcategory>(V2_COLLECTIONS.l2Subcategories, []);
+  const [l1Subs, setL1Subs, l1Loading] = useSupabaseSync<L1Subcategory>(V2_COLLECTIONS.l1Subcategories, []);
+  const [l2Subs, setL2Subs, l2Loading] = useSupabaseSync<L2Subcategory>(V2_COLLECTIONS.l2Subcategories, []);
   const [eventsV2, setEventsV2] = useSupabaseSync<EventV2>(V2_COLLECTIONS.events, []);
-  const [enrollmentsV2, setEnrollmentsV2] = useSupabaseSync<EnrollmentV2>(V2_COLLECTIONS.enrollments, []);
-  const [teachingAssignments, setTeachingAssignments] = useSupabaseSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
+  const [enrollmentsV2, setEnrollmentsV2, enrollmentsLoading] = useSupabaseSync<EnrollmentV2>(V2_COLLECTIONS.enrollments, []);
+  const [teachingAssignments, setTeachingAssignments, assignmentsLoading] = useSupabaseSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
 
   // ─── UI State ────────────────────────────────────────────────────────────
   const [viewMode, setViewMode] = useListStyle(['table', 'tree', 'grid', 'list']);
+  const [workspaceMode, setWorkspaceMode] = useState<'activities' | 'rosters'>('activities');
   const [treeExpanded, setTreeExpanded] = useState<Set<string>>(new Set()); // ids of expanded activity rows
   const [l1InputsByActivity, setL1InputsByActivity] = useState<Record<string, string>>({});
   const [showArchived, setShowArchived] = useState(false);
+  const [rosterKindFilter, setRosterKindFilter] = useState<RosterWorkspaceKind>('ALL');
+  const [rosterStatusFilter, setRosterStatusFilter] = useState<RosterWorkspaceStatus>('ACTIVE');
+  const [rosterSearch, setRosterSearch] = useState('');
   const { sortDirection, toggleSort } = useSortState<'name'>('name');
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [rosterModalOpen, setRosterModalOpen] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailActivityId, setDetailActivityId] = useState<string | null>(null);
+  const [rosterDetailActivityId, setRosterDetailActivityId] = useState<string | null>(null);
 
   // ─── Combined Import/Export dropdown ────────────────────────────────────
   const [csvMenuOpen, setCsvMenuOpen] = useState(false);
@@ -411,6 +439,15 @@ export const ActivityManager: React.FC<Props> = ({
   const [formEventNameMode, setFormEventNameMode] = useState<EventNameMode>('AUTO');
   const [initialFormSnapshot, setInitialFormSnapshot] = useState('');
   const [prefillUsed, setPrefillUsed] = useState(false);
+  const [rosterFormKind, setRosterFormKind] = useState<Exclude<RosterWorkspaceKind, 'ALL'>>('ENSEMBLE');
+  const [rosterFormName, setRosterFormName] = useState('');
+  const [rosterFormLocation, setRosterFormLocation] = useState('');
+  const [rosterFormL2Name, setRosterFormL2Name] = useState('Main group');
+  const [rosterFormStaffId, setRosterFormStaffId] = useState('');
+  const [rosterFormStudentIds, setRosterFormStudentIds] = useState<Set<string>>(new Set());
+  const [rosterAddStudentId, setRosterAddStudentId] = useState('');
+  const [rosterAddL2Id, setRosterAddL2Id] = useState('');
+  const [rosterAddStaffId, setRosterAddStaffId] = useState('');
 
   // ─── L1/L2 inline inputs ────────────────────────────────────────────────
   const [l1Input, setL1Input] = useState('');
@@ -440,6 +477,25 @@ export const ActivityManager: React.FC<Props> = ({
     detailActivityId ? l2Subs.filter(l => l.activityId === detailActivityId) : [],
     [l2Subs, detailActivityId]
   );
+
+  const rosterRows = useMemo(() => buildRosterWorkspaceRows({
+    activities,
+    enrollments: enrollmentsV2,
+    students,
+    teachingAssignments,
+    kind: rosterKindFilter,
+    status: rosterStatusFilter,
+    search: rosterSearch,
+  }), [activities, enrollmentsV2, students, teachingAssignments, rosterKindFilter, rosterStatusFilter, rosterSearch]);
+  const rosterDetailRow = useMemo(
+    () => rosterRows.find(row => row.activity.id === rosterDetailActivityId) ?? null,
+    [rosterRows, rosterDetailActivityId],
+  );
+  const studentNameById = useMemo(() => displayNameById(students), [students]);
+  const teacherNameById = useMemo(() => displayNameById(teachers), [teachers]);
+  const rosterStudentOptions = useMemo(() => activeStudents(students), [students]);
+  const rosterTeacherOptions = useMemo(() => activeTeachers(teachers), [teachers]);
+  const rosterLoading = l1Loading || l2Loading || enrollmentsLoading || assignmentsLoading;
   // ─── Form helpers ────────────────────────────────────────────────────────
 
   const formSnapshot = () => JSON.stringify({ formName, formTemplate, formModules, formLocation, formEventNameMode });
@@ -850,6 +906,214 @@ export const ActivityManager: React.FC<Props> = ({
     if (l2Additions.length) setL2Subs(prev => [...prev, ...l2Additions]);
   }, [activities, l1Subs, l2Subs, isSuperAdmin, setActivities, setL1Subs, setL2Subs]);
 
+  const openRosterCreateModal = useCallback(() => {
+    setSaveError(null);
+    setRosterFormKind(rosterKindFilter === 'ALL' ? 'ENSEMBLE' : rosterKindFilter);
+    setRosterFormName('');
+    setRosterFormLocation('');
+    setRosterFormL2Name('Main group');
+    setRosterFormStaffId(rosterTeacherOptions[0]?.id ?? '');
+    setRosterFormStudentIds(new Set());
+    setRosterModalOpen(true);
+  }, [rosterKindFilter, rosterTeacherOptions]);
+
+  const handleRosterStudentToggle = useCallback((studentId: string) => {
+    setRosterFormStudentIds(prev => {
+      const next = new Set(prev);
+      if (next.has(studentId)) next.delete(studentId); else next.add(studentId);
+      return next;
+    });
+  }, []);
+
+  const handleCreateRosterProgram = useCallback(() => {
+    if (!canManageRosters || !rosterFormName.trim()) return;
+    setSaveError(null);
+    try {
+      const now = nowTimestamp();
+      const today = new Date().toISOString().slice(0, 10);
+      const activityId = generateId();
+      const l2Id = generateId();
+      const template: ActivityTemplate = rosterFormKind === 'PROGRAM' ? 'PROGRAM' : rosterFormKind === 'ENSEMBLE' ? 'ENSEMBLE' : 'DISCIPLINE';
+      const activity: ActivityV2 = {
+        id: activityId,
+        orgId: '',
+        name: rosterFormName.trim(),
+        template,
+        activityType: rosterFormKind === 'THEORY' ? 'ACADEMIC' : deriveActivityType(template),
+        modules: { ...TEMPLATE_CONFIGS[template].defaultModules },
+        location: rosterFormLocation.trim() || null,
+        eventNameMode: TEMPLATE_CONFIGS[template].eventNameMode,
+        isArchived: false,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const l2: L2Subcategory = {
+        id: l2Id,
+        orgId: '',
+        activityId,
+        l1Id: null,
+        name: rosterFormL2Name.trim() || t('rosters.default_l2'),
+        isArchived: false,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const assignment: TeachingAssignmentV2 | null = rosterFormStaffId ? {
+        id: generateId(),
+        orgId: '',
+        staffMemberId: rosterFormStaffId,
+        activityId,
+        scope: 'ACTIVITY',
+        l1Id: null,
+        l2Id: null,
+        startDate: today,
+        endDate: null,
+        isArchived: false,
+        createdAt: now,
+        updatedAt: now,
+      } : null;
+      const selectedStudentIds: string[] = Array.from(rosterFormStudentIds.values()) as string[];
+      const enrollments: EnrollmentV2[] = selectedStudentIds.map((studentId: string) => ({
+        id: generateId(),
+        orgId: '',
+        studentId,
+        activityId,
+        l2Id,
+        startDate: today,
+        endDate: null,
+        status: 'ACTIVE',
+        createdAt: now,
+        updatedAt: now,
+      }));
+      setActivities(prev => [...prev, activity]);
+      setL2Subs(prev => [...prev, l2]);
+      if (assignment) setTeachingAssignments(prev => [...prev, assignment]);
+      if (enrollments.length) setEnrollmentsV2(prev => [...prev, ...enrollments]);
+      setRosterModalOpen(false);
+      setWorkspaceMode('rosters');
+      setRosterDetailActivityId(activityId);
+    } catch {
+      setSaveError(t('rosters.save_error'));
+    }
+  }, [
+    canManageRosters,
+    rosterFormName,
+    rosterFormKind,
+    rosterFormLocation,
+    rosterFormL2Name,
+    rosterFormStaffId,
+    rosterFormStudentIds,
+    setActivities,
+    setL2Subs,
+    setTeachingAssignments,
+    setEnrollmentsV2,
+    t,
+  ]);
+
+  const addRosterStudent = useCallback((activityId: string, l2Id: string) => {
+    if (!canManageRosters || !rosterAddStudentId || !l2Id) return;
+    const activeDuplicate = enrollmentsV2.some(enrollment =>
+      enrollment.activityId === activityId
+      && enrollment.studentId === rosterAddStudentId
+      && enrollment.status === 'ACTIVE'
+      && enrollment.l2Id === l2Id,
+    );
+    if (activeDuplicate) {
+      setSaveError(t('rosters.duplicate_student'));
+      return;
+    }
+    const now = nowTimestamp();
+    const today = new Date().toISOString().slice(0, 10);
+    const enrollment: EnrollmentV2 = {
+      id: generateId(),
+      orgId: '',
+      activityId,
+      studentId: rosterAddStudentId,
+      l2Id,
+      startDate: today,
+      endDate: null,
+      status: 'ACTIVE',
+      createdAt: now,
+      updatedAt: now,
+    };
+    setSaveError(null);
+    setEnrollmentsV2(prev => [...prev, enrollment]);
+    setRosterAddStudentId('');
+  }, [canManageRosters, enrollmentsV2, rosterAddStudentId, setEnrollmentsV2, t]);
+
+  const archiveRosterEnrollment = useCallback((enrollmentId: string) => {
+    if (!canManageRosters) return;
+    const now = nowTimestamp();
+    const today = new Date().toISOString().slice(0, 10);
+    setEnrollmentsV2(prev => prev.map(enrollment =>
+      enrollment.id === enrollmentId
+        ? { ...enrollment, status: 'ARCHIVED' as EnrollmentStatus, endDate: enrollment.endDate ?? today, updatedAt: now }
+        : enrollment,
+    ));
+  }, [canManageRosters, setEnrollmentsV2]);
+
+  const addRosterAssignment = useCallback((activityId: string) => {
+    if (!canManageRosters || !rosterAddStaffId) return;
+    const duplicate = teachingAssignments.some(assignment =>
+      assignment.activityId === activityId
+      && assignment.staffMemberId === rosterAddStaffId
+      && !assignment.isArchived,
+    );
+    if (duplicate) {
+      setSaveError(t('rosters.duplicate_staff'));
+      return;
+    }
+    const now = nowTimestamp();
+    const today = new Date().toISOString().slice(0, 10);
+    const assignment: TeachingAssignmentV2 = {
+      id: generateId(),
+      orgId: '',
+      staffMemberId: rosterAddStaffId,
+      activityId,
+      scope: 'ACTIVITY',
+      l1Id: null,
+      l2Id: null,
+      startDate: today,
+      endDate: null,
+      isArchived: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    setSaveError(null);
+    setTeachingAssignments(prev => [...prev, assignment]);
+    setRosterAddStaffId('');
+  }, [canManageRosters, rosterAddStaffId, setTeachingAssignments, teachingAssignments, t]);
+
+  const archiveRosterAssignment = useCallback((assignmentId: string) => {
+    if (!canManageRosters) return;
+    const now = nowTimestamp();
+    const today = new Date().toISOString().slice(0, 10);
+    setTeachingAssignments(prev => prev.map(assignment =>
+      assignment.id === assignmentId
+        ? { ...assignment, isArchived: true, endDate: assignment.endDate ?? today, updatedAt: now }
+        : assignment,
+    ));
+  }, [canManageRosters, setTeachingAssignments]);
+
+  const archiveRosterActivity = useCallback((activityId: string) => {
+    if (!canManageRosters) return;
+    const now = nowTimestamp();
+    const today = new Date().toISOString().slice(0, 10);
+    setActivities(prev => prev.map(activity =>
+      activity.id === activityId ? { ...activity, isArchived: true, updatedAt: now } : activity,
+    ));
+    setEnrollmentsV2(prev => prev.map(enrollment =>
+      enrollment.activityId === activityId && enrollment.status === 'ACTIVE'
+        ? { ...enrollment, status: 'ARCHIVED' as EnrollmentStatus, endDate: enrollment.endDate ?? today, updatedAt: now }
+        : enrollment,
+    ));
+    setTeachingAssignments(prev => prev.map(assignment =>
+      assignment.activityId === activityId && !assignment.isArchived
+        ? { ...assignment, isArchived: true, endDate: assignment.endDate ?? today, updatedAt: now }
+        : assignment,
+    ));
+    setRosterStatusFilter('ARCHIVED');
+  }, [canManageRosters, setActivities, setEnrollmentsV2, setTeachingAssignments]);
+
   // ─── L1 / L2 CRUD ───────────────────────────────────────────────────────
 
   const addL1 = useCallback((activityIdArg?: string) => {
@@ -1198,12 +1462,346 @@ export const ActivityManager: React.FC<Props> = ({
     return TEMPLATE_CONFIGS[activity.template] || TEMPLATE_CONFIGS.DISCIPLINE;
   };
 
+  const renderModeSwitcher = () => (
+    <div className="inline-flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
+      <button
+        type="button"
+        onClick={() => setWorkspaceMode('activities')}
+        className={`px-3 py-1.5 rounded-md text-sm font-semibold ${workspaceMode === 'activities' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+      >
+        {t('rosters.mode_activities')}
+      </button>
+      <button
+        type="button"
+        onClick={() => setWorkspaceMode('rosters')}
+        className={`px-3 py-1.5 rounded-md text-sm font-semibold ${workspaceMode === 'rosters' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+      >
+        {t('rosters.mode_rosters')}
+      </button>
+    </div>
+  );
+
+  if (workspaceMode === 'rosters') {
+    const detail = rosterDetailRow ?? rosterRows[0] ?? null;
+    const detailActivity = detail?.activity ?? null;
+    const detailL2Options = detailActivity ? activityL2Options(detailActivity.id, l2Subs) : [];
+    const addStudentL2Id = rosterAddL2Id || detailL2Options[0]?.id || '';
+    const detailEnrollments = detailActivity
+      ? enrollmentsV2.filter(enrollment => enrollment.activityId === detailActivity.id)
+          .sort((a, b) => (studentNameById.get(a.studentId) ?? a.studentId).localeCompare(studentNameById.get(b.studentId) ?? b.studentId))
+      : [];
+    const detailAssignments = detailActivity
+      ? teachingAssignments.filter(assignment => assignment.activityId === detailActivity.id)
+          .sort((a, b) => (teacherNameById.get(a.staffMemberId) ?? a.staffMemberId).localeCompare(teacherNameById.get(b.staffMemberId) ?? b.staffMemberId))
+      : [];
+
+    return (
+      <div className={`${embedded ? 'h-full overflow-auto' : ''} p-8 max-w-7xl mx-auto`} data-testid="roster-program-workspace">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white">{t('rosters.title')}</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t('rosters.subtitle')}</p>
+          </div>
+          {renderModeSwitcher()}
+        </div>
+
+        {saveError && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300">
+            <AlertTriangle size={16} />
+            {saveError}
+          </div>
+        )}
+
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[260px] flex-1">
+            <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={rosterSearch}
+              onChange={event => setRosterSearch(event.target.value)}
+              placeholder={t('rosters.search')}
+              className="w-full rounded-lg border border-slate-300 bg-white py-2 ps-9 pe-3 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            />
+          </div>
+          <select value={rosterKindFilter} onChange={event => setRosterKindFilter(event.target.value as RosterWorkspaceKind)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+            <option value="ALL">{t('rosters.kind_all')}</option>
+            <option value="ENSEMBLE">{t('rosters.kind_ensemble')}</option>
+            <option value="THEORY">{t('rosters.kind_theory')}</option>
+            <option value="PROGRAM">{t('rosters.kind_program')}</option>
+          </select>
+          <select value={rosterStatusFilter} onChange={event => setRosterStatusFilter(event.target.value as RosterWorkspaceStatus)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+            <option value="ACTIVE">{t('rosters.status_active')}</option>
+            <option value="MISSING_STAFF">{t('rosters.status_missing_staff')}</option>
+            <option value="ARCHIVED">{t('rosters.status_archived')}</option>
+          </select>
+          {canManageRosters && (
+            <button onClick={openRosterCreateModal} className="btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft rounded-lg px-3 py-2 text-sm font-semibold inline-flex items-center gap-2">
+              <Plus size={16} />
+              {t('rosters.create')}
+            </button>
+          )}
+        </div>
+
+        {rosterLoading ? (
+          <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+            {t('rosters.loading')}
+          </div>
+        ) : rosterRows.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-700 dark:bg-slate-900">
+            <Music size={28} className="mx-auto mb-3 text-slate-300" />
+            <h3 className="font-semibold text-slate-800 dark:text-white">{t('rosters.empty_title')}</h3>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('rosters.empty_body')}</p>
+          </div>
+        ) : (
+          <div className="grid min-h-[560px] grid-cols-1 gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
+            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+              <div className="border-b border-slate-200 px-3 py-2 text-xs font-semibold uppercase text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                {t('rosters.list_header').replace('{count}', String(rosterRows.length))}
+              </div>
+              <div className="max-h-[620px] overflow-auto">
+                {rosterRows.map(row => (
+                  <button
+                    key={row.activity.id}
+                    onClick={() => setRosterDetailActivityId(row.activity.id)}
+                    className={`w-full border-b border-slate-100 px-3 py-3 text-start hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/60 ${detail?.activity.id === row.activity.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold text-slate-800 dark:text-white">{row.activity.name}</div>
+                        <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
+                          <span className="rounded bg-slate-100 px-2 py-0.5 text-slate-600 dark:bg-slate-800 dark:text-slate-300">{t(`rosters.kind_${row.kind.toLowerCase()}`)}</span>
+                          {row.activity.isArchived && <span className="rounded bg-amber-100 px-2 py-0.5 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{t('activities.archived_badge')}</span>}
+                          {row.hasMissingStaff && <span className="rounded bg-red-50 px-2 py-0.5 text-red-600 dark:bg-red-900/20 dark:text-red-300">{t('rosters.missing_staff')}</span>}
+                        </div>
+                      </div>
+                      <div className="text-end text-xs text-slate-500 dark:text-slate-400">
+                        <div>{row.activeStudentIds.length}</div>
+                        <div>{t('rosters.students_short')}</div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {detail && detailActivity && (
+              <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">{detailActivity.name}</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      {detail.activeStudentIds.length} {t('rosters.active_students')} · {detail.activeAssignmentIds.length} {t('rosters.assigned_staff')}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => { setWorkspaceMode('activities'); setDetailActivityId(detailActivity.id); }} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                      <Link2 size={15} />
+                      {t('rosters.open_activity')}
+                    </button>
+                    {canManageRosters && !detailActivity.isArchived && (
+                      <button onClick={() => archiveRosterActivity(detailActivity.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 px-3 py-2 text-sm text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-900/20">
+                        <Archive size={15} />
+                        {t('rosters.archive_program')}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+                  <section className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      <Users size={16} />
+                      {t('rosters.roster')}
+                    </div>
+                    <div className="overflow-auto rounded-lg border border-slate-200 dark:border-slate-800">
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-800/70 dark:text-slate-400">
+                          <tr>
+                            <th className="px-3 py-2 text-start">{t('rosters.student')}</th>
+                            <th className="px-3 py-2 text-start">{t('rosters.group')}</th>
+                            <th className="px-3 py-2 text-start">{t('rosters.status')}</th>
+                            <th className="px-3 py-2 text-end">{t('student_family.col.actions')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {detailEnrollments.length === 0 ? (
+                            <tr>
+                              <td colSpan={4} className="px-3 py-6 text-center text-slate-400">{t('rosters.no_students')}</td>
+                            </tr>
+                          ) : detailEnrollments.map(enrollment => {
+                            const groupName = l2Subs.find(l2 => l2.id === enrollment.l2Id)?.name ?? enrollment.l2Id;
+                            const missing = !studentNameById.has(enrollment.studentId);
+                            return (
+                              <tr key={enrollment.id} className="border-t border-slate-100 dark:border-slate-800">
+                                <td className="px-3 py-2 font-medium text-slate-800 dark:text-slate-200">
+                                  {studentNameById.get(enrollment.studentId) ?? enrollment.studentId}
+                                  {missing && <span className="ms-2 rounded bg-red-50 px-1.5 py-0.5 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-300">{t('rosters.missing_student')}</span>}
+                                </td>
+                                <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{groupName}</td>
+                                <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{enrollment.status}</td>
+                                <td className="px-3 py-2 text-end">
+                                  {canManageRosters && enrollment.status === 'ACTIVE' && (
+                                    <button onClick={() => archiveRosterEnrollment(enrollment.id)} className="rounded p-1.5 text-amber-600 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20" title={t('rosters.archive_enrollment')}>
+                                      <Archive size={14} />
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {canManageRosters && (
+                      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/40">
+                        <select value={rosterAddStudentId} onChange={event => setRosterAddStudentId(event.target.value)} className="min-w-[220px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+                          <option value="">{t('rosters.choose_student')}</option>
+                          {rosterStudentOptions.map(student => <option key={student.id} value={student.id}>{student.fullName}</option>)}
+                        </select>
+                        <select value={addStudentL2Id} onChange={event => setRosterAddL2Id(event.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+                          <option value="">{t('rosters.choose_group')}</option>
+                          {detailL2Options.map(l2 => <option key={l2.id} value={l2.id}>{l2.name}</option>)}
+                        </select>
+                        <button onClick={() => addRosterStudent(detailActivity.id, addStudentL2Id)} disabled={!rosterAddStudentId || !addStudentL2Id} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                          <UserPlus size={15} />
+                          {t('rosters.add_student')}
+                        </button>
+                      </div>
+                    )}
+                  </section>
+
+                  <aside className="space-y-4">
+                    <section className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+                      <h4 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-300">{t('rosters.staff')}</h4>
+                      <div className="space-y-2">
+                        {detailAssignments.length === 0 ? (
+                          <div className="rounded border border-dashed border-red-200 p-3 text-sm text-red-600 dark:border-red-900/50 dark:text-red-300">{t('rosters.no_staff')}</div>
+                        ) : detailAssignments.map(assignment => (
+                          <div key={assignment.id} className={`flex items-center justify-between gap-2 rounded border px-2 py-2 text-sm ${assignment.isArchived ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-300' : 'border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-300'}`}>
+                            <span>{teacherNameById.get(assignment.staffMemberId) ?? assignment.staffMemberId}</span>
+                            {canManageRosters && !assignment.isArchived && (
+                              <button onClick={() => archiveRosterAssignment(assignment.id)} className="rounded p-1 text-amber-600 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20" title={t('rosters.archive_staff')}>
+                                <Archive size={14} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      {canManageRosters && (
+                        <div className="mt-3 flex gap-2">
+                          <select value={rosterAddStaffId} onChange={event => setRosterAddStaffId(event.target.value)} className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+                            <option value="">{t('rosters.choose_staff')}</option>
+                            {rosterTeacherOptions.map(teacher => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}
+                          </select>
+                          <button onClick={() => addRosterAssignment(detailActivity.id)} disabled={!rosterAddStaffId} className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                            {t('rosters.add_staff')}
+                          </button>
+                        </div>
+                      )}
+                    </section>
+
+                    <section className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+                      <h4 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-300">{t('rosters.source_links')}</h4>
+                      <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
+                        <div>{t('rosters.source_activity')}: <span className="font-mono">{detail.sourceLinks.activityId}</span></div>
+                        <div>{t('rosters.source_enrollments')}: <span className="font-mono">{detail.sourceLinks.enrollmentIds.join(', ') || t('rosters.none')}</span></div>
+                        <div>{t('rosters.source_assignments')}: <span className="font-mono">{detail.sourceLinks.teachingAssignmentIds.join(', ') || t('rosters.none')}</span></div>
+                      </div>
+                    </section>
+                  </aside>
+                </div>
+                <div className="border-t border-slate-200 p-4 dark:border-slate-800">
+                  <ConcertProgramPlanner
+                    settings={settings}
+                    orgId={orgId}
+                    actorId={actorId}
+                    scope={{ kind: 'activity', activityId: detailActivity.id, activityName: detailActivity.name }}
+                    programs={concertPrograms}
+                    setPrograms={setConcertPrograms}
+                    events={events}
+                    students={students}
+                    staff={teachers}
+                    loading={concertProgramsLoading}
+                    canManage={canManageRosters}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {rosterModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setRosterModalOpen(false)} />
+            <div role="dialog" aria-modal="true" aria-labelledby={rosterModalTitleId} className="relative mx-4 w-full max-w-2xl rounded-lg border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 id={rosterModalTitleId} className="text-lg font-bold text-slate-900 dark:text-white">{t('rosters.create')}</h3>
+                <button onClick={() => setRosterModalOpen(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  {t('rosters.kind')}
+                  <select value={rosterFormKind} onChange={event => setRosterFormKind(event.target.value as Exclude<RosterWorkspaceKind, 'ALL'>)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                    <option value="ENSEMBLE">{t('rosters.kind_ensemble')}</option>
+                    <option value="THEORY">{t('rosters.kind_theory')}</option>
+                    <option value="PROGRAM">{t('rosters.kind_program')}</option>
+                  </select>
+                </label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  {t('activities.name')}
+                  <input value={rosterFormName} onChange={event => setRosterFormName(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                </label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  {t('activities.location')}
+                  <input value={rosterFormLocation} onChange={event => setRosterFormLocation(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                </label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  {t('rosters.initial_group')}
+                  <input value={rosterFormL2Name} onChange={event => setRosterFormL2Name(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                </label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 sm:col-span-2">
+                  {t('rosters.initial_staff')}
+                  <select value={rosterFormStaffId} onChange={event => setRosterFormStaffId(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                    <option value="">{t('rosters.no_staff_selected')}</option>
+                    {rosterTeacherOptions.map(teacher => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}
+                  </select>
+                </label>
+              </div>
+              <div className="mt-4">
+                <div className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">{t('rosters.initial_students')}</div>
+                <div className="max-h-44 overflow-auto rounded-lg border border-slate-200 p-2 dark:border-slate-800">
+                  {rosterStudentOptions.length === 0 ? (
+                    <div className="px-2 py-4 text-center text-sm text-slate-400">{t('rosters.no_available_students')}</div>
+                  ) : rosterStudentOptions.map(student => (
+                    <label key={student.id} className="flex items-center gap-2 rounded px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
+                      <input type="checkbox" checked={rosterFormStudentIds.has(student.id)} onChange={() => handleRosterStudentToggle(student.id)} className="h-4 w-4 rounded border-slate-300 text-blue-600" />
+                      {student.fullName}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-5 flex justify-end gap-2">
+                <button onClick={() => setRosterModalOpen(false)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">{t('btn.cancel')}</button>
+                <button onClick={handleCreateRosterProgram} disabled={!rosterFormName.trim()} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{t('btn.save')}</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className={`${embedded ? 'h-full overflow-auto' : ''} p-8 max-w-6xl mx-auto`}>
       {embedded && (
-        <div className="mb-4">
-          <h2 className="text-xl font-bold text-slate-800 dark:text-white">{t('activities.title')}</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{t('activities.subtitle')}</p>
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white">{t('activities.title')}</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t('activities.subtitle')}</p>
+          </div>
+          {renderModeSwitcher()}
         </div>
       )}
       {/* Toolbar */}

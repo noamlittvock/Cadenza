@@ -3,10 +3,12 @@ import type {
   RegistrationIntake, Family, LessonRecord, OperationalRequest, ExamSession,
   ExaminerSubmission, Certificate, ConcertProgram, HoursEntry, Charge, Payment,
   Adjustment, AgreementTemplate, AgreementAcceptance, Instrument, InstrumentLoan,
-  InstrumentRepair, StaffEvaluation, ReportDefinition, PublicEndpoint,
+  InstrumentRepair, StaffEvaluation, ReportDefinition, PublicEndpoint, ReportCard,
 } from '../types/blueprint';
+import type { AdminInboxItem, CalendarEvent, CalendarSubscription } from '../types';
+import type { ImportSession } from '../types/v2';
 import * as Q from './blueprintQueries';
-import type { MinimalStudent, MinimalEnrollment, MinimalEvent, MinimalParticipant, MinimalActivity } from './blueprintQueries';
+import type { MinimalStudent, MinimalEnrollment, MinimalEvent, MinimalParticipant, MinimalActivity, MinimalTeachingAssignment } from './blueprintQueries';
 
 const T = '2026-06-16T10:00:00.000Z';
 const base = { orgId: 'org1', createdAt: T, updatedAt: T };
@@ -329,6 +331,231 @@ describe('intake', () => {
   });
 });
 
+describe('calendar integrations', () => {
+  const subscriptions: CalendarSubscription[] = [
+    {
+      id: 'sub_active',
+      orgId: 'org1',
+      name: 'Cello Room Feed',
+      token: 'legacy-token-should-not-leak',
+      filters: {
+        staffMemberIds: ['staff_1', 'missing_staff'],
+        roomIds: ['room_1'],
+        activityIds: ['activity_1'],
+        tags: ['recital'],
+      },
+      createdBy: 'admin',
+      createdAt: '2026-06-01T08:00:00.000Z',
+      isActive: true,
+    },
+    {
+      id: 'sub_revoked',
+      orgId: 'org1',
+      name: 'Revoked Feed',
+      token: 'legacy-revoked-token',
+      filters: {},
+      createdBy: 'admin',
+      createdAt: '2026-06-02T08:00:00.000Z',
+      isActive: true,
+    },
+    {
+      id: 'sub_disabled',
+      orgId: 'org1',
+      name: 'Disabled Feed',
+      token: 'legacy-disabled-token',
+      filters: {},
+      createdBy: 'admin',
+      createdAt: '2026-06-03T08:00:00.000Z',
+      isActive: false,
+    },
+  ];
+
+  const endpoints: PublicEndpoint[] = [
+    {
+      ...base,
+      id: 'endpoint_calendar_active',
+      kind: 'CALENDAR_SUBSCRIPTION',
+      label: 'Cello Room Feed',
+      tokenHash: 'hash_calendar_active',
+      status: 'ACTIVE',
+      scopes: [Q.CALENDAR_SUBSCRIPTION_PUBLIC_SCOPE],
+      targetId: 'sub_active',
+      consentAgreementId: null,
+      expiresAt: '2026-07-01T00:00:00.000Z',
+      lastUsedAt: null,
+      revokedAt: null,
+    },
+    {
+      ...base,
+      id: 'endpoint_calendar_duplicate',
+      kind: 'CALENDAR_SUBSCRIPTION',
+      label: 'Duplicate hash audit row',
+      tokenHash: 'hash_calendar_active',
+      status: 'REVOKED',
+      scopes: [Q.CALENDAR_SUBSCRIPTION_PUBLIC_SCOPE],
+      targetId: 'sub_duplicate',
+      consentAgreementId: null,
+      expiresAt: null,
+      lastUsedAt: null,
+      revokedAt: T,
+    },
+    {
+      ...base,
+      id: 'endpoint_calendar_revoked',
+      kind: 'CALENDAR_SUBSCRIPTION',
+      label: 'Revoked Feed',
+      tokenHash: 'hash_calendar_revoked',
+      status: 'REVOKED',
+      scopes: [Q.CALENDAR_SUBSCRIPTION_PUBLIC_SCOPE],
+      targetId: 'sub_revoked',
+      consentAgreementId: null,
+      expiresAt: null,
+      lastUsedAt: null,
+      revokedAt: T,
+    },
+  ];
+
+  const calendarEvents: CalendarEvent[] = [
+    {
+      id: 'event_match',
+      name: 'Cello, recital; line\none',
+      description: 'Bring bow, rosin; stand',
+      teacherId: 'staff_1',
+      staffMemberIds: ['staff_1'],
+      roomId: 'room_1',
+      activityId: 'activity_1',
+      start: '2026-06-20T09:00:00.000Z',
+      end: '2026-06-20T10:00:00.000Z',
+      isCanceled: false,
+      isHidden: false,
+      tags: ['recital'],
+    },
+    {
+      id: 'event_wrong_room',
+      name: 'Wrong room',
+      description: '',
+      roomId: 'room_2',
+      start: '2026-06-20T09:00:00.000Z',
+      end: '2026-06-20T10:00:00.000Z',
+      isCanceled: false,
+      isHidden: false,
+      tags: ['recital'],
+    },
+    {
+      id: 'event_hidden',
+      name: 'Hidden recital',
+      description: '',
+      roomId: 'room_1',
+      activityId: 'activity_1',
+      start: '2026-06-20T11:00:00.000Z',
+      end: '2026-06-20T12:00:00.000Z',
+      isCanceled: false,
+      isHidden: true,
+      tags: ['recital'],
+    },
+  ];
+
+  it('resolves calendar subscription tokens through public_endpoints scopes without requiring consent capture', () => {
+    const resolved = Q.resolveCalendarSubscriptionEndpoint(endpoints, {
+      tokenHash: 'hash_calendar_active',
+      now: T,
+    });
+    expect(resolved).toEqual({
+      ok: true,
+      endpoint: {
+        endpointId: 'endpoint_calendar_active',
+        orgId: 'org1',
+        kind: 'CALENDAR_SUBSCRIPTION',
+        label: 'Cello Room Feed',
+        scopes: [Q.CALENDAR_SUBSCRIPTION_PUBLIC_SCOPE],
+        targetId: 'sub_active',
+        consentAgreementId: null,
+      },
+    });
+    if (resolved.ok) {
+      expect('tokenHash' in resolved.endpoint).toBe(false);
+    }
+
+    expect(Q.resolveCalendarSubscriptionEndpoint([
+      { ...endpoints[0], scopes: ['calendar_subscription:audit'] },
+    ], {
+      tokenHash: 'hash_calendar_active',
+      now: T,
+    })).toEqual({ ok: false, reason: 'MISSING_SCOPE' });
+  });
+
+  it('lists endpoint-backed active subscriptions with stale filters and duplicate-token markers', () => {
+    const active = Q.listActiveSubscriptions(subscriptions, {
+      now: T,
+      endpoints,
+      staffMembers: [
+        { id: 'staff_1', positions: ['Cello'] },
+        { id: 'staff_archived', positions: ['Theory'], isArchived: true },
+      ],
+      rooms: [{ id: 'room_1' }],
+      activities: [{ id: 'activity_1', name: 'Cello Group' }],
+      events: calendarEvents,
+    });
+
+    expect(active.map(s => s.id)).toEqual(['sub_active']);
+    expect(active[0]).toMatchObject({
+      endpointId: 'endpoint_calendar_active',
+      endpointStatus: 'ACTIVE',
+      duplicateTokenHash: true,
+      requiresEndpointBackfill: false,
+    });
+    expect(active[0].filterIssues).toEqual([
+      { key: 'staffMemberIds', value: 'missing_staff', reason: 'MISSING_SOURCE' },
+    ]);
+    expect('token' in active[0]).toBe(false);
+    expect('tokenHash' in active[0]).toBe(false);
+  });
+
+  it('builds filtered RFC 5545 calendar output with escaped text and no hidden/cancelled events', () => {
+    const ics = Q.buildCalendarSubscriptionIcs(subscriptions[0], calendarEvents, { now: T });
+
+    expect(ics).toContain('BEGIN:VCALENDAR');
+    expect(ics).toContain('UID:event_match@cadenza-forte');
+    expect(ics).not.toContain('event_wrong_room');
+    expect(ics).not.toContain('event_hidden');
+    expect(ics).toContain('SUMMARY:Cello\\, recital\\; line\\none');
+    expect(ics).toContain('DESCRIPTION:Bring bow\\, rosin\\; stand');
+  });
+
+  it('summarizes external sync state without exposing public endpoint hashes', () => {
+    const state = Q.listExternalSyncState({
+      now: T,
+      settings: {
+        googleCalendarSyncEnabled: true,
+        googleCalendarId: '',
+      },
+      events: [
+        { ...calendarEvents[0], googleEventId: 'google_event_1', teacherGoogleEventIds: { staff_1: 'teacher_google_event_1' } },
+        { ...calendarEvents[2], googleEventId: 'hidden_google_event' },
+      ],
+      subscriptions,
+      endpoints,
+    });
+
+    expect(state.find(s => s.id === 'google-tenant-calendar')).toMatchObject({
+      status: 'WARNING',
+      syncedCount: 1,
+      issueCount: 1,
+    });
+    expect(state.find(s => s.id === 'google-teacher-calendars')).toMatchObject({
+      status: 'OK',
+      syncedCount: 1,
+      sourceIds: ['staff_1'],
+    });
+    expect(state.find(s => s.id === 'ical-subscriptions')).toMatchObject({
+      status: 'WARNING',
+      syncedCount: 1,
+      blockedDecisionIds: ['D-23'],
+    });
+    expect(JSON.stringify(state)).not.toContain('hash_calendar_active');
+  });
+});
+
 describe('students/family', () => {
   const families: Family[] = [
     { ...base, id: 'f1', name: 'Cohen-Levi', guardians: [{ id: 'g1', fullName: 'Dana Cohen', relationship: 'PARENT', phone: '050-111', email: 'dana@x.com', isPrimary: true }], studentIds: ['s1', 's2'], primaryContactGuardianId: 'g1', billingNotes: null, isArchived: false },
@@ -358,20 +585,58 @@ describe('rooms/absence requests', () => {
     { ...base, id: 'r1', kind: 'ROOM_CHANGE', status: 'PENDING', requestedByStaffId: 't1', requestedFor: '2026-06-20', endDate: null, eventId: 'ev1', currentRoomId: 'rm1', requestedRoomId: 'rm2', reason: 'piano needed' },
     { ...base, id: 'r2', kind: 'ABSENCE', status: 'PENDING', requestedByStaffId: 't1', requestedFor: '2026-06-18', endDate: '2026-06-19', eventId: null, currentRoomId: null, requestedRoomId: null, reason: 'sick' },
     { ...base, id: 'r3', kind: 'DAY_OFF', status: 'APPROVED', requestedByStaffId: 't2', requestedFor: '2026-07-01', endDate: null, eventId: null, currentRoomId: null, requestedRoomId: null, reason: null },
+    { ...base, id: 'r4', kind: 'ROOM_CHANGE', status: 'CANCELLED', requestedByStaffId: 't1', requestedFor: '2026-06-20', endDate: null, eventId: 'ev2', currentRoomId: 'rm1', requestedRoomId: 'rm3', reason: 'cancelled by teacher' },
+    { ...base, id: 'r5', kind: 'ROOM_CHANGE', status: 'PENDING', requestedByStaffId: 't2', requestedFor: '2026-06-20', endDate: null, eventId: 'missing-event', currentRoomId: 'rm1', requestedRoomId: 'rm2', reason: 'stale event link' },
+    { ...base, id: 'r6', kind: 'ROOM_CHANGE', status: 'PENDING', requestedByStaffId: 't1', requestedFor: '2026-06-21', endDate: null, eventId: 'ev3', currentRoomId: 'rm2', requestedRoomId: 'rm2', reason: 'same room stale request' },
   ];
   it('listRoomRequests filters kind + optional status', () => {
-    expect(Q.listRoomRequests(reqs).map(r => r.id)).toEqual(['r1']);
-    expect(Q.listRoomRequests(reqs, 'APPROVED')).toEqual([]);
+    expect(Q.listRoomRequests(reqs).map(r => r.id)).toEqual(['r1', 'r4', 'r5', 'r6']);
+    expect(Q.listRoomRequests(reqs, 'CANCELLED').map(r => r.id)).toEqual(['r4']);
+  });
+  it('listRoomRequests supports own-request filtering, terminal suppression, stale links, and stable same-day ordering', () => {
+    expect(Q.listRoomRequests(reqs, {
+      requestedByStaffId: 't1',
+      includeTerminal: false,
+    }).map(r => r.id)).toEqual(['r1', 'r6']);
+
+    expect(Q.listRoomRequests(reqs, {
+      includeTerminal: false,
+      includeStaleLinks: false,
+      eventIds: ['ev1', 'ev2', 'ev3'],
+      roomIds: ['rm1', 'rm2', 'rm3'],
+    }).map(r => r.id)).toEqual(['r1']);
   });
   it('listAbsencesForPeriod uses range overlap', () => {
     expect(Q.listAbsencesForPeriod(reqs, '2026-06-19', '2026-06-30').map(r => r.id)).toEqual(['r2']);
     expect(Q.listAbsencesForPeriod(reqs, '2026-07-01', '2026-07-31').map(r => r.id)).toEqual(['r3']);
   });
+  it('listAbsencesForPeriod supports own-request and active-queue filters', () => {
+    expect(Q.listAbsencesForPeriod(reqs, '2026-06-01', '2026-07-31', {
+      requestedByStaffId: 't1',
+      includeTerminal: false,
+    }).map(r => r.id)).toEqual(['r2']);
+  });
   it('applyApprovedRoomChange yields the mutation or null', () => {
-    const res = Q.applyApprovedRoomChange(reqs[0], { now: T, decidedBy: 'admin' });
+    const res = Q.applyApprovedRoomChange(reqs[0], {
+      now: T,
+      decidedBy: 'admin',
+      eventIds: ['ev1'],
+      roomIds: ['rm1', 'rm2'],
+    });
     expect(res?.newRoomId).toBe('rm2');
     expect(res?.request.status).toBe('APPROVED');
     expect(Q.applyApprovedRoomChange(reqs[1], { now: T })).toBeNull();
+    expect(Q.applyApprovedRoomChange({ ...reqs[0], status: 'APPROVED' }, { now: T })).toBeNull();
+    expect(Q.applyApprovedRoomChange(reqs[4], {
+      now: T,
+      eventIds: ['ev1'],
+      roomIds: ['rm1', 'rm2'],
+    })).toBeNull();
+    expect(Q.applyApprovedRoomChange(reqs[5], { now: T })).toBeNull();
+  });
+  it('keeps D-21 absence/day-off approvals as review-only with no automatic room mutation', () => {
+    expect(Q.applyApprovedRoomChange({ ...reqs[1], status: 'APPROVED' }, { now: T })).toBeNull();
+    expect(Q.applyApprovedRoomChange(reqs[2], { now: T })).toBeNull();
   });
 });
 
@@ -381,16 +646,28 @@ describe('ensembles/theory/programs', () => {
     { id: 'a2', name: 'Music Theory 101', template: 'DISCIPLINE', activityType: 'ACADEMIC' },
     { id: 'a3', name: 'After School Program', template: 'PROGRAM' },
     { id: 'a4', name: 'Archived Band', template: 'ENSEMBLE', isArchived: true },
+    { id: 'a5', name: 'Youth Orchestra B', template: 'ENSEMBLE' },
   ];
   const enr: MinimalEnrollment[] = [
     { id: 'e1', studentId: 's1', activityId: 'a1', status: 'ACTIVE' },
     { id: 'e2', studentId: 's2', activityId: 'a1', status: 'ACTIVE' },
     { id: 'e3', studentId: 's1', activityId: 'a2', status: 'ACTIVE' },
     { id: 'e4', studentId: 's3', activityId: 'a3', status: 'ACTIVE' },
+    { id: 'e5', studentId: 's4', activityId: 'a1', status: 'ACTIVE' },
+    { id: 'e6', studentId: 'missing', activityId: 'a1', status: 'ACTIVE' },
+    { id: 'e7', studentId: 's2', activityId: 'a1', status: 'ARCHIVED' },
+    { id: 'e8', studentId: 's2', activityId: 'a1', status: 'ACTIVE', l2Id: 'l2-b' },
+    { id: 'e9', studentId: 's1', activityId: 'a5', status: 'ACTIVE', l2Id: 'l2-a' },
+    { id: 'e10', studentId: 's2', activityId: 'a5', status: 'ACTIVE', l2Id: 'l2-b' },
+  ];
+  const assignments: MinimalTeachingAssignment[] = [
+    { id: 'ta1', staffMemberId: 'staff-1', activityId: 'a1', scope: 'ACTIVITY', isArchived: false },
+    { id: 'ta2', staffMemberId: 'staff-2', activityId: 'a5', scope: 'L2', l2Id: 'l2-b', isArchived: false },
+    { id: 'ta3', staffMemberId: 'staff-3', activityId: 'a5', scope: 'L2', l2Id: 'l2-a', isArchived: true },
   ];
   it('listEnsembleRosters returns active ensemble rosters only', () => {
     const r = Q.listEnsembleRosters(activities, enr, students);
-    expect(r).toHaveLength(1);
+    expect(r).toHaveLength(2);
     expect(r[0].studentIds.sort()).toEqual(['s1', 's2']);
   });
   it('listTheoryGroups matches academic/theory', () => {
@@ -400,6 +677,86 @@ describe('ensembles/theory/programs', () => {
     const r = Q.listSchoolProgramStudents(activities, enr, students);
     expect(r[0].activity.id).toBe('a3');
     expect(r[0].students[0].id).toBe('s3');
+  });
+  it('flags archived, missing, duplicate, and L2 enrollment rows without counting them as active students', () => {
+    const [roster] = Q.listEnsembleRosters(activities, enr, students);
+    expect(roster.enrollmentIds).toEqual(['e1', 'e2', 'e6', 'e5', 'e8']);
+    expect(roster.studentIds).toEqual(['s1', 's2']);
+    expect(roster.archivedEnrollmentIds).toEqual(['e7']);
+    expect(roster.missingStudentIds).toEqual(['missing']);
+    expect(roster.archivedStudentIds).toEqual(['s4']);
+    expect(roster.duplicateStudentIds).toEqual(['s2']);
+    expect(roster.l2Ids).toEqual(['l2-b']);
+  });
+  it('buildRosterProgramViewModel gives admins full source-linked roster visibility', () => {
+    const model = Q.buildRosterProgramViewModel({
+      activities,
+      enrollments: enr,
+      students,
+      teachingAssignments: assignments,
+      access: { role: 'admin' },
+      kind: 'ENSEMBLE',
+    });
+
+    expect(model.access).toBe('FULL');
+    expect(model.canWrite).toBe(true);
+    expect(model.canExport).toBe(true);
+    expect(model.blockedSourceMarkers).toEqual([]);
+    expect(model.items.map(item => item.activity.id)).toEqual(['a1', 'a5']);
+    expect(model.items[0].assignedStaffMemberIds).toEqual(['staff-1']);
+    expect(model.items[0].visibleSourceIds).toEqual({
+      activityId: 'a1',
+      enrollmentIds: ['e1', 'e2', 'e6', 'e5', 'e8'],
+      assignmentIds: ['ta1'],
+    });
+  });
+  it('buildRosterProgramViewModel limits assigned teachers to their own L2 roster slice', () => {
+    const model = Q.buildRosterProgramViewModel({
+      activities,
+      enrollments: enr,
+      students,
+      teachingAssignments: assignments,
+      access: { role: 'teacher', staffMemberId: 'staff-2' },
+      kind: 'ENSEMBLE',
+    });
+
+    expect(model.access).toBe('ASSIGNED_TEACHER');
+    expect(model.canWrite).toBe(false);
+    expect(model.canExport).toBe(false);
+    expect(model.items).toHaveLength(1);
+    expect(model.items[0].activity.id).toBe('a5');
+    expect(model.items[0].studentIds).toEqual(['s2']);
+    expect(model.items[0].l2Ids).toEqual(['l2-b']);
+    expect(model.items[0].visibleSourceIds).toEqual({
+      activityId: 'a5',
+      enrollmentIds: ['e10'],
+      assignmentIds: ['ta2'],
+    });
+  });
+  it('buildRosterProgramViewModel denies plain member, finance, and unrelated teacher access without leaking counts', () => {
+    for (const access of [
+      { role: 'member' as const },
+      { role: 'finance' as const },
+      { role: 'teacher' as const, staffMemberId: 'staff-other' },
+    ]) {
+      const model = Q.buildRosterProgramViewModel({
+        activities,
+        enrollments: enr,
+        students,
+        teachingAssignments: assignments,
+        access,
+      });
+      expect(model.items).toEqual([]);
+      expect(model.canWrite).toBe(false);
+      expect(model.canExport).toBe(false);
+      if (access.role === 'teacher') {
+        expect(model.access).toBe('ASSIGNED_TEACHER');
+        expect(model.blockedSourceMarkers).toEqual([]);
+      } else {
+        expect(model.access).toBe('DENIED');
+        expect(model.blockedSourceMarkers).toEqual(['roster_programs']);
+      }
+    }
   });
 });
 
@@ -478,26 +835,44 @@ describe('exams/certificates', () => {
   const sessions: ExamSession[] = [
     { ...base, id: 'x1', name: 'Spring Recital Exam', activityId: null, date: '2026-05-01', status: 'GRADED', examinerStaffIds: ['t1'], studentIds: ['s1'], notes: null },
     { ...base, id: 'x2', name: 'Summer Exam', activityId: null, date: '2026-08-01', status: 'SCHEDULED', examinerStaffIds: [], studentIds: [], notes: null },
+    { ...base, id: 'x0', name: 'Cancelled Same-Day Exam', activityId: 'activity_2', date: '2026-05-01', status: 'CANCELLED', examinerStaffIds: ['t2'], studentIds: ['s2'], notes: null },
+    { ...base, id: 'x3', name: 'Second Summer Exam', activityId: 'activity_1', date: '2026-08-01', status: 'SCHEDULED', examinerStaffIds: ['t1', 't2'], studentIds: ['s1', 's2'], notes: null },
   ];
   const subs: ExaminerSubmission[] = [
     { ...base, id: 'sub1', examSessionId: 'x1', studentId: 's1', examinerStaffId: 't1', score: 88, grade: 'A', remarks: null, submittedAt: '2026-05-02T10:00:00.000Z' },
     { ...base, id: 'sub2', examSessionId: 'x1', studentId: 's1', examinerStaffId: 't2', score: 92, grade: 'A', remarks: null, submittedAt: '2026-05-02T11:00:00.000Z' },
+    { ...base, id: 'sub0', examSessionId: 'x3', studentId: 's1', examinerStaffId: 't1', score: null, grade: null, remarks: 'Awaiting final mark', submittedAt: null },
+    { ...base, id: 'sub3', examSessionId: 'x3', studentId: 's2', examinerStaffId: 't2', score: 77, grade: 'B', remarks: null, submittedAt: '2026-08-02T11:00:00.000Z' },
   ];
   const certs: Certificate[] = [
     { ...base, id: 'c1', studentId: 's1', examSessionId: 'x1', title: 'Grade 3 Violin', level: '3', status: 'ISSUED', issuedAt: T, documentUrl: null, documentPath: null },
     { ...base, id: 'c2', studentId: 's2', examSessionId: null, title: 'Pending Cert', level: null, status: 'PENDING', issuedAt: null, documentUrl: null, documentPath: null },
+    { ...base, id: 'c0', studentId: 's1', examSessionId: 'x1', title: 'Revoked Cert', level: '2', status: 'REVOKED', issuedAt: T, documentUrl: null, documentPath: 'org1/assessments/c0/revoked.pdf' },
+    { ...base, id: 'c3', studentId: 's3', examSessionId: null, title: 'Pending Same Timestamp', level: null, status: 'PENDING', issuedAt: null, documentUrl: null, documentPath: null },
+  ];
+  const reportCards: ReportCard[] = [
+    { ...base, id: 'r2', studentId: 's1', periodLabel: '2026 Spring', activityId: 'activity_1', lines: [{ subject: 'Technique', grade: 'A', comment: 'Secure' }], summary: 'Released privately.', publishedAt: '2026-06-01T10:00:00.000Z' },
+    { ...base, id: 'r1', studentId: 's1', periodLabel: '2026 Draft', activityId: 'activity_1', lines: [{ subject: 'Musicianship', grade: null, comment: null }], summary: null, publishedAt: null },
+    { ...base, id: 'r3', studentId: 's2', periodLabel: '2026 Spring', activityId: 'activity_1', lines: [], summary: null, publishedAt: null },
   ];
   it('listExamSessions filters by status', () => {
-    expect(Q.listExamSessions(sessions, 'SCHEDULED').map(s => s.id)).toEqual(['x2']);
+    expect(Q.listExamSessions(sessions, 'SCHEDULED').map(s => s.id)).toEqual(['x2', 'x3']);
   });
-  it('getStudentAssessmentSummary averages scores + counts certs', () => {
-    const s = Q.getStudentAssessmentSummary('s1', subs, certs);
-    expect(s.examCount).toBe(2);
+  it('listExamSessions applies stable session filters for activity, examiner, and student', () => {
+    expect(Q.listExamSessions(sessions, { activityId: 'activity_1', examinerStaffId: 't2', studentId: 's2' }).map(s => s.id)).toEqual(['x3']);
+    expect(Q.listExamSessions(sessions).map(s => s.id)).toEqual(['x0', 'x1', 'x2', 'x3']);
+  });
+  it('getStudentAssessmentSummary averages scored multi-examiner submissions, keeps missing scores, and excludes revoked certificates', () => {
+    const s = Q.getStudentAssessmentSummary('s1', subs, certs, reportCards);
+    expect(s.examCount).toBe(3);
     expect(s.averageScore).toBe(90);
     expect(s.certificates).toBe(1);
+    expect(s.submissions.map(row => row.id)).toEqual(['sub0', 'sub1', 'sub2']);
+    expect(s.reportCards).toMatchObject({ total: 2, draft: 1, released: 1 });
+    expect(s.reportCards.items.map(row => row.id)).toEqual(['r1', 'r2']);
   });
-  it('listPendingCertificates returns only pending', () => {
-    expect(Q.listPendingCertificates(certs).map(c => c.id)).toEqual(['c2']);
+  it('listPendingCertificates returns only pending with stable id tie-breaks', () => {
+    expect(Q.listPendingCertificates(certs).map(c => c.id)).toEqual(['c2', 'c3']);
   });
 });
 
@@ -508,9 +883,15 @@ describe('concert programs', () => {
       { order: 1, title: 'Piece A', composer: 'Mozart', performerStudentIds: ['s1'], performerStaffIds: ['t1'], durationMinutes: 10 },
     ] },
     { ...base, id: 'p2', title: 'Draft Show', eventId: null, date: '2026-11-01', venue: null, status: 'DRAFT', notes: null, pieces: [] },
+    { ...base, id: 'p0', title: 'Cancelled Hold', eventId: 'ev0', date: '2026-11-01', venue: 'Hall B', status: 'CANCELLED', notes: null, pieces: [] },
+    { ...base, id: 'p3', title: 'Draft Same Day', eventId: null, date: '2026-11-01', venue: null, status: 'DRAFT', notes: null, pieces: [] },
   ];
-  it('listConcertPrograms filters by status + date-sorts', () => {
+  it('listConcertPrograms filters by status and keeps draft/cancelled/unlinked ordering stable', () => {
     expect(Q.listConcertPrograms(programs, 'PUBLISHED').map(p => p.id)).toEqual(['p1']);
+    expect(Q.listConcertPrograms(programs, 'DRAFT').map(p => p.id)).toEqual(['p2', 'p3']);
+    expect(Q.listConcertPrograms(programs, 'CANCELLED').map(p => p.id)).toEqual(['p0']);
+    expect(Q.listConcertPrograms(programs).map(p => p.id)).toEqual(['p2', 'p3', 'p0', 'p1']);
+    expect(Q.listConcertPrograms(programs).filter(p => p.eventId === null).map(p => p.id)).toEqual(['p2', 'p3']);
   });
   it('getProgramRunOfShow orders pieces + cumulative duration', () => {
     const ros = Q.getProgramRunOfShow(programs[0]);
@@ -521,6 +902,58 @@ describe('concert programs', () => {
   it('listPerformerEvents finds programs by performer', () => {
     expect(Q.listPerformerEvents(programs, 's1').map(p => p.id)).toEqual(['p1']);
     expect(Q.listPerformerEvents(programs, 't1').map(p => p.id)).toEqual(['p1']);
+  });
+  it('getProgramRunOfShow flags duplicate order, unknown-duration tails, and stale performers', () => {
+    const program: ConcertProgram = {
+      ...base,
+      id: 'p4',
+      title: 'Spring Concert',
+      eventId: 'ev4',
+      date: '2026-12-10',
+      venue: 'Main Hall',
+      status: 'DRAFT',
+      notes: null,
+      pieces: [
+        { order: 1, title: 'Known A', composer: null, performerStudentIds: ['s1'], performerStaffIds: ['staff_archived'], durationMinutes: 4 },
+        { order: 2, title: 'A Unknown', composer: null, performerStudentIds: ['missing_student'], performerStaffIds: ['t1'], durationMinutes: null },
+        { order: 2, title: 'Known B', composer: null, performerStudentIds: ['s_archived'], performerStaffIds: ['missing_staff'], durationMinutes: 6 },
+      ],
+    };
+
+    const ros = Q.getProgramRunOfShow(program, {
+      students: [
+        { id: 's1', fullName: 'Dana Cohen' },
+        { id: 's_archived', fullName: 'Old Student', isArchived: true },
+      ],
+      staff: [
+        { id: 't1', fullName: 'Mira Staff' },
+        { id: 'staff_archived', fullName: 'Old Staff', isArchived: true },
+      ],
+    });
+
+    expect(ros.map(row => row.title)).toEqual(['Known A', 'A Unknown', 'Known B']);
+    expect(ros.map(row => row.orderConflict)).toEqual([false, true, true]);
+    expect(ros.map(row => row.cumulativeMinutes)).toEqual([4, null, null]);
+    expect(ros[0].performerNames).toEqual(['Dana Cohen']);
+    expect(ros[0].staleStaffIds).toEqual(['staff_archived']);
+    expect(ros[1].performerNames).toEqual(['Mira Staff']);
+    expect(ros[1].staleStudentIds).toEqual(['missing_student']);
+    expect(ros[2].staleStudentIds).toEqual(['s_archived']);
+    expect(ros[2].staleStaffIds).toEqual(['missing_staff']);
+  });
+  it('listPerformerEvents distinguishes student and staff performer IDs', () => {
+    const collidingPrograms: ConcertProgram[] = [
+      { ...base, id: 'student_hit', title: 'Student Hit', eventId: 'ev_s', date: '2026-12-04', venue: null, status: 'PUBLISHED', notes: null, pieces: [
+        { order: 1, title: 'Student Piece', composer: null, performerStudentIds: ['shared'], performerStaffIds: [], durationMinutes: 3 },
+      ] },
+      { ...base, id: 'staff_hit', title: 'Staff Hit', eventId: 'ev_t', date: '2026-12-05', venue: null, status: 'PUBLISHED', notes: null, pieces: [
+        { order: 1, title: 'Staff Piece', composer: null, performerStudentIds: [], performerStaffIds: ['shared'], durationMinutes: 3 },
+      ] },
+    ];
+
+    expect(Q.listPerformerEvents(collidingPrograms, 'shared', 'student').map(p => p.id)).toEqual(['student_hit']);
+    expect(Q.listPerformerEvents(collidingPrograms, 'shared', 'staff').map(p => p.id)).toEqual(['staff_hit']);
+    expect(Q.listPerformerEvents(collidingPrograms, 'shared').map(p => p.id)).toEqual(['staff_hit', 'student_hit']);
   });
 });
 
@@ -665,6 +1098,386 @@ describe('payroll/hours', () => {
     expect(stamped).toEqual({ ...submitted, rate: 110 });
     expect(submitted.rate).toBeNull();
     expect(() => Q.stampHoursEntryPayRate(submitted, {})).toThrow('No payroll rate configured');
+  });
+});
+
+describe('operations command center helpers', () => {
+  const event = (
+    id: string,
+    start: string,
+    end: string,
+    overrides: Partial<CalendarEvent> = {},
+  ): CalendarEvent => ({
+    id,
+    name: id,
+    description: '',
+    roomId: 'room-a',
+    start,
+    end,
+    isCanceled: false,
+    isHidden: false,
+    ...overrides,
+  });
+
+  it('countOpenConflicts ignores hidden and cancelled event rows', () => {
+    const events = [
+      event('visible-a', '2026-06-19T09:00:00.000Z', '2026-06-19T10:00:00.000Z'),
+      event('visible-b', '2026-06-19T09:30:00.000Z', '2026-06-19T10:30:00.000Z'),
+      event('hidden-overlap', '2026-06-19T09:45:00.000Z', '2026-06-19T10:15:00.000Z', { isHidden: true }),
+      event('cancelled-overlap', '2026-06-19T09:15:00.000Z', '2026-06-19T09:45:00.000Z', { isCanceled: true }),
+      event('other-room', '2026-06-19T09:15:00.000Z', '2026-06-19T09:45:00.000Z', { roomId: 'room-b' }),
+    ];
+
+    expect(Q.countOpenConflicts(events)).toBe(1);
+  });
+
+  it('listTodayEvents uses the org timezone date window and stable start/id sorting', () => {
+    const events = [
+      event('utc-early', '2026-06-19T06:00:00.000Z', '2026-06-19T07:00:00.000Z'),
+      event('jerusalem-a', '2026-06-18T22:30:00.000Z', '2026-06-18T23:30:00.000Z'),
+      event('jerusalem-b', '2026-06-18T22:30:00.000Z', '2026-06-18T23:00:00.000Z'),
+      event('previous-local-day', '2026-06-18T20:00:00.000Z', '2026-06-18T21:00:00.000Z'),
+      event('hidden-today', '2026-06-18T23:30:00.000Z', '2026-06-19T00:30:00.000Z', { isHidden: true }),
+      event('cancelled-today', '2026-06-18T23:45:00.000Z', '2026-06-19T00:45:00.000Z', { isCanceled: true }),
+    ];
+
+    expect(Q.listTodayEvents(events, {
+      now: '2026-06-19T08:00:00.000Z',
+      timeZone: 'Asia/Jerusalem',
+    }).map(e => e.id)).toEqual(['jerusalem-a', 'jerusalem-b', 'utc-early']);
+
+    expect(Q.listTodayEvents(events, {
+      date: '2026-06-19',
+      timeZone: 'UTC',
+    }).map(e => e.id)).toEqual(['utc-early']);
+  });
+
+  it('countPendingHoursReports delegates to the pending hours entry semantics', () => {
+    const entries: HoursEntry[] = [
+      { ...base, id: 'draft', staffMemberId: 't1', hoursReportId: null, date: '2026-06-01', reportedMinutes: 30, calendarMinutes: 30, eventId: null, teachingAssignmentId: null, orgRoleId: null, rate: null, status: 'DRAFT', note: null },
+      { ...base, id: 'submitted', staffMemberId: 't1', hoursReportId: null, date: '2026-06-02', reportedMinutes: 30, calendarMinutes: 30, eventId: null, teachingAssignmentId: null, orgRoleId: null, rate: null, status: 'SUBMITTED', note: null },
+      { ...base, id: 'approved', staffMemberId: 't1', hoursReportId: null, date: '2026-06-03', reportedMinutes: 30, calendarMinutes: 30, eventId: null, teachingAssignmentId: null, orgRoleId: null, rate: null, status: 'APPROVED', note: null },
+      { ...base, id: 'paid', staffMemberId: 't1', hoursReportId: null, date: '2026-06-04', reportedMinutes: 30, calendarMinutes: 30, eventId: null, teachingAssignmentId: null, orgRoleId: null, rate: null, status: 'PAID', note: null },
+    ];
+
+    expect(Q.countPendingHoursReports(entries)).toBe(2);
+  });
+
+  it('returns stable severity-ordered role-filtered operations access without hidden-count leakage', () => {
+    expect(Q.listOperationsCardAccess('admin', { allowedOnly: true }).map(c => c.source)).toEqual([
+      'openConflicts',
+      'importHealth',
+      'openInboxItems',
+      'pendingHoursReports',
+      'reportHealth',
+      'todayEvents',
+    ]);
+    expect(Q.listOperationsCardAccess('finance', { allowedOnly: true }).map(c => c.source)).toEqual([
+      'pendingHoursReports',
+      'reportHealth',
+    ]);
+    expect(Q.listOperationsCardAccess('teacher', { allowedOnly: true })).toEqual([]);
+
+    const deniedConflict = Q.getOperationsCardAccess('openConflicts', 'finance');
+    expect(deniedConflict).toMatchObject({
+      allowed: false,
+      reason: 'ROLE_DENIED',
+      revealCounts: false,
+      revealSourceIds: false,
+    });
+  });
+
+  it('marks provisional blocked operations sources and never reveals their counts or source ids', () => {
+    expect(Q.getOperationsCardAccess('absenceImpact', 'admin')).toMatchObject({
+      allowed: false,
+      reason: 'BLOCKED_SOURCE',
+      blockedDecisionIds: ['D-21'],
+      revealCounts: false,
+      revealSourceIds: false,
+    });
+    expect(Q.getOperationsCardAccess('hrEvaluations', 'finance')).toMatchObject({
+      allowed: false,
+      reason: 'BLOCKED_SOURCE',
+      blockedDecisionIds: ['D-26'],
+      revealCounts: false,
+      revealSourceIds: false,
+    });
+  });
+
+  it('marks stale source references after source row deletion', () => {
+    expect(Q.resolveOperationsSourceReferences(
+      ['event-3', 'event-1', 'event-2'],
+      ['event-1', 'event-3'],
+    )).toEqual([
+      { id: 'event-1', exists: true, stale: false },
+      { id: 'event-2', exists: false, stale: true },
+      { id: 'event-3', exists: true, stale: false },
+    ]);
+  });
+
+  it('buildOperationsSnapshot composes authorized admin cards with source lineage only from source rows', () => {
+    const events = [
+      event('conflict-a', '2026-06-19T09:00:00.000Z', '2026-06-19T10:00:00.000Z', { audit: { updatedAt: '2026-06-18T12:00:00.000Z' } }),
+      event('conflict-b', '2026-06-19T09:30:00.000Z', '2026-06-19T10:30:00.000Z', { audit: { updatedAt: '2026-06-18T13:00:00.000Z' } }),
+      event('today-only', '2026-06-19T11:00:00.000Z', '2026-06-19T12:00:00.000Z'),
+      event('hidden-overlap', '2026-06-19T09:45:00.000Z', '2026-06-19T10:15:00.000Z', { isHidden: true }),
+    ];
+    const hoursEntries: HoursEntry[] = [
+      { ...base, id: 'hours-draft', staffMemberId: 't1', hoursReportId: null, date: '2026-06-01', reportedMinutes: 30, calendarMinutes: 30, eventId: null, teachingAssignmentId: null, orgRoleId: null, rate: null, status: 'DRAFT', note: null },
+      { ...base, id: 'hours-paid', staffMemberId: 't1', hoursReportId: null, date: '2026-06-02', reportedMinutes: 30, calendarMinutes: 30, eventId: null, teachingAssignmentId: null, orgRoleId: null, rate: null, status: 'PAID', note: null },
+    ];
+    const adminInboxItems = [
+      { id: 'inbox-open', orgId: 'org1', type: 'NOTIFICATION' as const, status: 'OPEN' as const, title: 'Open', message: 'Open item', createdAt: '2026-06-18T09:00:00.000Z' },
+      { id: 'inbox-done', orgId: 'org1', type: 'NOTIFICATION' as const, status: 'DONE' as const, title: 'Done', message: 'Done item', createdAt: '2026-06-18T08:00:00.000Z' },
+    ];
+    const reportDefinitions: ReportDefinition[] = [
+      { ...base, id: 'report-charge', name: 'Charges', description: null, sourceEntity: 'charges', filters: [], groupBy: null, aggregate: { fn: 'none', field: null }, columns: ['id'], isPinned: true },
+      { ...base, id: 'report-student', name: 'Students', description: null, sourceEntity: 'students', filters: [], groupBy: null, aggregate: { fn: 'none', field: null }, columns: ['id'], isPinned: false },
+    ];
+    const importSessions: ImportSession[] = [
+      { id: 'import-errors', orgId: 'org1', createdBy: 'admin', entityType: 'STUDENT', status: 'COMPLETED_WITH_ERRORS', fileName: 'students.csv', totalRows: 4, importedRows: 2, skippedRows: 1, rowResults: [], createdAt: { seconds: 1_718_665_000, nanoseconds: 0 }, updatedAt: { seconds: 1_718_665_100, nanoseconds: 0 } },
+      { id: 'import-done', orgId: 'org1', createdBy: 'admin', entityType: 'ROOM', status: 'COMPLETED', fileName: 'rooms.csv', totalRows: 1, importedRows: 1, skippedRows: 0, rowResults: [], createdAt: { seconds: 1_718_665_000, nanoseconds: 0 }, updatedAt: { seconds: 1_718_665_200, nanoseconds: 0 } },
+    ];
+
+    const snapshot = Q.buildOperationsSnapshot({
+      events,
+      hoursEntries,
+      adminInboxItems,
+      reportDefinitions,
+      importSessions,
+    }, {
+      orgId: 'org1',
+      actor: 'admin',
+      generatedAt: T,
+      date: '2026-06-19',
+      timeZone: 'UTC',
+      existingSourceIds: {
+        openConflicts: ['conflict-a'],
+      },
+    });
+
+    expect(snapshot).toMatchObject({
+      orgId: 'org1',
+      actor: 'admin',
+      generatedAt: T,
+      dateWindow: { date: '2026-06-19', timeZone: 'UTC' },
+    });
+    expect(snapshot.cards.map(card => card.source)).toEqual([
+      'absenceImpact',
+      'openConflicts',
+      'assessmentDelivery',
+      'consentRevocation',
+      'hrEvaluations',
+      'importHealth',
+      'instrumentDepositRefunds',
+      'openInboxItems',
+      'pendingHoursReports',
+      'publicEndpointHealth',
+      'rolloverCopyHealth',
+      'reportHealth',
+      'todayEvents',
+    ]);
+
+    expect(snapshot.cards.find(card => card.source === 'openConflicts')).toMatchObject({
+      status: 'STALE_SOURCE',
+      count: 1,
+      sourceIds: ['conflict-a', 'conflict-b'],
+      sourceUpdatedAt: '2026-06-18T13:00:00.000Z',
+      routeTarget: 'CALENDAR',
+      sourceReferences: [
+        { id: 'conflict-a', exists: true, stale: false },
+        { id: 'conflict-b', exists: false, stale: true },
+      ],
+    });
+    expect(snapshot.cards.find(card => card.source === 'todayEvents')).toMatchObject({
+      count: 3,
+      sourceIds: ['conflict-a', 'conflict-b', 'today-only'],
+    });
+    expect(snapshot.cards.find(card => card.source === 'openInboxItems')).toMatchObject({
+      count: 1,
+      sourceIds: ['inbox-open'],
+      routeTarget: 'ADMIN_INBOX',
+    });
+    expect(snapshot.cards.find(card => card.source === 'pendingHoursReports')).toMatchObject({
+      count: 1,
+      sourceIds: ['hours-draft'],
+      routeTarget: 'PAYROLL',
+    });
+    expect(snapshot.cards.find(card => card.source === 'importHealth')).toMatchObject({
+      count: 1,
+      sourceIds: ['import-errors'],
+      routeTarget: 'MANAGE',
+    });
+    expect(snapshot.cards.find(card => card.source === 'reportHealth')).toMatchObject({
+      count: 2,
+      sourceIds: ['report-charge', 'report-student'],
+      routeTarget: 'ANALYTICS',
+    });
+    expect(snapshot.cards.find(card => card.source === 'absenceImpact')).toMatchObject({
+      status: 'BLOCKED',
+      count: null,
+      sourceIds: [],
+      blockedDecisionIds: ['D-21'],
+    });
+  });
+
+  it('buildOperationsSnapshot limits finance cards to finance-authorized sources without hidden report counts', () => {
+    const reportDefinitions: ReportDefinition[] = [
+      { ...base, id: 'report-charge', name: 'Charges', description: null, sourceEntity: 'charges', filters: [], groupBy: null, aggregate: { fn: 'none', field: null }, columns: ['id'], isPinned: true },
+      { ...base, id: 'report-hours', name: 'Hours', description: null, sourceEntity: 'hoursEntries', filters: [], groupBy: null, aggregate: { fn: 'none', field: null }, columns: ['id'], isPinned: false },
+      { ...base, id: 'report-student', name: 'Students', description: null, sourceEntity: 'students', filters: [], groupBy: null, aggregate: { fn: 'none', field: null }, columns: ['id'], isPinned: false },
+    ];
+    const hoursEntries: HoursEntry[] = [
+      { ...base, id: 'hours-submitted', staffMemberId: 't1', hoursReportId: null, date: '2026-06-01', reportedMinutes: 30, calendarMinutes: 30, eventId: null, teachingAssignmentId: null, orgRoleId: null, rate: null, status: 'SUBMITTED', note: null },
+    ];
+
+    const snapshot = Q.buildOperationsSnapshot({
+      events: [
+        event('conflict-a', '2026-06-19T09:00:00.000Z', '2026-06-19T10:00:00.000Z'),
+        event('conflict-b', '2026-06-19T09:30:00.000Z', '2026-06-19T10:30:00.000Z'),
+      ],
+      hoursEntries,
+      adminInboxItems: [
+        { id: 'inbox-open', orgId: 'org1', type: 'NOTIFICATION', status: 'OPEN', title: 'Open', message: 'Open item', createdAt: T },
+      ],
+      reportDefinitions,
+    }, {
+      orgId: 'org1',
+      actor: 'finance',
+      generatedAt: T,
+      date: '2026-06-19',
+      timeZone: 'UTC',
+    });
+
+    expect(snapshot.cards.map(card => card.source)).toEqual([
+      'absenceImpact',
+      'assessmentDelivery',
+      'consentRevocation',
+      'hrEvaluations',
+      'instrumentDepositRefunds',
+      'pendingHoursReports',
+      'publicEndpointHealth',
+      'rolloverCopyHealth',
+      'reportHealth',
+    ]);
+    expect(snapshot.cards.find(card => card.source === 'pendingHoursReports')).toMatchObject({
+      count: 1,
+      sourceIds: ['hours-submitted'],
+    });
+    expect(snapshot.cards.find(card => card.source === 'reportHealth')).toMatchObject({
+      count: 2,
+      sourceIds: ['report-charge', 'report-hours'],
+    });
+    expect(snapshot.cards.some(card => card.source === 'openConflicts')).toBe(false);
+    expect(snapshot.cards.some(card => card.source === 'openInboxItems')).toBe(false);
+    expect(snapshot.cards.flatMap(card => card.sourceIds)).not.toContain('report-student');
+    expect(snapshot.cards.flatMap(card => card.sourceIds)).not.toContain('inbox-open');
+    expect(snapshot.cards.flatMap(card => card.sourceIds)).not.toContain('conflict-a');
+  });
+
+  it('buildOperationsSnapshot denies non-operator actors by default and can expose redacted denial cards for permission UI', () => {
+    const sources = {
+      events: [
+        event('conflict-a', '2026-06-19T09:00:00.000Z', '2026-06-19T10:00:00.000Z'),
+        event('conflict-b', '2026-06-19T09:30:00.000Z', '2026-06-19T10:30:00.000Z'),
+      ],
+    };
+    const options = {
+      orgId: 'org1',
+      actor: 'member' as const,
+      generatedAt: T,
+      date: '2026-06-19' as const,
+      timeZone: 'UTC',
+    };
+
+    expect(Q.buildOperationsSnapshot(sources, options).cards).toEqual([]);
+
+    const redacted = Q.buildOperationsSnapshot(sources, {
+      ...options,
+      includeDeniedCards: true,
+      includeBlockedCards: true,
+    });
+    expect(redacted.cards.find(card => card.source === 'openConflicts')).toMatchObject({
+      status: 'DENIED',
+      accessReason: 'ROLE_DENIED',
+      count: null,
+      sourceIds: [],
+      sourceReferences: [],
+    });
+    expect(redacted.cards.find(card => card.source === 'absenceImpact')).toMatchObject({
+      status: 'BLOCKED',
+      accessReason: 'BLOCKED_SOURCE',
+      count: null,
+      sourceIds: [],
+      blockedDecisionIds: ['D-21'],
+    });
+  });
+
+  it('redacts hidden operations counts and source ids for finance, teacher, member, and anonymous actors', () => {
+    const sensitiveEvents = [
+      event('conflict-a', '2026-06-19T09:00:00.000Z', '2026-06-19T10:00:00.000Z'),
+      event('conflict-b', '2026-06-19T09:30:00.000Z', '2026-06-19T10:30:00.000Z'),
+      event('today-only', '2026-06-19T12:00:00.000Z', '2026-06-19T13:00:00.000Z'),
+    ];
+    const sensitiveInbox: AdminInboxItem[] = [
+      { id: 'inbox-sensitive', orgId: 'org1', type: 'APPROVAL_REQUEST', status: 'OPEN', title: 'Sensitive request', message: 'Do not leak', createdAt: T },
+    ];
+    const sensitiveReports: ReportDefinition[] = [
+      { ...base, id: 'report-charge', name: 'Charges', description: null, sourceEntity: 'charges', filters: [], groupBy: null, aggregate: { fn: 'none', field: null }, columns: ['id'], isPinned: true },
+      { ...base, id: 'report-student', name: 'Students', description: null, sourceEntity: 'students', filters: [], groupBy: null, aggregate: { fn: 'none', field: null }, columns: ['id'], isPinned: false },
+    ];
+    const sources = {
+      events: sensitiveEvents,
+      adminInboxItems: sensitiveInbox,
+      reportDefinitions: sensitiveReports,
+      hoursEntries: [
+        { ...base, id: 'hours-submitted', staffMemberId: 't1', hoursReportId: null, date: '2026-06-01', reportedMinutes: 30, calendarMinutes: 30, eventId: null, teachingAssignmentId: null, orgRoleId: null, rate: null, status: 'SUBMITTED' as const, note: null },
+      ],
+    };
+    const baseOptions = {
+      orgId: 'org1',
+      generatedAt: T,
+      date: '2026-06-19' as const,
+      timeZone: 'UTC',
+      includeDeniedCards: true,
+      includeBlockedCards: true,
+    };
+
+    const finance = Q.buildOperationsSnapshot(sources, { ...baseOptions, actor: 'finance' });
+    expect(finance.cards.find(card => card.source === 'openConflicts')).toMatchObject({
+      status: 'DENIED',
+      count: null,
+      sourceIds: [],
+      sourceReferences: [],
+    });
+    expect(finance.cards.find(card => card.source === 'openInboxItems')).toMatchObject({
+      status: 'DENIED',
+      count: null,
+      sourceIds: [],
+    });
+    expect(finance.cards.find(card => card.source === 'todayEvents')).toMatchObject({
+      status: 'DENIED',
+      count: null,
+      sourceIds: [],
+    });
+    expect(finance.cards.find(card => card.source === 'reportHealth')).toMatchObject({
+      count: 1,
+      sourceIds: ['report-charge'],
+    });
+    expect(finance.cards.flatMap(card => card.sourceIds)).not.toEqual(
+      expect.arrayContaining(['conflict-a', 'conflict-b', 'today-only', 'inbox-sensitive', 'report-student']),
+    );
+
+    for (const actor of ['teacher', 'member', 'anonymous'] as const) {
+      const snapshot = Q.buildOperationsSnapshot(sources, { ...baseOptions, actor });
+      expect(snapshot.cards.every(card => card.count === null), actor).toBe(true);
+      expect(snapshot.cards.every(card => card.sourceIds.length === 0), actor).toBe(true);
+      expect(snapshot.cards.every(card => card.sourceReferences.length === 0), actor).toBe(true);
+      expect(snapshot.cards.some(card => card.status === 'READY'), actor).toBe(false);
+      expect(snapshot.cards.flatMap(card => card.sourceIds), actor).not.toEqual(
+        expect.arrayContaining(['conflict-a', 'conflict-b', 'today-only', 'inbox-sensitive', 'hours-submitted', 'report-charge', 'report-student']),
+      );
+    }
   });
 });
 
@@ -937,8 +1750,8 @@ describe('reports', () => {
     aggregate: { fn: 'sum', field: 'amount' }, columns: ['id', 'status', 'amount'], isPinned: false,
   };
   const rows = [
-    { id: 'ch1', status: 'OPEN', amount: 500, currency: 'ILS' },
     { id: 'ch2', status: 'PAID', amount: 500, currency: 'ILS' },
+    { id: 'ch1', status: 'OPEN', amount: 500, currency: 'ILS' },
     { id: 'ch3', status: 'OPEN', amount: 300, currency: 'ILS' },
     { id: 'ch4', status: 'OPEN', amount: 999, currency: 'USD' },
   ];
@@ -961,6 +1774,214 @@ describe('reports', () => {
     const lin = Q.getReportLineage(def, res);
     expect(lin.sourceEntity).toBe('charges');
     expect(lin.sourceIds.sort()).toEqual(['ch1', 'ch2', 'ch3']);
+  });
+
+  it('rejects invalid columns, filters, aggregate fields, and unknown operators before reading rows', () => {
+    expect(() => Q.runReportDefinition({ ...def, columns: ['id', 'guardians'] }, rows)).toThrow(/Column field "guardians"/);
+    expect(() => Q.runReportDefinition({ ...def, filters: [{ field: 'signatureRef', op: 'eq', value: 'x' }] }, rows)).toThrow(/Filter field "signatureRef"/);
+    expect(() => Q.runReportDefinition({ ...def, aggregate: { fn: 'sum', field: 'status' } }, rows)).toThrow(/must be numeric/);
+    expect(() => Q.runReportDefinition({
+      ...def,
+      filters: [{ field: 'status', op: 'regex' as never, value: '^OPEN' }],
+    }, rows)).toThrow(/operator "regex"/);
+  });
+
+  it('supports every filter operator with validated values', () => {
+    const sourceRows = [
+      { id: 'a', status: 'OPEN', amount: 100, currency: 'ILS', description: 'Private lesson' },
+      { id: 'b', status: 'PARTIAL', amount: 250, currency: 'ILS', description: 'Ensemble fee' },
+      { id: 'c', status: 'PAID', amount: 400, currency: 'USD', description: 'Lesson package' },
+    ];
+    const run = (filters: ReportDefinition['filters']) => Q.runReportDefinition({
+      ...def,
+      filters,
+      groupBy: null,
+      aggregate: { fn: 'none', field: null },
+      columns: ['id'],
+    }, sourceRows).sourceIds;
+
+    expect(run([{ field: 'status', op: 'eq', value: 'OPEN' }])).toEqual(['a']);
+    expect(run([{ field: 'status', op: 'neq', value: 'OPEN' }])).toEqual(['b', 'c']);
+    expect(run([{ field: 'amount', op: 'gt', value: 100 }])).toEqual(['b', 'c']);
+    expect(run([{ field: 'amount', op: 'gte', value: 250 }])).toEqual(['b', 'c']);
+    expect(run([{ field: 'amount', op: 'lt', value: 400 }])).toEqual(['a', 'b']);
+    expect(run([{ field: 'amount', op: 'lte', value: 250 }])).toEqual(['a', 'b']);
+    expect(run([{ field: 'status', op: 'in', value: ['OPEN', 'PAID'] }])).toEqual(['a', 'c']);
+    expect(run([{ field: 'description', op: 'contains', value: 'lesson' }])).toEqual(['a', 'c']);
+    expect(() => run([{ field: 'amount', op: 'gt', value: '100' as never }])).toThrow(/numeric value/);
+    expect(() => run([{ field: 'status', op: 'in', value: 'OPEN' as never }])).toThrow(/array value/);
+    expect(() => run([{ field: 'status', op: 'contains', value: 10 as never }])).toThrow(/text value/);
+  });
+
+  it('handles null and empty filter values explicitly', () => {
+    const dueRows = [
+      { id: 'due-empty', amount: 30, status: 'OPEN', currency: 'ILS', dueDate: '' },
+      { id: 'due-null', amount: 20, status: 'OPEN', currency: 'ILS', dueDate: null },
+      { id: 'due-set', amount: 10, status: 'OPEN', currency: 'ILS', dueDate: '2026-06-01' },
+    ];
+    const run = (filter: ReportDefinition['filters'][number]) => Q.runReportDefinition({
+      ...def,
+      filters: [filter],
+      groupBy: null,
+      aggregate: { fn: 'none', field: null },
+      columns: ['id', 'dueDate'],
+    }, dueRows).sourceIds;
+
+    expect(run({ field: 'dueDate', op: 'eq', value: null })).toEqual(['due-null']);
+    expect(run({ field: 'dueDate', op: 'eq', value: '' })).toEqual(['due-empty']);
+    expect(run({ field: 'dueDate', op: 'in', value: [null, '2026-06-01'] })).toEqual(['due-null', 'due-set']);
+  });
+
+  it('supports aggregate none and stable row ordering by source id', () => {
+    const res = Q.runReportDefinition({
+      ...def,
+      filters: [],
+      groupBy: 'status',
+      aggregate: { fn: 'none', field: null },
+      columns: ['id', 'status'],
+    }, [
+      { id: 'z', status: 'OPEN', amount: 1, currency: 'ILS' },
+      { id: 'a', status: 'OPEN', amount: 2, currency: 'ILS' },
+      { id: 'm', status: '', amount: 3, currency: 'ILS' },
+    ]);
+
+    expect(res.sourceIds).toEqual(['a', 'm', 'z']);
+    expect(res.rows.map(r => r.id)).toEqual(['a', 'm', 'z']);
+    expect(res.groups).toEqual([
+      { key: '∅', value: 1, count: 1, sourceIds: ['m'] },
+      { key: 'OPEN', value: 2, count: 2, sourceIds: ['a', 'z'] },
+    ]);
+  });
+
+  it('computes grouped avg, min, and max over numeric values only', () => {
+    const sourceRows = [
+      { id: 'a', status: 'OPEN', amount: 10, currency: 'ILS' },
+      { id: 'b', status: 'OPEN', amount: 15, currency: 'ILS' },
+      { id: 'c', status: 'OPEN', amount: null, currency: 'ILS' },
+      { id: 'd', status: 'PAID', amount: -5, currency: 'ILS' },
+    ];
+    const grouped = (aggregate: ReportDefinition['aggregate']) => Q.runReportDefinition({
+      ...def,
+      filters: [],
+      groupBy: 'status',
+      aggregate,
+      columns: ['id', 'status', 'amount'],
+    }, sourceRows).groups;
+
+    expect(grouped({ fn: 'avg', field: 'amount' }).find(g => g.key === 'OPEN')?.value).toBe(12.5);
+    expect(grouped({ fn: 'min', field: 'amount' }).find(g => g.key === 'PAID')?.value).toBe(-5);
+    expect(grouped({ fn: 'max', field: 'amount' }).find(g => g.key === 'OPEN')?.value).toBe(15);
+  });
+
+  it('returns lineage only for filtered rows after stable sorting', () => {
+    const res = Q.runReportDefinition({
+      ...def,
+      filters: [{ field: 'status', op: 'eq', value: 'OPEN' }],
+      groupBy: null,
+      aggregate: { fn: 'none', field: null },
+      columns: ['id'],
+    }, [
+      { id: 'row-3', status: 'PAID', amount: 1, currency: 'ILS' },
+      { id: 'row-2', status: 'OPEN', amount: 1, currency: 'ILS' },
+      { id: 'row-1', status: 'OPEN', amount: 1, currency: 'ILS' },
+    ]);
+
+    expect(Q.getReportLineage(def, res).sourceIds).toEqual(['row-1', 'row-2']);
+  });
+
+  it('exposes source, field, blocked-source, and finance allowlists', () => {
+    expect(Q.listReportSourceAllowlist('admin').find(s => s.sourceEntity === 'charges')?.fields).toContain('amount');
+    expect(Q.listReportSourceAllowlist('finance').map(s => s.sourceEntity).sort()).toEqual(['charges', 'hoursEntries', 'payments']);
+    expect(Q.getReportSourceAccess('staffEvaluations', 'admin')).toEqual({
+      sourceEntity: 'staffEvaluations',
+      allowed: false,
+      reason: 'BLOCKED_SOURCE',
+      allowedFields: [],
+      blockedDecisionIds: ['D-26'],
+    });
+    expect(Q.getReportSourceAccess('students', 'finance')).toEqual({
+      sourceEntity: 'students',
+      allowed: false,
+      reason: 'FINANCE_SOURCE_NOT_ALLOWED',
+      allowedFields: [],
+      blockedDecisionIds: ['D-09'],
+    });
+    expect(() => Q.runReportDefinition({ ...def, sourceEntity: 'students', columns: ['id'] }, rows, { actor: 'finance' })).toThrow(/FINANCE_SOURCE_NOT_ALLOWED/);
+    expect(Q.runReportDefinition(def, rows, {
+      actor: 'finance',
+      sourceAuthorization: {
+        actor: 'finance',
+        sourceEntity: 'charges',
+        authorizedSourceIds: rows.map(row => row.id),
+      },
+    }).totalRows).toBe(3);
+  });
+
+  it('requires source-row authorization for finance report runs and exports', () => {
+    expect(() => Q.runReportDefinition(def, rows, { actor: 'finance' }))
+      .toThrow(/explicit source-row authorization/);
+    expect(() => Q.runReportDefinition(def, rows, {
+      actor: 'finance',
+      sourceAuthorization: {
+        actor: 'finance',
+        sourceEntity: 'students',
+        authorizedSourceIds: rows.map(row => row.id),
+      },
+    })).toThrow(/covers "students", not "charges"/);
+    expect(() => Q.runReportDefinition(def, rows, {
+      actor: 'finance',
+      sourceAuthorization: {
+        actor: 'finance',
+        sourceEntity: 'charges',
+        authorizedSourceIds: ['ch1', 'ch2'],
+      },
+    })).toThrow(/REPORT_SOURCE_ROW_NOT_AUTHORIZED|not authorized/);
+
+    const financeResult = Q.runReportDefinition(def, rows, {
+      actor: 'finance',
+      sourceAuthorization: {
+        actor: 'finance',
+        sourceEntity: 'charges',
+        authorizedSourceIds: rows.map(row => row.id),
+      },
+    });
+    expect(Q.exportReportCsv(financeResult, { actor: 'finance' }).split('\n')[0]).toBe('id,status,amount');
+
+    const adminResult = Q.runReportDefinition(def, rows);
+    expect(() => Q.exportReportCsv(adminResult, { actor: 'finance' })).toThrow(/authorized finance report run/);
+  });
+
+  it('denies finance report runs for student, attendance, agreement, assessment, concert, HR, rollover, and public endpoint sources', () => {
+    const deniedSources = [
+      'students',
+      'lessonRecords',
+      'agreementAcceptances',
+      'examSessions',
+      'certificates',
+      'concertPrograms',
+      'staffEvaluations',
+      'rolloverRuns',
+      'publicEndpoints',
+    ] as const;
+
+    for (const sourceEntity of deniedSources) {
+      const blockedDef = {
+        ...def,
+        sourceEntity: sourceEntity as never,
+        filters: [],
+        groupBy: null,
+        aggregate: { fn: 'none', field: null },
+        columns: ['id'],
+      } as ReportDefinition;
+      expect(() => Q.runReportDefinition(blockedDef, [{ id: 'source-row' }], {
+        actor: 'finance',
+        sourceAuthorization: {
+          actor: 'finance',
+          sourceEntity,
+          authorizedSourceIds: ['source-row'],
+        },
+      }), sourceEntity).toThrow(/REPORT_SOURCE_NOT_ALLOWED|BLOCKED_SOURCE|FINANCE_SOURCE_NOT_ALLOWED/);
+    }
   });
 });
 

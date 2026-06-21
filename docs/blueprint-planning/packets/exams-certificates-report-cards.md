@@ -1,23 +1,23 @@
 # Exams, Certificates, And Report Cards  (`exams-certificates-report-cards`)
 
-Status: `planned` (per `features/forteTree.ts`) -> target `implemented`.
+Status: `implemented` under bird's-eye mode (per `features/forteTree.ts`).
 Priority: p1
-Owner-decisions still blocking this packet: **BLOCKED ON D-22** for formal
-rubric/pass-fail semantics, AI summary generation, generated PDF/email delivery,
-and any tokenized/public examiner or guardian-facing path. Core authenticated
-session, submission, certificate, and report-card management over the existing
-normalized tables is otherwise unblocked by current accepted decisions.
+Owner-decisions still release-gating this packet: **D-22 ACCEPTED PROVISIONAL**
+for private/authenticated assessment records first. Formal rubric/pass-fail
+semantics, AI summary generation, generated PDF/email delivery, and any
+tokenized/public examiner or guardian-facing path remain reviewable and must not
+ship publicly without D-07/D-14 plus explicit guardian release/setup.
 Current accepted prerequisites: **D-01** (no new top-level route beyond current
 policy), **D-04** (canonical student adapter), **D-07/D-14** (public surfaces only
 through controlled consent/token setup), and **D-15** (packet-local backfill).
 
 ## Current State (ground truth)
-- Existing UI: no productized Academic Hub, exam-session dashboard, examiner
-  submission workflow, certificate queue, or report-card generation surface.
-  `spec/Academic_Hub_AddOn_Spec_v1_0.md` is a stale Firebase/top-level/sidebar
-  add-on spec; it is useful product signal only where reconciled with the current
-  Supabase Blueprint docs. Student files are expected to link to assessment
-  history, but the student module is not yet implemented.
+- Existing UI: product-built private Manage -> Assessments workspace for admin
+  session creation/status, assigned examiner submissions, pending/issued/revoked
+  certificates, report-card drafts with explicit guardian-release flag, Student
+  contextual assessment/certificate/report-card history, and 390x844 assigned
+  examiner submission through the assessment context. `ACADEMICS` remains hidden;
+  no public/tokenized examiner or guardian route exists.
 - Existing schema: `exam_sessions`, `examiner_submissions`, `certificates`, and
   `report_cards` are normalized Blueprint tables from `0002`. `exam_sessions`
   stores status, date, `examinerStaffIds[]`, `studentIds[]`, optional
@@ -28,10 +28,14 @@ through controlled consent/token setup), and **D-15** (packet-local backfill).
   `documents` is private but currently member-read/admin-write by org path.
 - Existing query/helpers: `listExamSessions`, `getStudentAssessmentSummary`, and
   `listPendingCertificates` in `utils/blueprintQueries.ts`.
-- Existing tests: `utils/blueprintQueries.test.ts` covers the three deterministic
-  helpers. `utils/supabaseSync.ts` maps all four collections as `NORMALIZED`, and
-  `docs/SUPABASE_MIGRATION_MAP.md` records their table names. No UI, RLS,
-  storage-policy, PDF/export, or Playwright workflow tests exist for this module.
+- Existing tests: `utils/blueprintQueries.test.ts` covers the deterministic
+  helpers, `utils/studentFamilyDetail.test.ts` covers contextual Student
+  assessment history, `utils/supabaseSync.test.ts` covers normalized mapping,
+  `utils/supabaseSchema.test.ts` covers static RLS/storage policy shape, and
+  `e2e/assessment-workspace.spec.ts` covers admin workflow, Student history, and
+  mobile examiner submission. Live RLS remains a release-hardening gate until
+  remote migration `0014_assessment_scoped_rls.sql` is applied and the env-gated
+  live assertion passes without skips.
 - Feature-tree declared queries: `listExamSessions`,
   `getStudentAssessmentSummary`, `listPendingCertificates` -- implemented.
 

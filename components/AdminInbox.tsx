@@ -1,12 +1,15 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { AdminInboxItem, AppSettings, Teacher, Student, CalendarEvent, Room } from '../types';
-import type { AgreementAcceptance, Family, IntakeStatus, RegistrationIntake } from '../types/blueprint';
+import type { AgreementAcceptance, Family, HoursEntry, IntakeStatus, OperationalRequest, RegistrationIntake, ReportDefinition, RequestStatus } from '../types/blueprint';
+import type { ImportSession } from '../types/v2';
 import { TRANSLATIONS } from '../constants';
 import { Modal } from './Modal';
 import { ConflictResolutionPanel } from './ConflictResolutionPanel';
 import { EventFormV2, EventFormState, EventFormV2Handle } from './EventFormV2';
+import { OperationsSummary } from './OperationsSummary';
 import { useSupabaseSync } from '../utils/useSupabaseSync';
 import { useAuth } from '../context/AuthContext';
+import type { OperationsActor, OperationsCardModel } from '../utils/blueprintQueries';
 import { buildUpdatedCalendarEvent, applyEventUpdate } from '../utils/saveEventV2';
 import { studentToMinimal } from '../utils/canonicalAdapters';
 import {
@@ -14,6 +17,7 @@ import {
   markIntakeDuplicate,
   rejectIntakeRecord,
 } from '../utils/blueprintQueries';
+import { decideOperationalRequest, OperationalRequestError, roomNameById } from '../utils/operationalRequestService';
 import {
   applyRegistrationIntakeCorrection,
   applyApprovedIntakeGraphToCollections,
@@ -45,10 +49,20 @@ interface Props {
   events: CalendarEvent[];
   setEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>;
   rooms: Room[];
+  operationalRequests: OperationalRequest[];
+  setOperationalRequests: SyncedCollectionSetter<OperationalRequest>;
+  operationalRequestsLoading?: boolean;
+  hoursEntries: HoursEntry[];
+  reportDefinitions: ReportDefinition[];
+  importSessions: ImportSession[];
+  operationsActor: OperationsActor;
+  canAccessOperations: boolean;
+  operationsLoading?: boolean;
   settings: AppSettings;
   onMobileMenuOpen: () => void;
   onNavigateToEvent?: (eventIds: string[]) => void;
   onNavigateToStaff?: (staffId: string) => void;
+  onNavigateToOperationsCard?: (card: OperationsCardModel) => void;
 }
 
 type SyncedCollectionSetter<T extends { id: string }> = (
@@ -85,7 +99,10 @@ const inputClass = 'w-full px-3 py-2 rounded-lg border border-slate-200 dark:bor
 const labelClass = 'text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400';
 
 export const AdminInbox: React.FC<Props> = ({
-  inboxItems, setInboxItems, teachers, students, setStudents, families, setFamilies, events, setEvents, rooms, settings, onMobileMenuOpen, onNavigateToEvent, onNavigateToStaff
+  inboxItems, setInboxItems, teachers, students, setStudents, families, setFamilies, events, setEvents, rooms,
+  operationalRequests, setOperationalRequests, operationalRequestsLoading = false,
+  hoursEntries, reportDefinitions, importSessions, operationsActor, canAccessOperations, operationsLoading = false,
+  settings, onMobileMenuOpen, onNavigateToEvent, onNavigateToStaff, onNavigateToOperationsCard
 }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
   const { currentUser } = useAuth();
@@ -104,6 +121,11 @@ export const AdminInbox: React.FC<Props> = ({
   const [selectedIntakeId, setSelectedIntakeId] = useState<string | null>(null);
   const [intakeDraft, setIntakeDraft] = useState<IntakeDraft | null>(null);
   const [lastPreparedGraph, setLastPreparedGraph] = useState<string | null>(null);
+  const [focusedInboxItemIds, setFocusedInboxItemIds] = useState<Set<string>>(new Set());
+  const [requestStatusFilter, setRequestStatusFilter] = useState<RequestStatus | 'ALL'>('PENDING');
+  const [requestQuery, setRequestQuery] = useState('');
+  const [requestDecisionNotes, setRequestDecisionNotes] = useState<Record<string, string>>({});
+  const [requestDecisionError, setRequestDecisionError] = useState<string | null>(null);
 
   const notifications = useMemo(() => {
     const items = inboxItems.filter(i => i.type === 'NOTIFICATION');
@@ -246,6 +268,98 @@ export const AdminInbox: React.FC<Props> = ({
   );
   const terminalIntakeCount = registrationIntake.length - activeIntakeCount;
   const selectedStatusHistory = selectedIntake?.statusHistory ?? [];
+  const requestKindLabels: Record<OperationalRequest['kind'], string> = {
+    ROOM_CHANGE: t('requests.kind.room_change'),
+    ABSENCE: t('requests.kind.absence'),
+    DAY_OFF: t('requests.kind.day_off'),
+  };
+  const requestStatusLabels: Record<RequestStatus, string> = {
+    PENDING: t('requests.status.pending'),
+    APPROVED: t('requests.status.approved'),
+    REJECTED: t('requests.status.rejected'),
+    CANCELLED: t('requests.status.cancelled'),
+  };
+  const requestApprovalItems = useMemo(() => {
+    const pairs = new Map<string, AdminInboxItem>();
+    inboxItems
+      .filter(item => item.type === 'APPROVAL_REQUEST' && item.relatedEntityType === 'operationalRequest')
+      .forEach(item => {
+        (item.relatedEntityIds ?? []).forEach(entityId => {
+          if (!pairs.has(entityId)) pairs.set(entityId, item);
+        });
+      });
+    return pairs;
+  }, [inboxItems]);
+  const requestRows = useMemo(() => {
+    const normalizedQuery = requestQuery.trim().toLowerCase();
+    return operationalRequests
+      .map(request => {
+        const staff = teachers.find(teacher => teacher.id === request.requestedByStaffId);
+        const event = request.eventId ? events.find(row => row.id === request.eventId) ?? null : null;
+        const currentRoom = roomNameById(rooms, request.currentRoomId);
+        const requestedRoom = roomNameById(rooms, request.requestedRoomId);
+        const approvalItem = (request.adminInboxItemId
+          ? inboxItems.find(item => item.id === request.adminInboxItemId)
+          : null) ?? requestApprovalItems.get(request.id) ?? null;
+        const staleReason = request.kind === 'ROOM_CHANGE'
+          ? !event
+            ? t('request_review.stale_event')
+            : !currentRoom || !requestedRoom
+              ? t('request_review.stale_room')
+              : event.roomId !== request.currentRoomId
+                ? t('request_review.stale_event_room')
+                : null
+          : null;
+        return {
+          request,
+          staffName: staff?.fullName ?? request.requestedByStaffId ?? t('requests.staff_fallback'),
+          event,
+          currentRoom,
+          requestedRoom,
+          approvalItem,
+          staleReason,
+        };
+      })
+      .filter(row => requestStatusFilter === 'ALL' || row.request.status === requestStatusFilter)
+      .filter(row => {
+        if (!normalizedQuery) return true;
+        const haystack = [
+          row.staffName,
+          row.event?.name,
+          row.currentRoom,
+          row.requestedRoom,
+          row.request.reason,
+          requestKindLabels[row.request.kind],
+          requestStatusLabels[row.request.status],
+        ].filter(Boolean).join(' ').toLowerCase();
+        return haystack.includes(normalizedQuery);
+      })
+      .sort((a, b) => {
+        if (a.request.status === 'PENDING' && b.request.status !== 'PENDING') return -1;
+        if (a.request.status !== 'PENDING' && b.request.status === 'PENDING') return 1;
+        const dateDiff = b.request.requestedFor.localeCompare(a.request.requestedFor);
+        if (dateDiff !== 0) return dateDiff;
+        return a.request.id.localeCompare(b.request.id);
+      });
+  }, [events, inboxItems, operationalRequests, requestApprovalItems, requestKindLabels, requestQuery, requestStatusFilter, requestStatusLabels, rooms, t, teachers]);
+  const pendingRequestCount = operationalRequests.filter(request => request.status === 'PENDING').length;
+
+  const handleOpenOperationsCard = useCallback((card: OperationsCardModel) => {
+    if (card.source === 'openInboxItems') {
+      setShowResolvedNotifs(false);
+      setFocusedInboxItemIds(new Set(card.sourceIds));
+      window.setTimeout(() => {
+        const firstSource = card.sourceIds[0];
+        if (!firstSource) return;
+        document
+          .querySelector(`[data-testid="admin-inbox-item-${firstSource}"]`)
+          ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, 0);
+    } else {
+      setFocusedInboxItemIds(new Set());
+    }
+    onNavigateToOperationsCard?.(card);
+  }, [onNavigateToOperationsCard]);
 
   const activityName = useCallback((id?: string | null) => {
     if (!id) return t('intake_review.no_activity');
@@ -402,6 +516,49 @@ export const AdminInbox: React.FC<Props> = ({
     downloadCSV(csv, `registration_intake_${new Date().toISOString().slice(0, 10)}.csv`);
   };
 
+  const handleDecideOperationalRequest = async (
+    request: OperationalRequest,
+    approvalItem: AdminInboxItem | null,
+    decision: 'APPROVED' | 'REJECTED',
+  ) => {
+    setRequestDecisionError(null);
+    if (!approvalItem) {
+      setRequestDecisionError(t('request_review.error_missing_inbox'));
+      return;
+    }
+    const linkedEvent = request.eventId ? events.find(event => event.id === request.eventId) ?? null : null;
+    try {
+      const result = decideOperationalRequest({
+        request,
+        inboxItem: approvalItem,
+        decision,
+        decidedBy: actorId,
+        nowIso: new Date().toISOString(),
+        note: requestDecisionNotes[request.id],
+        eventIds: events.map(event => event.id),
+        roomIds: rooms.map(room => room.id),
+        currentEventRoomId: request.kind === 'ROOM_CHANGE' ? linkedEvent?.roomId ?? null : undefined,
+      });
+      await setOperationalRequests(prev => prev.map(row => row.id === request.id ? result.request : row));
+      await setInboxItems(prev => prev.map(item => item.id === approvalItem.id ? result.inboxItem : item));
+      if (result.eventUpdate) {
+        setEvents(prev => prev.map(event => (
+          event.id === result.eventUpdate!.eventId
+            ? { ...event, roomId: result.eventUpdate!.roomId, location: roomNameById(rooms, result.eventUpdate!.roomId) ?? event.location }
+            : event
+        )));
+      }
+      setRequestDecisionNotes(prev => {
+        const next = { ...prev };
+        delete next[request.id];
+        return next;
+      });
+    } catch (error) {
+      const code = error instanceof OperationalRequestError ? error.code : 'SAVE_FAILED';
+      setRequestDecisionError(t(`request_review.error_${code.toLowerCase()}`) || t('request_review.error_save'));
+    }
+  };
+
   const handleRescheduleSave = useCallback((formState: EventFormState) => {
     if (!rescheduleEvent) return;
     const result = buildUpdatedCalendarEvent(rescheduleEvent, formState);
@@ -432,6 +589,215 @@ export const AdminInbox: React.FC<Props> = ({
             </div>
           </div>
         </div>
+
+        <OperationsSummary
+          settings={settings}
+          orgId={currentUser?.orgId ?? null}
+          actor={operationsActor}
+          canAccessOperations={canAccessOperations}
+          loading={operationsLoading}
+          events={events}
+          inboxItems={inboxItems}
+          hoursEntries={hoursEntries}
+          reportDefinitions={reportDefinitions}
+          importSessions={importSessions}
+          onOpenCard={handleOpenOperationsCard}
+        />
+
+        {operationsActor !== 'admin' ? (
+          <section
+            data-testid="admin-inbox-source-restricted"
+            dir={isRtl ? 'rtl' : 'ltr'}
+            className="mb-6 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-4"
+          >
+            <div className="flex items-start gap-3 text-sm">
+              <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                <ShieldCheck size={16} className="text-slate-600 dark:text-slate-300" />
+              </div>
+              <div>
+                <div className="font-semibold text-slate-900 dark:text-white">{t('operations.source_restricted_title')}</div>
+                <div className="mt-0.5 text-slate-500 dark:text-slate-400">{t('operations.source_restricted_body')}</div>
+              </div>
+            </div>
+          </section>
+        ) : (
+          <>
+        <section
+          data-testid="operational-request-review"
+          dir={isRtl ? 'rtl' : 'ltr'}
+          className="mb-6 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden"
+        >
+          <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <Calendar size={17} className="text-blue-700 dark:text-blue-300" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">{t('request_review.title')}</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {t('request_review.subtitle').replace('{pending}', String(pendingRequestCount))}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Search size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={requestQuery}
+                  onChange={e => setRequestQuery(e.target.value)}
+                  placeholder={t('request_review.search_placeholder')}
+                  className="ps-8 pe-3 py-2 w-56 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-700 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                />
+              </div>
+              <select
+                value={requestStatusFilter}
+                onChange={e => setRequestStatusFilter(e.target.value as RequestStatus | 'ALL')}
+                className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-700 dark:text-slate-100"
+                aria-label={t('request_review.status_filter')}
+              >
+                <option value="PENDING">{requestStatusLabels.PENDING}</option>
+                <option value="APPROVED">{requestStatusLabels.APPROVED}</option>
+                <option value="REJECTED">{requestStatusLabels.REJECTED}</option>
+                <option value="CANCELLED">{requestStatusLabels.CANCELLED}</option>
+                <option value="ALL">{t('request_review.status_all')}</option>
+              </select>
+            </div>
+          </div>
+
+          {requestDecisionError && (
+            <div role="alert" className="mx-4 mt-3 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 px-3 py-2 text-sm text-rose-700 dark:text-rose-300">
+              {requestDecisionError}
+            </div>
+          )}
+
+          {operationalRequestsLoading ? (
+            <div className="p-6 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+              <Loader2 size={16} className="animate-spin" />
+              {t('request_review.loading')}
+            </div>
+          ) : operationalRequests.length === 0 ? (
+            <div className="p-8 text-center border-t border-dashed border-slate-200 dark:border-slate-800">
+              <Calendar size={34} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{t('request_review.empty')}</p>
+            </div>
+          ) : requestRows.length === 0 ? (
+            <div className="p-6 text-sm text-slate-500 dark:text-slate-400">{t('request_review.no_matches')}</div>
+          ) : (
+            <div className="divide-y divide-slate-200 dark:divide-slate-800">
+              {requestRows.map(row => {
+                const isPending = row.request.status === 'PENDING';
+                const canApprove = isPending && row.approvalItem?.status === 'OPEN' && !row.staleReason;
+                const canReject = isPending && row.approvalItem?.status === 'OPEN';
+                const dateRange = row.request.endDate && row.request.endDate !== row.request.requestedFor
+                  ? `${row.request.requestedFor} - ${row.request.endDate}`
+                  : row.request.requestedFor;
+                return (
+                  <article key={row.request.id} data-testid="operational-request-row" className="p-4">
+                    <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white">{requestKindLabels[row.request.kind]}</h4>
+                          <span data-testid={`operational-request-status-${row.request.id}`} className="rounded-full border border-slate-200 dark:border-slate-700 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                            {requestStatusLabels[row.request.status]}
+                          </span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">{dateRange}</span>
+                        </div>
+                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                          {row.staffName}
+                          {row.event && <> · {row.event.name}</>}
+                          {row.request.kind === 'ROOM_CHANGE' && <> · {row.currentRoom} {'->'} {row.requestedRoom}</>}
+                        </p>
+                        {row.request.reason && (
+                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{row.request.reason}</p>
+                        )}
+                        <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px]">
+                          {row.request.kind !== 'ROOM_CHANGE' && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 font-semibold text-amber-700 dark:text-amber-300">
+                              <AlertTriangle size={11} />
+                              {t('request_review.review_only_badge')}
+                            </span>
+                          )}
+                          {row.staleReason && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 dark:bg-rose-950/30 px-2 py-0.5 font-semibold text-rose-700 dark:text-rose-300">
+                              <AlertTriangle size={11} />
+                              {row.staleReason}
+                            </span>
+                          )}
+                          {row.event && onNavigateToEvent && (
+                            <button
+                              type="button"
+                              onClick={() => onNavigateToEvent([row.event!.id])}
+                              className="inline-flex items-center gap-1 font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                            >
+                              <Calendar size={11} />
+                              {t('request_review.view_event')}
+                            </button>
+                          )}
+                          {row.request.requestedByStaffId && onNavigateToStaff && (
+                            <button
+                              type="button"
+                              onClick={() => onNavigateToStaff(row.request.requestedByStaffId!)}
+                              className="inline-flex items-center gap-1 font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                            >
+                              <Users size={11} />
+                              {t('request_review.view_staff')}
+                            </button>
+                          )}
+                        </div>
+                        {row.request.decisionNote && (
+                          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                            {t('request_review.decision_note')}: {row.request.decisionNote}
+                          </p>
+                        )}
+                      </div>
+                      <div className="xl:w-80 flex-shrink-0">
+                        {isPending ? (
+                          <div className="space-y-2">
+                            <label className="block space-y-1">
+                              <span className={labelClass}>{t('request_review.decision_note')}</span>
+                              <input
+                                value={requestDecisionNotes[row.request.id] ?? ''}
+                                onChange={e => setRequestDecisionNotes(prev => ({ ...prev, [row.request.id]: e.target.value }))}
+                                placeholder={t('request_review.decision_note_placeholder')}
+                                className={inputClass}
+                              />
+                            </label>
+                            <div className="flex flex-wrap justify-end gap-2">
+                              <button
+                                type="button"
+                                disabled={!canReject}
+                                onClick={() => handleDecideOperationalRequest(row.request, row.approvalItem, 'REJECTED')}
+                                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-rose-200 dark:border-rose-900/60 text-sm font-medium text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/20 disabled:opacity-40"
+                              >
+                                <Ban size={14} />
+                                {t('request_review.reject')}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!canApprove}
+                                onClick={() => handleDecideOperationalRequest(row.request, row.approvalItem, 'APPROVED')}
+                                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg btn-cadenza bg-cadenza-gradient texture-cadenza text-white shadow-cadenza-soft text-sm font-medium disabled:opacity-40"
+                              >
+                                <Check size={14} />
+                                {t('request_review.approve')}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/30 p-3 text-xs text-slate-500 dark:text-slate-400">
+                            {row.request.decidedAt
+                              ? `${t('request_review.decided')} ${formatDate(row.request.decidedAt)}`
+                              : t('request_review.retained_history')}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
 
         {/* Registration intake review */}
         <section
@@ -852,10 +1218,13 @@ export const AdminInbox: React.FC<Props> = ({
               notifications.map(notif => {
                 const isDone = notif.status === 'DONE';
                 const isAutoResolved = !!notif.autoResolvedReason;
+                const isFocused = focusedInboxItemIds.has(notif.id);
                 return (
                   <div
                     key={notif.id}
-                    className={`bg-white dark:bg-slate-900 rounded-xl border shadow-sm p-4 transition-all ${isDone ? 'border-slate-200 dark:border-slate-800 opacity-60' : 'border-slate-200 dark:border-slate-800'}`}
+                    data-testid={`admin-inbox-item-${notif.id}`}
+                    data-focused={isFocused ? 'true' : 'false'}
+                    className={`bg-white dark:bg-slate-900 rounded-xl border shadow-sm p-4 transition-all ${isFocused ? 'ring-2 ring-cyan-500/40 border-cyan-300 dark:border-cyan-700' : isDone ? 'border-slate-200 dark:border-slate-800 opacity-60' : 'border-slate-200 dark:border-slate-800'}`}
                   >
                     <div className="flex items-start gap-3">
                       <div className={`mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isAutoResolved ? 'bg-green-100 dark:bg-green-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
@@ -975,6 +1344,8 @@ export const AdminInbox: React.FC<Props> = ({
               }))
             }
         </div>
+          </>
+        )}
       </div>
 
       {/* Teacher Detail Modal */}

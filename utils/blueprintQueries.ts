@@ -24,6 +24,7 @@ import type {
   ExamSession,
   ExaminerSubmission,
   Certificate,
+  ReportCard,
   ConcertProgram,
   HoursEntry,
   Charge,
@@ -38,16 +39,18 @@ import type {
   StaffEvaluation,
   EvaluationAction,
   ReportDefinition,
+  ReportSourceEntity,
   ReportFilter,
   PublicEndpoint,
   PublicEndpointKind,
   IsoDate,
   IsoTimestamp,
 } from '../types/blueprint';
-import type { AdminInboxItem } from '../types';
-import type { EnrollmentV2, StudentV2 } from '../types/v2';
+import type { AdminInboxItem, CalendarEvent, CalendarSubscription } from '../types';
+import type { EnrollmentV2, ImportSession, StudentV2 } from '../types/v2';
 import { fromDateTimestamp } from './appTimestamp';
 import { decideApproval, makeApprovalRequest } from './adminInbox';
+import { detectRoomConflicts, getConflictingEventIds } from './roomConflicts';
 
 // ─── Minimal structural shapes for cross-module entities ─────────────────────
 // Avoids importing heavy app types; matches the fields these queries read.
@@ -62,6 +65,7 @@ export interface MinimalEnrollment {
   id: string;
   studentId: string;
   activityId: string;
+  l1Id?: string | null;
   l2Id?: string | null;
   status?: string;
   startDate?: IsoDate;
@@ -79,12 +83,29 @@ export interface MinimalParticipant {
   eventId: string;
   staffMemberId: string;
 }
+export interface MinimalStaffMember {
+  id: string;
+  fullName?: string;
+  name?: string;
+  isArchived?: boolean;
+}
 export interface MinimalActivity {
   id: string;
   name: string;
   activityType?: string;
   template?: string;
   isArchived?: boolean;
+}
+export interface MinimalTeachingAssignment {
+  id: string;
+  staffMemberId: string;
+  activityId: string;
+  scope?: 'ACTIVITY' | 'L1' | 'L2' | string;
+  l1Id?: string | null;
+  l2Id?: string | null;
+  isArchived?: boolean;
+  startDate?: IsoDate;
+  endDate?: IsoDate | null;
 }
 
 // ─── Generic helpers ─────────────────────────────────────────────────────────
@@ -167,6 +188,8 @@ export function suggestStudentDuplicates(
 }
 
 export const REGISTRATION_INTAKE_PUBLIC_SCOPE = 'registration_intake:submit';
+export const CALENDAR_SUBSCRIPTION_PUBLIC_SCOPE = 'calendar_subscription:read';
+export const HOURS_REPORT_PUBLIC_SCOPE = 'hours_report:submit';
 
 export type PublicTokenResolutionReason =
   | 'NOT_FOUND'
@@ -247,6 +270,312 @@ export function resolveRegistrationIntakeEndpoint(
     requiredScope: REGISTRATION_INTAKE_PUBLIC_SCOPE,
     requireConsentAgreement: true,
   });
+}
+
+export function resolveCalendarSubscriptionEndpoint(
+  endpoints: PublicEndpoint[],
+  opts: { tokenHash: string; now: IsoTimestamp },
+): PublicTokenResolution {
+  return resolvePublicToken(endpoints, {
+    tokenHash: opts.tokenHash,
+    kind: 'CALENDAR_SUBSCRIPTION',
+    now: opts.now,
+    requiredScope: CALENDAR_SUBSCRIPTION_PUBLIC_SCOPE,
+  });
+}
+
+type SubscriptionFilterKey = 'staffMemberIds' | 'positionTitles' | 'roomIds' | 'activityIds' | 'tags';
+
+export interface SubscriptionFilterIssue {
+  key: SubscriptionFilterKey;
+  value: string;
+  reason: 'MISSING_SOURCE' | 'ARCHIVED_SOURCE' | 'UNUSED_TAG_OR_POSITION';
+}
+
+export interface ActiveCalendarSubscription {
+  id: string;
+  orgId: string;
+  name: string;
+  endpointId: string | null;
+  endpointStatus: PublicEndpoint['status'] | 'LEGACY_RAW_TOKEN';
+  targetId: string | null;
+  expiresAt: IsoTimestamp | null;
+  filterIssues: SubscriptionFilterIssue[];
+  duplicateTokenHash: boolean;
+  requiresEndpointBackfill: boolean;
+  createdAt: IsoTimestamp;
+}
+
+export interface ListActiveSubscriptionsOptions {
+  now: IsoTimestamp;
+  endpoints?: PublicEndpoint[];
+  staffMembers?: Array<{ id: string; fullName?: string; positions?: string[]; isArchived?: boolean }>;
+  rooms?: Array<{ id: string; name?: string; isArchived?: boolean }>;
+  activities?: Array<{ id: string; name?: string; isArchived?: boolean }>;
+  events?: CalendarEvent[];
+}
+
+function countBy<T>(items: T[], keyOf: (item: T) => string | null | undefined): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const key = keyOf(item);
+    if (!key) continue;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function endpointIsUsable(endpoint: PublicEndpoint | undefined, now: IsoTimestamp): boolean {
+  return !!endpoint &&
+    endpoint.kind === 'CALENDAR_SUBSCRIPTION' &&
+    endpoint.status === 'ACTIVE' &&
+    endpoint.scopes.includes(CALENDAR_SUBSCRIPTION_PUBLIC_SCOPE) &&
+    (!endpoint.expiresAt || endpoint.expiresAt > now);
+}
+
+function collectSubscriptionFilterIssues(
+  sub: CalendarSubscription,
+  opts: ListActiveSubscriptionsOptions,
+): SubscriptionFilterIssue[] {
+  const issues: SubscriptionFilterIssue[] = [];
+  const staffById = new Map((opts.staffMembers ?? []).map(s => [s.id, s]));
+  const roomById = new Map((opts.rooms ?? []).map(r => [r.id, r]));
+  const activityById = new Map((opts.activities ?? []).map(a => [a.id, a]));
+  const knownTags = new Set((opts.events ?? []).flatMap(e => e.tags ?? []));
+  const knownPositions = new Set((opts.staffMembers ?? []).flatMap(s => s.positions ?? []));
+
+  for (const id of sub.filters.staffMemberIds ?? []) {
+    const staff = staffById.get(id);
+    if (!staff) issues.push({ key: 'staffMemberIds', value: id, reason: 'MISSING_SOURCE' });
+    else if (staff.isArchived) issues.push({ key: 'staffMemberIds', value: id, reason: 'ARCHIVED_SOURCE' });
+  }
+  for (const id of sub.filters.roomIds ?? []) {
+    const room = roomById.get(id);
+    if (!room) issues.push({ key: 'roomIds', value: id, reason: 'MISSING_SOURCE' });
+    else if (room.isArchived) issues.push({ key: 'roomIds', value: id, reason: 'ARCHIVED_SOURCE' });
+  }
+  for (const id of sub.filters.activityIds ?? []) {
+    const activity = activityById.get(id);
+    if (!activity) issues.push({ key: 'activityIds', value: id, reason: 'MISSING_SOURCE' });
+    else if (activity.isArchived) issues.push({ key: 'activityIds', value: id, reason: 'ARCHIVED_SOURCE' });
+  }
+  for (const tag of sub.filters.tags ?? []) {
+    if (knownTags.size > 0 && !knownTags.has(tag)) {
+      issues.push({ key: 'tags', value: tag, reason: 'UNUSED_TAG_OR_POSITION' });
+    }
+  }
+  for (const position of sub.filters.positionTitles ?? []) {
+    if (knownPositions.size > 0 && !knownPositions.has(position)) {
+      issues.push({ key: 'positionTitles', value: position, reason: 'UNUSED_TAG_OR_POSITION' });
+    }
+  }
+
+  return issues.sort((a, b) =>
+    a.key.localeCompare(b.key) ||
+    a.value.localeCompare(b.value) ||
+    a.reason.localeCompare(b.reason)
+  );
+}
+
+export function listActiveSubscriptions(
+  subscriptions: CalendarSubscription[],
+  opts: ListActiveSubscriptionsOptions,
+): ActiveCalendarSubscription[] {
+  const endpoints = opts.endpoints ?? [];
+  const endpointsByTarget = new Map(
+    endpoints
+      .filter(e => e.kind === 'CALENDAR_SUBSCRIPTION' && e.targetId)
+      .map(e => [e.targetId as string, e])
+  );
+  const tokenHashCounts = countBy(endpoints, e => e.kind === 'CALENDAR_SUBSCRIPTION' ? e.tokenHash : null);
+
+  return subscriptions
+    .filter(sub => {
+      if (!sub.isActive) return false;
+      if (endpoints.length === 0) return true;
+      return endpointIsUsable(endpointsByTarget.get(sub.id), opts.now);
+    })
+    .map(sub => {
+      const endpoint = endpointsByTarget.get(sub.id);
+      const endpointStatus: ActiveCalendarSubscription['endpointStatus'] = endpoint?.status ?? 'LEGACY_RAW_TOKEN';
+      return {
+        id: sub.id,
+        orgId: sub.orgId,
+        name: sub.name,
+        endpointId: endpoint?.id ?? null,
+        endpointStatus,
+        targetId: endpoint?.targetId ?? null,
+        expiresAt: endpoint?.expiresAt ?? null,
+        filterIssues: collectSubscriptionFilterIssues(sub, opts),
+        duplicateTokenHash: endpoint ? (tokenHashCounts.get(endpoint.tokenHash) ?? 0) > 1 : false,
+        requiresEndpointBackfill: !endpoint,
+        createdAt: sub.createdAt,
+      };
+    })
+    .sort((a, b) =>
+      a.name.localeCompare(b.name) ||
+      a.createdAt.localeCompare(b.createdAt) ||
+      a.id.localeCompare(b.id)
+    );
+}
+
+function eventMatchesSubscription(
+  event: CalendarEvent,
+  sub: CalendarSubscription,
+  staffMembers: Array<{ id: string; positions?: string[] }> = [],
+): boolean {
+  if (event.isCanceled || event.isHidden) return false;
+  const filters = sub.filters;
+  if (filters.staffMemberIds?.length) {
+    const staffIds = new Set([event.teacherId, ...(event.staffMemberIds ?? [])].filter(Boolean) as string[]);
+    if (!filters.staffMemberIds.some(id => staffIds.has(id))) return false;
+  }
+  if (filters.roomIds?.length && (!event.roomId || !filters.roomIds.includes(event.roomId))) return false;
+  if (filters.activityIds?.length && (!event.activityId || !filters.activityIds.includes(event.activityId))) return false;
+  if (filters.tags?.length) {
+    const eventTags = new Set(event.tags ?? []);
+    if (!filters.tags.some(tag => eventTags.has(tag))) return false;
+  }
+  if (filters.positionTitles?.length) {
+    const eventStaffIds = new Set([event.teacherId, ...(event.staffMemberIds ?? [])].filter(Boolean) as string[]);
+    const matchingStaff = staffMembers.filter(staff => eventStaffIds.has(staff.id));
+    if (!matchingStaff.some(staff => (staff.positions ?? []).some(position => filters.positionTitles?.includes(position)))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function formatIcalDateTime(value: string): string {
+  return new Date(value).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+}
+
+export function escapeIcalText(value: string): string {
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/\r?\n/g, '\\n')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,');
+}
+
+export function foldIcalLine(line: string, limit = 75): string {
+  if (line.length <= limit) return line;
+  const parts: string[] = [];
+  let rest = line;
+  parts.push(rest.slice(0, limit));
+  rest = rest.slice(limit);
+  while (rest.length > 0) {
+    parts.push(` ${rest.slice(0, limit - 1)}`);
+    rest = rest.slice(limit - 1);
+  }
+  return parts.join('\r\n');
+}
+
+export function buildCalendarSubscriptionIcs(
+  subscription: CalendarSubscription,
+  events: CalendarEvent[],
+  opts: { now: IsoTimestamp; staffMembers?: Array<{ id: string; positions?: string[] }> },
+): string {
+  const matchingEvents = events
+    .filter(event => eventMatchesSubscription(event, subscription, opts.staffMembers))
+    .sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id));
+
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Cadenza Forte//Calendar Subscription//EN',
+    `X-WR-CALNAME:${escapeIcalText(subscription.name)}`,
+    ...matchingEvents.flatMap(event => [
+      'BEGIN:VEVENT',
+      `UID:${escapeIcalText(event.id)}@cadenza-forte`,
+      `DTSTAMP:${formatIcalDateTime(opts.now)}`,
+      `DTSTART:${formatIcalDateTime(event.start)}`,
+      `DTEND:${formatIcalDateTime(event.end)}`,
+      `SUMMARY:${escapeIcalText(event.name)}`,
+      event.description ? `DESCRIPTION:${escapeIcalText(event.description)}` : null,
+      event.roomId ? `LOCATION:${escapeIcalText(event.roomId)}` : null,
+      'END:VEVENT',
+    ].filter((line): line is string => Boolean(line))),
+    'END:VCALENDAR',
+  ];
+
+  return lines.map(line => foldIcalLine(line)).join('\r\n');
+}
+
+export type ExternalSyncStatus = 'OK' | 'WARNING' | 'ERROR' | 'DISABLED';
+
+export interface ExternalSyncState {
+  id: string;
+  kind: 'GOOGLE_TENANT_CALENDAR' | 'GOOGLE_TEACHER_CALENDARS' | 'ICAL_SUBSCRIPTIONS';
+  status: ExternalSyncStatus;
+  label: string;
+  syncedCount: number;
+  issueCount: number;
+  sourceIds: string[];
+  blockedDecisionIds: string[];
+}
+
+export function listExternalSyncState(input: {
+  settings?: { googleCalendarSyncEnabled?: boolean; googleCalendarId?: string | null; googleCalendarConnectedBy?: string | null };
+  events?: CalendarEvent[];
+  subscriptions?: CalendarSubscription[];
+  endpoints?: PublicEndpoint[];
+  now: IsoTimestamp;
+}): ExternalSyncState[] {
+  const settings = input.settings ?? {};
+  const events = input.events ?? [];
+  const subscriptions = input.subscriptions ?? [];
+  const endpoints = input.endpoints ?? [];
+  const activeSubscriptionViews = listActiveSubscriptions(subscriptions, { now: input.now, endpoints, events });
+  const duplicateEndpointHashes = [...countBy(
+    endpoints.filter(e => e.kind === 'CALENDAR_SUBSCRIPTION'),
+    e => e.tokenHash,
+  ).values()].filter(count => count > 1).length;
+
+  const tenantSyncedEvents = events.filter(e => e.googleEventId && !e.isCanceled && !e.isHidden);
+  const teacherSyncedIds = new Set<string>();
+  for (const event of events) {
+    if (event.isCanceled || event.isHidden) continue;
+    for (const staffId of Object.keys(event.teacherGoogleEventIds ?? {})) teacherSyncedIds.add(staffId);
+  }
+
+  return [
+    {
+      id: 'google-tenant-calendar',
+      kind: 'GOOGLE_TENANT_CALENDAR',
+      status: settings.googleCalendarSyncEnabled
+        ? (settings.googleCalendarId ? 'OK' : 'WARNING')
+        : 'DISABLED',
+      label: 'Tenant Google Calendar',
+      syncedCount: tenantSyncedEvents.length,
+      issueCount: settings.googleCalendarSyncEnabled && !settings.googleCalendarId ? 1 : 0,
+      sourceIds: tenantSyncedEvents.map(e => e.id).sort(),
+      blockedDecisionIds: [],
+    },
+    {
+      id: 'google-teacher-calendars',
+      kind: 'GOOGLE_TEACHER_CALENDARS',
+      status: teacherSyncedIds.size > 0 ? 'OK' : 'DISABLED',
+      label: 'Teacher Google Calendars',
+      syncedCount: teacherSyncedIds.size,
+      issueCount: 0,
+      sourceIds: [...teacherSyncedIds].sort(),
+      blockedDecisionIds: [],
+    },
+    {
+      id: 'ical-subscriptions',
+      kind: 'ICAL_SUBSCRIPTIONS',
+      status: duplicateEndpointHashes > 0 || activeSubscriptionViews.some(s => s.filterIssues.length > 0 || s.requiresEndpointBackfill)
+        ? 'WARNING'
+        : (activeSubscriptionViews.length > 0 ? 'OK' : 'DISABLED'),
+      label: 'Private iCal subscriptions',
+      syncedCount: activeSubscriptionViews.length,
+      issueCount: duplicateEndpointHashes +
+        activeSubscriptionViews.filter(s => s.filterIssues.length > 0 || s.requiresEndpointBackfill).length,
+      sourceIds: activeSubscriptionViews.map(s => s.id),
+      blockedDecisionIds: ['D-23'],
+    },
+  ];
 }
 
 export interface IntakeApprovalGraph {
@@ -618,27 +947,34 @@ export function listStudentEnrollments(
 
 export function listRoomRequests(
   requests: OperationalRequest[],
-  status?: OperationalRequest['status'],
+  statusOrOptions?: OperationalRequest['status'] | OperationalRequestListOptions,
 ): OperationalRequest[] {
+  const opts = normalizeOperationalRequestListOptions(statusOrOptions);
+  const knownEventIds = opts.eventIds ? new Set(opts.eventIds) : null;
+  const knownRoomIds = opts.roomIds ? new Set(opts.roomIds) : null;
   return requests
-    .filter(r => r.kind === 'ROOM_CHANGE' && (status ? r.status === status : true))
-    .sort(byDateAsc(r => r.requestedFor));
+    .filter(r => r.kind === 'ROOM_CHANGE')
+    .filter(r => matchesOperationalRequestFilters(r, opts))
+    .filter(r => opts.includeStaleLinks !== false || roomChangeLinksAreKnown(r, knownEventIds, knownRoomIds))
+    .sort(byDateAscThenId(r => r.requestedFor));
 }
 
 export function listAbsencesForPeriod(
   requests: OperationalRequest[],
   from: IsoDate,
   to: IsoDate,
+  options: OperationalRequestListOptions = {},
 ): OperationalRequest[] {
   return requests
     .filter(r => (r.kind === 'ABSENCE' || r.kind === 'DAY_OFF'))
+    .filter(r => matchesOperationalRequestFilters(r, options))
     .filter(r => {
       const start = r.requestedFor;
       const end = r.endDate ?? r.requestedFor;
       // overlap test
       return start <= to && end >= from;
     })
-    .sort(byDateAsc(r => r.requestedFor));
+    .sort(byDateAscThenId(r => r.requestedFor));
 }
 
 export interface RoomChangeResult {
@@ -647,12 +983,68 @@ export interface RoomChangeResult {
   newRoomId: string;
 }
 
+export interface OperationalRequestListOptions {
+  status?: OperationalRequest['status'] | OperationalRequest['status'][];
+  requestedByStaffId?: string | null;
+  includeTerminal?: boolean;
+  eventIds?: readonly string[];
+  roomIds?: readonly string[];
+  includeStaleLinks?: boolean;
+}
+
+function normalizeOperationalRequestListOptions(
+  statusOrOptions?: OperationalRequest['status'] | OperationalRequestListOptions,
+): OperationalRequestListOptions {
+  return typeof statusOrOptions === 'string'
+    ? { status: statusOrOptions }
+    : statusOrOptions ?? {};
+}
+
+function isTerminalRequestStatus(status: OperationalRequest['status']): boolean {
+  return status === 'APPROVED' || status === 'REJECTED' || status === 'CANCELLED';
+}
+
+function matchesOperationalRequestFilters(
+  request: OperationalRequest,
+  options: OperationalRequestListOptions,
+): boolean {
+  const statuses = Array.isArray(options.status)
+    ? options.status
+    : options.status
+      ? [options.status]
+      : null;
+  if (statuses && !statuses.includes(request.status)) return false;
+  if (options.includeTerminal === false && isTerminalRequestStatus(request.status)) return false;
+  if (options.requestedByStaffId && request.requestedByStaffId !== options.requestedByStaffId) return false;
+  return true;
+}
+
+function roomChangeLinksAreKnown(
+  request: OperationalRequest,
+  eventIds: Set<string> | null,
+  roomIds: Set<string> | null,
+): boolean {
+  if (!request.eventId || !request.currentRoomId || !request.requestedRoomId) return false;
+  if (request.currentRoomId === request.requestedRoomId) return false;
+  if (eventIds && !eventIds.has(request.eventId)) return false;
+  if (roomIds && (!roomIds.has(request.currentRoomId) || !roomIds.has(request.requestedRoomId))) return false;
+  return true;
+}
+
 /** Pure: returns the approved request + the event/room mutation the caller applies. */
 export function applyApprovedRoomChange(
   request: OperationalRequest,
-  opts: { now: IsoTimestamp; decidedBy?: string | null },
+  opts: {
+    now: IsoTimestamp;
+    decidedBy?: string | null;
+    eventIds?: readonly string[];
+    roomIds?: readonly string[];
+  },
 ): RoomChangeResult | null {
-  if (request.kind !== 'ROOM_CHANGE' || !request.eventId || !request.requestedRoomId) return null;
+  if (request.kind !== 'ROOM_CHANGE' || request.status !== 'PENDING') return null;
+  const knownEventIds = opts.eventIds ? new Set(opts.eventIds) : null;
+  const knownRoomIds = opts.roomIds ? new Set(opts.roomIds) : null;
+  if (!roomChangeLinksAreKnown(request, knownEventIds, knownRoomIds)) return null;
   return {
     request: {
       ...request,
@@ -673,8 +1065,14 @@ export function applyApprovedRoomChange(
 
 export interface ActivityRoster {
   activity: MinimalActivity;
+  enrollmentIds: string[];
   studentIds: string[];
   students: MinimalStudent[];
+  l2Ids: string[];
+  archivedEnrollmentIds: string[];
+  missingStudentIds: string[];
+  archivedStudentIds: string[];
+  duplicateStudentIds: string[];
 }
 
 function rosterFor(
@@ -682,22 +1080,56 @@ function rosterFor(
   enrollments: MinimalEnrollment[],
   students: MinimalStudent[],
   predicate: (a: MinimalActivity) => boolean,
+  enrollmentPredicate: (enrollment: MinimalEnrollment, activity: MinimalActivity) => boolean = () => true,
 ): ActivityRoster[] {
   const studentById = new Map(students.map(s => [s.id, s]));
   return activities
     .filter(a => !a.isArchived && predicate(a))
     .map(a => {
-      const ids = enrollments
-        .filter(e => e.activityId === a.id && (e.status ? e.status === 'ACTIVE' : true))
-        .map(e => e.studentId);
+      const activityEnrollments = enrollments
+        .filter(e => e.activityId === a.id && enrollmentPredicate(e, a))
+        .sort((x, y) => {
+          const xStudent = studentById.get(x.studentId)?.fullName ?? x.studentId;
+          const yStudent = studentById.get(y.studentId)?.fullName ?? y.studentId;
+          return (x.l2Id ?? '').localeCompare(y.l2Id ?? '')
+            || xStudent.localeCompare(yStudent)
+            || x.studentId.localeCompare(y.studentId)
+            || x.id.localeCompare(y.id);
+        });
+      const archivedEnrollmentIds = activityEnrollments
+        .filter(e => e.status === 'ARCHIVED')
+        .map(e => e.id);
+      const activeEnrollments = activityEnrollments.filter(e => e.status ? e.status === 'ACTIVE' : true);
+      const ids = activeEnrollments.map(e => e.studentId);
+      const duplicateStudentIds = Array.from(
+        ids.reduce((acc, id) => acc.set(id, (acc.get(id) ?? 0) + 1), new Map<string, number>()),
+      )
+        .filter(([, count]) => count > 1)
+        .map(([id]) => id)
+        .sort();
       const unique = Array.from(new Set(ids));
+      const missingStudentIds = unique.filter(id => !studentById.has(id)).sort();
+      const archivedStudentIds = unique.filter(id => studentById.get(id)?.isArchived).sort();
+      const activeStudentIds = unique
+        .filter(id => studentById.has(id) && !studentById.get(id)?.isArchived)
+        .sort((x, y) => {
+          const sx = studentById.get(x);
+          const sy = studentById.get(y);
+          return (sx?.fullName ?? x).localeCompare(sy?.fullName ?? y) || x.localeCompare(y);
+        });
       return {
         activity: a,
-        studentIds: unique,
-        students: unique.map(id => studentById.get(id)).filter(Boolean) as MinimalStudent[],
+        enrollmentIds: activeEnrollments.map(e => e.id),
+        studentIds: activeStudentIds,
+        students: activeStudentIds.map(id => studentById.get(id)).filter(Boolean) as MinimalStudent[],
+        l2Ids: Array.from(new Set(activeEnrollments.map(e => e.l2Id).filter(Boolean) as string[])).sort(),
+        archivedEnrollmentIds,
+        missingStudentIds,
+        archivedStudentIds,
+        duplicateStudentIds,
       };
     })
-    .sort((x, y) => x.activity.name.localeCompare(y.activity.name));
+    .sort((x, y) => x.activity.name.localeCompare(y.activity.name) || x.activity.id.localeCompare(y.activity.id));
 }
 
 export function listEnsembleRosters(
@@ -724,6 +1156,124 @@ export function listSchoolProgramStudents(
   students: MinimalStudent[],
 ): ActivityRoster[] {
   return rosterFor(activities, enrollments, students, a => a.template === 'PROGRAM');
+}
+
+export type RosterProgramKind = 'ENSEMBLE' | 'THEORY' | 'PROGRAM' | 'ALL';
+export type RosterProgramAccess =
+  | { role: 'admin' | 'super_admin' }
+  | { role: 'teacher'; staffMemberId: string }
+  | { role: 'member' | 'finance' | 'guardian' | 'public' };
+
+export interface RosterProgramViewItem extends ActivityRoster {
+  kind: Exclude<RosterProgramKind, 'ALL'>;
+  assignmentIds: string[];
+  assignedStaffMemberIds: string[];
+  visibleSourceIds: {
+    activityId: string;
+    enrollmentIds: string[];
+    assignmentIds: string[];
+  };
+}
+
+export interface RosterProgramViewModel {
+  access: 'FULL' | 'ASSIGNED_TEACHER' | 'DENIED';
+  canWrite: boolean;
+  canExport: boolean;
+  items: RosterProgramViewItem[];
+  blockedSourceMarkers: string[];
+}
+
+function rosterKind(activity: MinimalActivity): Exclude<RosterProgramKind, 'ALL'> | null {
+  if (activity.template === 'ENSEMBLE') return 'ENSEMBLE';
+  if (activity.template === 'PROGRAM') return 'PROGRAM';
+  if (/theory/i.test(activity.name) || activity.activityType === 'ACADEMIC') return 'THEORY';
+  return null;
+}
+
+function assignmentMatchesEnrollment(assignment: MinimalTeachingAssignment, enrollment: MinimalEnrollment): boolean {
+  const scope = assignment.scope ?? 'ACTIVITY';
+  if (assignment.activityId !== enrollment.activityId) return false;
+  if (scope === 'L2') return Boolean(assignment.l2Id) && assignment.l2Id === enrollment.l2Id;
+  if (scope === 'L1') return !assignment.l1Id || assignment.l1Id === enrollment.l1Id;
+  return true;
+}
+
+export function buildRosterProgramViewModel(opts: {
+  activities: MinimalActivity[];
+  enrollments: MinimalEnrollment[];
+  students: MinimalStudent[];
+  teachingAssignments: MinimalTeachingAssignment[];
+  access: RosterProgramAccess;
+  kind?: RosterProgramKind;
+}): RosterProgramViewModel {
+  const requestedKind = opts.kind ?? 'ALL';
+  if (opts.access.role === 'member' || opts.access.role === 'finance' || opts.access.role === 'guardian' || opts.access.role === 'public') {
+    return {
+      access: 'DENIED',
+      canWrite: false,
+      canExport: false,
+      items: [],
+      blockedSourceMarkers: ['roster_programs'],
+    };
+  }
+
+  const isAdmin = opts.access.role === 'admin' || opts.access.role === 'super_admin';
+  const teacherStaffMemberId = opts.access.role === 'teacher' ? opts.access.staffMemberId : null;
+  const activeAssignments = opts.teachingAssignments.filter(a => !a.isArchived);
+  const visibleAssignmentByActivity = new Map<string, MinimalTeachingAssignment[]>();
+  for (const assignment of activeAssignments) {
+    if (!isAdmin && assignment.staffMemberId !== teacherStaffMemberId) continue;
+    const current = visibleAssignmentByActivity.get(assignment.activityId) ?? [];
+    current.push(assignment);
+    visibleAssignmentByActivity.set(assignment.activityId, current);
+  }
+
+  const rosters = rosterFor(
+    opts.activities,
+    opts.enrollments,
+    opts.students,
+    activity => {
+      const kind = rosterKind(activity);
+      if (!kind) return false;
+      if (requestedKind !== 'ALL' && kind !== requestedKind) return false;
+      return isAdmin || visibleAssignmentByActivity.has(activity.id);
+    },
+    (enrollment, activity) => {
+      if (isAdmin) return true;
+      const assignments = visibleAssignmentByActivity.get(activity.id) ?? [];
+      return assignments.some(assignment => assignmentMatchesEnrollment(assignment, enrollment));
+    },
+  );
+
+  const items: RosterProgramViewItem[] = rosters.map(roster => {
+    const activityAssignments = activeAssignments
+      .filter(a => a.activityId === roster.activity.id)
+      .filter(a => isAdmin || a.staffMemberId === teacherStaffMemberId)
+      .sort((a, b) =>
+        a.staffMemberId.localeCompare(b.staffMemberId)
+        || (a.l2Id ?? '').localeCompare(b.l2Id ?? '')
+        || a.id.localeCompare(b.id),
+      );
+    return {
+      ...roster,
+      kind: rosterKind(roster.activity) ?? 'THEORY',
+      assignmentIds: activityAssignments.map(a => a.id),
+      assignedStaffMemberIds: Array.from(new Set(activityAssignments.map(a => a.staffMemberId))).sort(),
+      visibleSourceIds: {
+        activityId: roster.activity.id,
+        enrollmentIds: roster.enrollmentIds,
+        assignmentIds: activityAssignments.map(a => a.id),
+      },
+    };
+  });
+
+  return {
+    access: isAdmin ? 'FULL' : 'ASSIGNED_TEACHER',
+    canWrite: isAdmin,
+    canExport: isAdmin,
+    items,
+    blockedSourceMarkers: [],
+  };
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -788,11 +1338,22 @@ export function summarizeLessonCompletion(lessons: LessonRecord[]): LessonComple
 
 export function listExamSessions(
   sessions: ExamSession[],
-  status?: ExamSession['status'],
+  statusOrFilters?: ExamSession['status'] | {
+    status?: ExamSession['status'];
+    activityId?: string | null;
+    examinerStaffId?: string;
+    studentId?: string;
+  },
 ): ExamSession[] {
+  const filters = typeof statusOrFilters === 'string'
+    ? { status: statusOrFilters }
+    : (statusOrFilters ?? {});
   return sessions
-    .filter(s => (status ? s.status === status : true))
-    .sort(byDateAsc(s => s.date));
+    .filter(s => (filters.status ? s.status === filters.status : true))
+    .filter(s => ('activityId' in filters ? s.activityId === filters.activityId : true))
+    .filter(s => (filters.examinerStaffId ? s.examinerStaffIds.includes(filters.examinerStaffId) : true))
+    .filter(s => (filters.studentId ? s.studentIds.includes(filters.studentId) : true))
+    .sort(byDateAscThenId(s => s.date));
 }
 
 export interface StudentAssessmentSummary {
@@ -802,18 +1363,28 @@ export interface StudentAssessmentSummary {
   bestGrade: string | null;
   certificates: number;
   submissions: ExaminerSubmission[];
+  reportCards: {
+    total: number;
+    draft: number;
+    released: number;
+    items: ReportCard[];
+  };
 }
 
 export function getStudentAssessmentSummary(
   studentId: string,
   submissions: ExaminerSubmission[],
   certificates: Certificate[],
+  reportCards: ReportCard[] = [],
 ): StudentAssessmentSummary {
   const mine = submissions
     .filter(s => s.studentId === studentId)
-    .sort(byDateAsc(s => s.submittedAt));
+    .sort(byDateAscThenId(s => s.submittedAt));
   const scored = mine.map(s => s.score).filter((n): n is number => typeof n === 'number');
   const grades = mine.map(s => s.grade).filter((g): g is string => !!g).sort();
+  const studentReportCards = reportCards
+    .filter(r => r.studentId === studentId)
+    .sort(byDateAscThenId(r => r.createdAt));
   return {
     studentId,
     examCount: mine.length,
@@ -821,13 +1392,19 @@ export function getStudentAssessmentSummary(
     bestGrade: grades.length ? grades[0] : null,
     certificates: certificates.filter(c => c.studentId === studentId && c.status === 'ISSUED').length,
     submissions: mine,
+    reportCards: {
+      total: studentReportCards.length,
+      draft: studentReportCards.filter(r => !r.publishedAt).length,
+      released: studentReportCards.filter(r => !!r.publishedAt).length,
+      items: studentReportCards,
+    },
   };
 }
 
 export function listPendingCertificates(certificates: Certificate[]): Certificate[] {
   return certificates
     .filter(c => c.status === 'PENDING')
-    .sort(byDateAsc(c => c.createdAt));
+    .sort(byDateAscThenId(c => c.createdAt));
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -839,9 +1416,18 @@ export function listConcertPrograms(
   programs: ConcertProgram[],
   status?: ConcertProgram['status'],
 ): ConcertProgram[] {
+  const statusRank: Record<ConcertProgram['status'], number> = {
+    DRAFT: 0,
+    PUBLISHED: 1,
+    COMPLETED: 2,
+    CANCELLED: 3,
+  };
   return programs
     .filter(p => (status ? p.status === status : true))
-    .sort(byDateAsc(p => p.date));
+    .sort((a, b) =>
+      a.date.localeCompare(b.date) ||
+      statusRank[a.status] - statusRank[b.status] ||
+      a.id.localeCompare(b.id));
 }
 
 export interface RunOfShowLine {
@@ -849,25 +1435,71 @@ export interface RunOfShowLine {
   title: string;
   composer: string | null;
   performers: number;
+  performerStudentIds: string[];
+  performerStaffIds: string[];
+  performerNames: string[];
+  staleStudentIds: string[];
+  staleStaffIds: string[];
   durationMinutes: number | null;
   cumulativeMinutes: number | null;
+  orderConflict: boolean;
 }
 
-export function getProgramRunOfShow(program: ConcertProgram): RunOfShowLine[] {
+export interface ConcertPerformerLookup {
+  students?: MinimalStudent[];
+  staff?: MinimalStaffMember[];
+}
+
+function staffDisplayName(staff: MinimalStaffMember): string {
+  return staff.fullName ?? staff.name ?? staff.id;
+}
+
+export function getProgramRunOfShow(
+  program: ConcertProgram,
+  lookup: ConcertPerformerLookup = {},
+): RunOfShowLine[] {
   let cumulative = 0;
   let cumulativeKnown = true;
+  const studentById = new Map((lookup.students ?? []).map(student => [student.id, student]));
+  const staffById = new Map((lookup.staff ?? []).map(staff => [staff.id, staff]));
+  const orderCounts = new Map<number, number>();
+  for (const piece of program.pieces) {
+    orderCounts.set(piece.order, (orderCounts.get(piece.order) ?? 0) + 1);
+  }
   return [...program.pieces]
-    .sort((a, b) => a.order - b.order)
+    .sort((a, b) =>
+      a.order - b.order ||
+      a.title.localeCompare(b.title) ||
+      (a.composer ?? '').localeCompare(b.composer ?? ''))
     .map(p => {
       if (typeof p.durationMinutes === 'number') cumulative += p.durationMinutes;
       else cumulativeKnown = false;
+      const studentPerformers = p.performerStudentIds
+        .map(id => studentById.get(id))
+        .filter((student): student is MinimalStudent => !!student && !student.isArchived);
+      const staffPerformers = p.performerStaffIds
+        .map(id => staffById.get(id))
+        .filter((staff): staff is MinimalStaffMember => !!staff && !staff.isArchived);
       return {
         order: p.order,
         title: p.title,
         composer: p.composer,
         performers: p.performerStudentIds.length + p.performerStaffIds.length,
+        performerStudentIds: [...p.performerStudentIds],
+        performerStaffIds: [...p.performerStaffIds],
+        performerNames: [
+          ...studentPerformers.map(student => student.fullName),
+          ...staffPerformers.map(staffDisplayName),
+        ].sort((a, b) => a.localeCompare(b)),
+        staleStudentIds: p.performerStudentIds
+          .filter(id => !studentById.has(id) || studentById.get(id)?.isArchived)
+          .sort(),
+        staleStaffIds: p.performerStaffIds
+          .filter(id => !staffById.has(id) || staffById.get(id)?.isArchived)
+          .sort(),
         durationMinutes: p.durationMinutes,
         cumulativeMinutes: cumulativeKnown ? cumulative : null,
+        orderConflict: (orderCounts.get(p.order) ?? 0) > 1,
       };
     });
 }
@@ -876,12 +1508,13 @@ export function getProgramRunOfShow(program: ConcertProgram): RunOfShowLine[] {
 export function listPerformerEvents(
   programs: ConcertProgram[],
   performerId: string,
+  performerKind: 'student' | 'staff' | 'any' = 'any',
 ): ConcertProgram[] {
   return programs
     .filter(p => p.pieces.some(piece =>
-      piece.performerStudentIds.includes(performerId) ||
-      piece.performerStaffIds.includes(performerId)))
-    .sort((a, b) => (b.date).localeCompare(a.date));
+      (performerKind !== 'staff' && piece.performerStudentIds.includes(performerId)) ||
+      (performerKind !== 'student' && piece.performerStaffIds.includes(performerId))))
+    .sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -893,6 +1526,434 @@ export function listPendingHoursReports(entries: HoursEntry[]): HoursEntry[] {
   return entries
     .filter(e => e.status === 'SUBMITTED' || e.status === 'DRAFT')
     .sort(byDateAsc(e => e.date));
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 8b. Operations command center helper exports
+//     (countOpenConflicts, listTodayEvents, countPendingHoursReports)
+// ════════════════════════════════════════════════════════════════════════════
+
+export type OperationsActor = 'admin' | 'finance' | 'teacher' | 'member' | 'anonymous';
+export type OperationsCardSeverity = 'critical' | 'warning' | 'info';
+export type OperationsCardAccessReason = 'ALLOWED' | 'ROLE_DENIED' | 'BLOCKED_SOURCE';
+export type OperationsCardStatus = 'READY' | 'EMPTY' | 'DENIED' | 'BLOCKED' | 'STALE_SOURCE';
+
+export type OperationsCardSource =
+  | 'openConflicts'
+  | 'openInboxItems'
+  | 'pendingHoursReports'
+  | 'importHealth'
+  | 'reportHealth'
+  | 'todayEvents'
+  | 'absenceImpact'
+  | 'assessmentDelivery'
+  | 'publicEndpointHealth'
+  | 'consentRevocation'
+  | 'instrumentDepositRefunds'
+  | 'hrEvaluations'
+  | 'rolloverCopyHealth';
+
+export interface OperationsTodayEventsOptions {
+  timeZone: string;
+  /** Pass either a local org date or a timestamp; no helper reads the clock. */
+  date?: IsoDate;
+  now?: IsoTimestamp;
+  includeHidden?: boolean;
+  includeCanceled?: boolean;
+}
+
+export interface OperationsCardAccess {
+  source: OperationsCardSource;
+  severity: OperationsCardSeverity;
+  allowed: boolean;
+  reason: OperationsCardAccessReason;
+  financeAllowed: boolean;
+  revealCounts: boolean;
+  revealSourceIds: boolean;
+  blockedDecisionIds: string[];
+}
+
+export interface OperationsSourceReference {
+  id: string;
+  exists: boolean;
+  stale: boolean;
+}
+
+export interface OperationsCardModel {
+  id: string;
+  source: OperationsCardSource;
+  sourceModuleId: string;
+  labelKey: string;
+  severity: OperationsCardSeverity;
+  status: OperationsCardStatus;
+  accessReason: OperationsCardAccessReason;
+  count: number | null;
+  sourceIds: string[];
+  sourceReferences: OperationsSourceReference[];
+  sourceUpdatedAt: IsoTimestamp | null;
+  blockedDecisionIds: string[];
+  routeTarget: string | null;
+}
+
+export interface OperationsSnapshotSources {
+  events?: CalendarEvent[];
+  hoursEntries?: HoursEntry[];
+  adminInboxItems?: AdminInboxItem[];
+  reportDefinitions?: ReportDefinition[];
+  importSessions?: ImportSession[];
+}
+
+export interface OperationsSnapshotOptions extends OperationsTodayEventsOptions {
+  orgId: string;
+  actor: OperationsActor;
+  generatedAt: IsoTimestamp;
+  includeBlockedCards?: boolean;
+  includeDeniedCards?: boolean;
+  existingSourceIds?: Partial<Record<OperationsCardSource, Iterable<string>>>;
+}
+
+export interface OperationsSnapshot {
+  orgId: string;
+  actor: OperationsActor;
+  generatedAt: IsoTimestamp;
+  dateWindow: {
+    date: IsoDate;
+    timeZone: string;
+  };
+  cards: OperationsCardModel[];
+}
+
+interface OperationsCardAccessDefinition {
+  source: OperationsCardSource;
+  severity: OperationsCardSeverity;
+  financeAllowed: boolean;
+  blockedDecisionIds: readonly string[];
+}
+
+const OPERATIONS_CARD_ACCESS_DEFINITIONS: readonly OperationsCardAccessDefinition[] = [
+  { source: 'openConflicts', severity: 'critical', financeAllowed: false, blockedDecisionIds: [] },
+  { source: 'absenceImpact', severity: 'critical', financeAllowed: false, blockedDecisionIds: ['D-21'] },
+  { source: 'openInboxItems', severity: 'warning', financeAllowed: false, blockedDecisionIds: [] },
+  { source: 'importHealth', severity: 'warning', financeAllowed: false, blockedDecisionIds: [] },
+  { source: 'pendingHoursReports', severity: 'warning', financeAllowed: true, blockedDecisionIds: [] },
+  { source: 'assessmentDelivery', severity: 'warning', financeAllowed: false, blockedDecisionIds: ['D-22'] },
+  { source: 'publicEndpointHealth', severity: 'warning', financeAllowed: false, blockedDecisionIds: ['D-23'] },
+  { source: 'consentRevocation', severity: 'warning', financeAllowed: false, blockedDecisionIds: ['D-24'] },
+  { source: 'instrumentDepositRefunds', severity: 'warning', financeAllowed: false, blockedDecisionIds: ['D-25'] },
+  { source: 'hrEvaluations', severity: 'warning', financeAllowed: false, blockedDecisionIds: ['D-26'] },
+  { source: 'rolloverCopyHealth', severity: 'warning', financeAllowed: false, blockedDecisionIds: ['D-27'] },
+  { source: 'reportHealth', severity: 'info', financeAllowed: true, blockedDecisionIds: [] },
+  { source: 'todayEvents', severity: 'info', financeAllowed: false, blockedDecisionIds: [] },
+];
+
+const OPERATIONS_CARD_SEVERITY_RANK: Record<OperationsCardSeverity, number> = {
+  critical: 0,
+  warning: 1,
+  info: 2,
+};
+
+function instantDateInTimeZone(iso: string, timeZone: string): IsoDate {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(iso));
+  const get = (type: string) => parts.find(part => part.type === type)?.value ?? '00';
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+function resolveOperationsDate(options: OperationsTodayEventsOptions): IsoDate {
+  if (options.date) return options.date;
+  if (options.now) return instantDateInTimeZone(options.now, options.timeZone);
+  throw new Error('listTodayEvents requires either options.date or options.now');
+}
+
+const OPERATIONS_CARD_META: Record<OperationsCardSource, { sourceModuleId: string; routeTarget: string | null }> = {
+  openConflicts: { sourceModuleId: 'calendar-schedule-engine', routeTarget: 'CALENDAR' },
+  openInboxItems: { sourceModuleId: 'operations-command-center', routeTarget: 'ADMIN_INBOX' },
+  importHealth: { sourceModuleId: 'import-export-data-portability', routeTarget: 'MANAGE' },
+  pendingHoursReports: { sourceModuleId: 'payroll-salaries-hours', routeTarget: 'PAYROLL' },
+  reportHealth: { sourceModuleId: 'reports-analytics', routeTarget: 'ANALYTICS' },
+  todayEvents: { sourceModuleId: 'calendar-schedule-engine', routeTarget: 'CALENDAR' },
+  absenceImpact: { sourceModuleId: 'rooms-absence-requests', routeTarget: null },
+  assessmentDelivery: { sourceModuleId: 'exams-certificates-report-cards', routeTarget: null },
+  publicEndpointHealth: { sourceModuleId: 'calendar-website-integrations', routeTarget: null },
+  consentRevocation: { sourceModuleId: 'agreements-consent', routeTarget: null },
+  instrumentDepositRefunds: { sourceModuleId: 'instrument-inventory', routeTarget: null },
+  hrEvaluations: { sourceModuleId: 'teacher-evaluation-hr', routeTarget: null },
+  rolloverCopyHealth: { sourceModuleId: 'year-rollover-setup', routeTarget: null },
+};
+
+function latestIso(values: readonly (string | null | undefined)[]): IsoTimestamp | null {
+  const sorted = values.filter((value): value is string => Boolean(value)).sort();
+  return sorted.length > 0 ? sorted[sorted.length - 1] : null;
+}
+
+function latestEventUpdate(events: readonly CalendarEvent[]): IsoTimestamp | null {
+  return latestIso(events.map(event => event.audit?.updatedAt ?? event.audit?.createdAt ?? event.end ?? event.start));
+}
+
+function appTimestampishToIso(value: unknown): IsoTimestamp | null {
+  if (typeof value === 'string') return value;
+  if (!value || typeof value !== 'object') return null;
+  const timestamp = value as { seconds?: unknown; nanoseconds?: unknown };
+  if (typeof timestamp.seconds !== 'number') return null;
+  const nanos = typeof timestamp.nanoseconds === 'number' ? timestamp.nanoseconds : 0;
+  return new Date(timestamp.seconds * 1000 + Math.floor(nanos / 1_000_000)).toISOString();
+}
+
+function buildOperationsCard(
+  access: OperationsCardAccess,
+  data: {
+    count: number;
+    sourceIds: string[];
+    sourceUpdatedAt: IsoTimestamp | null;
+    existingSourceIds?: Iterable<string>;
+  },
+): OperationsCardModel {
+  const meta = OPERATIONS_CARD_META[access.source];
+  const sourceIds = access.revealSourceIds ? [...data.sourceIds].sort() : [];
+  const sourceReferences = access.revealSourceIds
+    ? resolveOperationsSourceReferences(sourceIds, data.existingSourceIds ?? sourceIds)
+    : [];
+  const hasStaleSources = sourceReferences.some(reference => reference.stale);
+  const status: OperationsCardStatus = hasStaleSources
+    ? 'STALE_SOURCE'
+    : data.count > 0
+      ? 'READY'
+      : 'EMPTY';
+  return {
+    id: `operations:${access.source}`,
+    source: access.source,
+    sourceModuleId: meta.sourceModuleId,
+    labelKey: `operations.cards.${access.source}`,
+    severity: access.severity,
+    status,
+    accessReason: access.reason,
+    count: access.revealCounts ? data.count : null,
+    sourceIds,
+    sourceReferences,
+    sourceUpdatedAt: access.revealSourceIds ? data.sourceUpdatedAt : null,
+    blockedDecisionIds: [...access.blockedDecisionIds],
+    routeTarget: meta.routeTarget,
+  };
+}
+
+function buildUnavailableOperationsCard(
+  access: OperationsCardAccess,
+): OperationsCardModel {
+  const meta = OPERATIONS_CARD_META[access.source];
+  return {
+    id: `operations:${access.source}`,
+    source: access.source,
+    sourceModuleId: meta.sourceModuleId,
+    labelKey: `operations.cards.${access.source}`,
+    severity: access.severity,
+    status: access.reason === 'BLOCKED_SOURCE' ? 'BLOCKED' : 'DENIED',
+    accessReason: access.reason,
+    count: null,
+    sourceIds: [],
+    sourceReferences: [],
+    sourceUpdatedAt: null,
+    blockedDecisionIds: [...access.blockedDecisionIds],
+    routeTarget: meta.routeTarget,
+  };
+}
+
+export function countOpenConflicts(events: CalendarEvent[]): number {
+  return detectRoomConflicts(events).length;
+}
+
+export function listTodayEvents(
+  events: CalendarEvent[],
+  options: OperationsTodayEventsOptions,
+): CalendarEvent[] {
+  const targetDate = resolveOperationsDate(options);
+  return events
+    .filter(event => options.includeHidden || !event.isHidden)
+    .filter(event => options.includeCanceled || !event.isCanceled)
+    .filter(event => instantDateInTimeZone(event.start, options.timeZone) === targetDate)
+    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime() || a.id.localeCompare(b.id));
+}
+
+export function countPendingHoursReports(entries: HoursEntry[]): number {
+  return listPendingHoursReports(entries).length;
+}
+
+export function getOperationsCardAccess(
+  source: OperationsCardSource,
+  actor: OperationsActor,
+): OperationsCardAccess {
+  const definition = OPERATIONS_CARD_ACCESS_DEFINITIONS.find(entry => entry.source === source);
+  if (!definition) {
+    throw new Error(`Unknown operations card source: ${source}`);
+  }
+
+  if (definition.blockedDecisionIds.length > 0) {
+    return {
+      source,
+      severity: definition.severity,
+      allowed: false,
+      reason: 'BLOCKED_SOURCE',
+      financeAllowed: definition.financeAllowed,
+      revealCounts: false,
+      revealSourceIds: false,
+      blockedDecisionIds: [...definition.blockedDecisionIds],
+    };
+  }
+
+  const allowed = actor === 'admin' || (actor === 'finance' && definition.financeAllowed);
+  return {
+    source,
+    severity: definition.severity,
+    allowed,
+    reason: allowed ? 'ALLOWED' : 'ROLE_DENIED',
+    financeAllowed: definition.financeAllowed,
+    revealCounts: allowed,
+    revealSourceIds: allowed,
+    blockedDecisionIds: [],
+  };
+}
+
+export function listOperationsCardAccess(
+  actor: OperationsActor,
+  options: { allowedOnly?: boolean } = {},
+): OperationsCardAccess[] {
+  return OPERATIONS_CARD_ACCESS_DEFINITIONS
+    .map(definition => getOperationsCardAccess(definition.source, actor))
+    .filter(access => !options.allowedOnly || access.allowed)
+    .sort((a, b) =>
+      OPERATIONS_CARD_SEVERITY_RANK[a.severity] - OPERATIONS_CARD_SEVERITY_RANK[b.severity] ||
+      a.source.localeCompare(b.source)
+    );
+}
+
+export function resolveOperationsSourceReferences(
+  sourceIds: readonly string[],
+  existingSourceIds: Iterable<string>,
+): OperationsSourceReference[] {
+  const existing = new Set(existingSourceIds);
+  return [...sourceIds]
+    .sort()
+    .map(id => ({
+      id,
+      exists: existing.has(id),
+      stale: !existing.has(id),
+    }));
+}
+
+export function buildOperationsSnapshot(
+  sources: OperationsSnapshotSources,
+  options: OperationsSnapshotOptions,
+): OperationsSnapshot {
+  const date = resolveOperationsDate(options);
+  const cards: OperationsCardModel[] = [];
+  const includeBlockedCards = options.includeBlockedCards ?? (options.actor === 'admin' || options.actor === 'finance');
+  const includeDeniedCards = options.includeDeniedCards ?? false;
+
+  for (const access of listOperationsCardAccess(options.actor)) {
+    if (!access.allowed) {
+      if ((access.reason === 'BLOCKED_SOURCE' && includeBlockedCards) ||
+        (access.reason === 'ROLE_DENIED' && includeDeniedCards)) {
+        cards.push(buildUnavailableOperationsCard(access));
+      }
+      continue;
+    }
+
+    if (access.source === 'openConflicts') {
+      const conflicts = detectRoomConflicts(sources.events ?? []);
+      const sourceIds = [...getConflictingEventIds(conflicts)];
+      const sourceEvents = (sources.events ?? []).filter(event => sourceIds.includes(event.id));
+      cards.push(buildOperationsCard(access, {
+        count: conflicts.length,
+        sourceIds,
+        sourceUpdatedAt: latestEventUpdate(sourceEvents),
+        existingSourceIds: options.existingSourceIds?.openConflicts,
+      }));
+      continue;
+    }
+
+    if (access.source === 'todayEvents') {
+      const todayEvents = listTodayEvents(sources.events ?? [], options);
+      cards.push(buildOperationsCard(access, {
+        count: todayEvents.length,
+        sourceIds: todayEvents.map(event => event.id),
+        sourceUpdatedAt: latestEventUpdate(todayEvents),
+        existingSourceIds: options.existingSourceIds?.todayEvents,
+      }));
+      continue;
+    }
+
+    if (access.source === 'openInboxItems') {
+      const openItems = (sources.adminInboxItems ?? [])
+        .filter(item => item.status === 'OPEN')
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+      cards.push(buildOperationsCard(access, {
+        count: openItems.length,
+        sourceIds: openItems.map(item => item.id),
+        sourceUpdatedAt: latestIso(openItems.map(item => item.markedDoneAt ?? item.decidedAt ?? item.createdAt)),
+        existingSourceIds: options.existingSourceIds?.openInboxItems,
+      }));
+      continue;
+    }
+
+    if (access.source === 'pendingHoursReports') {
+      const pending = listPendingHoursReports(sources.hoursEntries ?? []);
+      cards.push(buildOperationsCard(access, {
+        count: pending.length,
+        sourceIds: pending.map(entry => entry.id),
+        sourceUpdatedAt: latestIso(pending.map(entry => entry.updatedAt ?? entry.createdAt)),
+        existingSourceIds: options.existingSourceIds?.pendingHoursReports,
+      }));
+      continue;
+    }
+
+    if (access.source === 'importHealth') {
+      const attentionStatuses = new Set(['PENDING', 'REVIEWING', 'IMPORTING', 'COMPLETED_WITH_ERRORS']);
+      const sessions = (sources.importSessions ?? [])
+        .filter(session => attentionStatuses.has(session.status))
+        .sort((a, b) => {
+          const aUpdated = appTimestampishToIso(a.updatedAt) ?? '';
+          const bUpdated = appTimestampishToIso(b.updatedAt) ?? '';
+          return bUpdated.localeCompare(aUpdated) || a.id.localeCompare(b.id);
+        });
+      cards.push(buildOperationsCard(access, {
+        count: sessions.length,
+        sourceIds: sessions.map(session => session.id),
+        sourceUpdatedAt: latestIso(sessions.map(session => appTimestampishToIso(session.updatedAt) ?? appTimestampishToIso(session.createdAt))),
+        existingSourceIds: options.existingSourceIds?.importHealth,
+      }));
+      continue;
+    }
+
+    if (access.source === 'reportHealth') {
+      const reportActor: ReportActor = options.actor === 'finance' ? 'finance' : 'admin';
+      const visibleDefinitions = (sources.reportDefinitions ?? [])
+        .filter(definition => getReportSourceAccess(definition.sourceEntity, reportActor).allowed)
+        .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt) || a.id.localeCompare(b.id));
+      cards.push(buildOperationsCard(access, {
+        count: visibleDefinitions.length,
+        sourceIds: visibleDefinitions.map(definition => definition.id),
+        sourceUpdatedAt: latestIso(visibleDefinitions.map(definition => definition.updatedAt ?? definition.createdAt)),
+        existingSourceIds: options.existingSourceIds?.reportHealth,
+      }));
+    }
+  }
+
+  return {
+    orgId: options.orgId,
+    actor: options.actor,
+    generatedAt: options.generatedAt,
+    dateWindow: {
+      date,
+      timeZone: options.timeZone,
+    },
+    cards: cards.sort((a, b) =>
+      OPERATIONS_CARD_SEVERITY_RANK[a.severity] - OPERATIONS_CARD_SEVERITY_RANK[b.severity] ||
+      a.source.localeCompare(b.source)
+    ),
+  };
 }
 
 export interface HoursReconciliation {
@@ -1443,28 +2504,315 @@ export function listEvaluationActions(
 // 13. Reports / analytics  (runReportDefinition, exportReportCsv, getReportLineage)
 // ════════════════════════════════════════════════════════════════════════════
 
+export type ReportActor = 'admin' | 'finance';
+
+export interface ReportSourceAllowlistEntry {
+  sourceEntity: ReportSourceEntity;
+  fields: string[];
+  financeAllowed: boolean;
+  blockedDecisionIds: string[];
+}
+
+export interface ReportSourceAccess {
+  sourceEntity: string;
+  allowed: boolean;
+  reason: 'ALLOWED' | 'UNKNOWN_SOURCE' | 'BLOCKED_SOURCE' | 'FINANCE_SOURCE_NOT_ALLOWED';
+  allowedFields: string[];
+  blockedDecisionIds: string[];
+}
+
+export interface ReportSourceAuthorization {
+  actor?: ReportActor;
+  sourceEntity: string;
+  authorizedSourceIds: readonly string[];
+}
+
+export class ReportDefinitionValidationError extends Error {
+  readonly code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = 'ReportDefinitionValidationError';
+    this.code = code;
+  }
+}
+
+const REPORT_SOURCE_FIELDS: Record<ReportSourceEntity, readonly string[]> = {
+  events: ['id', 'name', 'date', 'durationMinutes', 'activityId', 'roomId'],
+  students: ['id', 'fullName', 'familyId', 'isArchived'],
+  enrollments: ['id', 'studentId', 'activityId', 'l2Id', 'status', 'startDate', 'endDate'],
+  charges: ['id', 'studentId', 'familyId', 'enrollmentId', 'description', 'amount', 'currency', 'dueDate', 'status', 'periodLabel'],
+  payments: ['id', 'studentId', 'familyId', 'amount', 'currency', 'method', 'receivedAt', 'reference', 'appliedChargeIds'],
+  hoursEntries: ['id', 'staffMemberId', 'hoursReportId', 'date', 'reportedMinutes', 'calendarMinutes', 'eventId', 'teachingAssignmentId', 'orgRoleId', 'rate', 'status'],
+  lessonRecords: ['id', 'eventId', 'studentId', 'staffMemberId', 'date', 'attendance', 'completion', 'makeupOfLessonId'],
+  instruments: ['id', 'assetTag', 'name', 'category', 'brand', 'condition', 'status', 'location', 'acquiredAt', 'valueAmount'],
+};
+
+const REPORT_NUMERIC_FIELDS: Partial<Record<ReportSourceEntity, readonly string[]>> = {
+  events: ['durationMinutes'],
+  charges: ['amount'],
+  payments: ['amount'],
+  hoursEntries: ['reportedMinutes', 'calendarMinutes', 'rate'],
+  instruments: ['valueAmount'],
+};
+
+const FINANCE_REPORT_SOURCES = new Set<ReportSourceEntity>(['charges', 'payments', 'hoursEntries']);
+
+const BLOCKED_REPORT_SOURCE_DECISIONS: Record<string, readonly string[]> = {
+  operationalRequests: ['D-21'],
+  examSessions: ['D-22'],
+  examinerSubmissions: ['D-22'],
+  certificates: ['D-22'],
+  reportCards: ['D-22'],
+  concertPrograms: ['D-23'],
+  publicEndpoints: ['D-23'],
+  agreementAcceptances: ['D-24'],
+  instrumentDeposits: ['D-25'],
+  staffEvaluations: ['D-26'],
+  rolloverRuns: ['D-27'],
+};
+
+export const REPORT_SOURCE_ALLOWLIST: ReportSourceAllowlistEntry[] = (
+  Object.keys(REPORT_SOURCE_FIELDS) as ReportSourceEntity[]
+).map(sourceEntity => ({
+  sourceEntity,
+  fields: [...REPORT_SOURCE_FIELDS[sourceEntity]],
+  financeAllowed: FINANCE_REPORT_SOURCES.has(sourceEntity),
+  blockedDecisionIds: [],
+}));
+
+function isReportSourceEntity(value: string): value is ReportSourceEntity {
+  return Object.prototype.hasOwnProperty.call(REPORT_SOURCE_FIELDS, value);
+}
+
+export function getReportSourceAccess(
+  sourceEntity: string,
+  actor: ReportActor = 'admin',
+): ReportSourceAccess {
+  const blockedDecisionIds = BLOCKED_REPORT_SOURCE_DECISIONS[sourceEntity];
+  if (blockedDecisionIds) {
+    return {
+      sourceEntity,
+      allowed: false,
+      reason: 'BLOCKED_SOURCE',
+      allowedFields: [],
+      blockedDecisionIds: [...blockedDecisionIds],
+    };
+  }
+  if (!isReportSourceEntity(sourceEntity)) {
+    return {
+      sourceEntity,
+      allowed: false,
+      reason: 'UNKNOWN_SOURCE',
+      allowedFields: [],
+      blockedDecisionIds: [],
+    };
+  }
+  if (actor === 'finance' && !FINANCE_REPORT_SOURCES.has(sourceEntity)) {
+    return {
+      sourceEntity,
+      allowed: false,
+      reason: 'FINANCE_SOURCE_NOT_ALLOWED',
+      allowedFields: [],
+      blockedDecisionIds: ['D-09'],
+    };
+  }
+  return {
+    sourceEntity,
+    allowed: true,
+    reason: 'ALLOWED',
+    allowedFields: [...REPORT_SOURCE_FIELDS[sourceEntity]],
+    blockedDecisionIds: [],
+  };
+}
+
+export function listReportSourceAllowlist(actor: ReportActor = 'admin'): ReportSourceAllowlistEntry[] {
+  return REPORT_SOURCE_ALLOWLIST
+    .filter(entry => actor !== 'finance' || entry.financeAllowed)
+    .map(entry => ({
+      ...entry,
+      fields: [...entry.fields],
+      blockedDecisionIds: [...entry.blockedDecisionIds],
+    }));
+}
+
+function assertReportField(
+  sourceEntity: ReportSourceEntity,
+  field: string,
+  reason: string,
+): void {
+  if (!REPORT_SOURCE_FIELDS[sourceEntity].includes(field)) {
+    throw new ReportDefinitionValidationError(
+      'INVALID_REPORT_FIELD',
+      `${reason} field "${field}" is not allowed for report source "${sourceEntity}".`,
+    );
+  }
+}
+
+function assertNumericReportField(sourceEntity: ReportSourceEntity, field: string, reason: string): void {
+  assertReportField(sourceEntity, field, reason);
+  if (!(REPORT_NUMERIC_FIELDS[sourceEntity] ?? []).includes(field)) {
+    throw new ReportDefinitionValidationError(
+      'INVALID_REPORT_AGGREGATE_FIELD',
+      `${reason} field "${field}" must be numeric for report source "${sourceEntity}".`,
+    );
+  }
+}
+
+function assertReportFilter(sourceEntity: ReportSourceEntity, filter: ReportFilter): void {
+  assertReportField(sourceEntity, filter.field, 'Filter');
+  switch (filter.op) {
+    case 'eq':
+    case 'neq':
+      return;
+    case 'gt':
+    case 'gte':
+    case 'lt':
+    case 'lte':
+      if (typeof filter.value !== 'number') {
+        throw new ReportDefinitionValidationError('INVALID_REPORT_FILTER_VALUE', `Filter "${filter.field}" requires a numeric value.`);
+      }
+      return;
+    case 'in':
+      if (!Array.isArray(filter.value)) {
+        throw new ReportDefinitionValidationError('INVALID_REPORT_FILTER_VALUE', `Filter "${filter.field}" requires an array value.`);
+      }
+      return;
+    case 'contains':
+      if (typeof filter.value !== 'string') {
+        throw new ReportDefinitionValidationError('INVALID_REPORT_FILTER_VALUE', `Filter "${filter.field}" requires a text value.`);
+      }
+      return;
+    default:
+      throw new ReportDefinitionValidationError('INVALID_REPORT_FILTER_OPERATOR', `Filter operator "${String(filter.op)}" is not allowed.`);
+  }
+}
+
+export interface ReportDefinitionValidationOptions {
+  actor?: ReportActor;
+}
+
+export function validateReportDefinition(
+  def: ReportDefinition,
+  opts: ReportDefinitionValidationOptions = {},
+): ReportSourceAccess {
+  const sourceEntity = String(def.sourceEntity);
+  const access = getReportSourceAccess(sourceEntity, opts.actor ?? 'admin');
+  if (!access.allowed) {
+    throw new ReportDefinitionValidationError(
+      'REPORT_SOURCE_NOT_ALLOWED',
+      `Report source "${sourceEntity}" is not allowed: ${access.reason}.`,
+    );
+  }
+  if (!isReportSourceEntity(sourceEntity)) {
+    throw new ReportDefinitionValidationError('REPORT_SOURCE_NOT_ALLOWED', `Report source "${sourceEntity}" is not configured.`);
+  }
+
+  for (const c of def.columns) assertReportField(sourceEntity, c, 'Column');
+  for (const f of def.filters) assertReportFilter(sourceEntity, f);
+  if (def.groupBy) assertReportField(sourceEntity, def.groupBy, 'Group');
+
+  switch (def.aggregate.fn) {
+    case 'none':
+    case 'count':
+      if (def.aggregate.field) assertReportField(sourceEntity, def.aggregate.field, 'Aggregate');
+      break;
+    case 'sum':
+    case 'avg':
+    case 'min':
+    case 'max':
+      if (!def.aggregate.field) {
+        throw new ReportDefinitionValidationError('INVALID_REPORT_AGGREGATE_FIELD', `Aggregate "${def.aggregate.fn}" requires a field.`);
+      }
+      assertNumericReportField(sourceEntity, def.aggregate.field, 'Aggregate');
+      break;
+    default:
+      throw new ReportDefinitionValidationError('INVALID_REPORT_AGGREGATE_FN', `Aggregate "${String(def.aggregate.fn)}" is not allowed.`);
+  }
+
+  return access;
+}
+
+function normalizeFilterValue(value: unknown): unknown {
+  return value === undefined ? null : value;
+}
+
 function matchesFilter(row: Record<string, unknown>, f: ReportFilter): boolean {
-  const v = row[f.field];
+  const v = normalizeFilterValue(row[f.field]);
+  const filterValue = normalizeFilterValue(f.value);
   switch (f.op) {
-    case 'eq': return v === f.value;
-    case 'neq': return v !== f.value;
-    case 'gt': return typeof v === 'number' && v > (f.value as number);
-    case 'gte': return typeof v === 'number' && v >= (f.value as number);
-    case 'lt': return typeof v === 'number' && v < (f.value as number);
-    case 'lte': return typeof v === 'number' && v <= (f.value as number);
-    case 'in': return Array.isArray(f.value) && (f.value as Array<unknown>).includes(v as never);
-    case 'contains': return typeof v === 'string' && v.toLowerCase().includes(String(f.value).toLowerCase());
+    case 'eq': return v === filterValue;
+    case 'neq': return v !== filterValue;
+    case 'gt': return typeof v === 'number' && v > (filterValue as number);
+    case 'gte': return typeof v === 'number' && v >= (filterValue as number);
+    case 'lt': return typeof v === 'number' && v < (filterValue as number);
+    case 'lte': return typeof v === 'number' && v <= (filterValue as number);
+    case 'in': return Array.isArray(filterValue) && (filterValue as Array<unknown>).map(normalizeFilterValue).includes(v);
+    case 'contains': return typeof v === 'string' && v.toLowerCase().includes(String(filterValue).toLowerCase());
     default: return false;
   }
 }
 
+function reportGroupKey(value: unknown): string {
+  return value === null || value === undefined || value === '' ? '∅' : String(value);
+}
+
 export interface ReportResult {
   definitionId: string;
+  sourceEntity: ReportSourceEntity;
+  runActor: ReportActor;
   columns: string[];
   rows: Array<Record<string, unknown>>;
   groups: Array<{ key: string; value: number; count: number; sourceIds: string[] }>;
   totalRows: number;
   sourceIds: string[]; // lineage: ids of every source row included
+  sourceAuthorization: {
+    actor: ReportActor;
+    sourceEntity: ReportSourceEntity;
+    sourceIds: string[];
+  } | null;
+}
+
+export interface RunReportDefinitionOptions {
+  actor?: ReportActor;
+  sourceAuthorization?: ReportSourceAuthorization;
+}
+
+function assertReportRowsAuthorized(
+  def: ReportDefinition,
+  rows: Array<Record<string, unknown> & { id: string }>,
+  actor: ReportActor,
+  sourceAuthorization?: ReportSourceAuthorization,
+): void {
+  if (actor === 'finance' && !sourceAuthorization) {
+    throw new ReportDefinitionValidationError(
+      'REPORT_SOURCE_AUTHORIZATION_REQUIRED',
+      `Finance report "${def.id}" requires explicit source-row authorization before run/export.`,
+    );
+  }
+  if (!sourceAuthorization) return;
+
+  if (sourceAuthorization.actor && sourceAuthorization.actor !== actor) {
+    throw new ReportDefinitionValidationError(
+      'REPORT_SOURCE_AUTHORIZATION_MISMATCH',
+      `Report source authorization was prepared for "${sourceAuthorization.actor}", not "${actor}".`,
+    );
+  }
+  if (sourceAuthorization.sourceEntity !== def.sourceEntity) {
+    throw new ReportDefinitionValidationError(
+      'REPORT_SOURCE_AUTHORIZATION_MISMATCH',
+      `Report source authorization covers "${sourceAuthorization.sourceEntity}", not "${def.sourceEntity}".`,
+    );
+  }
+
+  const authorizedIds = new Set(sourceAuthorization.authorizedSourceIds);
+  const deniedIds = rows.map(row => row.id).filter(id => !authorizedIds.has(id));
+  if (deniedIds.length) {
+    throw new ReportDefinitionValidationError(
+      'REPORT_SOURCE_ROW_NOT_AUTHORIZED',
+      `Report source rows are not authorized for "${def.sourceEntity}": ${deniedIds.sort().join(', ')}.`,
+    );
+  }
 }
 
 /**
@@ -1474,28 +2822,46 @@ export interface ReportResult {
 export function runReportDefinition(
   def: ReportDefinition,
   rows: Array<Record<string, unknown> & { id: string }>,
+  opts: RunReportDefinitionOptions = {},
 ): ReportResult {
-  const filtered = rows.filter(r => def.filters.every(f => matchesFilter(r, f)));
+  const actor = opts.actor ?? 'admin';
+  validateReportDefinition(def, { actor });
+  assertReportRowsAuthorized(def, rows, actor, opts.sourceAuthorization);
+  const filtered = rows
+    .filter(r => def.filters.every(f => matchesFilter(r, f)))
+    .sort((a, b) => a.id.localeCompare(b.id));
   const sourceIds = filtered.map(r => r.id);
 
   const groups: ReportResult['groups'] = [];
   if (def.groupBy) {
-    const buckets = new Map<string, { value: number; count: number; sourceIds: string[] }>();
+    const buckets = new Map<string, { sum: number; count: number; numericCount: number; min: number | null; max: number | null; sourceIds: string[] }>();
     for (const r of filtered) {
-      const k = String(r[def.groupBy] ?? '∅');
+      const k = reportGroupKey(r[def.groupBy]);
       let bucket = buckets.get(k);
-      if (!bucket) { bucket = { value: 0, count: 0, sourceIds: [] }; buckets.set(k, bucket); }
+      if (!bucket) {
+        bucket = { sum: 0, count: 0, numericCount: 0, min: null, max: null, sourceIds: [] };
+        buckets.set(k, bucket);
+      }
       bucket.count += 1;
       bucket.sourceIds.push(r.id);
       const field = def.aggregate.field;
-      const n = field ? Number(r[field]) : 0;
-      if (def.aggregate.fn === 'sum' || def.aggregate.fn === 'avg') bucket.value += Number.isFinite(n) ? n : 0;
-      else if (def.aggregate.fn === 'count') bucket.value = bucket.count;
-      else if (def.aggregate.fn === 'min') bucket.value = Math.min(bucket.value || n, n);
-      else if (def.aggregate.fn === 'max') bucket.value = Math.max(bucket.value, n);
+      const rawValue = field ? r[field] : undefined;
+      const n = typeof rawValue === 'number' ? rawValue : NaN;
+      if (Number.isFinite(n)) {
+        bucket.sum += n;
+        bucket.numericCount += 1;
+        bucket.min = bucket.min === null ? n : Math.min(bucket.min, n);
+        bucket.max = bucket.max === null ? n : Math.max(bucket.max, n);
+      }
     }
     for (const [key, b] of buckets) {
-      groups.push({ key, value: def.aggregate.fn === 'avg' ? Math.round((b.value / b.count) * 100) / 100 : b.value, count: b.count, sourceIds: b.sourceIds });
+      let value: number;
+      if (def.aggregate.fn === 'sum') value = b.sum;
+      else if (def.aggregate.fn === 'avg') value = b.numericCount ? Math.round((b.sum / b.numericCount) * 100) / 100 : 0;
+      else if (def.aggregate.fn === 'min') value = b.min ?? 0;
+      else if (def.aggregate.fn === 'max') value = b.max ?? 0;
+      else value = b.count;
+      groups.push({ key, value, count: b.count, sourceIds: b.sourceIds });
     }
     groups.sort((a, b) => a.key.localeCompare(b.key));
   }
@@ -1506,11 +2872,49 @@ export function runReportDefinition(
     return out;
   });
 
-  return { definitionId: def.id, columns: def.columns, rows: projected, groups, totalRows: filtered.length, sourceIds };
+  return {
+    definitionId: def.id,
+    sourceEntity: def.sourceEntity,
+    runActor: actor,
+    columns: def.columns,
+    rows: projected,
+    groups,
+    totalRows: filtered.length,
+    sourceIds,
+    sourceAuthorization: opts.sourceAuthorization
+      ? {
+        actor,
+        sourceEntity: def.sourceEntity,
+        sourceIds,
+      }
+      : null,
+  };
+}
+
+export interface ExportReportCsvOptions {
+  actor?: ReportActor;
 }
 
 /** Deterministic CSV export of a report result (RFC-4180-ish quoting). */
-export function exportReportCsv(result: ReportResult): string {
+export function exportReportCsv(result: ReportResult, opts: ExportReportCsvOptions = {}): string {
+  const actor = opts.actor ?? result.runActor ?? 'admin';
+  const access = getReportSourceAccess(result.sourceEntity, actor);
+  if (!access.allowed) {
+    throw new ReportDefinitionValidationError(
+      'REPORT_SOURCE_NOT_ALLOWED',
+      `Report source "${result.sourceEntity}" is not allowed for export: ${access.reason}.`,
+    );
+  }
+  if (actor === 'finance') {
+    const auth = result.sourceAuthorization;
+    if (!auth || auth.actor !== 'finance' || auth.sourceEntity !== result.sourceEntity) {
+      throw new ReportDefinitionValidationError(
+        'REPORT_RESULT_NOT_AUTHORIZED_FOR_EXPORT',
+        `Finance CSV export requires a result produced by an authorized finance report run.`,
+      );
+    }
+  }
+
   const esc = (v: unknown): string => {
     const s = v === null || v === undefined ? '' : String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;

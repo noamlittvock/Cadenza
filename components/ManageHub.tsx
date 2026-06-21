@@ -7,11 +7,13 @@ import { CalendarSubscriptionManager } from './CalendarSubscriptionManager';
 import { StaffMemberManager } from './StaffMemberManager';
 import { InstrumentManager } from './InstrumentManager';
 import { AgreementManager } from './AgreementManager';
-import { Home, Menu, Layers, Rss, Users, Guitar, ScrollText } from 'lucide-react';
+import { AssessmentWorkspace } from './AssessmentWorkspace';
+import { Home, Menu, Layers, Rss, Users, Guitar, ScrollText, ClipboardCheck } from 'lucide-react';
 import { TRANSLATIONS } from '../constants';
-import type { AgreementAcceptance, AgreementTemplate, Family } from '../types/blueprint';
+import type { StaffMemberV2 } from '../types/v2';
+import type { AgreementAcceptance, AgreementTemplate, Certificate, ConcertProgram, ExamSession, ExaminerSubmission, Family, ReportCard } from '../types/blueprint';
 
-type ManageTab = 'staff' | 'rooms' | 'activities' | 'subscriptions' | 'inventory' | 'agreements';
+type ManageTab = 'staff' | 'rooms' | 'activities' | 'subscriptions' | 'inventory' | 'agreements' | 'assessments';
 
 interface Props {
     rooms: Room[];
@@ -35,6 +37,20 @@ interface Props {
     agreementAcceptances: AgreementAcceptance[];
     setAgreementAcceptances: (data: AgreementAcceptance[] | ((prev: AgreementAcceptance[]) => AgreementAcceptance[])) => Promise<void>;
     agreementsLoading?: boolean;
+    staffMembers: StaffMemberV2[];
+    examSessions: ExamSession[];
+    setExamSessions: (data: ExamSession[] | ((prev: ExamSession[]) => ExamSession[])) => Promise<void>;
+    examinerSubmissions: ExaminerSubmission[];
+    setExaminerSubmissions: (data: ExaminerSubmission[] | ((prev: ExaminerSubmission[]) => ExaminerSubmission[])) => Promise<void>;
+    certificates: Certificate[];
+    setCertificates: (data: Certificate[] | ((prev: Certificate[]) => Certificate[])) => Promise<void>;
+    reportCards: ReportCard[];
+    setReportCards: (data: ReportCard[] | ((prev: ReportCard[]) => ReportCard[])) => Promise<void>;
+    assessmentsLoading?: boolean;
+    canManageAssessments?: boolean;
+    concertPrograms: ConcertProgram[];
+    setConcertPrograms: (data: ConcertProgram[] | ((prev: ConcertProgram[]) => ConcertProgram[])) => Promise<void>;
+    concertProgramsLoading?: boolean;
     orgId: string | null;
     actorId?: string | null;
     onMobileMenuOpen: () => void;
@@ -66,6 +82,20 @@ export const ManageHub: React.FC<Props> = ({
     agreementAcceptances,
     setAgreementAcceptances,
     agreementsLoading = false,
+    staffMembers,
+    examSessions,
+    setExamSessions,
+    examinerSubmissions,
+    setExaminerSubmissions,
+    certificates,
+    setCertificates,
+    reportCards,
+    setReportCards,
+    assessmentsLoading = false,
+    canManageAssessments = false,
+    concertPrograms,
+    setConcertPrograms,
+    concertProgramsLoading = false,
     orgId,
     actorId,
     onMobileMenuOpen,
@@ -81,7 +111,7 @@ export const ManageHub: React.FC<Props> = ({
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const tabFromUrl = params.get('tab') as ManageTab;
-        if (tabFromUrl && ['staff', 'rooms', 'activities', 'subscriptions', 'inventory', 'agreements'].includes(tabFromUrl)) {
+        if (tabFromUrl && ['staff', 'rooms', 'activities', 'subscriptions', 'inventory', 'agreements', 'assessments'].includes(tabFromUrl)) {
             setActiveTab(tabFromUrl);
         }
     }, []);
@@ -101,6 +131,7 @@ export const ManageHub: React.FC<Props> = ({
         { id: 'rooms', label: t('nav.rooms'), icon: Home },
         { id: 'inventory', label: t('nav.inventory'), icon: Guitar },
         { id: 'agreements', label: settings.language === 'he-IL' ? 'הסכמים' : 'Agreements', icon: ScrollText },
+        { id: 'assessments', label: settings.language === 'he-IL' ? 'הערכות' : 'Assessments', icon: ClipboardCheck },
         { id: 'subscriptions', label: t('nav.subscriptions'), icon: Rss },
     ];
 
@@ -173,6 +204,13 @@ export const ManageHub: React.FC<Props> = ({
                         setActivities={setActivities}
                         settings={settings}
                         events={events}
+                        students={students}
+                        teachers={teachers}
+                        concertPrograms={concertPrograms}
+                        setConcertPrograms={setConcertPrograms}
+                        concertProgramsLoading={concertProgramsLoading}
+                        orgId={orgId}
+                        actorId={actorId}
                         onMobileMenuOpen={onMobileMenuOpen}
                         embedded={true}
                     />
@@ -207,6 +245,26 @@ export const ManageHub: React.FC<Props> = ({
                         acceptances={agreementAcceptances}
                         setAcceptances={setAgreementAcceptances}
                         loading={agreementsLoading}
+                    />
+                )}
+                {activeTab === 'assessments' && (
+                    <AssessmentWorkspace
+                        settings={settings}
+                        orgId={orgId}
+                        actorId={actorId}
+                        staffMembers={staffMembers}
+                        students={students}
+                        activities={activities}
+                        examSessions={examSessions}
+                        setExamSessions={setExamSessions}
+                        examinerSubmissions={examinerSubmissions}
+                        setExaminerSubmissions={setExaminerSubmissions}
+                        certificates={certificates}
+                        setCertificates={setCertificates}
+                        reportCards={reportCards}
+                        setReportCards={setReportCards}
+                        loading={assessmentsLoading}
+                        canManageAssessments={canManageAssessments}
                     />
                 )}
                 {activeTab === 'subscriptions' && (

@@ -1,6 +1,6 @@
 # Ensembles, Theory, And School Programs  (`ensembles-theory-school-programs`)
 
-Status: `planned` (per `features/forteTree.ts`) -> target `implemented`.
+Status: `implemented` under bird's-eye mode (per `features/forteTree.ts`).
 Priority: p1
 Owner-decisions still blocking this packet: none for grouped attendance record
 shape. D-17 is accepted: grouped attendance uses one `lesson_records` row per
@@ -12,23 +12,31 @@ Current accepted prerequisites: **D-01** (no new top-level route by default),
 ## Current State (ground truth)
 - Existing UI: `components/ActivityManager.tsx` manages `ActivityV2`,
   L1/L2 hierarchy, archive/restore, and activity import inside
-  `Manage?tab=activities`. `components/StaffMemberManager.tsx` manages
-  `TeachingAssignmentV2` links to activities. `components/CalendarView.tsx` reads
-  `EnrollmentV2` for student/tag calendar filtering. There is no productized
-  ensemble/theory/school-program roster surface, no program detail workflow, and
-  no attendance expectation panel for grouped programs.
+  `Manage?tab=activities`. It now includes a Rosters & Programs workspace for
+  ensembles, theory groups, and school programs, with list/search/filter,
+  create/edit/archive flows over Activity + Enrollment + TeachingAssignment
+  source records, source links, EN/HE labels, and empty/loading/error states.
+  `components/CalendarView.tsx` now shows a mobile-reachable read-only roster
+  card from event detail for admins and assigned teachers. Attendance links are
+  shown only for already prepared `lesson_records` rows; the roster read path
+  never silently materializes attendance.
 - Existing schema: `activities`, `l1_subcategories`, `l2_subcategories`,
   `students`, `enrollments`, and `teaching_assignments` are core HYBRID tables
   from `0001` (`{id, org_id, data jsonb}`). There is no dedicated
   ensemble/program/school-partner table in current migrations; the feature-tree
   node is explicitly layered on Activity + Enrollment.
 - Existing query/helpers: `listEnsembleRosters`, `listTheoryGroups`, and
-  `listSchoolProgramStudents` in `utils/blueprintQueries.ts`. They return
+  `listSchoolProgramStudents` in `utils/blueprintQueries.ts` return
   `ActivityRoster` values derived from `MinimalActivity`, `MinimalEnrollment`,
-  and `MinimalStudent`.
-- Existing tests: `utils/blueprintQueries.test.ts` covers all three roster
-  helpers. No roster management UI, RLS, Playwright, import/export, or grouped
-  attendance workflow tests exist for this module.
+  and `MinimalStudent`. `buildRosterProgramViewModel` and
+  `buildTeacherRosterReadModel` add source-authorized admin/teacher roster
+  models without a duplicate roster table.
+- Existing tests: deterministic helper/model tests, HYBRID mapping coverage,
+  static schema coverage, env-gated live RLS assertions, and Playwright smoke
+  now cover admin roster creation/edit/archive plus mobile teacher calendar read.
+  Live roster RLS remains a release-hardening gate until remote migration
+  `0013_roster_program_scoped_read.sql` is applied and the scoped roster live
+  assertion passes without skips.
 - Feature-tree declared queries: `listEnsembleRosters`, `listTheoryGroups`,
   `listSchoolProgramStudents` -- implemented.
 

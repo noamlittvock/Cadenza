@@ -1,19 +1,22 @@
 # Operations Command Center  (`operations-command-center`)
 
-Status: `planned` (per `features/forteTree.ts`) -> target `implemented`.
+Status: `implemented` under bird's-eye mode. Static source-authorization/schema
+coverage and local/e2e product checks are in place; live Supabase RLS for the
+operations snapshot/source-authorization case remains a release-hardening gate
+until remote migration `0012_report_definition_rls.sql` is applied and the live
+assertion passes without skips. Production security is not claimed yet.
 Priority: p1
-Owner-decisions still blocking this packet: source-specific dashboard cards and
-rollups are **BLOCKED ON D-21** for absence/day-off operational
-impact, **BLOCKED ON D-22** for assessment/document-delivery work, **BLOCKED ON
-D-23** for public event/program exposure and endpoint health, **BLOCKED ON
-D-24** for revoked/withdrawn consent work, **BLOCKED ON D-25** for instrument
-deposit/refund work, **BLOCKED ON D-26** for HR/evaluation reminders, and
-**BLOCKED ON D-27** for rollover grade/schedule-copy health. Core authenticated
-aggregation over settled Calendar, Admin Inbox, import sessions, private reports,
-and source rows the current user is already allowed to read is otherwise
-unblocked by the accepted route/status policy. Guardian/contact and intake-family
-cards may use `families.guardians[]` jsonb only after student-family and intake
-source authorization exists.
+Owner-decisions still reviewable for later source-specific dashboard cards and
+rollups: provisional **D-21** absence/day-off operational impact, **D-22**
+assessment/document-delivery work, **D-23** public event/program exposure and
+endpoint health, **D-24** revoked/withdrawn consent work, **D-25** instrument
+deposit/refund work, **D-26** HR/evaluation reminders, and **D-27** rollover
+grade/schedule-copy health. Core authenticated aggregation over settled
+Calendar, Admin Inbox, import sessions, private reports, hours/payroll, and
+source rows the current user is already allowed to read is implemented under
+accepted D-08, D-09, D-15, D-17, D-18, D-19, and D-20. Guardian/contact and
+intake-family cards may use `families.guardians[]` jsonb only after
+student-family and intake source authorization exists.
 Current accepted prerequisites: **D-01** (no new top-level route beyond current
 policy), **D-02** (dead-end palette entries stay hidden until routed), **D-05**
 (event adapter), **D-08** (finance capability), **D-09** (reports admin/finance
@@ -21,15 +24,14 @@ only), **D-15** (packet-local backfill only), and **D-17** (attendance counters
 use one `lesson_records` row per event/student after lesson attendance ships).
 
 ## Current State (ground truth)
-- Existing UI: no dedicated operations dashboard. `components/AdminInbox.tsx` is
-  the closest native operator surface and is routed as `ADMIN_INBOX`, but it is
-  notification/conflict-focused. `components/CalendarView.tsx` computes room
-  conflict indicators and an unresolved conflict badge inline. `App.tsx`
-  generates `ROOM_CONFLICT` Admin Inbox notifications from `detectRoomConflicts`
-  and renders scenario/tour banners. `components/HoursComparisonView.tsx`,
-  `components/CsvImportModal.tsx`, `components/CalendarSubscriptionManager.tsx`,
-  and `components/ConservatoryBlueprint.tsx` are source or planning surfaces, not
-  a daily command view.
+- Existing UI: the existing routed `ADMIN_INBOX` surface now includes a
+  desktop-first Operations summary band in `components/OperationsSummary.tsx`.
+  It renders source-authorized cards for open room conflicts, today's events,
+  open inbox items, pending hours, import health, report health, and provisional
+  D-21-D-27 blocked/review-gated sources. It includes EN/HE labels, RTL-safe
+  values, empty/loading/error/denied/blocked/stale-source states, finance-limited
+  rendering, and source deep links into Calendar, Admin Inbox, Payroll, Reports,
+  and Manage without adding a new `ViewState` or palette/sidebar entry.
 - Existing schema: no `operations_dashboard` table exists or is needed for v1.
   Source rows come from HYBRID core tables `events`, `admin_inbox_items`,
   `hours_reports`, `import_sessions`, `calendar_subscriptions`, and
@@ -39,23 +41,22 @@ use one `lesson_records` row per event/student after lesson attendance ships).
   tables as their packets ship. Uniform core RLS is org-member read/admin write;
   that is too broad for command-center cards that summarize sensitive approval,
   intake, absence, token, finance, or HR records.
-- Existing query helpers: the feature-tree names `countOpenConflicts`,
-  `listTodayEvents`, and `countPendingHoursReports`, but
-  `features/forteTree.consistency.test.ts` documents them as stubs. Real nearby
-  helpers are `detectRoomConflicts`/`getConflictingEventIds`
-  (`utils/roomConflicts.ts`), `listPendingHoursReports`,
-  `listPendingIntake`, `listRoomRequests`, `listAbsencesForPeriod`,
-  `runReportDefinition`, `exportReportCsv`, and `getReportLineage`
-  (`utils/blueprintQueries.ts`), plus Admin Inbox factories in
-  `utils/adminInbox.ts`.
-- Existing tests: `utils/roomConflicts.test.ts` covers room conflict detection;
-  `utils/blueprintQueries.test.ts` covers the source helpers listed above;
-  `features/forteTree.consistency.test.ts` keeps the three command-center query
-  names honest as unimplemented stubs. No command-center query, role-aware
-  aggregation, RLS, UI, deep-link, or Playwright workflow tests exist.
+- Existing query helpers: `countOpenConflicts`, `listTodayEvents`,
+  `countPendingHoursReports`, and the pure source-authorized
+  `buildOperationsSnapshot` model are implemented in `utils/blueprintQueries.ts`.
+  The snapshot has no persisted aggregate table and redacts counts/source IDs for
+  denied or blocked cards.
+- Existing tests: `utils/blueprintQueries.test.ts`,
+  `utils/supabaseSchema.test.ts`, `utils/rlsLive.test.ts`,
+  `components/OperationsSummary.test.tsx`, and
+  `e2e/operations-summary.spec.ts` cover command helpers, role-filtered snapshot
+  output, blocked-card markers, stale source references, no hidden-count
+  leakage, static schema guardrails, admin/finance/member UI states, card
+  rendering, and drill-downs. The live operations RLS assertion is env-gated and
+  currently skips until remote migration `0012_report_definition_rls.sql` is
+  applied.
 - Feature-tree declared queries: `countOpenConflicts`, `listTodayEvents`,
-  `countPendingHoursReports` -- not implemented as exported deterministic
-  helpers.
+  `countPendingHoursReports` -- implemented.
 
 ## Users And Permissions
 - Actors: super_admin, admin, finance capability holders for finance/payroll

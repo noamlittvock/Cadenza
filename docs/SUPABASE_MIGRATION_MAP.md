@@ -45,9 +45,9 @@ selector, and Google provider token capture for Calendar sync.
 | `teachers` | `public.teachers` | |
 | `rooms` | `public.rooms` | |
 | `ganttBlocks` | `public.gantt_blocks` | |
-| `adminInboxItems` | `public.admin_inbox_items` | |
+| `adminInboxItems` | `public.admin_inbox_items` | `APPROVAL_REQUEST` rows for operational requests are admin/requester scoped by `0016`; regular notifications keep member visibility |
 | `hoursReports` | `public.hours_reports` | |
-| `calendarSubscriptions` | `public.calendar_subscriptions` | |
+| `calendarSubscriptions` | `public.calendar_subscriptions` | direct config reads are admin-only after `0017`; public iCal resolution uses `public_endpoints` token hashes |
 | `students` | `public.students` | |
 | `activities` | `public.activities` | |
 | `l1Subcategories` | `public.l1_subcategories` | |
@@ -72,7 +72,7 @@ provides the React state hook.
 | `registrationIntake` | `registration_intake` | listPendingIntake, suggestStudentDuplicates |
 | `families` | `families` | listStudentsByGuardian |
 | `lessonRecords` | `lesson_records` | listStudentLessonHistory, listUnmarkedAttendance |
-| `operationalRequests` | `operational_requests` | listRoomRequests, listAbsencesForPeriod |
+| `operationalRequests` | `operational_requests` | listRoomRequests, listAbsencesForPeriod; admin/requesting-staff scoped by `0016` |
 | `examSessions` | `exam_sessions` | listExamSessions |
 | `examinerSubmissions` | `examiner_submissions` | getStudentAssessmentSummary |
 | `certificates` | `certificates` | listPendingCertificates |
@@ -116,6 +116,7 @@ tenant scope via `(storage.foldername(name))[1] = org_id`.
 |---|---|
 | `organizations/{orgId}/documents/{ts}_{name}` | `{orgId}/documents/{ts}_{name}` (orgId first for RLS) |
 | signed agreement PDFs | `{orgId}/agreements/{agreementAcceptanceId}/{filename}` (admin-only direct reads; public signer file access must use an exact scoped token path) |
+| private concert program exports | `{orgId}/concert-programs/{programId}/{filename}` (admin-only direct reads; D-23 public files remain disabled) |
 | `uploadBytes` / `getDownloadURL` | `storage.from('documents').upload` / `createSignedUrl` |
 | `deleteObject` | `storage.from('documents').remove([path])` |
 
@@ -128,6 +129,18 @@ Implemented in `utils/storageUtils.ts`.
 | `callable/computeDuration` | pure deterministic helpers in the app layer |
 | `callable/botAsk` | deterministic pipeline (`utils/botResolve.ts`, `utils/botExecute.ts`, `utils/blueprintQueries.ts`) runs client-side; optional Supabase Edge Functions `bot-distill`/`bot-wrap` |
 | `triggers/syncUserProfile` | `org_members` upsert on auth bootstrap (app-side) / DB trigger |
+
+Assessment certificate/report-card files use the private `documents` bucket under
+`{orgId}/assessments/{entityId}/{filename}`. Legacy-safe private prefixes
+`{orgId}/certificates/...` and `{orgId}/report-cards/...` are also protected by
+the assessment storage policy; direct reads are admin-only until D-22 guardian
+delivery policy is explicitly released.
+
+Concert program export files use the private `documents` bucket under
+`{orgId}/concert-programs/{programId}/{filename}`. Direct reads are admin-only;
+teacher/performer run-of-show access is a private authenticated app view, not a
+public storage URL. D-23 public program files remain disabled until explicit
+participant-release and redaction policy is accepted.
 
 ## 7. Data migration (one-time, when going live)
 

@@ -4,10 +4,10 @@ Date: 2026-06-17  ·  Branch: `blueprint-supabase`  ·  Repo: `/Users/noamlitt/D
 
 You are continuing a planned implementation. Pass 0 (planning infra) and the five
 P0 packet specs are done. **D-01–D-20 plus D-STATUS/D-STATUS-2 are accepted or
-implemented working decisions** (locked below). D-21–D-27 are parked Noam questions
-surfaced by packet conversion/migration planning; do not choose their outcomes in
-implementation. Build against the locked decisions and resolve any parked question
-before building the packet section marked `BLOCKED ON D-xx`.
+implemented working decisions** (locked below). **Bird's-eye update 2026-06-19:**
+D-21–D-27 are accepted provisional defaults for completing the full app shape.
+Build conservative, reversible, auditable flows against those defaults and keep
+them visibly reviewable for later policy carve/craft.
 
 **Progress update — 2026-06-17:** Phase A complete. Phase B step 5 implemented by
 `supabase/migrations/0004_blueprint_rls_foundation.sql` (full `0004`,
@@ -16,8 +16,9 @@ the adapter path, so D-04/D-05 are resolved as **adapter, not rename**:
 `utils/canonicalAdapters.ts` is the single legacy↔V2 conversion seam (pure,
 bidirectional, tested in `canonicalAdapters.test.ts`). No wide rename, no UI rewire,
 no data migration (persistence stays HYBRID jsonb; D-15 holds). The cross-cutting
-adapter/RLS foundations are unblocked; packet-local D-21–D-27 questions still gate
-the affected packet sections noted below. **D-16 is now accepted for P0:** keep
+adapter/RLS foundations are unblocked; packet-local D-21–D-27 questions are now
+handled by provisional bird's-eye defaults where affected packet sections surface.
+**D-16 is now accepted for P0:** keep
 guardian/contact data in `families.guardians[]` jsonb and defer normalized
 guardian identity until a later explicit decision.
 
@@ -57,6 +58,14 @@ live real-role RLS coverage for admin/finance access plus plain-member, anon, an
 cross-org denial. D-25 remains parked; no instrument deposit, replacement-fee,
 forfeit, or refund lifecycle is implemented.
 
+**Bird's-eye update — 2026-06-19:** `agreements-consent` is product-built under
+bird's-eye mode. It now has the Manage agreements workflow, contextual
+student/family history, D-07/D-14 token signing, D-11 typed signature plus PDF
+reference capture, helper/mapping/static schema coverage, and Playwright smoke.
+Remote agreement migrations `0008`-`0011` and live RLS verification remain in
+`RELEASE_HARDENING_GATES.md`; do not claim production security until those live
+tests pass without skips.
+
 ## Orientation (read in this order)
 
 1. [`README.md`](README.md) — planning index + "what the audit changed".
@@ -84,9 +93,10 @@ Key code:
 - `App.tsx` (routing), `types.ts` (`ViewState` @359-372), `components/CommandPalette.tsx`, `components/Layout.tsx` (sidebar/mobile), `components/ManageHub.tsx` (tabs, `?tab=`).
 
 The deterministic foundation and current P0 student/intake/attendance/payroll/
-finance implementation work are done; remaining packets should continue to ship
-their product UI, mapping tests, Playwright smoke, and real-role RLS coverage
-slice by slice.
+finance implementation work are done. Agreements are product-built for the
+bird's-eye app with live RLS tracked as a release gate. Remaining packets should
+continue to ship their product UI, mapping tests, Playwright smoke, and
+real-role RLS coverage slice by slice.
 
 ## Locked decisions (defaults accepted 2026-06-17)
 
@@ -112,10 +122,10 @@ slice by slice.
 | D-STATUS | `instrument-inventory` `gap → implemented` after the consistency check is green. |
 | D-STATUS-2 | Historical Pass 0 correction: `student-family-files` + `payroll-salaries-hours` -> `embedded`; registration/lesson/payments stayed `gap` at that time. Phase C later promoted `student-family-files`, `public-registration-intake`, `lesson-details-attendance`, `payroll-salaries-hours`, and `payments-charges` to `implemented`. |
 
-## Parked Noam questions
+## Provisional D-21-D-27 Defaults
 
-These have no accepted defaults. Packets are drafted as far as resolved decisions
-allow and mark affected sections `BLOCKED ON D-xx`.
+These are accepted provisional defaults for the bird's-eye build. They should be
+implemented conservatively and tracked for release/policy review.
 
 | ID | Question |
 |---|---|
@@ -123,13 +133,13 @@ allow and mark affected sections `BLOCKED ON D-xx`.
 | D-18 | ACCEPTED: `HoursEntry` is payroll source of truth; `HoursReport` is a period/submission header grouping entries, not a parallel totals ledger. |
 | D-19 | ACCEPTED: configurable rate policy; P0 order is admin override, engagement/assignment role-department rate, staff default, org default; payable rate stamped at admin approval. |
 | D-20 | ACCEPTED: P0 single currency per org/family ledger; future-safe explicit multi-currency mode partitions balances by currency and never silently offsets currencies. |
-| D-21 | Operational request calendar mutation rules: approved absence/day-off side effects and extra teaching day representation. |
-| D-22 | Academic Hub assessment scope and document pipeline: rubric/pass-fail model, AI/PDF/email generation, and any tokenized examiner or guardian-facing path. |
-| D-23 | Concert public program exposure and consent: public event/program details, performer names, redaction, public files, and website/calendar endpoint scope. |
-| D-24 | Agreement consent withdrawal/revocation semantics: status/audit fields, token behavior, and downstream effects for accepted consent. |
-| D-25 | Instrument deposit model: ledger rows vs agreement-only terms vs standalone loan fields, plus refund/forfeit lifecycle and ownership. |
-| D-26 | Staff HR evaluation privacy/notice and access scope: self-evaluations, manager reviews, reviewer-only notes, attachments, retention/deletion, exports, and who may read/write/acknowledge. |
-| D-27 | Year rollover grade and recurring-event copy rules: grade vocabulary/increment exceptions, manual overrides, date shifting, holiday/blackout handling, room/staff conflicts, and predecessor/successor lineage. |
+| D-21 | Absence/day-off approvals create review tasks/flags first, not automatic schedule/payroll mutation. |
+| D-22 | Assessment/report delivery is private/authenticated by default and requires explicit guardian release for guardian-facing output. |
+| D-23 | Public event/media exposure is private by default; participant-level release is required and missing consent redacts/hides. |
+| D-24 | Consent revocation disables future/public use and opens a review task while preserving historical audit. |
+| D-25 | Instrument deposits/refunds are explicit approved ledger liability/credit rows; no automatic forfeiture. |
+| D-26 | HR/evaluation is superadmin/HR-admin scoped by default; staff subject visibility is limited to explicit acknowledgment flows. |
+| D-27 | Rollover is preview-first, copies forward into draft next-year records, never mutates prior-year records, and preserves lineage. |
 
 ## Build order
 
@@ -193,6 +203,6 @@ of the actual primary workflow. Update the `forteTree` node status + packet head
   separate question of *whether/when* to migrate the app's runtime state + HYBRID
   persistence off legacy `Student`/`CalendarEvent` onto V2 is still deferred (D-15);
   needs Noam before any such migration.
-- D-21–D-27 are parked in the planning loop and must be answered before building
-  their blocked packet sections.
+- D-21–D-27 use accepted provisional defaults in the bird's-eye build; keep
+  their affected workflows reversible and flagged for release/policy review.
 - Final placement of `PAYROLL` (Manage tab vs Finance sub-view) and `ACADEMICS` (Academic Hub tier) when those modules are built.

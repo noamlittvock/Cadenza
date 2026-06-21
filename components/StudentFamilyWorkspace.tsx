@@ -29,12 +29,16 @@ import type {
   AgreementAcceptance,
   AgreementTemplate,
   BalanceSnapshot,
+  Certificate,
   Charge,
+  ExamSession,
+  ExaminerSubmission,
   Family,
   Guardian as FamilyGuardian,
   LessonCompletion,
   LessonRecord,
   Payment,
+  ReportCard as BlueprintReportCard,
 } from '../types/blueprint';
 import { generateId, TRANSLATIONS } from '../constants';
 import { Modal } from './Modal';
@@ -72,6 +76,10 @@ interface Props {
   events?: CalendarEvent[];
   agreementTemplates?: AgreementTemplate[];
   agreementAcceptances?: AgreementAcceptance[];
+  examSessions?: ExamSession[];
+  examinerSubmissions?: ExaminerSubmission[];
+  certificates?: Certificate[];
+  reportCards?: BlueprintReportCard[];
   setStudents: SyncSetter<Student>;
   setFamilies: SyncSetter<Family>;
   orgId: string | null;
@@ -83,6 +91,7 @@ interface Props {
   balanceSnapshots?: BalanceSnapshot[];
   financeLedgerLoading?: boolean;
   agreementsLoading?: boolean;
+  assessmentsLoading?: boolean;
   onOpenFinanceLedger?: (familyId: string) => void;
   studentsLoading?: boolean;
   familiesLoading?: boolean;
@@ -503,6 +512,7 @@ const DetailPanel = ({
   balanceSnapshots,
   financeLedgerLoading,
   agreementsLoading,
+  assessmentsLoading,
   onOpenFinanceLedger,
   onEdit,
   onClose,
@@ -520,6 +530,7 @@ const DetailPanel = ({
   balanceSnapshots: BalanceSnapshot[];
   financeLedgerLoading: boolean;
   agreementsLoading: boolean;
+  assessmentsLoading: boolean;
   onOpenFinanceLedger?: (familyId: string) => void;
   onEdit: () => void;
   onClose: () => void;
@@ -845,6 +856,75 @@ const DetailPanel = ({
 
   const renderHistory = () => (
     <div className="space-y-3">
+      {detail.kind === 'student' && (
+        assessmentsLoading ? (
+          <DetailEmpty icon={GraduationCap} title={t('student_family.detail.assessments_loading_title')} body={t('student_family.detail.assessments_loading_body')} />
+        ) : detail.assessments.examCount
+          + detail.assessments.sessions.length
+          + detail.assessments.certificates.length
+          + detail.assessments.reportCards.length === 0 ? (
+            <DetailEmpty icon={GraduationCap} title={t('student_family.detail.no_assessments')} body={t('student_family.detail.no_assessments_body')} />
+          ) : (
+            <div data-testid="student-family-assessment-history" className="space-y-3 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+              <div>
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
+                  <GraduationCap size={16} className="text-cadenza-700 dark:text-cadenza-200" />
+                  {t('student_family.detail.assessments_title')}
+                </div>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('student_family.detail.assessments_private_note')}</p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <InfoCell label={t('student_family.detail.assessment_exams')} value={String(detail.assessments.examCount)} />
+                <InfoCell label={t('student_family.detail.assessment_average')} value={detail.assessments.averageScore === null ? '—' : detail.assessments.averageScore.toFixed(1)} />
+                <InfoCell label={t('student_family.detail.assessment_best_grade')} value={detail.assessments.bestGrade ?? '—'} />
+                <InfoCell label={t('student_family.detail.assessment_issued_certificates')} value={String(detail.assessments.issuedCertificateCount)} />
+                <InfoCell label={t('student_family.detail.assessment_draft_reports')} value={String(detail.assessments.draftReportCardCount)} />
+                <InfoCell label={t('student_family.detail.assessment_released_reports')} value={String(detail.assessments.releasedReportCardCount)} />
+              </div>
+              {detail.assessments.sessions.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{t('student_family.detail.assessment_sessions_title')}</div>
+                  {detail.assessments.sessions.slice(0, 5).map(session => (
+                    <div key={session.id} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate font-semibold text-slate-900 dark:text-white">{session.name}</div>
+                          <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                            {[compactDate(session.date), session.activityName].filter(Boolean).join(' · ')}
+                          </div>
+                        </div>
+                        <span className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                          {session.status} · {session.submittedCount}/{session.expectedCount}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(detail.assessments.certificates.length > 0 || detail.assessments.reportCards.length > 0) && (
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{t('student_family.detail.assessment_records_title')}</div>
+                  {detail.assessments.certificates.slice(0, 4).map(certificate => (
+                    <div key={certificate.id} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950">
+                      <div className="font-semibold text-slate-900 dark:text-white">{certificate.title}</div>
+                      <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        {t('student_family.detail.assessment_certificate')} · {certificate.status} · {certificate.level ?? '—'}
+                      </div>
+                    </div>
+                  ))}
+                  {detail.assessments.reportCards.slice(0, 4).map(card => (
+                    <div key={card.id} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950">
+                      <div className="font-semibold text-slate-900 dark:text-white">{card.periodLabel}</div>
+                      <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        {t('student_family.detail.assessment_report_card')} · {card.publishedAt ? t('student_family.detail.assessment_released') : t('student_family.detail.assessment_private_draft')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+      )}
       <div className="space-y-2">
         {detail.timeline.map(item => (
           <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950">
@@ -954,6 +1034,10 @@ export const StudentFamilyWorkspace: React.FC<Props> = ({
   events = [],
   agreementTemplates = [],
   agreementAcceptances = [],
+  examSessions = [],
+  examinerSubmissions = [],
+  certificates = [],
+  reportCards = [],
   setStudents,
   setFamilies,
   orgId,
@@ -965,6 +1049,7 @@ export const StudentFamilyWorkspace: React.FC<Props> = ({
   balanceSnapshots = [],
   financeLedgerLoading = false,
   agreementsLoading = false,
+  assessmentsLoading = false,
   onOpenFinanceLedger,
   studentsLoading = false,
   familiesLoading = false,
@@ -999,8 +1084,8 @@ export const StudentFamilyWorkspace: React.FC<Props> = ({
     [students, families, mode, query, status, activityId],
   );
   const detailModel = useMemo(
-    () => detailTarget ? buildStudentFamilyDetailModel(detailTarget, students, families, activities, lessonRecords, events, agreementTemplates, agreementAcceptances) : null,
-    [detailTarget, students, families, activities, lessonRecords, events, agreementTemplates, agreementAcceptances],
+    () => detailTarget ? buildStudentFamilyDetailModel(detailTarget, students, families, activities, lessonRecords, events, agreementTemplates, agreementAcceptances, examSessions, examinerSubmissions, certificates, reportCards) : null,
+    [detailTarget, students, families, activities, lessonRecords, events, agreementTemplates, agreementAcceptances, examSessions, examinerSubmissions, certificates, reportCards],
   );
 
   const hasSourceRows = model.totalRows > 0;
@@ -1398,6 +1483,7 @@ export const StudentFamilyWorkspace: React.FC<Props> = ({
                 balanceSnapshots={balanceSnapshots}
                 financeLedgerLoading={financeLedgerLoading}
                 agreementsLoading={agreementsLoading}
+                assessmentsLoading={assessmentsLoading}
                 onOpenFinanceLedger={onOpenFinanceLedger}
                 onEdit={() => openEditor(detailModel.kind === 'student'
                   ? { mode: 'edit-student', studentId: detailModel.student.id }

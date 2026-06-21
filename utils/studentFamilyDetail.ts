@@ -1,14 +1,18 @@
-import type { CalendarEvent, Student, StaffDocument, Note, RecitalEntry, ReportCard } from '../types';
+import type { CalendarEvent, Student, StaffDocument, Note, RecitalEntry, ReportCard as LegacyReportCard } from '../types';
 import type {
   AgreementAcceptance,
   AgreementKind,
   AgreementTemplate,
+  Certificate,
+  ExamSession,
+  ExaminerSubmission,
   Family,
   Guardian as FamilyGuardian,
   LessonRecord,
+  ReportCard as BlueprintReportCard,
 } from '../types/blueprint';
 import type { ActivityV2 } from '../types/v2';
-import { listStudentLessonHistory, listUnsignedAgreements, type RequiredAgreementTarget } from './blueprintQueries';
+import { getStudentAssessmentSummary, listExamSessions, listStudentLessonHistory, listUnsignedAgreements, type RequiredAgreementTarget } from './blueprintQueries';
 
 export type StudentFamilyDetailTab =
   | 'profile'
@@ -101,6 +105,29 @@ export interface DetailAgreementModel {
   supersededCount: number;
 }
 
+export interface DetailAssessmentSessionRow {
+  id: string;
+  name: string;
+  date: string;
+  status: ExamSession['status'];
+  activityName: string | null;
+  submittedCount: number;
+  expectedCount: number;
+}
+
+export interface DetailAssessmentModel {
+  examCount: number;
+  averageScore: number | null;
+  bestGrade: string | null;
+  issuedCertificateCount: number;
+  draftReportCardCount: number;
+  releasedReportCardCount: number;
+  sessions: DetailAssessmentSessionRow[];
+  submissions: ExaminerSubmission[];
+  certificates: Certificate[];
+  reportCards: BlueprintReportCard[];
+}
+
 export interface StudentDetailModel {
   kind: 'student';
   student: Student;
@@ -110,7 +137,8 @@ export interface StudentDetailModel {
   enrollments: DetailEnrollmentRow[];
   lessonHistory: DetailLessonHistoryRow[];
   recitalHistory: RecitalEntry[];
-  reportCards: ReportCard[];
+  reportCards: LegacyReportCard[];
+  assessments: DetailAssessmentModel;
   documents: StaffDocument[];
   agreements: DetailAgreementModel;
   notes: Note[];
@@ -189,6 +217,47 @@ function timelineForStudent(student: Student, family: Family | null): DetailTime
     items.push({ id: `${family.id}:family-updated`, label: 'family_updated', at: family.updatedAt });
   }
   return items.sort((a, b) => b.at.localeCompare(a.at));
+}
+
+function buildAssessmentModel(
+  studentId: string,
+  activities: ActivityV2[],
+  examSessions: ExamSession[] = [],
+  examinerSubmissions: ExaminerSubmission[] = [],
+  certificates: Certificate[] = [],
+  reportCards: BlueprintReportCard[] = [],
+): DetailAssessmentModel {
+  const activityNames = activityNameById(activities);
+  const summary = getStudentAssessmentSummary(studentId, examinerSubmissions, certificates, reportCards);
+  const sessions = listExamSessions(examSessions, { studentId })
+    .filter(session => session.status !== 'CANCELLED')
+    .map(session => {
+      const sessionSubmissions = examinerSubmissions.filter(row => row.examSessionId === session.id && row.studentId === studentId);
+      return {
+        id: session.id,
+        name: session.name,
+        date: session.date,
+        status: session.status,
+        activityName: session.activityId ? activityNames.get(session.activityId) ?? session.activityId : null,
+        submittedCount: sessionSubmissions.filter(row => row.submittedAt).length,
+        expectedCount: Math.max(1, session.examinerStaffIds.length),
+      };
+    });
+
+  return {
+    examCount: summary.examCount,
+    averageScore: summary.averageScore,
+    bestGrade: summary.bestGrade,
+    issuedCertificateCount: summary.certificates,
+    draftReportCardCount: summary.reportCards.draft,
+    releasedReportCardCount: summary.reportCards.released,
+    sessions,
+    submissions: summary.submissions,
+    certificates: certificates
+      .filter(certificate => certificate.studentId === studentId)
+      .sort((a, b) => (b.issuedAt ?? b.createdAt).localeCompare(a.issuedAt ?? a.createdAt) || a.id.localeCompare(b.id)),
+    reportCards: summary.reportCards.items,
+  };
 }
 
 function timelineForFamily(family: Family, linkedStudents: Student[]): DetailTimelineItem[] {
@@ -414,6 +483,10 @@ export function buildStudentDetailModel(
   events: CalendarEvent[] = [],
   agreementTemplates: AgreementTemplate[] = [],
   agreementAcceptances: AgreementAcceptance[] = [],
+  examSessions: ExamSession[] = [],
+  examinerSubmissions: ExaminerSubmission[] = [],
+  certificates: Certificate[] = [],
+  reportCards: BlueprintReportCard[] = [],
 ): StudentDetailModel | null {
   const student = students.find(item => item.id === studentId) ?? null;
   if (!student) return null;
@@ -436,6 +509,7 @@ export function buildStudentDetailModel(
     lessonHistory: lessonRowsForStudents([student], lessons, events),
     recitalHistory: student.pedagogicalRecord?.recitalHistory ?? [],
     reportCards: student.pedagogicalRecord?.reportCards ?? [],
+    assessments: buildAssessmentModel(student.id, activities, examSessions, examinerSubmissions, certificates, reportCards),
     documents: student.documents ?? [],
     agreements: buildAgreementModel([student], family, enrollments, agreementTemplates, agreementAcceptances),
     notes: student.notes ?? [],
@@ -483,8 +557,12 @@ export function buildStudentFamilyDetailModel(
   events: CalendarEvent[] = [],
   agreementTemplates: AgreementTemplate[] = [],
   agreementAcceptances: AgreementAcceptance[] = [],
+  examSessions: ExamSession[] = [],
+  examinerSubmissions: ExaminerSubmission[] = [],
+  certificates: Certificate[] = [],
+  reportCards: BlueprintReportCard[] = [],
 ): StudentFamilyDetailModel | null {
   return target.kind === 'student'
-    ? buildStudentDetailModel(target.id, students, families, activities, lessons, events, agreementTemplates, agreementAcceptances)
+    ? buildStudentDetailModel(target.id, students, families, activities, lessons, events, agreementTemplates, agreementAcceptances, examSessions, examinerSubmissions, certificates, reportCards)
     : buildFamilyDetailModel(target.id, students, families, activities, lessons, events, agreementTemplates, agreementAcceptances);
 }

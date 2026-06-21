@@ -33,10 +33,6 @@ const IMPLEMENTED: Set<string> = new Set(
  * forcing this list to shrink as modules ship rather than silently rot.
  */
 const KNOWN_UNIMPLEMENTED_STUBS: Record<string, string> = {
-  // operations-command-center — native dashboards compute these inline today.
-  countOpenConflicts: 'operations-command-center — derived in CalendarView, not a standalone export',
-  listTodayEvents: 'operations-command-center — calendar filtering inline, no export yet',
-  countPendingHoursReports: 'operations-command-center — see listPendingHoursReports; count not extracted',
   // staff-teacher-management (native)
   resolveStaffByName: 'staff-teacher-management (native) — name lookup inline',
   listTeachingAssignments: 'staff-teacher-management (native) — assignments rendered inline',
@@ -50,9 +46,6 @@ const KNOWN_UNIMPLEMENTED_STUBS: Record<string, string> = {
   findFreeRoom: 'calendar-schedule-engine (native) — see roomConflicts.detectRoomConflicts',
   checkRoomConflicts: 'calendar-schedule-engine (native) — see roomConflicts.detectRoomConflicts',
   lookupSchedule: 'calendar-schedule-engine (native) — schedule read inline',
-  // calendar-website-integrations (p1)
-  listActiveSubscriptions: 'calendar-website-integrations — subscriptions listed inline in ManageHub',
-  listExternalSyncState: 'calendar-website-integrations — gap, no sync-state store yet',
   // import-export-data-portability (p1)
   listImportSessions: 'import-export-data-portability — gap, no session store yet',
   getImportErrors: 'import-export-data-portability — gap',

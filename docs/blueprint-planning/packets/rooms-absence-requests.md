@@ -1,17 +1,22 @@
 # Rooms, Absences, And Day Requests  (`rooms-absence-requests`)
 
-Status: `embedded` (per `features/forteTree.ts`) -> target `implemented`.
+Status: `implemented` under bird's-eye mode (per `features/forteTree.ts`).
 Priority: p1
-Owner-decisions still blocking this packet: **D-21** (approved absence/day-request
-calendar mutation rules). Current accepted prerequisites: **D-05** (canonical event
-adapter) is implemented foundation, not an open blocker.
+Owner-decisions still reviewable before production automation: **D-21**
+(approved absence/day-request calendar mutation rules). Bird's-eye build uses the
+accepted provisional D-21 default: absence/day-off decisions create review
+tasks/flags only, not automatic schedule, attendance, or payroll mutation.
+Current accepted prerequisites: **D-05** (canonical event adapter) is implemented
+foundation, not an open blocker.
 
 ## Current State (ground truth)
 - Existing UI: room inventory CRUD exists as `components/RoomManager.tsx` inside
   `Manage?tab=rooms`; room conflict triage exists in `components/AdminInbox.tsx`
-  for `ROOM_CONFLICT` notifications. There is no teacher request form, no
-  operational-request approval queue, and no shipped absence/day-off side-effect
-  workflow.
+  for `ROOM_CONFLICT` notifications. Teacher room-change/absence/day-off request
+  creation, cancel, and status are mobile-reachable from Calendar event detail,
+  and Admin Inbox now has operational-request review/decision states. Absence/
+  day-off approvals remain D-21 review-task decisions only; no automatic
+  schedule/payroll mutation is shipped.
 - Existing schema: `rooms`, `events`, `gantt_blocks`, and `admin_inbox_items` are
   core HYBRID tables (`0001`). `operational_requests` is normalized (`0002`) with
   `kind` = `ROOM_CHANGE | ABSENCE | DAY_OFF`, `status` =
@@ -23,9 +28,12 @@ adapter) is implemented foundation, not an open blocker.
   helpers `makeApprovalRequest` and `decideApproval` in `utils/adminInbox.ts`;
   native conflict helper `detectRoomConflicts` in `utils/roomConflicts.ts`.
 - Existing tests: `utils/blueprintQueries.test.ts` covers the three operational
-  request helpers; `utils/roomConflicts.test.ts` covers native room conflict
-  detection. No request creation, Admin Inbox approval, RLS, or Playwright workflow
-  tests exist for this module.
+  request helpers; `utils/operationalRequestService.test.ts` covers request
+  creation, cancellation, Admin Inbox decision linkage, stale links, and D-21
+  review-only side effects; `utils/roomConflicts.test.ts` covers native room
+  conflict detection. Static and env-gated RLS coverage for
+  `operational_requests`/linked approval items exists, with live remote
+  migration application tracked in release hardening.
 - Feature-tree declared queries: `listRoomRequests`, `listAbsencesForPeriod`,
   `applyApprovedRoomChange` — implemented.
 
@@ -135,8 +143,10 @@ Required RLS refinements/tests:
   request, cannot submit for others, cannot approve/reject; plain member cannot
   read all requests; admin can decide and apply room change.
 - Playwright smoke: teacher requests event room change -> admin approves in Admin
-  Inbox -> event room updates -> request and inbox item show approved. Absence/day
-  workflow smoke is **BLOCKED ON D-21**.
+  Inbox -> event room updates -> request and inbox item show approved. Teacher
+  absence/day-off request creation/status is covered as review-task-only behavior;
+  automatic absence/day-off schedule/payroll side effects remain a D-21
+  production policy review gate.
 - Hebrew/RTL: teacher request form and admin queue.
 - Mobile viewport: teacher create/cancel/status at 390x844; admin approval
   desktop-first.
@@ -144,13 +154,15 @@ Required RLS refinements/tests:
   `ROOM_CONFLICT` notifications remain notification history; do not backfill them
   into `operational_requests` unless they represent a submitted request. No global
   CalendarEvent/EventV2 persistence migration; event mutations preserve the
-  current HYBRID event storage. Existing/demo absence/day-off data handling is
-  **BLOCKED ON D-21**.
+  current HYBRID event storage. Existing/demo absence/day-off schedule/payroll
+  mutation remains a D-21 release/policy review item.
 
 ## Dependencies
 - Blocks: reports-analytics (absence/request reporting), payroll-salaries-hours and
   lesson-details-attendance only if D-21 makes approved absences affect attendance
   or payable time, calendar-website-integrations if absence blackouts are exposed.
-- Blocked by: **D-21** for absence/day-off/extra-day side effects; real-role RLS
-  refinements for teacher self-service operational requests during implementation.
-  D-05 is an accepted/implemented prerequisite, not an open blocker.
+- Blocked by: no bird's-eye product-shape blocker. **D-21** remains a
+  release/policy gate for absence/day-off/extra-day automatic side effects, and
+  live RLS remains a release-hardening gate until remote migration
+  `0016_rooms_absence_request_rls.sql` passes without skips. D-05 is an
+  accepted/implemented prerequisite, not an open blocker.

@@ -226,7 +226,7 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
   {
     id: 'operations-command-center',
     domain: 'command',
-    status: 'planned',
+    status: 'implemented',
     priority: 'p1',
     label: 'Operations dashboard',
     labelHe: 'דשבורד תפעולי',
@@ -237,8 +237,8 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
     cadenzaFit:
       'Cadenza has Admin Inbox, calendar, settings, and scenario banners; this should be a thin aggregation view, not a marketing dashboard.',
     nextStep:
-      'Add dashboard rows fed by existing deterministic counters: conflicts, upcoming events, open inbox items, pending hours reports, and intake queue.',
-    dataEntities: ['CalendarEvent', 'AdminInboxItem', 'HoursReport', 'ImportSession'],
+      'Keep live operations RLS as a release-hardening gate and add source-specific cards only as their owning D-21-D-27 modules ship.',
+    dataEntities: ['CalendarEvent', 'AdminInboxItem', 'HoursEntry', 'ReportDefinition', 'ImportSession'],
     deterministicQueries: ['countOpenConflicts', 'listTodayEvents', 'countPendingHoursReports'],
     embeddingText:
       'Operations dashboard: daily command surface for conflicts, today schedule, pending forms, reports, registrations, and health. In Cadenza it should aggregate existing records without becoming the source of truth.',
@@ -388,7 +388,7 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
   {
     id: 'rooms-absence-requests',
     domain: 'scheduling',
-    status: 'embedded',
+    status: 'implemented',
     priority: 'p1',
     label: 'Rooms, absences, and day requests',
     labelHe: 'חדרים, היעדרויות ובקשות ימים',
@@ -399,23 +399,23 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
     cadenzaFit:
       'Cadenza has rooms, conflict notifications, and admin inbox primitives. Absence/day request semantics should reuse AdminInbox status flows.',
     nextStep:
-      'Add request entities that can create, modify, or cancel schedule blocks after admin approval.',
-    dataEntities: ['Room', 'CalendarEvent', 'AdminInboxItem', 'GanttBlock'],
+      'Review D-21 before adding automatic absence/day-off schedule, attendance, or payroll mutations.',
+    dataEntities: ['Room', 'CalendarEvent', 'AdminInboxItem', 'OperationalRequest', 'GanttBlock'],
     deterministicQueries: ['listRoomRequests', 'listAbsencesForPeriod', 'applyApprovedRoomChange'],
     embeddingText:
       'Rooms, absences, and day requests: operational request flow for room changes, teacher absence, extra days, and admin approval.',
     sourceSignalIds: ['app-nav-hebrew'],
     agentReadable: {
       stableId: 'rooms-absence-requests',
-      canonicalFields: ['id', 'orgId', 'requestType', 'status', 'staffMemberId', 'roomId', 'dateRange'],
+      canonicalFields: ['id', 'orgId', 'kind', 'status', 'requestedByStaffId', 'eventId', 'roomId', 'dateRange'],
       readableJoins: ['adminInboxItems.relatedEntityIds', 'events.id', 'rooms.id'],
-      auditFields: ['createdAt', 'approvedAt', 'approvedBy', 'resolvedAt'],
+      auditFields: ['createdAt', 'updatedAt', 'decidedAt', 'decidedBy', 'decisionNote'],
     },
   },
   {
     id: 'ensembles-theory-school-programs',
     domain: 'learning',
-    status: 'planned',
+    status: 'implemented',
     priority: 'p1',
     label: 'Ensembles, theory, and school programs',
     labelHe: 'הרכבים, תאוריה ובית ספר מנגן',
@@ -424,9 +424,9 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
     industryStandard:
       'Conservatories need both one-to-one lessons and grouped programs with different roster and billing behavior.',
     cadenzaFit:
-      'Activity templates support ENSEMBLE and PROGRAM; the next layer is domain-specific surfaces and roster workflows.',
+      'Cadenza now has a roster/program workspace in Manage -> Activities, source-linked Activity/Enrollment/TeachingAssignment edits, and mobile Calendar roster read for assigned group teachers.',
     nextStep:
-      'Build thin filtered views over Activity + Enrollment for ensembles, theory groups, and external school programs.',
+      'Clear the live roster RLS release gate for migration 0013 before production security is claimed.',
     dataEntities: ['ActivityV2', 'EnrollmentV2', 'StudentV2', 'TeachingAssignmentV2'],
     deterministicQueries: ['listEnsembleRosters', 'listTheoryGroups', 'listSchoolProgramStudents'],
     embeddingText:
@@ -469,7 +469,7 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
   {
     id: 'exams-certificates-report-cards',
     domain: 'learning',
-    status: 'planned',
+    status: 'implemented',
     priority: 'p1',
     label: 'Exams, certificates, and report cards',
     labelHe: 'מבחנים, תעודות והערכות תלמיד',
@@ -478,9 +478,9 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
     industryStandard:
       'Academic milestones need structured scoring, review, document generation, and student history links.',
     cadenzaFit:
-      'The Academic Hub spec already describes session dashboards and report-card generation; keep it as an add-on over Student and Activity data.',
+      'Cadenza now ships a private Manage assessment workspace with contextual Student history and assigned-examiner submission while keeping public/guardian delivery behind D-22 review.',
     nextStep:
-      'Implement Academic Hub records using existing DocumentSection and PDF/export patterns.',
+      'Keep live assessment RLS as a release-hardening gate, then review D-22 before adding generated PDFs, guardian delivery, tokenized examiner links, or richer rubric/pass-fail semantics.',
     dataEntities: ['ExamSession', 'ExaminerSubmission', 'Certificate', 'ReportCard', 'StudentV2'],
     deterministicQueries: ['listExamSessions', 'getStudentAssessmentSummary', 'listPendingCertificates'],
     embeddingText:
@@ -496,7 +496,7 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
   {
     id: 'concert-programs-events',
     domain: 'learning',
-    status: 'planned',
+    status: 'implemented',
     priority: 'p2',
     label: 'Concert programs and events',
     labelHe: 'תכניות קונצרטים ואירועים',
@@ -505,9 +505,9 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
     industryStandard:
       'Performance schools need event planning that goes beyond a calendar title.',
     cadenzaFit:
-      'Use CalendarEvent as the schedule anchor and add a ConcertProgram document for performer and repertoire structure.',
+      'Cadenza now has private Calendar/Activity-linked concert planning, ordered run-of-show, performer lists, private export references, and mobile authenticated teacher/performer read without public exposure.',
     nextStep:
-      'Create ConcertProgram records linked to events and exportable as document templates.',
+      'Review D-23 public event/program exposure, consent, redaction, and downloadable program policy before enabling any website or public file surface.',
     dataEntities: ['CalendarEvent', 'ConcertProgram', 'StudentV2', 'StaffMemberV2', 'DocumentEntry'],
     deterministicQueries: ['listConcertPrograms', 'getProgramRunOfShow', 'listPerformerEvents'],
     embeddingText:
@@ -577,7 +577,12 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
   {
     id: 'agreements-consent',
     domain: 'finance',
-    status: 'gap',
+    // Bird's-eye product-built 2026-06-19: Manage agreements tab, contextual
+    // student/family history, public token signing, PDF reference capture,
+    // deterministic helpers, static schema coverage, and Playwright smoke are
+    // in place. Live RLS remains a release-hardening gate until remote
+    // agreement migrations 0008-0011 pass without skips.
+    status: 'implemented',
     priority: 'p1',
     label: 'Agreements and consent',
     labelHe: 'הסכמים וחתימות',
@@ -586,9 +591,9 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
     industryStandard:
       'Schools need consent and policy acceptance attached to enrollment and payment state.',
     cadenzaFit:
-      'Use DocumentEntry plus a structured AgreementAcceptance record instead of freeform uploaded files only.',
+      'Cadenza now manages versioned agreement templates, scoped acceptance requests, mobile typed signing, private PDF references, and student/family agreement history.',
     nextStep:
-      'Add AgreementTemplate and AgreementAcceptance entities with version, signer, acceptedAt, and linked student/family.',
+      'Apply remote agreement RLS/storage migrations and clear the live RLS release gate before claiming production security.',
     dataEntities: ['AgreementTemplate', 'AgreementAcceptance', 'StudentV2', 'Guardian'],
     deterministicQueries: ['listUnsignedAgreements', 'getAgreementHistory', 'findAgreementByEnrollment'],
     embeddingText:
@@ -661,7 +666,7 @@ export const FORTE_FEATURE_TREE: ForteFeatureNode[] = [
   {
     id: 'reports-analytics',
     domain: 'command',
-    status: 'planned',
+    status: 'implemented',
     priority: 'p1',
     label: 'Reports and analytics',
     labelHe: 'דוחות בזמן אמת',

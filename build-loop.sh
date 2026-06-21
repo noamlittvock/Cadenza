@@ -89,8 +89,16 @@ Non-negotiable rules:
 - D-11 is ACCEPTED: agreement capture supports typed e-signature plus PDF upload;
   public signing still inherits D-07/D-14 and must not use broad anon table
   policies.
-- D-21-D-27 remain parked. Do not build packet sections marked `BLOCKED ON D-xx`
-  until the matching decision is answered and the packet/decision log are updated.
+- D-21-D-27 are ACCEPTED PROVISIONAL for the bird's-eye build. Use conservative,
+  reversible defaults: D-21 approval creates review tasks/flags, not automatic
+  schedule/payroll mutation; D-22 assessment/report delivery is private and
+  explicitly released; D-23 public/media exposure is private by default and
+  redacts missing consent; D-24 revocation disables future/public use while
+  preserving audit; D-25 instrument deposits/refunds are explicit approved ledger
+  liability/credit rows with no automatic forfeiture; D-26 HR is superadmin/
+  HR-admin scoped with explicit acknowledgment only; D-27 rollover is preview
+  first, copy-forward into draft next-year records, and never mutates prior-year
+  records. Mark these as provisional/reviewable in UI/docs where they surface.
 - Route/palette rule: a command-palette destination must route to a real surface
   or alias onto one. Public token routes do not get sidebar or command-palette
   entries.
@@ -102,9 +110,12 @@ Non-negotiable rules:
   seams. Public submit must create only quarantined intake; live
   Student/Family/Enrollment records are created only by an admin-approved
   conversion.
-- If live Supabase credentials are absent, add env-gated RLS tests that skip with
-  a clear message, record the exact env vars in BUILD_LOOP_STATE.md, and do not
-  mark RLS-LIVE or BUILD COMPLETE until those tests run against a real project.
+- Bird's-eye build mode: live Supabase RLS is a release-hardening gate, not an
+  implementation-loop blocker. If live credentials or remote migrations are
+  absent, keep/add env-gated RLS tests that skip with a clear message, record the
+  exact env vars or migration blocker in BUILD_LOOP_STATE.md, and continue the
+  product build with static migration/schema tests plus local/e2e verification.
+  Do not claim production security until live RLS passes without skips.
 - Never print or record secret values. Do not run `printenv`, `env`, `set`, or
   `cat .env*` when live credentials may be present. Check environment readiness
   with presence-only output such as `VAR=set` or `VAR=missing`; docs and logs may

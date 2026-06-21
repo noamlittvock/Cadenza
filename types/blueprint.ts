@@ -507,7 +507,7 @@ export interface ReportDefinition extends BlueprintBase {
 export interface ReportFilter {
   field: string;
   op: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'contains';
-  value: string | number | boolean | Array<string | number>;
+  value: string | number | boolean | null | Array<string | number | boolean | null>;
 }
 
 export interface ReportAggregate {

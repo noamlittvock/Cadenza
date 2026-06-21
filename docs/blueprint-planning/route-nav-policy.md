@@ -9,11 +9,11 @@ top-level view without amending this file. Resolves decisions D-01 and D-02.
 `CALENDAR, MANAGE, SETTINGS, SUPER_ADMIN, STAFF_MEMBERS, ADMIN_INBOX, BLUEPRINT,
 STUDENTS, BILLING, ACADEMICS, INVENTORY, PAYROLL, ANALYTICS`.
 
-`App.tsx` routes 10: `CALENDAR` (inline) and the switch cases `STAFF_MEMBERS`,
-`MANAGE`, `BLUEPRINT`, `STUDENTS`, `BILLING`, `PAYROLL`, `SUPER_ADMIN`,
-`ADMIN_INBOX`, `SETTINGS`.
+`App.tsx` routes 11: `CALENDAR` (inline) and the switch cases `STAFF_MEMBERS`,
+`MANAGE`, `BLUEPRINT`, `STUDENTS`, `BILLING`, `PAYROLL`, `ANALYTICS`,
+`SUPER_ADMIN`, `ADMIN_INBOX`, `SETTINGS`.
 **Unrouted as top-level views → `app.not_found` if forced directly:**
-`ACADEMICS, INVENTORY, ANALYTICS`.
+`ACADEMICS, INVENTORY`.
 
 Phase A D-02 cleanup is implemented: `CommandPalette.tsx` still defines labels and
 icons for all 13 values, but builds the navigate section through
@@ -21,8 +21,9 @@ icons for all 13 values, but builds the navigate section through
 `ROUTED_VIEWS` plus aliases. `STUDENTS` is routed and palette-visible through
 the Student/Family route shell. `BILLING` is routed and palette-visible through
 the top-level Finance surface. `PAYROLL` is routed and palette-visible through
-the authenticated teacher self-report surface. `ACADEMICS` and `ANALYTICS`
-remain hidden; `INVENTORY` remains visible only through its alias to
+the authenticated teacher self-report surface. `ANALYTICS` is routed as the
+Reports workspace shell and palette-visible, with no sidebar entry. `ACADEMICS`
+remains hidden; `INVENTORY` remains visible only through its alias to
 `Manage?tab=inventory`.
 
 Sidebar (`Layout.tsx`):
@@ -32,7 +33,7 @@ Sidebar (`Layout.tsx`):
 - `SUPER_ADMIN` shown for real superadmin.
 
 `ManageHub` tabs via `?tab=` URL param:
-`staff, activities, rooms, inventory, agreements, subscriptions`. Inventory is
+`staff, activities, rooms, inventory, agreements, assessments, subscriptions`. Inventory is
 `Manage?tab=inventory` (embedded), **not** a `ViewState.INVENTORY` route.
 
 ## Placement tiers
@@ -45,8 +46,8 @@ Decide each module into exactly one tier:
    justifies its sidebar slot or does not get one — "the interface earns its
    space."
 2. **Manage tab:** lower-frequency, config-like modules. Current: staff,
-   activities, rooms, inventory, agreement templates, subscriptions. Candidate
-   additions: academic config.
+   activities, rooms, inventory, agreement templates, private assessment
+   management, subscriptions. Candidate additions: academic config.
 3. **Contextual panel:** lives inside its source record, no standalone route.
    Lesson attendance → Calendar event detail. Room/absence requests → Admin Inbox.
    Source-event lineage → Calendar event detail.
@@ -64,7 +65,7 @@ Rule: **a command-palette destination must route to a real surface or not exist.
 | `BILLING` | Routed top-level **Finance** view; palette-visible | build out family-led ledger workflow inside the routed surface |
 | `ACADEMICS` | Palette entry hidden | unhide when Academic Hub packet ships (tier TBD) |
 | `PAYROLL` | Routed authenticated teacher self-report; palette-visible | admin review may later live in Manage/Finance without replacing the teacher route |
-| `ANALYTICS` | Palette entry hidden | unhide when reports-analytics ships |
+| `ANALYTICS` | Routed Reports workspace shell; palette-visible; no sidebar entry | expand builder/run/export in Reports before packet promotion |
 
 Implementation posture: palette visibility is driven from a single routed-views
 allowlist, plus explicit aliases for embedded surfaces. A view appears in the

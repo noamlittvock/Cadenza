@@ -24,7 +24,7 @@ const ALL_VIEWS: ViewState[] = [
 
 // Views deliberately NOT routed today (fall through to `app.not_found`). INVENTORY
 // is unrouted as a top-level view but reachable via the Manage?tab=inventory alias.
-const UNROUTED_HIDDEN: ViewState[] = ['ACADEMICS', 'ANALYTICS'];
+const UNROUTED_HIDDEN: ViewState[] = ['ACADEMICS'];
 
 /**
  * Derive the set of views `App.tsx` actually routes, straight from its source:
@@ -72,6 +72,11 @@ describe('routing: routed-views allowlist', () => {
   it('routes BILLING as the top-level Finance destination', () => {
     expect(ROUTED_VIEWS.has('BILLING')).toBe(true);
     expect(isPaletteVisible('BILLING')).toBe(true);
+  });
+
+  it('routes ANALYTICS as the Reports workspace destination', () => {
+    expect(ROUTED_VIEWS.has('ANALYTICS')).toBe(true);
+    expect(isPaletteVisible('ANALYTICS')).toBe(true);
   });
 });
 

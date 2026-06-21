@@ -1,12 +1,14 @@
 # Concert Programs And Events  (`concert-programs-events`)
 
-Status: `planned` (per `features/forteTree.ts`) -> target `implemented`.
+Status: `implemented` under bird's-eye mode (per `features/forteTree.ts`).
 Priority: p2
-Owner-decisions still blocking this packet: **BLOCKED ON D-23** for public or
-website-facing event/program exposure, performer-name disclosure, consent/release
-rules, redaction, and downloadable public program files. Core authenticated
-concert planning over the existing normalized `ConcertProgram` table is otherwise
-unblocked by current accepted decisions.
+Owner-decisions still release-gating public scope: **D-23 ACCEPTED
+PROVISIONAL**. Public or website-facing event/program exposure, performer-name
+disclosure, consent/release rules, redaction, and downloadable public program
+files remain private/off until the production policy review enables them through
+D-14 public endpoints plus participant-level consent/release setup. Core
+authenticated concert planning over the existing normalized `ConcertProgram`
+table is implemented.
 Current accepted prerequisites: **D-01** (no new top-level route beyond current
 policy), **D-04** (canonical student adapter), **D-05** (canonical event adapter),
 **D-14** (public endpoint registry exists but is inert/admin-only), and **D-15**
@@ -14,10 +16,16 @@ policy), **D-04** (canonical student adapter), **D-05** (canonical event adapter
 
 ## Current State (ground truth)
 - Existing UI: native calendar/event scheduling exists through
-  `components/CalendarView.tsx` and `components/EventFormV2.tsx`. Document upload
-  UI exists as `components/DocumentSection.tsx` for staff/student documents. There
-  is no concert program list, run-of-show editor, performer/repertoire workflow,
-  printable program builder, or public event/program surface.
+  `components/CalendarView.tsx` and `components/EventFormV2.tsx`.
+  `components/ConcertProgramPlanner.tsx` now provides private authenticated
+  concert planning from Calendar event detail and Activity/roster context:
+  list/search/status filter, create/edit/publish/cancel metadata, ordered pieces,
+  student/staff performers, run-of-show, stale performer/duplicate-order/missing
+  duration states, source links, private export references, EN/HE labels, and
+  D-23 provisional public-output-blocked labeling. Teachers/performers have a
+  mobile-reachable read-only Calendar event detail view for their own linked
+  run-of-show; unrelated events show an authorization-denied state. No public
+  website/program route or public file URL exists.
 - Existing schema: `concert_programs` is a normalized Blueprint table from `0002`
   with `title`, optional `event_id`, `date`, `venue`, `status`, `pieces jsonb`,
   notes, and audit columns. `events`, `students`, `staff_members`, and
@@ -26,11 +34,19 @@ policy), **D-04** (canonical student adapter), **D-05** (canonical event adapter
 - Existing query/helpers: `listConcertPrograms`, `getProgramRunOfShow`, and
   `listPerformerEvents` in `utils/blueprintQueries.ts`.
 - Existing tests: `utils/blueprintQueries.test.ts` covers status/date sorting,
-  run-of-show ordering/cumulative duration, and performer lookup.
-  `utils/supabaseSync.ts` maps `concertPrograms -> concert_programs` as
-  `NORMALIZED`, and `docs/SUPABASE_MIGRATION_MAP.md` records the table. No UI,
-  RLS, storage-policy, export/PDF, or Playwright workflow tests exist for this
-  module.
+  run-of-show ordering/cumulative duration, performer lookup, draft/cancelled
+  ordering, unlinked programs, duplicate order, unknown-duration cumulative
+  nulling, stale performer IDs, and student/staff performer lookup.
+  `components/ConcertProgramPlanner.test.tsx` covers planner draft/edit/piece
+  helpers plus teacher read filtering. `utils/supabaseSync.test.ts` covers the
+  normalized `concertPrograms -> concert_programs` mapping. Static schema tests
+  and env-gated live RLS assertions cover admin full access, linked staff read,
+  finance/plain/cross-org/anon denial, and private concert-program document
+  storage. `e2e/concert-program-planning.spec.ts` covers admin private planning
+  and 390x844 teacher run-of-show read/denial. Live RLS remains a
+  release-hardening gate until remote migration
+  `0015_concert_program_scoped_rls.sql` is applied and the concert live
+  assertion passes without skips.
 - Feature-tree declared queries: `listConcertPrograms`, `getProgramRunOfShow`,
   `listPerformerEvents` -- implemented.
 

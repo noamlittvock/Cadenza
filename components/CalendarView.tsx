@@ -2,8 +2,9 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { nowTimestamp } from '../utils/appTimestamp';
 import { CalendarEvent, Teacher, Room, GanttBlock, AppSettings, RecurrenceRule, DayOfWeek } from '../types';
 import { generateId } from '../constants';
-import { ChevronLeft, ChevronRight, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronDown, Repeat, Ban, RotateCcw, HelpCircle, Search, Loader2, Sparkles, ClipboardCheck, ClipboardList } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter, Calendar as CalendarIcon, GripHorizontal, X, Edit, Trash2, Clock, MapPin, User, Users, AlertOctagon, CalendarRange, Plus, Zap, List, ChevronDown, Repeat, Ban, RotateCcw, HelpCircle, Search, Loader2, Sparkles, ClipboardCheck, ClipboardList, Send, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useEffectiveAuth } from '../context/DevSimulationContext';
 import { syncEventToGoogle, removeEventFromGoogle, updateEventInGoogle } from '../utils/googleCalendarSync';
 import { Modal } from './Modal';
 import { EventFormV2, EventFormState, EventFormV2Handle } from './EventFormV2';
@@ -18,7 +19,7 @@ import {
   AssignmentType,
 } from '../types/v2';
 import { BLUEPRINT_COLLECTIONS } from '../types/blueprint';
-import type { AttendanceStatus, LessonCompletion, LessonRecord } from '../types/blueprint';
+import type { AttendanceStatus, ConcertProgram, LessonCompletion, LessonRecord } from '../types/blueprint';
 import { TagChip } from './TagChip';
 import { hasEventDataError } from '../utils/eventValidation';
 import { eventToV2 } from '../utils/canonicalAdapters';
@@ -30,7 +31,19 @@ import {
   buildExistingLessonAttendanceUpdate,
   buildLessonAttendancePreparation,
 } from '../utils/lessonAttendanceService';
+import { buildTeacherRosterReadModel } from '../utils/rosterProgramWorkspace';
+import { ConcertProgramPlanner } from './ConcertProgramPlanner';
+import {
+  OperationalRequestError,
+  attachApprovalItemToOperationalRequest,
+  buildOperationalRequestApprovalItem,
+  buildOperationalRequestDraft,
+  cancelOwnPendingOperationalRequest,
+  roomNameById,
+} from '../utils/operationalRequestService';
 import type { CalendarFilterState, CalendarSidebarTab } from '../types/calendarFilters';
+import type { AdminInboxItem } from '../types';
+import type { OperationalRequest, RequestKind, RequestStatus } from '../types/blueprint';
 interface Props {
   events: CalendarEvent[];
   setEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>;
@@ -70,6 +83,13 @@ interface Props {
   l2Subs: L2Subcategory[];
   staffMembersV2: StaffMemberV2[];
   studentsV2: StudentV2[];
+  concertPrograms: ConcertProgram[];
+  setConcertPrograms: (data: ConcertProgram[] | ((prev: ConcertProgram[]) => ConcertProgram[])) => Promise<void>;
+  concertProgramsLoading?: boolean;
+  operationalRequests: OperationalRequest[];
+  setOperationalRequests: (data: OperationalRequest[] | ((prev: OperationalRequest[]) => OperationalRequest[])) => Promise<void>;
+  operationalRequestsLoading?: boolean;
+  setAdminInboxItems: (data: AdminInboxItem[] | ((prev: AdminInboxItem[]) => AdminInboxItem[])) => Promise<void>;
 }
 
 type ViewMode = 'DAY' | 'WEEK' | 'MONTH';
@@ -147,10 +167,13 @@ export const CalendarView: React.FC<Props> = ({
   sidebarTab, setSidebarTab,
   filterState, filterSet, filterClear, filterIsActive,
   l1Subs, l2Subs, staffMembersV2, studentsV2,
+  concertPrograms, setConcertPrograms, concertProgramsLoading = false,
+  operationalRequests, setOperationalRequests, operationalRequestsLoading = false, setAdminInboxItems,
 }) => {
   const t = (key: string) => TRANSLATIONS[settings.language]?.[key] || TRANSLATIONS['en-US'][key] || key;
   const isRtl = settings?.language === 'he-IL';
-  const { googleAccessToken, currentUser, isAdmin, isSuperAdmin, orgId } = useAuth();
+  const { googleAccessToken, orgId } = useAuth();
+  const { currentUser, isAdmin, isSuperAdmin } = useEffectiveAuth();
 
   // Google Calendar sync is locked to the tenant admin who connected it
   const isCalendarOwner = currentUser?.email?.toLowerCase() === settings.googleCalendarConnectedBy?.toLowerCase();
@@ -241,6 +264,13 @@ export const CalendarView: React.FC<Props> = ({
   const [attendanceSavingId, setAttendanceSavingId] = useState<string | null>(null);
   const [attendancePreparing, setAttendancePreparing] = useState(false);
   const [attendanceError, setAttendanceError] = useState<string | null>(null);
+  const [requestKind, setRequestKind] = useState<RequestKind>('ROOM_CHANGE');
+  const [requestDate, setRequestDate] = useState('');
+  const [requestEndDate, setRequestEndDate] = useState('');
+  const [requestRoomId, setRequestRoomId] = useState('');
+  const [requestReason, setRequestReason] = useState('');
+  const [requestSaving, setRequestSaving] = useState(false);
+  const [requestError, setRequestError] = useState<string | null>(null);
   const attendanceEventsV2 = useMemo(() => events.map(event => eventToV2(event, {
     orgId: orgId || '',
     timeZone: settings.timeZone || 'UTC',
@@ -279,6 +309,77 @@ export const CalendarView: React.FC<Props> = ({
       || (email && staff.email?.toLowerCase() === email)
     ))?.id ?? null;
   }, [currentUser, staffMembersV2]);
+  const currentStaffName = useMemo(() => {
+    if (!currentStaffMemberId) return currentUser?.name ?? '';
+    return staffMembersV2.find(staff => staff.id === currentStaffMemberId)?.fullName
+      ?? teachers.find(teacher => teacher.id === currentStaffMemberId)?.fullName
+      ?? currentUser?.name
+      ?? currentStaffMemberId;
+  }, [currentStaffMemberId, currentUser?.name, staffMembersV2, teachers]);
+  const ownOperationalRequests = useMemo(() => {
+    if (!currentStaffMemberId) return [];
+    return operationalRequests
+      .filter(request => request.requestedByStaffId === currentStaffMemberId)
+      .slice()
+      .sort((a, b) => (
+        `${b.requestedFor}:${b.createdAt}:${b.id}`.localeCompare(`${a.requestedFor}:${a.createdAt}:${a.id}`)
+      ));
+  }, [currentStaffMemberId, operationalRequests]);
+  const selectedEventRequests = useMemo(() => {
+    if (detailItem?.type !== 'EVENT' || !currentStaffMemberId) return [];
+    const eventId = detailItem.data.id;
+    const date = toDateInputValue(new Date(detailItem.data.start));
+    return ownOperationalRequests.filter(request => (
+      request.eventId === eventId || request.requestedFor === date
+    ));
+  }, [currentStaffMemberId, detailItem, ownOperationalRequests]);
+  const availableRequestRooms = useMemo(() => {
+    if (detailItem?.type !== 'EVENT') return rooms;
+    return rooms.filter(room => room.id !== detailItem.data.roomId);
+  }, [detailItem, rooms]);
+  useEffect(() => {
+    if (detailItem?.type !== 'EVENT') return;
+    const eventDate = toDateInputValue(new Date(detailItem.data.start));
+    setRequestDate(eventDate);
+    setRequestEndDate('');
+    setRequestRoomId(prev => (availableRequestRooms.some(room => room.id === prev) ? prev : (availableRequestRooms[0]?.id ?? '')));
+    setRequestError(null);
+  }, [availableRequestRooms, detailItem]);
+  const selectedEventRosterRead = useMemo(() => {
+    if (detailItem?.type !== 'EVENT') return null;
+    const eventV2 = attendanceEventsV2.find(event => event.id === detailItem.data.id) ?? eventToV2(detailItem.data, {
+      orgId: orgId || '',
+      timeZone: settings.timeZone || 'UTC',
+      now: ADAPTER_FALLBACK_TIMESTAMP,
+    });
+    const activity = activities.find(item => item.id === eventV2.activityId) ?? null;
+    return buildTeacherRosterReadModel({
+      event: eventV2,
+      activity,
+      enrollments,
+      students,
+      teachingAssignments: teachingAssignmentsV2,
+      lessonRecords,
+      actor: {
+        isAdmin,
+        isSuperAdmin,
+        staffMemberId: currentStaffMemberId,
+      },
+    });
+  }, [
+    activities,
+    attendanceEventsV2,
+    currentStaffMemberId,
+    detailItem,
+    enrollments,
+    isAdmin,
+    isSuperAdmin,
+    lessonRecords,
+    orgId,
+    settings.timeZone,
+    students,
+    teachingAssignmentsV2,
+  ]);
 
   // Right-click Context Menu State
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; event: CalendarEvent } | null>(null);
@@ -901,6 +1002,23 @@ export const CalendarView: React.FC<Props> = ({
     EXCUSED: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/25 dark:text-blue-300 dark:border-blue-800',
     MAKEUP: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/25 dark:text-indigo-300 dark:border-indigo-800',
   };
+  const requestKindLabels: Record<RequestKind, string> = {
+    ROOM_CHANGE: t('requests.kind.room_change'),
+    ABSENCE: t('requests.kind.absence'),
+    DAY_OFF: t('requests.kind.day_off'),
+  };
+  const requestStatusLabels: Record<RequestStatus, string> = {
+    PENDING: t('requests.status.pending'),
+    APPROVED: t('requests.status.approved'),
+    REJECTED: t('requests.status.rejected'),
+    CANCELLED: t('requests.status.cancelled'),
+  };
+  const requestStatusClass: Record<RequestStatus, string> = {
+    PENDING: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300',
+    APPROVED: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300',
+    REJECTED: 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300',
+    CANCELLED: 'border-stone-200 bg-stone-50 text-stone-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  };
   const attendanceActionStatuses: AttendanceStatus[] = ['PRESENT', 'ABSENT', 'LATE', 'EXCUSED', 'MAKEUP', 'UNMARKED'];
   const canMarkLesson = (lesson: LessonRecord) => (
     isAdmin || isSuperAdmin || Boolean(currentStaffMemberId && lesson.staffMemberId === currentStaffMemberId)
@@ -918,11 +1036,345 @@ export const CalendarView: React.FC<Props> = ({
       || detailItem.data.staffMemberIds?.includes(currentStaffMemberId)
       || detailItem.data.teacherId === currentStaffMemberId;
   }, [currentStaffMemberId, detailItem, isAdmin, isSuperAdmin, selectedEventParticipants]);
+  const selectedEventReadableForCurrentStaff = useMemo(() => {
+    if (detailItem?.type !== 'EVENT' || !currentStaffMemberId) return false;
+    return selectedEventParticipants.some(participant => participant.staffMemberId === currentStaffMemberId)
+      || detailItem.data.staffMemberIds?.includes(currentStaffMemberId)
+      || detailItem.data.teacherId === currentStaffMemberId;
+  }, [currentStaffMemberId, detailItem, selectedEventParticipants]);
   const markAttendanceAria = (studentName: string, status: AttendanceStatus) => (
     t('attendance.panel.mark_aria')
       .replace('{student}', studentName)
       .replace('{status}', attendanceLabels[status])
   );
+
+  const scrollToAttendanceRow = (lessonRecordId: string) => {
+    document.getElementById(`attendance-row-${lessonRecordId}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  };
+
+  const handleSubmitOperationalRequest = async () => {
+    if (detailItem?.type !== 'EVENT' || requestSaving) return;
+    setRequestSaving(true);
+    setRequestError(null);
+    const nowIso = new Date().toISOString();
+    try {
+      const requestId = generateId();
+      const inboxItemId = generateId();
+      const event = detailItem.data;
+      const draft = buildOperationalRequestDraft({
+        id: requestId,
+        orgId: orgId || '',
+        nowIso,
+        actorId: currentUser?.id ?? currentUser?.uid ?? null,
+        staffMemberId: currentStaffMemberId,
+        kind: requestKind,
+        requestedFor: requestDate || toDateInputValue(new Date(event.start)),
+        endDate: requestEndDate || null,
+        event: requestKind === 'ROOM_CHANGE' ? event : null,
+        requestedRoomId: requestKind === 'ROOM_CHANGE' ? requestRoomId : null,
+        reason: requestReason,
+      });
+      const request = attachApprovalItemToOperationalRequest(draft, inboxItemId);
+      const approvalItem = buildOperationalRequestApprovalItem({
+        id: inboxItemId,
+        orgId: orgId || '',
+        nowIso,
+        request,
+        staffName: currentStaffName || currentStaffMemberId || t('requests.staff_fallback'),
+        eventName: request.kind === 'ROOM_CHANGE' ? event.name : null,
+        currentRoomName: roomNameById(rooms, request.currentRoomId),
+        requestedRoomName: roomNameById(rooms, request.requestedRoomId),
+      });
+
+      await setOperationalRequests(prev => [...prev, request]);
+      await setAdminInboxItems(prev => [...prev, approvalItem]);
+      setRequestReason('');
+      setRequestEndDate('');
+      if (requestKind === 'ROOM_CHANGE') {
+        setRequestRoomId(availableRequestRooms[0]?.id ?? '');
+      }
+    } catch (error) {
+      const code = error instanceof OperationalRequestError ? error.code : 'SAVE_FAILED';
+      setRequestError(`${t('requests.error_submit')} (${code})`);
+    } finally {
+      setRequestSaving(false);
+    }
+  };
+
+  const handleCancelOperationalRequest = async (request: OperationalRequest) => {
+    const nowIso = new Date().toISOString();
+    setRequestError(null);
+    try {
+      const cancelled = cancelOwnPendingOperationalRequest({
+        request,
+        staffMemberId: currentStaffMemberId,
+        actorId: currentUser?.id ?? currentUser?.uid ?? null,
+        nowIso,
+      });
+      await setOperationalRequests(prev => prev.map(row => row.id === request.id ? cancelled : row));
+    } catch (error) {
+      const code = error instanceof OperationalRequestError ? error.code : 'CANCEL_FAILED';
+      setRequestError(`${t('requests.error_cancel')} (${code})`);
+    }
+  };
+
+  const renderOperationalRequestsPanel = () => {
+    if (detailItem?.type !== 'EVENT') return null;
+    const event = detailItem.data;
+    const canRequestForEvent = Boolean(currentStaffMemberId)
+      && (
+        isAdmin
+        || isSuperAdmin
+        || selectedEventReadableForCurrentStaff
+      );
+    const noRoomsAvailable = requestKind === 'ROOM_CHANGE' && availableRequestRooms.length === 0;
+
+    return (
+      <section data-testid="teacher-requests-panel" dir={isRtl ? 'rtl' : 'ltr'} className="mt-5 rounded-lg border border-stone-200 bg-white p-3 text-start dark:border-slate-700 dark:bg-slate-900/60">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <ClipboardList size={16} className="flex-shrink-0 text-cadenza-700 dark:text-cadenza-300" />
+            <div className="min-w-0">
+              <h4 className="truncate text-sm font-semibold text-slate-900 dark:text-white">{t('requests.panel_title')}</h4>
+              <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">{t('requests.panel_subtitle')}</p>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300">
+            <ShieldCheck size={11} />
+            {t('requests.review_only')}
+          </span>
+        </div>
+
+        {!canRequestForEvent && (
+          <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
+            {t('requests.denied')}
+          </p>
+        )}
+
+        {canRequestForEvent && (
+          <div className="mt-3 space-y-3">
+            <div className="grid gap-2 sm:grid-cols-3">
+              {(['ROOM_CHANGE', 'ABSENCE', 'DAY_OFF'] as RequestKind[]).map(kind => (
+                <button
+                  key={kind}
+                  type="button"
+                  data-testid={`request-kind-${kind}`}
+                  onClick={() => setRequestKind(kind)}
+                  className={`min-h-9 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                    requestKind === kind
+                      ? 'border-cadenza-700 bg-cadenza-700 text-white shadow-cadenza-soft'
+                      : 'border-stone-200 bg-stone-50 text-slate-700 hover:bg-stone-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {requestKindLabels[kind]}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {requestKind === 'ROOM_CHANGE' ? (
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  {t('requests.field.room')}
+                  <select
+                    value={requestRoomId}
+                    onChange={e => setRequestRoomId(e.target.value)}
+                    disabled={noRoomsAvailable}
+                    className="mt-1 w-full rounded-md border border-stone-200 bg-white px-2.5 py-2 text-sm text-slate-900 focus:border-cadenza-600 focus:outline-none focus:ring-1 focus:ring-cadenza-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  >
+                    {availableRequestRooms.map(room => (
+                      <option key={room.id} value={room.id}>{room.name}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  {t('requests.field.date')}
+                  <input
+                    type="date"
+                    value={requestDate}
+                    onChange={e => setRequestDate(e.target.value)}
+                    className="mt-1 w-full rounded-md border border-stone-200 bg-white px-2.5 py-2 text-sm text-slate-900 focus:border-cadenza-600 focus:outline-none focus:ring-1 focus:ring-cadenza-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  />
+                </label>
+              )}
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                {requestKind === 'ROOM_CHANGE' ? t('requests.field.event_date') : t('requests.field.end_date')}
+                <input
+                  type="date"
+                  value={requestKind === 'ROOM_CHANGE' ? toDateInputValue(new Date(event.start)) : requestEndDate}
+                  onChange={e => setRequestEndDate(e.target.value)}
+                  disabled={requestKind === 'ROOM_CHANGE'}
+                  className="mt-1 w-full rounded-md border border-stone-200 bg-white px-2.5 py-2 text-sm text-slate-900 disabled:bg-stone-100 disabled:text-slate-500 focus:border-cadenza-600 focus:outline-none focus:ring-1 focus:ring-cadenza-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:disabled:bg-slate-800"
+                />
+              </label>
+            </div>
+
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
+              {t('requests.field.reason')}
+              <textarea
+                value={requestReason}
+                onChange={e => setRequestReason(e.target.value)}
+                rows={2}
+                className="mt-1 w-full resize-none rounded-md border border-stone-200 bg-white px-2.5 py-2 text-sm text-slate-900 focus:border-cadenza-600 focus:outline-none focus:ring-1 focus:ring-cadenza-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              />
+            </label>
+
+            {noRoomsAvailable && (
+              <p className="rounded-md border border-dashed border-stone-200 px-2.5 py-2 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                {t('requests.no_rooms')}
+              </p>
+            )}
+
+            <button
+              type="button"
+              data-testid="submit-teacher-request"
+              onClick={handleSubmitOperationalRequest}
+              disabled={requestSaving || noRoomsAvailable}
+              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md bg-cadenza-gradient texture-cadenza px-3 py-2 text-xs font-semibold text-white shadow-cadenza-soft transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {requestSaving ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              {t('requests.submit')}
+            </button>
+          </div>
+        )}
+
+        {requestError && (
+          <p role="alert" className="mt-3 rounded-md border border-red-200 bg-red-50 px-2.5 py-2 text-xs font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+            {requestError}
+          </p>
+        )}
+
+        <div className="mt-4 border-t border-stone-200 pt-3 dark:border-slate-700">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h5 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">{t('requests.my_status')}</h5>
+            {operationalRequestsLoading && <Loader2 size={14} className="animate-spin text-slate-400" />}
+          </div>
+          {!operationalRequestsLoading && selectedEventRequests.length === 0 && (
+            <p className="rounded-md border border-dashed border-stone-200 px-2.5 py-3 text-center text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+              {t('requests.empty')}
+            </p>
+          )}
+          <div className="space-y-2">
+            {selectedEventRequests.map(request => (
+              <div key={request.id} data-testid="teacher-request-row" className="rounded-md border border-stone-200 bg-stone-50/70 p-2.5 dark:border-slate-700 dark:bg-slate-800/45">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{requestKindLabels[request.kind]}</p>
+                    <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                      {request.endDate && request.endDate !== request.requestedFor
+                        ? `${request.requestedFor} - ${request.endDate}`
+                        : request.requestedFor}
+                    </p>
+                    {request.kind === 'ROOM_CHANGE' && (
+                      <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                        {roomNameById(rooms, request.currentRoomId)} {'->'} {roomNameById(rooms, request.requestedRoomId)}
+                      </p>
+                    )}
+                    {request.reason && (
+                      <p className="mt-1 line-clamp-2 text-xs text-slate-600 dark:text-slate-300">{request.reason}</p>
+                    )}
+                    {request.adminInboxItemId && (
+                      <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+                        {t('requests.source_inbox')}: <span className="font-mono">{request.adminInboxItemId}</span>
+                      </p>
+                    )}
+                  </div>
+                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${requestStatusClass[request.status]}`}>
+                    {requestStatusLabels[request.status]}
+                  </span>
+                </div>
+                {request.status === 'PENDING' && (
+                  <button
+                    type="button"
+                    onClick={() => handleCancelOperationalRequest(request)}
+                    className="mt-2 inline-flex min-h-8 items-center justify-center rounded-md border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-stone-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    {t('requests.cancel')}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  };
+
+  const renderTeacherRosterPanel = () => {
+    if (!selectedEventRosterRead || selectedEventRosterRead.state === 'not_applicable') return null;
+
+    const shellClass = 'mt-5 rounded-lg border border-stone-200 bg-white p-3 text-start dark:border-slate-700 dark:bg-slate-900/60';
+    const sourceSummary = t('rosters.teacher_panel_source')
+      .replace('{count}', String(selectedEventRosterRead.sourceEnrollmentIds.length));
+
+    return (
+      <section data-testid="teacher-roster-panel" dir={isRtl ? 'rtl' : 'ltr'} className={shellClass}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <Users size={16} className="flex-shrink-0 text-cadenza-700 dark:text-cadenza-300" />
+            <div className="min-w-0">
+              <h4 className="truncate text-sm font-semibold text-slate-900 dark:text-white">{t('rosters.teacher_panel_title')}</h4>
+              {selectedEventRosterRead.activityName && (
+                <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">{selectedEventRosterRead.activityName}</p>
+              )}
+            </div>
+          </div>
+          <span className="rounded-full border border-stone-200 bg-stone-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+            {sourceSummary}
+          </span>
+        </div>
+
+        {selectedEventRosterRead.state === 'denied' && (
+          <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
+            {t('rosters.teacher_panel_denied')}
+          </p>
+        )}
+
+        {selectedEventRosterRead.state === 'empty' && (
+          <p className="mt-3 rounded-md border border-dashed border-stone-200 px-2.5 py-3 text-center text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+            {t('rosters.teacher_panel_empty')}
+          </p>
+        )}
+
+        {selectedEventRosterRead.state === 'ready' && (
+          <div className="mt-3 max-h-56 space-y-2 overflow-y-auto pe-1 custom-scrollbar">
+            {selectedEventRosterRead.rows.map(row => (
+              <div key={row.enrollmentId} data-testid="teacher-roster-row" className="rounded-md border border-stone-200 bg-stone-50/70 p-2.5 dark:border-slate-700 dark:bg-slate-800/45">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{row.studentName}</p>
+                    <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                      {t('rosters.source_enrollments')}: <span className="font-mono">{row.enrollmentId}</span>
+                    </p>
+                  </div>
+                  {row.lessonRecordId ? (
+                    <button
+                      type="button"
+                      data-testid="roster-attendance-link"
+                      onClick={() => scrollToAttendanceRow(row.lessonRecordId!)}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300"
+                    >
+                      <ClipboardCheck size={12} />
+                      {t('rosters.teacher_panel_attendance_link')}
+                    </button>
+                  ) : (
+                    <span data-testid="roster-attendance-missing" className="rounded-md border border-stone-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400">
+                      {t('rosters.teacher_panel_not_prepared')}
+                    </span>
+                  )}
+                </div>
+                {row.attendance && row.completion && (
+                  <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                    {attendanceLabels[row.attendance]} · {completionLabels[row.completion]}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    );
+  };
 
   const handleLessonAttendanceMark = async (lesson: LessonRecord, status: AttendanceStatus) => {
     if (detailItem?.type !== 'EVENT' || lesson.attendance === status) return;
@@ -1107,7 +1559,7 @@ export const CalendarView: React.FC<Props> = ({
 
         <div className="mt-3 max-h-[52vh] space-y-2 overflow-y-auto pe-1 custom-scrollbar sm:max-h-64">
           {eventAttendancePanel.rows.map(({ lesson, studentName }) => (
-            <div key={lesson.id} data-testid="attendance-lesson-row" className="rounded-md border border-stone-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-900/60">
+            <div key={lesson.id} id={`attendance-row-${lesson.id}`} data-testid="attendance-lesson-row" className="rounded-md border border-stone-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-900/60">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{studentName}</p>
@@ -3084,6 +3536,24 @@ export const CalendarView: React.FC<Props> = ({
                     {(detailItem.data as CalendarEvent).isCanceled && <div className="mt-2 bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 text-xs px-2 py-1 rounded inline-block font-bold">{t('cal.canceled')}</div>}
                     {(detailItem.data as CalendarEvent).recurrenceRule && <div className="mt-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-bold"><Repeat size={10} /> {t('cal.recurring')}</div>}
                     {(detailItem.data as CalendarEvent).recurrenceId && <div className="mt-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-bold"><Repeat size={10} /> {t('cal.part_of_series')}</div>}
+                    <ConcertProgramPlanner
+                      settings={settings}
+                      orgId={orgId}
+                      actorId={currentUser?.id ?? currentUser?.uid ?? null}
+                      actorStaffId={currentStaffMemberId}
+                      readableEventIds={selectedEventReadableForCurrentStaff ? [(detailItem.data as CalendarEvent).id] : []}
+                      scope={{ kind: 'event', event: detailItem.data as CalendarEvent }}
+                      programs={concertPrograms}
+                      setPrograms={setConcertPrograms}
+                      events={events}
+                      students={studentsV2}
+                      staff={teachers}
+                      loading={concertProgramsLoading}
+                      canManage={isAdmin || isSuperAdmin}
+                      compact
+                    />
+                    {renderTeacherRosterPanel()}
+                    {renderOperationalRequestsPanel()}
                     {renderAttendancePanel()}
                   </>
                 ) : (

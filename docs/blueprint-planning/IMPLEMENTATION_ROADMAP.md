@@ -6,13 +6,17 @@ specs and `status-policy.md` remains the implemented bar.
 
 ## Guardrails
 
-- Do not build any packet section marked `BLOCKED ON D-xx` until the matching
-  Noam question is answered and the packet/decision log are updated.
+- Bird's-eye update 2026-06-19: packet sections previously marked
+  `BLOCKED ON D-21` through `BLOCKED ON D-27` may be built against the accepted
+  provisional defaults in `decision-log.md`. Keep those flows conservative,
+  reversible, auditable, and reviewable.
 - Do not promote a node to `implemented` until the packet header and
   `features/forteTree.ts` are updated together and the full implemented bar in
   `status-policy.md` is satisfied.
-- Every shipped module needs real Supabase authenticated-role RLS coverage.
-  Static migration tests can support this gate, but they do not replace it.
+- Bird's-eye build mode demotes live Supabase authenticated-role RLS from an
+  implementation blocker to a release-hardening gate. Static migration tests,
+  local/e2e verification, and documented release gates are sufficient to continue
+  product-shape work; production security is not complete until live RLS passes.
 - Route and palette changes follow `route-nav-policy.md`: Students and Finance
   are the only currently planned top-level additions; Inventory remains a
   `Manage?tab=inventory` alias; dead-end entries stay hidden until routed.
@@ -23,7 +27,7 @@ specs and `status-policy.md` remains the implemented bar.
 
 | Marker | Meaning |
 |---|---|
-| `RLS-LIVE` | Real Supabase authenticated-role tests with admin, member/teacher, finance where relevant, anon/public where relevant, and cross-org denial. Required before `implemented`. |
+| `RLS-LIVE` | Real Supabase authenticated-role tests with admin, member/teacher, finance where relevant, anon/public where relevant, and cross-org denial. In bird's-eye mode this is a release-hardening gate, not a product-build blocker. |
 | `PW-SMOKE` | Playwright smoke of the packet's primary workflow. Mobile smoke is included where the packet declares a mobile-primary path. |
 | `RTL-MOBILE` | EN/HE labels, RTL layout, and the packet's declared 390x844 checks. |
 | `MAP-UNIT` | Deterministic helper, adapter, and Supabase camel<->snake/HYBRID mapping tests named by the packet. |
@@ -72,17 +76,17 @@ non-native modules have packets in `packets/` and are sequenced below.
 
 | Seq | Module | Ticket slices | Blocking markers | Required test plan |
 |---:|---|---|---|---|
-| 6 | `agreements-consent` | Template/version manager; student/family/enrollment agreement tabs; typed e-signature and PDF upload; D-07/D-14 token signing path for accepted request targets. | Currency-specific terms use accepted D-20 org/family currency; assessment delivery consent `BLOCKED ON D-22`; public performance/media release `BLOCKED ON D-23`; revocation `BLOCKED ON D-24`; instrument deposit terms `BLOCKED ON D-25`. Guardian/contact data uses D-16 jsonb path. | `RLS-LIVE` admin-only tables, valid token target-only sign, anon direct access denied; `PW-SMOKE` issue request -> mobile typed sign -> accepted history plus PDF upload; `RTL-MOBILE` signer page; `MAP-UNIT` agreement helpers/mapping; `BACKFILL` templates/PDF history only. |
+| 6 | ✅ `agreements-consent` | Template/version manager; student/family/enrollment agreement tabs; typed e-signature and PDF upload; D-07/D-14 token signing path for accepted request targets. | Product-built under bird's-eye mode. Currency-specific terms use accepted D-20 org/family currency; D-22 assessment delivery, D-23 public media/performance release, D-24 revocation, and D-25 instrument deposit terms remain provisional/reviewable before production policy hardening. Guardian/contact data uses D-16 jsonb path. | `PW-SMOKE`, `RTL-MOBILE`, `MAP-UNIT`, static schema coverage, and packet-local backfill semantics are in place. `RLS-LIVE` admin-only tables, valid token target-only sign, anon direct access denial, and storage denial remain a release-hardening gate until remote migrations `0008`-`0011` pass without skips. |
 | 7 | `ensembles-theory-school-programs` | Filtered Activity/Enrollment roster surfaces; program detail; roster import/export; assigned-teacher read path. | Group attendance uses accepted D-17 lesson-row model when this packet integrates attendance. | `RLS-LIVE` assigned teacher own roster only, plain member denied; `PW-SMOKE` create ensemble -> assign teacher -> add students -> teacher own roster; `RTL-MOBILE` teacher read; `MAP-UNIT` roster helpers; `BACKFILL` existing Activity/Enrollment rosters. |
 | 8 | `exams-certificates-report-cards` | Authenticated exam sessions; assigned examiner submission; certificate queue; report-card history in Student detail; private storage links. | Rich Academic Hub/PDF/email/tokenized guardian or examiner flows `BLOCKED ON D-22`. | `RLS-LIVE` assigned examiner own submissions only, storage scoped, no anon; `PW-SMOKE` session -> submission -> graded -> issue certificate; `RTL-MOBILE` examiner submit; `MAP-UNIT` assessment helpers/mapping; `BACKFILL` existing normalized rows. |
-| 9 | `concert-programs-events` | Private authenticated concert program list/detail; Calendar event link; run-of-show editor; private print/export; teacher own read. | Public event/program exposure, performer names, files, embeds, and consent rules `BLOCKED ON D-23`. | `RLS-LIVE` admin full, performer/teacher own read, plain member denied, private storage scoped; `PW-SMOKE` event -> program -> pieces -> publish authenticated -> teacher own read; `RTL-MOBILE` teacher run-of-show; `MAP-UNIT`; `BACKFILL` existing concert rows. |
+| 9 | ✅ `concert-programs-events` | Private authenticated concert program list/detail; Calendar event link; run-of-show editor; private print/export reference; teacher own read. | Product-built under bird's-eye mode. D-23 public event/program exposure, performer names, files, embeds, and consent/redaction rules remain private/off until production policy review. | `PW-SMOKE`, `RTL-MOBILE`, `MAP-UNIT`, and static schema coverage are in place. `RLS-LIVE` remains a release-hardening gate until remote migration `0015_concert_program_scoped_rls.sql` passes without skips. |
 | 10 | `instrument-inventory` follow-up | Add detail drawer, loan/repair/document hardening, checkout/return invariants, borrower self read if shipped; preserve Manage alias. | Currency follows accepted D-20 org/family currency; agreement withdrawal effects `BLOCKED ON D-24`; deposit/fee/refund model `BLOCKED ON D-25`. | `RLS-LIVE` borrower detail scope, plain member denied from loans/repairs, admin write; `PW-SMOKE` inventory add/edit/checkout/overdue/return/retire; `RTL-MOBILE` borrower card only if shipped; `MAP-UNIT` status/custody invariants; `BACKFILL` loans/repairs only. |
 
 ## Epic 4 - Operations, Integrations, Rollover, And Reporting
 
 | Seq | Module | Ticket slices | Blocking markers | Required test plan |
 |---:|---|---|---|---|
-| 11 | `rooms-absence-requests` | Teacher own room-change/absence/day request form; Admin Inbox approval; room-change side-effect transaction; operational request export. | Absence/day-off/extra-day calendar/payroll side effects `BLOCKED ON D-21`. | `RLS-LIVE` teacher own pending only, admin decide, plain member denied; `PW-SMOKE` room change request -> approval -> event room update; `RTL-MOBILE` teacher request; `MAP-UNIT`; `BACKFILL` no conflict-notification conversion unless true requests. |
+| 11 | ✅ `rooms-absence-requests` | Teacher own room-change/absence/day request form; Admin Inbox approval; room-change side-effect transaction; operational request export. | Product-built under bird's-eye mode. Absence/day-off/extra-day automatic schedule/payroll side effects remain D-21 release/policy review items. | `PW-SMOKE`, `RTL-MOBILE`, `MAP-UNIT`, and static schema coverage are in place. `RLS-LIVE` remains a release-hardening gate until remote migration `0016_rooms_absence_request_rls.sql` passes without skips. |
 | 12 | `calendar-website-integrations` | Harden Manage subscriptions and Settings Google sync; move raw tokens to `public_endpoints`; resolver for private iCal/hours-report scopes; endpoint audit. | Public website/calendar/concert/program exposure `BLOCKED ON D-23`. | `RLS-LIVE` admin config, no anon direct table access, valid token scoped resolver; `PW-SMOKE` create iCal -> resolve -> revoke -> denied/empty; `RTL-MOBILE` token states; `MAP-UNIT` helper exports and token hashing; `BACKFILL` raw tokens to hashes. |
 | 13 | `year-rollover-setup` | Settings Academic Calendar rollover preview; `rollover_runs` audit row; cancel/failed/apply lifecycle; setup milestone readiness. | Finance carry-forward uses accepted D-20 currency policy; consent revocation effects `BLOCKED ON D-24`; grade advancement and recurring-event copy rules `BLOCKED ON D-27`. | `RLS-LIVE` admin-only rollover runs, cross-org isolation; `PW-SMOKE` settings -> preview -> warnings -> cancel; apply smoke only after D-24/D-27; `RTL-MOBILE` setup gate read; `MAP-UNIT`; `BACKFILL` no historical runs without evidence. |
 | 14 | `reports-analytics` | Route `ANALYTICS` as Reports workspace; report library; definition builder with source/field allowlists; run, lineage, CSV export; finance-only report subset. | Source-specific packs still `BLOCKED ON D-21` through `BLOCKED ON D-27` as listed in packet; attendance/payroll/finance reports should use accepted D-17/D-18/D-19/D-20 models after source modules ship. Guardian/contact reports may use D-16 jsonb path only after student/family source authorization exists. | `RLS-LIVE` admin full, finance allowed sources only, plain member/teacher/anon denied, no source bypass; `PW-SMOKE` finance report create/run/export/link; `RTL-MOBILE` readable states; `MAP-UNIT` invalid columns, filters, grouping; `BACKFILL` seed only settled definitions. |

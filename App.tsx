@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronRight, ChevronLeft, X, Filter, Zap, List, Sparkles } from 'lucide-react';
 import { ViewState, Teacher, Room, CalendarEvent, GanttBlock, AppSettings, Student, CalendarSubscription, HoursReport, AdminInboxItem } from './types';
-import type { ActivityV2, L1Subcategory, L2Subcategory, OrgRoleV2, StaffMemberV2, StudentV2, TeachingAssignmentV2 } from './types/v2';
-import type { Adjustment, AgreementAcceptance, AgreementTemplate, BalanceSnapshot, Charge, Family, LessonRecord, HoursEntry, Payment } from './types/blueprint';
+import type { ActivityV2, EnrollmentV2, ImportSession, L1Subcategory, L2Subcategory, OrgRoleV2, StaffMemberV2, StudentV2, TeachingAssignmentV2 } from './types/v2';
+import type { Adjustment, AgreementAcceptance, AgreementTemplate, BalanceSnapshot, Certificate, Charge, ConcertProgram, ExamSession, ExaminerSubmission, Family, Instrument, LessonRecord, HoursEntry, OperationalRequest, Payment, ReportCard, ReportDefinition, ReportSourceEntity } from './types/blueprint';
 import { BLUEPRINT_COLLECTIONS } from './types/blueprint';
 import type { CalendarSidebarTab } from './types/calendarFilters';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, TRANSLATIONS, migrateTeacher, generateId } from './constants';
@@ -12,6 +12,7 @@ const t = (key: string) => {
   return (TRANSLATIONS as any)[lang]?.[key] || (TRANSLATIONS as any)['en-US']?.[key] || key;
 };
 import { LOCAL_MODE, clearOrgLocalData } from './utils/localStore';
+import { getSupabase } from './utils/supabaseClient';
 import { deleteCollectionItems } from './utils/supabaseSync';
 import { V2_COLLECTIONS } from './types/v2';
 import { useSupabaseSync, useSupabaseSettings } from './utils/useSupabaseSync';
@@ -32,6 +33,7 @@ import { AdminInbox } from './components/AdminInbox';
 import { StudentFamilyWorkspace } from './components/StudentFamilyWorkspace';
 import { PayrollWorkspace } from './components/PayrollWorkspace';
 import { FinanceWorkspace } from './components/FinanceWorkspace';
+import { ReportsWorkspace, buildReportSourceRows, type ReportSourceRow } from './components/ReportsWorkspace';
 import { OnboardingChecklist } from './components/OnboardingChecklist';
 
 import { TeacherHoursForm } from './components/TeacherHoursForm';
@@ -48,8 +50,9 @@ import { CommandPalette } from './components/CommandPalette';
 import { BotChatPanel } from './components/BotChatPanel';
 import type { HoursPeriodHeader } from './utils/hoursEntryService';
 import { applyHoursEntryUpdates, reconcileLegacyHoursReports } from './utils/hoursEntryService';
+import type { OperationsActor, OperationsCardModel } from './utils/blueprintQueries';
 
-const MANAGE_TABS = new Set(['staff', 'rooms', 'activities', 'subscriptions', 'inventory', 'agreements']);
+const MANAGE_TABS = new Set(['staff', 'rooms', 'activities', 'subscriptions', 'inventory', 'agreements', 'assessments']);
 
 const initialViewFromUrl = (): ViewState => {
   if (typeof window === 'undefined') return 'CALENDAR';
@@ -57,6 +60,7 @@ const initialViewFromUrl = (): ViewState => {
   const section = pathParts[1]?.toLowerCase();
   if (section === 'payroll') return 'PAYROLL';
   if (section === 'finance' || section === 'billing') return 'BILLING';
+  if (section === 'analytics' || section === 'reports') return 'ANALYTICS';
   const tab = new URLSearchParams(window.location.search).get('tab');
   return tab && MANAGE_TABS.has(tab) ? 'MANAGE' : 'CALENDAR';
 };
@@ -147,6 +151,15 @@ function AppContent() {
   const [balanceSnapshots, , balanceSnapshotsLoading] = useSupabaseSync<BalanceSnapshot>(BLUEPRINT_COLLECTIONS.balanceSnapshots, []);
   const [agreementTemplates, setAgreementTemplates, agreementTemplatesLoading] = useSupabaseSync<AgreementTemplate>(BLUEPRINT_COLLECTIONS.agreementTemplates, []);
   const [agreementAcceptances, setAgreementAcceptances, agreementAcceptancesLoading] = useSupabaseSync<AgreementAcceptance>(BLUEPRINT_COLLECTIONS.agreementAcceptances, []);
+  const [examSessions, setExamSessions, examSessionsLoading] = useSupabaseSync<ExamSession>(BLUEPRINT_COLLECTIONS.examSessions, []);
+  const [examinerSubmissions, setExaminerSubmissions, examinerSubmissionsLoading] = useSupabaseSync<ExaminerSubmission>(BLUEPRINT_COLLECTIONS.examinerSubmissions, []);
+  const [certificates, setCertificates, certificatesLoading] = useSupabaseSync<Certificate>(BLUEPRINT_COLLECTIONS.certificates, []);
+  const [reportCards, setReportCards, reportCardsLoading] = useSupabaseSync<ReportCard>(BLUEPRINT_COLLECTIONS.reportCards, []);
+  const [concertPrograms, setConcertPrograms, concertProgramsLoading] = useSupabaseSync<ConcertProgram>(BLUEPRINT_COLLECTIONS.concertPrograms, []);
+  const [operationalRequests, setOperationalRequests, operationalRequestsLoading] = useSupabaseSync<OperationalRequest>(BLUEPRINT_COLLECTIONS.operationalRequests, []);
+  const [reportDefinitions, setReportDefinitions, reportDefinitionsLoading] = useSupabaseSync<ReportDefinition>(BLUEPRINT_COLLECTIONS.reportDefinitions, []);
+  const [importSessions, , importSessionsLoading] = useSupabaseSync<ImportSession>(V2_COLLECTIONS.importSessions, []);
+  const [instruments] = useSupabaseSync<Instrument>(BLUEPRINT_COLLECTIONS.instruments, []);
   const [calendarSubscriptions, setCalendarSubscriptions] = useSupabaseSync<CalendarSubscription>('calendarSubscriptions', []);
   const [hoursReports, setHoursReports, hoursReportsLoading] = useSupabaseSync<HoursReport>('hoursReports', []);
   const [hoursEntries, setHoursEntries, hoursEntriesLoading] = useSupabaseSync<HoursEntry>(BLUEPRINT_COLLECTIONS.hoursEntries, []);
@@ -175,6 +188,7 @@ function AppContent() {
 
   // Calendar Sidebar Tab (null = closed)
   const [sidebarTab, setSidebarTab] = useState<CalendarSidebarTab | null>(null);
+  const [hasFinanceCapability, setHasFinanceCapability] = useState(false);
 
   // Calendar Filter State (hoisted so sidebar Filters tab shares the same instance)
   const { state: filterState, set: filterSet, clear: filterClear, isActive: filterIsActive } = useCalendarFilters(orgId || '');
@@ -196,8 +210,72 @@ function AppContent() {
   const [l2Subs] = useSupabaseSync<L2Subcategory>(V2_COLLECTIONS.l2Subcategories, []);
   const [staffMembersV2] = useSupabaseSync<StaffMemberV2>(V2_COLLECTIONS.staffMembers, []);
   const [studentsV2] = useSupabaseSync<StudentV2>(V2_COLLECTIONS.students, []);
+  const [enrollmentsV2] = useSupabaseSync<EnrollmentV2>(V2_COLLECTIONS.enrollments, []);
   const [teachingAssignmentsV2] = useSupabaseSync<TeachingAssignmentV2>(V2_COLLECTIONS.teachingAssignments, []);
   const [orgRolesV2] = useSupabaseSync<OrgRoleV2>(V2_COLLECTIONS.orgRoles, []);
+
+  const reportSourceRows = useMemo(() => {
+    const studentFamilyIds: Record<string, string | null> = {};
+    for (const family of families) {
+      for (const studentId of family.studentIds || []) {
+        studentFamilyIds[studentId] = family.id;
+      }
+    }
+    return buildReportSourceRows({
+      events,
+      students,
+      studentFamilyIds,
+      enrollments: enrollmentsV2.map(enrollment => ({
+        id: enrollment.id,
+        studentId: enrollment.studentId,
+        activityId: enrollment.activityId,
+        l2Id: enrollment.l2Id,
+        status: enrollment.status,
+        startDate: enrollment.startDate,
+        endDate: enrollment.endDate,
+      })),
+      charges: charges as ReportSourceRow[],
+      payments: payments as ReportSourceRow[],
+      hoursEntries: hoursEntries as ReportSourceRow[],
+      lessonRecords: lessonRecords as ReportSourceRow[],
+      instruments: instruments as ReportSourceRow[],
+    });
+  }, [charges, enrollmentsV2, events, families, hoursEntries, instruments, lessonRecords, payments, students]);
+
+  const openReportSource = (sourceEntity: ReportSourceEntity, _sourceId: string, row?: ReportSourceRow) => {
+    if (sourceEntity === 'charges' || sourceEntity === 'payments') {
+      setFinanceFocusFamilyId(typeof row?.familyId === 'string' ? row.familyId : null);
+      setCurrentView('BILLING');
+      return;
+    }
+    if (sourceEntity === 'students') {
+      setCurrentView('STUDENTS');
+      return;
+    }
+    if (sourceEntity === 'events' || sourceEntity === 'lessonRecords') {
+      setCurrentView('CALENDAR');
+      return;
+    }
+    if (sourceEntity === 'hoursEntries') {
+      setCurrentView('PAYROLL');
+      return;
+    }
+    if (sourceEntity === 'instruments') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'inventory');
+      window.history.replaceState({}, '', url.toString());
+      setCurrentView('MANAGE');
+      return;
+    }
+    setCurrentView('ANALYTICS');
+  };
+  const operationsActor: OperationsActor = isAdmin || isSuperAdmin
+    ? 'admin'
+    : hasFinanceCapability
+      ? 'finance'
+      : currentUser
+        ? 'member'
+        : 'anonymous';
 
   // Persistent Calendar State
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -264,6 +342,34 @@ function AppContent() {
     document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
     localStorage.setItem('language', settings.language);
   }, [settings.language, isRtl]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setHasFinanceCapability(false);
+    if (LOCAL_MODE) {
+      setHasFinanceCapability(sessionStorage.getItem('e2e_finance_capability') === 'true');
+      return;
+    }
+    if (!orgId || !currentUser || isAdmin || isSuperAdmin || LOCAL_MODE) return;
+    const sb = getSupabase();
+    if (!sb) return;
+
+    void sb
+      .from('member_capabilities')
+      .select('capability')
+      .eq('org_id', orgId)
+      .eq('user_id', currentUser.uid || currentUser.id)
+      .eq('capability', 'finance')
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        setHasFinanceCapability(Boolean(data) && !error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser, isAdmin, isSuperAdmin, orgId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -394,7 +500,24 @@ function AppContent() {
     );
     setCurrentDate(new Date(earliest.start));
     setViewMode('DAY');
+    setSelectedEventIds(new Set(conflictEvents.map(event => event.id)));
     setCurrentView('CALENDAR');
+  };
+
+  const handleNavigateToOperationsCard = (card: OperationsCardModel) => {
+    if (card.status === 'BLOCKED' || card.status === 'DENIED' || !card.routeTarget) return;
+    if (card.source === 'openConflicts' || card.source === 'todayEvents') {
+      handleNavigateToConflict(card.sourceIds);
+      return;
+    }
+    if (card.routeTarget === 'MANAGE') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'subscriptions');
+      window.history.replaceState({}, '', url.toString());
+      setCurrentView('MANAGE');
+      return;
+    }
+    setCurrentView(card.routeTarget as ViewState);
   };
 
   // Navigate to staff member from inbox
@@ -509,6 +632,13 @@ function AppContent() {
         l2Subs={l2Subs}
         staffMembersV2={staffMembersV2}
         studentsV2={studentsV2}
+        concertPrograms={concertPrograms}
+        setConcertPrograms={setConcertPrograms}
+        concertProgramsLoading={concertProgramsLoading}
+        operationalRequests={operationalRequests}
+        setOperationalRequests={setOperationalRequests}
+        operationalRequestsLoading={operationalRequestsLoading}
+        setAdminInboxItems={setAdminInboxItems}
       />
     );
 
@@ -681,6 +811,20 @@ function AppContent() {
             agreementAcceptances={agreementAcceptances}
             setAgreementAcceptances={setAgreementAcceptances}
             agreementsLoading={agreementTemplatesLoading || agreementAcceptancesLoading}
+            staffMembers={staffMembersV2}
+            examSessions={examSessions}
+            setExamSessions={setExamSessions}
+            examinerSubmissions={examinerSubmissions}
+            setExaminerSubmissions={setExaminerSubmissions}
+            certificates={certificates}
+            setCertificates={setCertificates}
+            reportCards={reportCards}
+            setReportCards={setReportCards}
+            assessmentsLoading={examSessionsLoading || examinerSubmissionsLoading || certificatesLoading || reportCardsLoading}
+            canManageAssessments={isAdmin || isSuperAdmin}
+            concertPrograms={concertPrograms}
+            setConcertPrograms={setConcertPrograms}
+            concertProgramsLoading={concertProgramsLoading}
             orgId={orgId}
             actorId={currentUser?.id ?? null}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
@@ -707,6 +851,10 @@ function AppContent() {
             events={events}
             agreementTemplates={agreementTemplates}
             agreementAcceptances={agreementAcceptances}
+            examSessions={examSessions}
+            examinerSubmissions={examinerSubmissions}
+            certificates={certificates}
+            reportCards={reportCards}
             setStudents={setStudents}
             setFamilies={setFamilies}
             orgId={orgId}
@@ -718,6 +866,7 @@ function AppContent() {
             balanceSnapshots={balanceSnapshots}
             financeLedgerLoading={chargesLoading || paymentsLoading || adjustmentsLoading || balanceSnapshotsLoading}
             agreementsLoading={agreementTemplatesLoading || agreementAcceptancesLoading}
+            assessmentsLoading={examSessionsLoading || examinerSubmissionsLoading || certificatesLoading || reportCardsLoading}
             onOpenFinanceLedger={(familyId) => {
               setFinanceFocusFamilyId(familyId);
               setCurrentView('BILLING');
@@ -746,6 +895,23 @@ function AppContent() {
             loading={chargesLoading || paymentsLoading || adjustmentsLoading || balanceSnapshotsLoading || familiesLoading}
             canManageLedger={isAdmin || isSuperAdmin}
             canExportLedger={isAdmin || isSuperAdmin}
+            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+          />
+        );
+      case 'ANALYTICS':
+        return (
+          <ReportsWorkspace
+            settings={settings}
+            definitions={reportDefinitions}
+            sourceRowsByEntity={reportSourceRows}
+            loading={reportDefinitionsLoading}
+            canAccessReports={isAdmin || isSuperAdmin || hasFinanceCapability}
+            canManageDefinitions={isAdmin || isSuperAdmin}
+            actor={hasFinanceCapability && !isAdmin && !isSuperAdmin ? 'finance' : 'admin'}
+            actorId={currentUser?.id ?? currentUser?.uid ?? null}
+            orgId={orgId}
+            onSaveDefinitions={setReportDefinitions}
+            onOpenSource={openReportSource}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
           />
         );
@@ -790,6 +956,8 @@ function AppContent() {
                 setAdminInboxItems([]);
                 setHoursReports([]);
                 setCalendarSubscriptions([]);
+                setConcertPrograms([]);
+                setOperationalRequests([]);
 
                 // 2. Delete persisted data so listeners don't re-populate state.
                 if (LOCAL_MODE && orgId) {
@@ -806,6 +974,8 @@ function AppContent() {
                       wipeCol('adminInboxItems'),
                       wipeCol('hoursReports'),
                       wipeCol(BLUEPRINT_COLLECTIONS.hoursEntries),
+                      wipeCol(BLUEPRINT_COLLECTIONS.concertPrograms),
+                      wipeCol(BLUEPRINT_COLLECTIONS.operationalRequests),
                       wipeCol('calendarSubscriptions'),
                       // v2 collections
                       wipeCol(V2_COLLECTIONS.staffMembers),
@@ -851,10 +1021,20 @@ function AppContent() {
             events={events}
             setEvents={setEvents}
             rooms={rooms}
+            operationalRequests={operationalRequests}
+            setOperationalRequests={setOperationalRequests}
+            operationalRequestsLoading={operationalRequestsLoading}
+            hoursEntries={hoursEntries}
+            reportDefinitions={reportDefinitions}
+            importSessions={importSessions}
+            operationsActor={operationsActor}
+            canAccessOperations={isAdmin || isSuperAdmin || hasFinanceCapability}
+            operationsLoading={hoursEntriesLoading || reportDefinitionsLoading || importSessionsLoading}
             settings={settings}
             onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
             onNavigateToEvent={handleNavigateToConflict}
             onNavigateToStaff={handleNavigateToStaff}
+            onNavigateToOperationsCard={handleNavigateToOperationsCard}
           />
         );
       case 'SETTINGS':

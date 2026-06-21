@@ -1,16 +1,18 @@
 # Reports And Analytics  (`reports-analytics`)
 
-Status: `planned` (per `features/forteTree.ts`) -> target `implemented`.
+Status: `implemented` under bird's-eye mode. Static schema/source-authorization
+coverage and local/e2e product checks are in place; live Supabase RLS for
+`0012_report_definition_rls.sql` remains a release-hardening gate and production
+security is not claimed until it passes without skips.
 Priority: p1
-Owner-decisions still blocking this packet: source-specific report packs are
-**BLOCKED ON D-21** for absence/day-off side-effect reports, **BLOCKED
-ON D-22** for richer assessment/document-delivery reports, **BLOCKED ON D-23** for
-public event/program exposure reports, **BLOCKED ON D-24** for consent revocation
-reports, **BLOCKED ON D-25** for instrument deposit/refund reports, **BLOCKED ON
-D-26** for HR/evaluation reports, and **BLOCKED ON D-27** for rollover
-grade/schedule-copy reports. Core authenticated report-definition management,
-run, lineage, and CSV export over currently allowed source rows is otherwise
-unblocked by accepted D-08, D-09, D-15, D-16, D-17, D-18, D-19, and D-20.
+Owner-decisions still reviewable for later source-specific packs: provisional
+**D-21** absence/day-off side-effect reports, **D-22** richer assessment/document
+delivery reports, **D-23** public event/program exposure reports, **D-24** consent
+revocation reports, **D-25** instrument deposit/refund reports, **D-26** HR/
+evaluation reports, and **D-27** rollover grade/schedule-copy reports. Core
+authenticated report-definition management, run, lineage, grouped chart view, and
+CSV export over currently allowed source rows is implemented under accepted
+D-08, D-09, D-15, D-16, D-17, D-18, D-19, and D-20.
 Guardian/contact reports may use `families.guardians[]` jsonb only after
 student-family source authorization exists.
 Current accepted prerequisites: **D-08** (finance capability), **D-09**
@@ -19,29 +21,30 @@ Current accepted prerequisites: **D-08** (finance capability), **D-09**
 lesson attendance ships).
 
 ## Current State (ground truth, with file refs)
-- Existing UI: no dedicated reports/analytics product surface. `ViewState.ANALYTICS`
-  exists in `types.ts` and `CommandPalette.tsx` labels/icons, but `App.tsx` does
-  not route it and D-02 keeps it hidden until a real surface ships. Existing
-  hours-report comparison UI (`components/HoursComparisonView.tsx`) belongs to
-  the payroll/hours workflow; `components/ConservatoryBlueprint.tsx` is a planning
-  coverage dashboard, not operational reporting. Recharts is installed, and
-  `utils/csvUtils.ts` has generic CSV utilities, but reports should be
-  query-backed tables first.
+- Existing UI: `ViewState.ANALYTICS` routes to `ReportsWorkspace` in `App.tsx`
+  and is command-palette visible with no sidebar entry. The workspace includes
+  report library search/source/status filters, admin create/edit/pin builder,
+  run/result table, grouped Recharts bar view, CSV export, source-lineage links,
+  finance read-only run/export behavior, permission/empty/loading/error/stale
+  states, EN/HE labels, and RTL-safe values.
 - Existing schema: `report_definitions` is a normalized Blueprint table from
   `0002` with `name`, `description`, `source_entity`, `filters[]`, `group_by`,
   `aggregate`, `columns[]`, `is_pinned`, and audit columns. Source rows come from
   existing HYBRID and normalized tables (`events`, `students`, `enrollments`,
-  `charges`, `payments`, `hours_entries`, `lesson_records`, `instruments`, and
-  related source modules). Current `report_definitions` RLS inherits uniform
-  org-member read/admin write, which is too broad for D-09. `0004` narrows ledger
-  tables and `hours_entries` per D-08, but does not yet narrow the reports module.
-- Existing query helpers: `runReportDefinition`, `exportReportCsv`, and
-  `getReportLineage` in `utils/blueprintQueries.ts`.
-- Existing tests: `utils/blueprintQueries.test.ts` covers filtering/grouping/
-  projection, CSV quoting, and lineage. `utils/supabaseSync.ts` maps
-  `reportDefinitions -> report_definitions` as `NORMALIZED`. No product UI, RLS,
-  source-row authorization, saved-report management, chart rendering, export
-  audit, or Playwright workflow tests exist for this module.
+  `charges`, `payments`, `hours_entries`, `lesson_records`, and `instruments`).
+  Migration `0012_report_definition_rls.sql` narrows direct definition access to
+  D-09 admin plus finance-capability reads for finance/payroll sources only.
+  The live remote project has not applied `0012`, so live RLS remains tracked in
+  `RELEASE_HARDENING_GATES.md`.
+- Existing query helpers: `runReportDefinition`, `exportReportCsv`,
+  `getReportLineage`, source/field allowlists, blocked-source markers, and
+  finance source authorization live in `utils/blueprintQueries.ts`.
+- Existing tests: `utils/blueprintQueries.test.ts`,
+  `utils/supabaseSchema.test.ts`, `utils/rlsLive.test.ts`,
+  `components/ReportsWorkspace.test.tsx`, and
+  `e2e/reports-library.spec.ts` cover helper behavior, mapping/schema/RLS gates,
+  UI builder/run/export/lineage, finance read-only limits, denied student/
+  attendance definitions for finance, and Hebrew/RTL library rendering.
 - Feature-tree declared queries: `runReportDefinition`, `exportReportCsv`,
   `getReportLineage` -- implemented.
 

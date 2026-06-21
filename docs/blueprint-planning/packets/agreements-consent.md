@@ -1,14 +1,15 @@
 # Agreements And Consent  (`agreements-consent`)
 
-Status: `gap` (per `features/forteTree.ts`) -> target `implemented`.
+Status: `implemented` for bird's-eye product shape as of 2026-06-19.
+Live Supabase RLS/migration verification remains a release-hardening gate; do
+not claim production security until agreement live RLS tests pass without skips.
 Priority: p1
-Owner-decisions still blocking this packet: **BLOCKED ON D-22** for
-assessment/report-card guardian delivery consent language, **BLOCKED ON D-23**
-for public performance or media-release disclosure rules, **BLOCKED ON D-24**
-for consent withdrawal/revocation semantics, and **BLOCKED ON D-25** for
-instrument-loan deposit/refund terms. Core authenticated template management,
-agreement request tracking, typed e-signature, and PDF upload capture are
-otherwise unblocked by current accepted decisions.
+Provisional policy areas still requiring production review: **D-22** for
+assessment/report-card guardian delivery release, **D-23** for public
+performance or media-release disclosure rules, **D-24** for consent
+withdrawal/revocation downstream effects, and **D-25** for instrument-loan
+deposit/refund terms. Core authenticated template management, agreement request
+tracking, typed e-signature, and PDF upload capture are built.
 Current accepted prerequisites: **D-03** (editable Family), **D-04** (canonical
 student adapter), **D-07** (controlled public/token write path with explicit
 consent/setup), **D-11** (typed signature plus PDF upload), **D-14** (inert
@@ -16,11 +17,14 @@ public endpoint registry), **D-15** (packet-local backfill), and **D-16** (P0
 guardian/contact data stays in `families.guardians[]` jsonb).
 
 ## Current State (ground truth)
-- Existing UI: no agreement-template manager, no unsigned-agreement queue, no
-  student/family agreement tab, no tokenized signing page, and no PDF capture
-  workflow. `components/DocumentSection.tsx` can upload `DocumentEntry` records
-  for existing document surfaces, but there is no agreements-specific document
-  workflow.
+- Existing UI: the Manage `agreements` tab provides list/search/filter,
+  create/version/activate/deactivate, pending request issuance, request history,
+  unsigned queue, empty/loading/error states, EN/HE labels, and RTL-safe template
+  bodies. Student/family detail shows contextual agreement history and unsigned
+  status from synced templates and acceptances using `families.guardians[]`
+  guardian data. `/agreement/:token` provides the mobile public signing surface
+  for typed accept/decline, and the admin surface captures private countersigned
+  PDF references in `signatureRef`.
 - Existing schema: `agreement_templates` and `agreement_acceptances` are
   normalized Blueprint tables from `0002`. Templates store `kind`, `title`,
   monotonic `version`, `body`, `is_active`, `supersedes_version`, and
@@ -30,18 +34,24 @@ guardian/contact data stays in `families.guardians[]` jsonb).
   `accepted_by_name`, and `signature_ref`. `public_endpoints` from `0004`
   includes `kind = AGREEMENT_ACCEPTANCE`, but remains inert/admin-only with no
   anon policy.
-- Existing RLS: `0002` gives `agreement_templates` and `agreement_acceptances`
-  the uniform Blueprint policy pair: org-member read and admin write. That is too
-  broad for signed consent records and signed PDFs, so launch requires RLS and
-  storage refinements.
+- Existing RLS: local/static migrations `0008_agreement_direct_table_rls.sql`,
+  `0009_agreement_acceptance_public_submit.sql`,
+  `0010_agreement_private_pdf_storage_rls.sql`, and
+  `0011_agreement_acceptance_public_read.sql` narrow agreement table/storage
+  access and add scoped D-07/D-14 public RPC paths. The remote project has not
+  applied those migrations yet, so live real-role agreement RLS remains open in
+  `RELEASE_HARDENING_GATES.md`.
 - Existing query/helpers: `listUnsignedAgreements`, `getAgreementHistory`, and
   `findAgreementByEnrollment` in `utils/blueprintQueries.ts`.
-- Existing tests: `utils/blueprintQueries.test.ts` covers unsigned active-version
-  detection, superseded-version detection, history sorting, and enrollment lookup.
-  `utils/supabaseSync.ts` maps `agreementTemplates` and `agreementAcceptances` as
-  `NORMALIZED`, and `docs/SUPABASE_MIGRATION_MAP.md` records the tables. No UI,
-  RLS, storage-policy, public-token, PDF-upload, or Playwright workflow tests
-  exist for this module.
+- Existing tests: helper/mapping tests cover unsigned agreement selection,
+  history sorting, enrollment lookup, family/enrollment/guardian targets,
+  inactive/declined/expired/superseded rows, and normalized Supabase mappings for
+  templates, acceptances, and public endpoints. Static schema tests cover
+  agreement table/storage restrictions and public token RPC shape; env-gated live
+  tests are present but currently skip until remote migrations `0008`-`0011` are
+  applied. Component and Playwright smokes cover admin template/request
+  management, mobile typed signing, accepted history, unsigned-helper clearing,
+  and private PDF reference capture.
 - Feature-tree declared queries: `listUnsignedAgreements`,
   `getAgreementHistory`, `findAgreementByEnrollment` -- implemented.
 - Feature-tree drift to resolve during implementation: `agentReadable.auditFields`

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CalendarEvent, Student } from '../types';
-import type { AgreementAcceptance, AgreementTemplate, Family, LessonRecord } from '../types/blueprint';
+import type { AgreementAcceptance, AgreementTemplate, Certificate, ExamSession, ExaminerSubmission, Family, LessonRecord, ReportCard as BlueprintReportCard } from '../types/blueprint';
 import type { ActivityV2 } from '../types/v2';
 import { buildFamilyDetailModel, buildStudentDetailModel } from './studentFamilyDetail';
 
@@ -190,6 +190,118 @@ describe('student/family detail model', () => {
       homework: 'Scales',
       notes: 'Worked on phrasing',
     });
+  });
+
+  it('builds private normalized assessment history for student detail', () => {
+    const student = makeStudent();
+    const sessions: ExamSession[] = [
+      {
+        id: 'exam_1',
+        orgId: 'org_1',
+        name: 'Spring Piano Exam',
+        activityId: 'act_piano',
+        date: '2026-06-20',
+        status: 'GRADED',
+        examinerStaffIds: ['staff_1', 'staff_2'],
+        studentIds: ['stu_1'],
+        notes: null,
+        createdAt: '2026-06-01T08:00:00.000Z',
+        updatedAt: '2026-06-20T08:00:00.000Z',
+        createdBy: 'admin_1',
+        updatedBy: 'admin_1',
+      },
+      {
+        id: 'exam_cancelled',
+        orgId: 'org_1',
+        name: 'Cancelled Exam',
+        activityId: null,
+        date: '2026-06-21',
+        status: 'CANCELLED',
+        examinerStaffIds: ['staff_1'],
+        studentIds: ['stu_1'],
+        notes: null,
+        createdAt: '2026-06-01T08:00:00.000Z',
+        updatedAt: '2026-06-21T08:00:00.000Z',
+        createdBy: 'admin_1',
+        updatedBy: 'admin_1',
+      },
+    ];
+    const submissions: ExaminerSubmission[] = [
+      {
+        id: 'submission_1',
+        orgId: 'org_1',
+        examSessionId: 'exam_1',
+        studentId: 'stu_1',
+        examinerStaffId: 'staff_1',
+        score: 90,
+        grade: 'A',
+        remarks: 'Ready for certificate.',
+        submittedAt: '2026-06-20T09:00:00.000Z',
+        createdAt: '2026-06-20T08:00:00.000Z',
+        updatedAt: '2026-06-20T09:00:00.000Z',
+        createdBy: 'staff_1',
+        updatedBy: 'staff_1',
+      },
+      {
+        id: 'submission_2',
+        orgId: 'org_1',
+        examSessionId: 'exam_1',
+        studentId: 'stu_1',
+        examinerStaffId: 'staff_2',
+        score: 80,
+        grade: 'B',
+        remarks: null,
+        submittedAt: '2026-06-20T10:00:00.000Z',
+        createdAt: '2026-06-20T08:00:00.000Z',
+        updatedAt: '2026-06-20T10:00:00.000Z',
+        createdBy: 'staff_2',
+        updatedBy: 'staff_2',
+      },
+    ];
+    const certificates: Certificate[] = [
+      {
+        id: 'cert_1',
+        orgId: 'org_1',
+        studentId: 'stu_1',
+        examSessionId: 'exam_1',
+        title: 'Grade 4 Certificate',
+        level: '4',
+        status: 'ISSUED',
+        issuedAt: '2026-06-21T09:00:00.000Z',
+        documentUrl: null,
+        documentPath: 'org_1/certificates/cert_1/certificate.pdf',
+        createdAt: '2026-06-21T08:00:00.000Z',
+        updatedAt: '2026-06-21T09:00:00.000Z',
+        createdBy: 'admin_1',
+        updatedBy: 'admin_1',
+      },
+    ];
+    const reportCards: BlueprintReportCard[] = [
+      {
+        id: 'report_1',
+        orgId: 'org_1',
+        studentId: 'stu_1',
+        periodLabel: '2026 Semester 1',
+        activityId: 'act_piano',
+        lines: [{ subject: 'Technique', grade: 'A', comment: 'Secure intonation.' }],
+        summary: 'Private draft.',
+        publishedAt: null,
+        createdAt: '2026-06-21T08:00:00.000Z',
+        updatedAt: '2026-06-21T08:00:00.000Z',
+        createdBy: 'admin_1',
+        updatedBy: 'admin_1',
+      },
+    ];
+
+    const detail = buildStudentDetailModel(student.id, [student], [makeFamily()], activities, [], [], [], [], sessions, submissions, certificates, reportCards);
+
+    expect(detail?.assessments.averageScore).toBe(85);
+    expect(detail?.assessments.issuedCertificateCount).toBe(1);
+    expect(detail?.assessments.draftReportCardCount).toBe(1);
+    expect(detail?.assessments.sessions).toMatchObject([
+      { id: 'exam_1', activityName: 'Piano', submittedCount: 2, expectedCount: 2 },
+    ]);
+    expect(detail?.assessments.certificates.map(row => row.title)).toEqual(['Grade 4 Certificate']);
   });
 
   it('builds student agreement history and unsigned status from contextual enrollment targets', () => {
