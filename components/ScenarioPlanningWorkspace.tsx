@@ -5,6 +5,7 @@ import type { ActivityV2, StaffMemberV2 } from '../types/v2';
 import type { Scenario, ScenarioDateRange, ScenarioDelta, ScenarioExcludedRecordsBehavior, ScenarioLens, ScenarioStartMode } from '../types/scenario';
 import { generateId } from '../constants';
 import { buildScenarioPromoteRequest, computeScenarioDiff, computeScenarioDrift, computeScenarioFinanceImpact, computeScenarioSummary } from '../utils/scenarioEngine';
+import { TagInput } from './TagInput';
 
 interface ScenarioPlanningWorkspaceProps {
   scenarios: Scenario[];
@@ -85,6 +86,11 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
   const [draftName, setDraftName] = useState('');
   const [showRefine, setShowRefine] = useState(false);
   const base = useMemo(() => ({ events, rooms, activities, staff }), [events, rooms, activities, staff]);
+  const availableTags = useMemo<string[]>(() => {
+    const tags = new Set<string>();
+    events.forEach(event => (event.tags || []).forEach(tag => tags.add(String(tag))));
+    return Array.from(tags).sort((a, b) => a.localeCompare(b));
+  }, [events]);
   const selectedScenario = scenarios.find(scenario => scenario.id === selectedScenarioId) ?? scenarios[0] ?? null;
 
   const scenarioRows = useMemo(() => scenarios
@@ -324,6 +330,19 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
               </div>
             </div>
 
+            {selectedSummary && selectedSummary.changedRecords > 0 && (selectedSummary.conflictCount > 0 || selectedSummary.driftCount > 0) && (
+              <div className="rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-4 py-2.5 text-sm text-amber-800 dark:text-amber-200 flex items-center gap-2">
+                <AlertTriangle size={16} className="shrink-0" />
+                <span>
+                  {selectedSummary.conflictCount > 0 && selectedSummary.driftCount > 0
+                    ? 'Resolve the double-bookings and out-of-date items before you can send this plan for approval.'
+                    : selectedSummary.conflictCount > 0
+                      ? 'Resolve the double-bookings before you can send this plan for approval.'
+                      : 'The real schedule changed since you started — review the out-of-date items before you can send this plan for approval.'}
+                </span>
+              </div>
+            )}
+
             <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-5">
               <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
                 <h3 className="font-bold mb-1">Plan dates</h3>
@@ -441,15 +460,17 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
                           {staff.length === 0 && <div className="text-sm text-slate-500 p-2">No staff available.</div>}
                         </div>
                       </div>
-                      <label className="text-sm">
+                      <div className="text-sm">
                         <span className="block text-xs font-semibold text-slate-500 mb-2">Event tags</span>
-                        <input
-                          value={selectedScenario.lens.includedEventTags.join(', ')}
-                          onChange={event => updateLens({ includedEventTags: event.target.value.split(',').map(tag => tag.trim()).filter(Boolean) })}
-                          placeholder="e.g. recital, makeup"
-                          className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2"
+                        <TagInput
+                          tags={selectedScenario.lens.includedEventTags}
+                          availableTags={availableTags}
+                          onAdd={tag => updateLens({ includedEventTags: [...selectedScenario.lens.includedEventTags, tag] })}
+                          onRemove={tag => updateLens({ includedEventTags: selectedScenario.lens.includedEventTags.filter(existing => existing !== tag) })}
+                          placeholder="Type a tag…"
+                          selectPlaceholder="Pick an existing tag"
                         />
-                      </label>
+                      </div>
                     </div>
 
                     <div className="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3 text-xs text-slate-500">

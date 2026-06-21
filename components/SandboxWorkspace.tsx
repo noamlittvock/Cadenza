@@ -18,6 +18,7 @@ import {
   type ScenarioEventMovePatch,
 } from '../utils/scenarioCalendarAdapter';
 import { detectRoomConflicts, getConflictingEventIds } from '../utils/roomConflicts';
+import { ScenarioStaffPicker } from './ScenarioStaffPicker';
 
 interface SandboxWorkspaceProps {
   scenario: Scenario;
@@ -207,16 +208,12 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
   };
 
   const roomName = (roomId?: string) => rooms.find(room => room.id === roomId)?.name || 'Unassigned';
-  const staffName = (staffId: string) => staff.find(member => member.id === staffId)?.fullName || staffId;
   const staffIdsChanged = (event: CalendarEvent) => {
     const live = liveById.get(event.id);
     const before = [...new Set(live?.staffMemberIds || [])].sort();
     const after = [...new Set(event.staffMemberIds || [])].sort();
     return JSON.stringify(before) !== JSON.stringify(after);
   };
-  const selectedStaffIdsFrom = (select: HTMLSelectElement): string[] => (
-    Array.from(select.selectedOptions).map(option => option.value).filter(Boolean)
-  );
   const formatStamp = new Date(scenario.baseSnapshotAt).toLocaleString(settings.language);
 
   return (
@@ -265,6 +262,13 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
             <span>{eventSet.lockedContextEventIds.length} read-only events</span>
             {eventSet.hiddenBaseEventIds.length > 0 && <span>{eventSet.hiddenBaseEventIds.length} hidden</span>}
           </div>
+
+          {drift.length > 0 && (
+            <div className="shrink-0 px-4 py-2.5 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-300 dark:border-amber-800 flex items-center gap-2 text-sm text-amber-800 dark:text-amber-200">
+              <AlertTriangle size={16} className="shrink-0" />
+              <span>The real schedule changed since you started this plan — review the <span className="font-semibold">Out of date</span> items before applying.</span>
+            </div>
+          )}
 
           <div className="flex-1 overflow-hidden grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px]">
             <section className="overflow-auto custom-scrollbar p-4">
@@ -431,9 +435,6 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                                       <span className="truncate">{item.event.name}</span>
                                     </div>
                                     <div className="text-[11px] text-slate-500 truncate">{roomName(item.event.roomId)}</div>
-                                    <div className="text-[11px] text-slate-500 truncate">
-                                      {(item.event.staffMemberIds || []).map(staffName).join(', ') || 'No staff'}
-                                    </div>
                                     <div className="mt-1 grid grid-cols-2 gap-1">
                                       <input
                                         type="time"
@@ -450,16 +451,15 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                                         className="min-w-0 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-1 py-0.5 disabled:opacity-50"
                                       />
                                     </div>
-                                    <select
-                                      multiple
-                                      size={Math.min(2, Math.max(1, staff.length))}
-                                      value={item.event.staffMemberIds || []}
-                                      disabled={meta?.lockedContext}
-                                      onChange={e => updateEventDelta(item.event, { staffMemberIds: selectedStaffIdsFrom(e.currentTarget) })}
-                                      className="mt-1 w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-1 py-0.5 disabled:opacity-50"
-                                    >
-                                      {staff.map(member => <option key={member.id} value={member.id}>{member.fullName}</option>)}
-                                    </select>
+                                    <div className="mt-1">
+                                      <ScenarioStaffPicker
+                                        staff={staff}
+                                        value={item.event.staffMemberIds || []}
+                                        onChange={ids => updateEventDelta(item.event, { staffMemberIds: ids })}
+                                        disabled={meta?.lockedContext}
+                                        compact
+                                      />
+                                    </div>
                                   </div>
                                 );
                               })}
@@ -553,17 +553,13 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                               </select>
                             </td>
                             <td className="px-3 py-2">
-                              <select
-                                multiple
-                                size={Math.min(3, Math.max(1, staff.length))}
+                              <ScenarioStaffPicker
+                                staff={staff}
                                 value={event.staffMemberIds || []}
+                                onChange={ids => updateEventDelta(event, { staffMemberIds: ids })}
                                 disabled={locked}
-                                onChange={e => updateEventDelta(event, { staffMemberIds: selectedStaffIdsFrom(e.currentTarget) })}
-                                className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1 disabled:opacity-50"
-                              >
-                                {staff.map(member => <option key={member.id} value={member.id}>{member.fullName}</option>)}
-                              </select>
-                              {staff.length === 0 && <div className="text-xs text-slate-500">No staff loaded</div>}
+                              />
+                              {staff.length === 0 && <div className="text-xs text-slate-500">No staff available</div>}
                             </td>
                             <td className="px-3 py-2">
                               <div className="flex flex-wrap gap-1">

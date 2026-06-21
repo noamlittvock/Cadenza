@@ -271,7 +271,7 @@ describe('scenarioEngine', () => {
     expect(drift[0]).toMatchObject({
       recordId: 'e1',
       severity: 'missing',
-      message: 'Referenced staff member missing-staff no longer exists.',
+      message: 'A staff member assigned here no longer exists.',
     });
   });
 
