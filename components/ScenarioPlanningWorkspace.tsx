@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { Copy, FlaskConical, Menu, Plus, Trash2, Play, Save, GitCompareArrows, AlertTriangle } from 'lucide-react';
+import { Copy, FlaskConical, Menu, Plus, Trash2, Play, Save, GitCompareArrows, AlertTriangle, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 import type { AdminInboxItem, CalendarEvent, Room, AppSettings } from '../types';
 import type { ActivityV2, StaffMemberV2 } from '../types/v2';
-import type { Scenario, ScenarioDelta, ScenarioExcludedRecordsBehavior, ScenarioLens, ScenarioStartMode } from '../types/scenario';
+import type { Scenario, ScenarioDateRange, ScenarioDelta, ScenarioExcludedRecordsBehavior, ScenarioLens, ScenarioStartMode } from '../types/scenario';
 import { generateId } from '../constants';
 import { buildScenarioPromoteRequest, computeScenarioDiff, computeScenarioDrift, computeScenarioFinanceImpact, computeScenarioSummary } from '../utils/scenarioEngine';
 
@@ -30,6 +30,21 @@ const addDaysInput = (days: number) => {
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
 };
+
+const ymdLocal = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const monthRange = (monthOffset: number): ScenarioDateRange => {
+  const now = new Date();
+  return {
+    start: ymdLocal(new Date(now.getFullYear(), now.getMonth() + monthOffset, 1)),
+    end: ymdLocal(new Date(now.getFullYear(), now.getMonth() + monthOffset + 1, 0)),
+  };
+};
+const DATE_PRESETS: Array<{ label: string; range: () => ScenarioDateRange }> = [
+  { label: 'This month', range: () => monthRange(0) },
+  { label: 'Next month', range: () => monthRange(1) },
+  { label: 'Next 30 days', range: () => ({ start: todayInput(), end: addDaysInput(30) }) },
+];
 
 const defaultLens = (): ScenarioLens => ({
   startMode: 'LIVE_SNAPSHOT',
@@ -68,6 +83,7 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
 }) => {
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(scenarios[0]?.id ?? null);
   const [draftName, setDraftName] = useState('');
+  const [showRefine, setShowRefine] = useState(false);
   const base = useMemo(() => ({ events, rooms, activities, staff }), [events, rooms, activities, staff]);
   const selectedScenario = scenarios.find(scenario => scenario.id === selectedScenarioId) ?? scenarios[0] ?? null;
 
@@ -310,29 +326,28 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
 
             <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-5">
               <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-                <h3 className="font-bold mb-4">What's included</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="text-sm">
-                    <span className="block text-xs font-semibold text-slate-500 mb-1">Start from</span>
-                    <select
-                      value={selectedScenario.lens.startMode}
-                      onChange={event => updateLens({ startMode: event.target.value as ScenarioStartMode })}
-                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2"
-                    >
-                      <option value="LIVE_SNAPSHOT">The current schedule</option>
-                      <option value="BLANK_SLATE">An empty schedule</option>
-                    </select>
-                  </label>
-                  <label className="text-sm">
-                    <span className="block text-xs font-semibold text-slate-500 mb-1">Events outside this plan</span>
-                    <select
-                      value={selectedScenario.lens.excludedRecordsBehavior}
-                      onChange={event => updateLens({ excludedRecordsBehavior: event.target.value as ScenarioExcludedRecordsBehavior })}
-                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2"
-                    >
-                      {Object.entries(behaviorLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                    </select>
-                  </label>
+                <h3 className="font-bold mb-1">Plan dates</h3>
+                <p className="text-xs text-slate-500 mb-3">Choose the time period you want to plan, then open the draft to start making changes.</p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {DATE_PRESETS.map(preset => {
+                    const range = preset.range();
+                    const active = selectedScenario.lens.dateRange.start === range.start && selectedScenario.lens.dateRange.end === range.end;
+                    return (
+                      <button
+                        key={preset.label}
+                        onClick={() => updateLens({ dateRange: range })}
+                        className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${
+                          active
+                            ? 'border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-600'
+                            : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <label className="text-sm">
                     <span className="block text-xs font-semibold text-slate-500 mb-1">Start date</span>
                     <input
@@ -353,57 +368,95 @@ export const ScenarioPlanningWorkspace: React.FC<ScenarioPlanningWorkspaceProps>
                   </label>
                 </div>
 
-                <div className="mt-5">
-                  <div className="text-xs font-semibold text-slate-500 mb-2">Rooms in this plan</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {rooms.map(room => (
-                      <label key={room.id} className="flex items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 text-sm">
-                        <input type="checkbox" checked={selectedScenario.lens.includedRoomIds.includes(room.id)} onChange={() => toggleRoom(room.id)} />
-                        <span className="truncate">{room.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <p className="text-xs text-slate-500 mt-2">Leave empty to include all rooms.</p>
-                </div>
+                <button
+                  onClick={() => setShowRefine(value => !value)}
+                  className="mt-5 w-full flex items-center justify-between gap-2 rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                >
+                  <span className="flex items-center gap-2"><SlidersHorizontal size={15} className="text-slate-400" /> Refine — focus on specific rooms, teachers, or activities</span>
+                  {showRefine ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
 
-                <div className="mt-5 grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <div>
-                    <div className="text-xs font-semibold text-slate-500 mb-2">Activities</div>
-                    <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800 p-2 space-y-1">
-                      {activities.slice(0, 20).map(activity => (
-                        <label key={activity.id} className="flex items-center gap-2 px-2 py-1 text-sm">
-                          <input type="checkbox" checked={selectedScenario.lens.includedActivityIds.includes(activity.id)} onChange={() => toggleActivity(activity.id)} />
-                          <span className="truncate">{activity.name}</span>
-                        </label>
-                      ))}
-                      {activities.length === 0 && <div className="text-sm text-slate-500 p-2">No activities available.</div>}
+                {showRefine && (
+                  <div className="mt-4 space-y-5 border-t border-slate-200 dark:border-slate-800 pt-4">
+                    <p className="text-xs text-slate-500">All optional. By default your plan covers the whole schedule within the dates above.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <label className="text-sm">
+                        <span className="block text-xs font-semibold text-slate-500 mb-1">Start from</span>
+                        <select
+                          value={selectedScenario.lens.startMode}
+                          onChange={event => updateLens({ startMode: event.target.value as ScenarioStartMode })}
+                          className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2"
+                        >
+                          <option value="LIVE_SNAPSHOT">The current schedule</option>
+                          <option value="BLANK_SLATE">An empty schedule</option>
+                        </select>
+                      </label>
+                      <label className="text-sm">
+                        <span className="block text-xs font-semibold text-slate-500 mb-1">Events outside this plan</span>
+                        <select
+                          value={selectedScenario.lens.excludedRecordsBehavior}
+                          onChange={event => updateLens({ excludedRecordsBehavior: event.target.value as ScenarioExcludedRecordsBehavior })}
+                          className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2"
+                        >
+                          {Object.entries(behaviorLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                        </select>
+                      </label>
                     </div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-slate-500 mb-2">Teachers & staff</div>
-                    <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800 p-2 space-y-1">
-                      {staff.slice(0, 30).map(member => (
-                        <label key={member.id} className="flex items-center gap-2 px-2 py-1 text-sm">
-                          <input type="checkbox" checked={selectedScenario.lens.includedStaffIds.includes(member.id)} onChange={() => toggleStaff(member.id)} />
-                          <span className="truncate">{member.fullName}</span>
-                        </label>
-                      ))}
-                      {staff.length === 0 && <div className="text-sm text-slate-500 p-2">No staff available.</div>}
+
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500 mb-2">Rooms in this plan</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {rooms.map(room => (
+                          <label key={room.id} className="flex items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 text-sm">
+                            <input type="checkbox" checked={selectedScenario.lens.includedRoomIds.includes(room.id)} onChange={() => toggleRoom(room.id)} />
+                            <span className="truncate">{room.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2">Leave empty to include all rooms.</p>
                     </div>
-                  </div>
-                  <label className="text-sm">
-                    <span className="block text-xs font-semibold text-slate-500 mb-2">Event tags</span>
-                    <input
-                      value={selectedScenario.lens.includedEventTags.join(', ')}
-                      onChange={event => updateLens({ includedEventTags: event.target.value.split(',').map(tag => tag.trim()).filter(Boolean) })}
-                      placeholder="e.g. recital, makeup"
-                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2"
-                    />
-                    <div className="mt-4 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3 text-xs text-slate-500">
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                      <div>
+                        <div className="text-xs font-semibold text-slate-500 mb-2">Activities</div>
+                        <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800 p-2 space-y-1">
+                          {activities.slice(0, 20).map(activity => (
+                            <label key={activity.id} className="flex items-center gap-2 px-2 py-1 text-sm">
+                              <input type="checkbox" checked={selectedScenario.lens.includedActivityIds.includes(activity.id)} onChange={() => toggleActivity(activity.id)} />
+                              <span className="truncate">{activity.name}</span>
+                            </label>
+                          ))}
+                          {activities.length === 0 && <div className="text-sm text-slate-500 p-2">No activities available.</div>}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-slate-500 mb-2">Teachers & staff</div>
+                        <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800 p-2 space-y-1">
+                          {staff.slice(0, 30).map(member => (
+                            <label key={member.id} className="flex items-center gap-2 px-2 py-1 text-sm">
+                              <input type="checkbox" checked={selectedScenario.lens.includedStaffIds.includes(member.id)} onChange={() => toggleStaff(member.id)} />
+                              <span className="truncate">{member.fullName}</span>
+                            </label>
+                          ))}
+                          {staff.length === 0 && <div className="text-sm text-slate-500 p-2">No staff available.</div>}
+                        </div>
+                      </div>
+                      <label className="text-sm">
+                        <span className="block text-xs font-semibold text-slate-500 mb-2">Event tags</span>
+                        <input
+                          value={selectedScenario.lens.includedEventTags.join(', ')}
+                          onChange={event => updateLens({ includedEventTags: event.target.value.split(',').map(tag => tag.trim()).filter(Boolean) })}
+                          placeholder="e.g. recital, makeup"
+                          className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3 text-xs text-slate-500">
                       You can edit events and their rooms, dates, times, and staff. Rooms, activities, and staff lists themselves stay read-only.
                     </div>
-                  </label>
-                </div>
+                  </div>
+                )}
               </div>
 
               <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
