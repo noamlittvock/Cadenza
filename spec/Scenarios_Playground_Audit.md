@@ -171,60 +171,57 @@ sandboxed spreadsheet" into "play on a copy of your real calendar."
 
 ---
 
-## 4b. App-wide: the playground is a *projection layer*, not a calendar feature
+## 4b. Reaching beyond the calendar — the LIGHT model (recommended)
 
-The suggestions above are calendar-shaped, but the playground should reach
-**every module** (finance, payroll, analytics, students). How the code derives
-those modules decides how much is "free" vs. real work.
+The playground must feel **quick, snappy, and inconsequential.** A manager should
+never have to *navigate a projected app* to see what their change did — that is
+work, not play. So the consequences come **to** the user, inline, in the what-if
+screen. Two models, and we recommend the light one:
 
-### What's actually tied to the calendar (and what isn't)
+### The light model (recommended v1): an inline "Impact" panel
+Stay on one screen. Beside the draft, a live **Impact** panel answers *"what does
+this change cost / break?"* and updates as you edit:
+
+- **Headline:** `3 changes · 1 clash · +1.5h · ~+₪420 (est.)`
+- **By teacher:** `Dana +1.5h · Yossi −1h` (load, gaps)
+- **By room:** utilization + double-bookings
+
+All **read-only and estimate-stamped**, recomputed live. No navigation, no
+projected workspaces, no shared projection layer.
+
+**Why it's small: the data already exists.** `computeScenarioFinanceImpact`
+already returns hours delta plus `byActivity` / `byStaff` / `byRoom` buckets and
+created/deleted/staff-change counts, stamped `estimateOnly: true`
+(`scenarioEngine.ts:367`, `types/scenario.ts:112-130`). Today it's a **static
+card on the planning screen** (`ScenarioPlanningWorkspace.tsx:493-523`). The work
+is mostly to **move that readout into the draft and make it live** — no new
+engine, no delta-model change, no module rendering.
+
+### The heavy model (LATER, optional): navigate the projected app
+Rendering Payroll/Finance/Reports *as projected* — a shared `ProjectionContext`
+that feeds whole workspaces — is a **separate, bigger feature**. It only earns its
+cost if managers ever need depth beyond the inline readout. Notes on feasibility
+are kept below for when/if that day comes, but it is **not** v1.
+
+#### Feasibility notes (for the heavy model, if pursued later)
+How the code derives each module decides how much is "free":
 - **Payroll / compensation — calendar-derived.** `PayrollWorkspace` already
-  consumes `events` (`App.tsx:1003`), and `hoursEntryService` turns scheduled
-  hours into teacher pay. A what-if on the schedule has a *real, computable* cost
-  projection. The engine already has a stub: `computeScenarioFinanceImpact`,
-  stamped `estimateOnly: true` (`scenarioEngine.ts:367`, `types/scenario.ts:119`).
-- **Family billing / tuition — NOT calendar-derived.** Charges in `ledgerService`
-  key off `familyId` / `enrollmentId`, never `eventId` (`ledgerService.ts:328-344`);
-  `FinanceWorkspace` reads stored `charges`/`payments`/`adjustments`
-  (`App.tsx:963-969`). Moving a lesson in a draft changes *payroll cost* but does
-  **nothing** to tuition — tuition flows from enrollment, not the schedule.
-- **Analytics/reports — entity-derived.** `ReportsWorkspace` runs on a generic
-  `sourceRowsByEntity` (`App.tsx:981`); projectable by feeding projected rows.
+  consumes `events` (`App.tsx:1003`); `hoursEntryService` turns scheduled hours
+  into pay. Genuinely projectable.
+- **Family billing / tuition — NOT calendar-derived.** Charges key off
+  `familyId` / `enrollmentId`, never `eventId` (`ledgerService.ts:328-344`);
+  `FinanceWorkspace` reads stored `charges`/`payments` (`App.tsx:963-969`). An
+  event-only what-if doesn't touch tuition by design — it would require
+  **extending the delta model beyond `'events'`** (`types/scenario.ts:8`) to
+  enrollments/charges.
+- **Analytics/reports — entity-derived.** Runs on a generic `sourceRowsByEntity`
+  (`App.tsx:981`); projectable by feeding projected rows.
 
-### Two layers, very different cost
-**Layer 1 — Projected *views* of derived data (read-only re-derivation).** Pipe
-the plan's projected event set through the services that already exist:
+Because the derivation services are already **pure functions**, the heavy model is
+plumbing (a `ProjectionContext` + injected data source per workspace), not re-math
+— but it's still a separate build. **Hold it as a future option.**
 
-| Module | Feasibility | Why |
-| --- | --- | --- |
-| Calendar | Free | Just events. |
-| **Payroll cost** | Nearly free | `PayrollWorkspace` already takes `events`; recompute hours via `hoursEntryService` on the projected set. |
-| Analytics / reports | Medium | Feed projected source rows into the report engine. |
-| Family billing | N/A for event-only what-ifs | Decoupled from the calendar by design. |
-
-**Layer 2 — What-if *edits to non-event entities*.** True app-wide play —
-"what if we raise tuition 5% / add 10 students / change this teacher's rate?" —
-requires **extending the delta model beyond `'events'`** (today
-`ScenarioDeltaCollection = 'events'`, `types/scenario.ts:8`) to enrollments,
-charges, and comp rules. The derivation services are already **pure functions**
-that don't assume the live store (`ledgerService`, `hoursEntryService`), so the
-real work is plumbing, not re-math.
-
-### The unifying concept: a `ProjectionContext`
-Don't build the playground as a screen — build it as a **projection layer**: one
-context holding `(base data + plan deltas)` that exposes the *same shapes the live
-app reads* (`events`, derived `hoursEntries`, derived `charges`, report rows). Any
-workspace renders against that context instead of the live store. Then the
-playground is an app-wide switcher:
-
-> **View this plan in → Calendar · Payroll · Finance · Reports**
-
-Recommended sequencing for the app-wide arc: **Calendar → Payroll cost →
-Analytics → (Layer 2) non-event deltas for billing/roster what-ifs.** Payroll is
-the first proof that "the schedule playground moves money," because it's the one
-financial dimension genuinely derived from the calendar.
-
-### A clear product line to hold
+### Product line to keep either way
 Anything projected from derived data is an **estimate** and must be labelled so
 (the engine already stamps `estimateOnly: true`). The playground previews
 *consequences*; it never silently writes a charge or a paystub.
@@ -242,9 +239,9 @@ Anything projected from derived data is an **estimate** and must be labelled so
    worth the layout work, or is a simple Live↔Plan toggle enough for v1?
 4. **Undo scope:** per-session undo stack, or persistent per-plan history? (Affects
    the delta model.)
-5. **App-wide scope:** is v1 the *calendar + payroll-cost* projection (Layer 1, mostly
-   reuse), or do we commit to **non-event deltas** (Layer 2 — billing/roster what-ifs)
-   that need the delta model extended beyond `'events'`?
+5. **How far beyond the calendar in v1:** confirm v1 is the **inline Impact panel**
+   (light, contained, mostly surfacing `computeScenarioFinanceImpact`), and that the
+   navigable *projected app* stays a separate later feature — not part of this build.
 
 ---
 
