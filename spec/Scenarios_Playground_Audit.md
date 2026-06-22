@@ -189,6 +189,11 @@ this change cost / break?"* and updates as you edit:
 All **read-only and estimate-stamped**, recomputed live. No navigation, no
 projected workspaces, no shared projection layer.
 
+> **✅ Built (v1):** the live Impact panel now sits at the top of the draft's
+> right sidebar in `SandboxWorkspace.tsx` — changes · clashes · hours delta,
+> added/removed/staff-edit counts, and by-teacher / by-room breakdowns, all
+> estimate-stamped and updating as you edit.
+
 **Why it's small: the data already exists.** `computeScenarioFinanceImpact`
 already returns hours delta plus `byActivity` / `byStaff` / `byRoom` buckets and
 created/deleted/staff-change counts, stamped `estimateOnly: true`

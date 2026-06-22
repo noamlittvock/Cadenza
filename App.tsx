@@ -1059,6 +1059,10 @@ function AppContent() {
                 setOperationalRequests([]);
                 setScenarios([]);
                 setScenarioDeltas([]);
+                setStaffingPlans([]);
+                setStaffingQuotas([]);
+                setStaffingClasses([]);
+                setStaffingAssignments([]);
 
                 // 2. Delete persisted data so listeners don't re-populate state.
                 if (LOCAL_MODE && orgId) {
@@ -1080,6 +1084,10 @@ function AppContent() {
                       wipeCol('calendarSubscriptions'),
                       wipeCol('scenarios'),
                       wipeCol('scenarioDeltas'),
+                      wipeCol('staffingPlans'),
+                      wipeCol('staffingQuotas'),
+                      wipeCol('staffingClasses'),
+                      wipeCol('staffingAssignments'),
                       // v2 collections
                       wipeCol(V2_COLLECTIONS.staffMembers),
                       wipeCol(V2_COLLECTIONS.teachingAssignments),

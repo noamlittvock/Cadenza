@@ -1,6 +1,8 @@
 # Teaching-Load / Staffing Planner (הרכבי משרה) — Standalone Spec
 
-**Status:** proposal / discovery
+**Status:** ✅ built (v1) — `components/StaffingPlannerWorkspace.tsx`,
+`utils/staffingEngine.ts` (+tests), `types/staffing.ts`, migration
+`0019_staffing_planner.sql`, routed at `STAFFING` / nav "Staffing".
 **Relationship to the playground:** *sibling*, not child. It reuses the
 what-if playground's **interaction DNA** (a live "bank-account" balance, instant
 visible consequence, completion color, reversibility) but is a **standalone
@@ -149,13 +151,16 @@ If a future product decision wants staffing → schedule → payroll, that becom
 
 ---
 
-## 8. Open questions
+## 8. Decisions taken in v1
 
-1. **Track taxonomy:** fixed (`HIGH_SCHOOL` / `JUNIOR_HIGH`) or org-configurable
-   bands? (Drives `TrackRequirement.track` typing.)
-2. **Subjects:** free-text per requirement, or a managed subject list (reuse the
-   activity hierarchy)?
-3. **Plan lifecycle:** one active plan per school year, or many drafts side by side
-   à la what-if plans?
-4. **Roster source:** are `ClassGroup`s entered here, or imported from an existing
-   classes/students structure?
+1. **Track taxonomy:** seeded `HIGH_SCHOOL` / `JUNIOR_HIGH`, typed as `string` so
+   orgs can extend later.
+2. **Subjects:** free-text per requirement with autocomplete from subjects already
+   used in the plan (no activity-hierarchy dependency).
+3. **Plan lifecycle:** many plans side by side, à la what-if plans.
+4. **Roster source:** classes are entered in the tool (true standalone).
+
+### Future enhancements (not in v1)
+- Undo/redo and "duplicate plan" (the what-if plans already duplicate).
+- Per-track *requirement* coverage on the recruitment dashboard.
+- Optional projection seam to calendar/payroll, if ever wanted (see playground audit).
