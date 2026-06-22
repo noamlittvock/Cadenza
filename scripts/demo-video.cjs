@@ -1,12 +1,15 @@
 /* eslint-disable */
-// Records a ~20s narrated (subtitled) demo of the Staffing Planner + What-if
-// playground. Seeds localStorage, injects an on-screen caption bar and a fake
-// cursor (Playwright video renders no real cursor), then drives both features.
+// Records a ~40s narrated (subtitled) demo of the Staffing + What-if playground
+// usability work: explainable/clickable numbers, source labels, the on-demand
+// Impact panel, and draft-only teachers/rooms. Seeds localStorage, injects an
+// on-screen caption bar (subtitles) and a fake cursor, then drives the features.
 const { chromium } = require('playwright');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 
 const OUT_DIR = '/tmp/cadenza-demo';
 const EXEC = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+const FFMPEG = '/opt/pw-browsers/ffmpeg-1011/ffmpeg-linux';
 const ORG = 'demo';
 const BASE = 'http://localhost:3000';
 const W = 1280, H = 800;
@@ -87,8 +90,11 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   const caption = async (t) => { await page.evaluate((txt) => { const c = document.getElementById('demo-cap'); if (c) { c.textContent = txt; c.style.opacity = '1'; } }, t); };
   const moveTo = async (x, y) => { await page.evaluate(({ x, y }) => { const c = document.getElementById('demo-cur'); if (c) c.style.transform = `translate(${x}px,${y}px)`; }, { x, y }); await page.mouse.move(x, y); };
   const center = async (loc) => { const b = await loc.boundingBox(); if (!b) throw new Error('no box'); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
-  const hover = async (loc) => { const p = await center(loc); await moveTo(p.x, p.y); await sleep(320); };
-  const click = async (loc) => { await hover(loc); await loc.click(); await sleep(220); };
+  // Tolerant interactions — a selector miss skips the step but never aborts the timeline.
+  const hover = async (loc) => { try { const p = await center(loc); await moveTo(p.x, p.y); await sleep(320); } catch (e) { console.warn('hover skip:', e.message); } };
+  const click = async (loc) => { try { await hover(loc); await loc.click({ timeout: 2500 }); await sleep(220); } catch (e) { console.warn('click skip:', e.message); } };
+  const type = async (loc, text) => { try { await hover(loc); await loc.fill(text, { timeout: 2500 }); await sleep(250); } catch (e) { console.warn('type skip:', e.message); } };
+  const pick = async (loc, opt) => { try { await hover(loc); await loc.selectOption(opt, { timeout: 2500 }); await sleep(350); } catch (e) { console.warn('pick skip:', e.message); } };
 
   // ── Boot on Staffing ──
   await page.goto(`${BASE}/${ORG}/staffing`, { waitUntil: 'networkidle' });
@@ -98,53 +104,79 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   await caption('Staffing Planner — plan next year’s teaching load');
   await sleep(1500);
 
-  // Teachers tab — the live "bank balance"
-  await caption('Every teacher has a live hour balance — like a bank account');
-  await hover(page.getByText('Dana Cohen').first());
-  await sleep(1500);
-
-  // Classes tab — assign hours, watch it turn green
-  await click(page.getByRole('button', { name: /Classes/ }));
-  await caption('Each class lists the subjects and hours it needs');
-  await sleep(1100);
-  await caption('Assign a teacher — hours deduct instantly and fill green');
-  // Physics needs 2 more hours; pick Dana and assign
-  const assignSelect = page.locator('select').filter({ hasText: 'Assign teacher' }).first();
-  await hover(assignSelect);
-  await assignSelect.selectOption('t1');
-  await sleep(500);
-  const assignBtn = page.getByRole('button', { name: /^Assign$/ }).first();
-  await click(assignBtn);
-  await sleep(1300);
-
-  // Recruitment tab — the shortage dashboard
-  await click(page.getByRole('button', { name: /Recruitment/ }));
-  await caption('Recruitment rolls up every unstaffed hour you still need to hire');
+  // Source labels in staffing — where the data comes from
+  await caption('Source labels show where every figure comes from');
+  await hover(page.getByText('Staff directory').first());
   await sleep(1900);
+
+  // Explainable numbers — the summary stats are clickable
+  await caption('Every summary number is clickable');
+  await hover(page.getByText('Hours to hire').first());
+  await sleep(1500);
+  await caption('Click “Hours to hire” to see the exact gaps behind it');
+  await click(page.getByRole('button', { name: /Hours to hire/ }).first());
+  await sleep(2300);
 
   // ── What-if playground ──
   await click(page.getByRole('button', { name: /What-if Plans/ }));
-  await caption('The What-if playground — try schedule changes safely');
-  await sleep(1100);
+  await caption('The what-if playground — experiment safely');
+  await sleep(1200);
+  await click(page.getByText('Spring schedule trial').first());
   await click(page.getByRole('button', { name: /Open draft/ }));
   await caption('You’re in a draft — nothing here touches the real calendar');
-  await sleep(1400);
+  await sleep(1700);
 
-  // Edit an event time → Impact panel updates live
-  await caption('Edit an event — the Impact panel reacts instantly');
-  const firstStart = page.locator('table tbody tr').first().locator('input[type="time"]').first();
-  await hover(firstStart);
-  await firstStart.fill('08:00');
-  await firstStart.dispatchEvent('change');
-  await sleep(700);
-  await hover(page.getByText('Impact').first());
-  await sleep(2200);
-  await caption('Playground + Staffing — see your plan before it’s real');
-  await sleep(1400);
+  // Draft-only entities — invent a teacher and a room
+  await caption('Invent a teacher who doesn’t exist yet…');
+  await type(page.getByPlaceholder('New teacher name'), 'Guest Sub');
+  await click(page.getByRole('button', { name: /^Teacher$/ }).first());
+  await sleep(1500);
+  await caption('…and a spare room — both live only in this draft');
+  await type(page.getByPlaceholder('New room name'), 'Pop-up Hall');
+  await click(page.getByRole('button', { name: /^Room$/ }).first());
+  await sleep(1600);
+
+  // Assign the draft teacher right inside the playground
+  await caption('Assign your made-up teacher right in the draft');
+  const firstRow = page.locator('table tbody tr').first();
+  await pick(firstRow.locator('select').filter({ hasText: 'Add staff' }).first(), { label: 'Guest Sub · draft' });
+  await sleep(1500);
+
+  // Source labels on every event
+  await caption('Every event is tagged by its source — Live, edited, or draft-only');
+  await hover(firstRow.getByText(/Live|Draft-only/).first());
+  await sleep(1800);
+
+  // Edit a time → impact is explained
+  await caption('Edit a time and the impact is explained, not just shown');
+  const firstStart = firstRow.locator('input[type="time"]').first();
+  await type(firstStart, '08:00');
+  try { await firstStart.dispatchEvent('change'); } catch {}
+  await sleep(1300);
+
+  // On-demand Impact panel
+  await caption('The Impact panel opens on demand — no wasted space');
+  await click(page.getByRole('button', { name: /Impact/ }).first());
+  await sleep(1500);
+  await caption('“+Nh scheduled”, traced to the exact events that changed');
+  await hover(page.getByText('What changed').first());
+  await sleep(2400);
+
+  await caption('Play, plan, and see the impact — before it’s real');
+  await sleep(2000);
 
   await page.waitForTimeout(300);
   await ctx.close();
   await browser.close();
-  const f = fs.readdirSync(OUT_DIR).find(x => x.endsWith('.webm'));
-  console.log('VIDEO:', OUT_DIR + '/' + f, fs.statSync(OUT_DIR + '/' + f).size, 'bytes');
+
+  const webm = OUT_DIR + '/' + fs.readdirSync(OUT_DIR).find(x => x.endsWith('.webm'));
+  console.log('WEBM:', webm, fs.statSync(webm).size, 'bytes');
+  // Transcode to a widely-playable mp4 (subtitles are burned into the frames).
+  const mp4 = OUT_DIR + '/cadenza-demo.mp4';
+  try {
+    execFileSync(FFMPEG, ['-y', '-i', webm, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-r', '30', mp4], { stdio: 'inherit' });
+    console.log('MP4:', mp4, fs.statSync(mp4).size, 'bytes');
+  } catch (e) {
+    console.warn('mp4 transcode failed, webm still available:', e.message);
+  }
 })().catch(e => { console.error('DEMO ERROR:', e.message); process.exit(1); });
