@@ -171,6 +171,66 @@ sandboxed spreadsheet" into "play on a copy of your real calendar."
 
 ---
 
+## 4b. App-wide: the playground is a *projection layer*, not a calendar feature
+
+The suggestions above are calendar-shaped, but the playground should reach
+**every module** (finance, payroll, analytics, students). How the code derives
+those modules decides how much is "free" vs. real work.
+
+### What's actually tied to the calendar (and what isn't)
+- **Payroll / compensation — calendar-derived.** `PayrollWorkspace` already
+  consumes `events` (`App.tsx:1003`), and `hoursEntryService` turns scheduled
+  hours into teacher pay. A what-if on the schedule has a *real, computable* cost
+  projection. The engine already has a stub: `computeScenarioFinanceImpact`,
+  stamped `estimateOnly: true` (`scenarioEngine.ts:367`, `types/scenario.ts:119`).
+- **Family billing / tuition — NOT calendar-derived.** Charges in `ledgerService`
+  key off `familyId` / `enrollmentId`, never `eventId` (`ledgerService.ts:328-344`);
+  `FinanceWorkspace` reads stored `charges`/`payments`/`adjustments`
+  (`App.tsx:963-969`). Moving a lesson in a draft changes *payroll cost* but does
+  **nothing** to tuition — tuition flows from enrollment, not the schedule.
+- **Analytics/reports — entity-derived.** `ReportsWorkspace` runs on a generic
+  `sourceRowsByEntity` (`App.tsx:981`); projectable by feeding projected rows.
+
+### Two layers, very different cost
+**Layer 1 — Projected *views* of derived data (read-only re-derivation).** Pipe
+the plan's projected event set through the services that already exist:
+
+| Module | Feasibility | Why |
+| --- | --- | --- |
+| Calendar | Free | Just events. |
+| **Payroll cost** | Nearly free | `PayrollWorkspace` already takes `events`; recompute hours via `hoursEntryService` on the projected set. |
+| Analytics / reports | Medium | Feed projected source rows into the report engine. |
+| Family billing | N/A for event-only what-ifs | Decoupled from the calendar by design. |
+
+**Layer 2 — What-if *edits to non-event entities*.** True app-wide play —
+"what if we raise tuition 5% / add 10 students / change this teacher's rate?" —
+requires **extending the delta model beyond `'events'`** (today
+`ScenarioDeltaCollection = 'events'`, `types/scenario.ts:8`) to enrollments,
+charges, and comp rules. The derivation services are already **pure functions**
+that don't assume the live store (`ledgerService`, `hoursEntryService`), so the
+real work is plumbing, not re-math.
+
+### The unifying concept: a `ProjectionContext`
+Don't build the playground as a screen — build it as a **projection layer**: one
+context holding `(base data + plan deltas)` that exposes the *same shapes the live
+app reads* (`events`, derived `hoursEntries`, derived `charges`, report rows). Any
+workspace renders against that context instead of the live store. Then the
+playground is an app-wide switcher:
+
+> **View this plan in → Calendar · Payroll · Finance · Reports**
+
+Recommended sequencing for the app-wide arc: **Calendar → Payroll cost →
+Analytics → (Layer 2) non-event deltas for billing/roster what-ifs.** Payroll is
+the first proof that "the schedule playground moves money," because it's the one
+financial dimension genuinely derived from the calendar.
+
+### A clear product line to hold
+Anything projected from derived data is an **estimate** and must be labelled so
+(the engine already stamps `estimateOnly: true`). The playground previews
+*consequences*; it never silently writes a charge or a paystub.
+
+---
+
 ## 5. Open questions for product
 
 1. **Reuse vs. fork of `CalendarView`:** is `CalendarView` cleanly drivable by an
@@ -182,6 +242,9 @@ sandboxed spreadsheet" into "play on a copy of your real calendar."
    worth the layout work, or is a simple Live↔Plan toggle enough for v1?
 4. **Undo scope:** per-session undo stack, or persistent per-plan history? (Affects
    the delta model.)
+5. **App-wide scope:** is v1 the *calendar + payroll-cost* projection (Layer 1, mostly
+   reuse), or do we commit to **non-event deltas** (Layer 2 — billing/roster what-ifs)
+   that need the delta model extended beyond `'events'`?
 
 ---
 
