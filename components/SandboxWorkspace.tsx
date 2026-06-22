@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle, ArrowLeft, CalendarDays, Clock, DoorOpen, FlaskConical, GitBranch, LayoutGrid, Menu, Plus, Save, Table2, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CalendarDays, Clock, DoorOpen, FlaskConical, GitBranch, LayoutGrid, Menu, Plus, Save, Table2, Trash2, TrendingUp } from 'lucide-react';
 import type { AppSettings, CalendarEvent, Room } from '../types';
 import type { ActivityV2, StaffMemberV2 } from '../types/v2';
 import type { Scenario, ScenarioDelta } from '../types/scenario';
@@ -8,6 +8,7 @@ import {
   buildSandboxEventSet,
   computeScenarioDiff,
   computeScenarioDrift,
+  computeScenarioFinanceImpact,
   hashScenarioEventSource,
 } from '../utils/scenarioEngine';
 import {
@@ -77,6 +78,7 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
   const conflictingIds = useMemo(() => getConflictingEventIds(conflicts), [conflicts]);
   const diff = useMemo(() => computeScenarioDiff(base, scenario, scenarioDeltas), [base, scenario, scenarioDeltas]);
   const drift = useMemo(() => computeScenarioDrift(base, scenario, scenarioDeltas), [base, scenario, scenarioDeltas]);
+  const impact = useMemo(() => computeScenarioFinanceImpact(base, scenario, scenarioDeltas), [base, scenario, scenarioDeltas]);
   const liveById = useMemo(() => new Map(events.map(event => [event.id, event])), [events]);
   const scenarioDeltasByRecord = useMemo(() => {
     const map = new Map<string, ScenarioDelta>();
@@ -595,6 +597,57 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
             </section>
 
             <aside className="border-s border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 overflow-y-auto custom-scrollbar p-4 space-y-4">
+              {/* Live impact — consequences come to you, no navigation (estimate only). */}
+              <div className="rounded-lg border border-indigo-200 dark:border-indigo-900 bg-indigo-50/60 dark:bg-indigo-950/30 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold flex items-center gap-2"><TrendingUp size={16} className="text-indigo-600" /> Impact</h3>
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">estimate</span>
+                </div>
+                <div className="text-sm text-slate-700 dark:text-slate-200 mb-3">
+                  {diff.length === 0 ? (
+                    <span className="text-slate-500">No changes yet — drag or edit an event to see the impact here.</span>
+                  ) : (
+                    <span>
+                      <span className="font-semibold">{diff.length}</span> change{diff.length === 1 ? '' : 's'}
+                      {conflicts.length > 0 && <> · <span className="font-semibold text-red-600">{conflicts.length} clash{conflicts.length === 1 ? '' : 'es'}</span></>}
+                      {' · '}
+                      <span className={`font-semibold ${impact.estimatedScheduledHoursDelta > 0 ? 'text-emerald-600' : impact.estimatedScheduledHoursDelta < 0 ? 'text-amber-600' : ''}`}>
+                        {impact.estimatedScheduledHoursDelta > 0 ? '+' : ''}{impact.estimatedScheduledHoursDelta}h
+                      </span>
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center text-xs mb-3">
+                  <div className="rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-1.5"><div className="text-base font-bold">{impact.createdEventCount}</div><div className="text-slate-500">added</div></div>
+                  <div className="rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-1.5"><div className="text-base font-bold">{impact.deletedEventCount}</div><div className="text-slate-500">removed</div></div>
+                  <div className="rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-1.5"><div className="text-base font-bold">{impact.staffAssignmentChangeCount}</div><div className="text-slate-500">staff edits</div></div>
+                </div>
+                {impact.byStaff.length > 0 && (
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">By teacher</div>
+                    {impact.byStaff.slice(0, 5).map(bucket => (
+                      <div key={bucket.id} className="flex items-center justify-between gap-2 text-xs">
+                        <span className="truncate">{bucket.name}</span>
+                        <span className={`font-semibold shrink-0 ${bucket.estimatedHoursDelta > 0 ? 'text-emerald-600' : bucket.estimatedHoursDelta < 0 ? 'text-amber-600' : 'text-slate-500'}`}>
+                          {bucket.estimatedHoursDelta > 0 ? '+' : ''}{bucket.estimatedHoursDelta}h
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {impact.byRoom.length > 0 && (
+                  <div className="space-y-1 mt-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">By room</div>
+                    {impact.byRoom.slice(0, 4).map(bucket => (
+                      <div key={bucket.id} className="flex items-center justify-between gap-2 text-xs">
+                        <span className="truncate">{bucket.name}</span>
+                        <span className="font-semibold shrink-0 text-slate-500">{bucket.eventCount} event{bucket.eventCount === 1 ? '' : 's'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
                 <h3 className="font-bold mb-3 flex items-center gap-2"><GitBranch size={16} /> Plan setup</h3>
                 <div className="space-y-2 text-sm">
