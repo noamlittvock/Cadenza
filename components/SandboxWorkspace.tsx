@@ -639,11 +639,14 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                       {conflicts.length > 0 && <> · <span className="font-semibold text-red-600">{conflicts.length} clash{conflicts.length === 1 ? '' : 'es'}</span></>}
                       {' · '}
                       <span className={`font-semibold ${impact.estimatedScheduledHoursDelta > 0 ? 'text-emerald-600' : impact.estimatedScheduledHoursDelta < 0 ? 'text-amber-600' : ''}`}>
-                        {impact.estimatedScheduledHoursDelta > 0 ? '+' : ''}{impact.estimatedScheduledHoursDelta}h
+                        {impact.estimatedScheduledHoursDelta > 0 ? '+' : ''}{impact.estimatedScheduledHoursDelta}h scheduled
                       </span>
                     </span>
                   )}
                 </div>
+                {impact.estimatedScheduledHoursDelta !== 0 && (
+                  <p className="text-[11px] text-slate-500 -mt-1 mb-3">Net change in scheduled class time across this draft, vs. the live schedule. Rough estimate — not payroll.</p>
+                )}
                 <div className="grid grid-cols-3 gap-2 text-center text-xs mb-3">
                   <div className="rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-1.5"><div className="text-base font-bold">{impact.createdEventCount}</div><div className="text-slate-500">added</div></div>
                   <div className="rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-1.5"><div className="text-base font-bold">{impact.deletedEventCount}</div><div className="text-slate-500">removed</div></div>
@@ -673,6 +676,25 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                     ))}
                   </div>
                 )}
+              </div>
+
+              <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+                <h3 className="font-bold mb-3">What changed</h3>
+                <div className="space-y-1.5">
+                  {diff.length === 0 && <div className="text-sm text-slate-500">Nothing yet. Every edit you make shows up here as a line you can trace back.</div>}
+                  {diff.slice(0, 12).map(item => (
+                    <div key={item.id} className="flex items-start gap-2 text-xs">
+                      <span className={`mt-1 h-2 w-2 rounded-full shrink-0 ${item.changeType === 'created' ? 'bg-emerald-500' : item.changeType === 'deleted' ? 'bg-red-500' : 'bg-amber-500'}`} />
+                      <div className="min-w-0">
+                        <div className="font-semibold truncate">{item.title}</div>
+                        <div className="text-slate-500">
+                          {item.changeType === 'created' ? 'Added in this draft' : item.changeType === 'deleted' ? 'Removed in this draft' : `Changed: ${item.changedFields.join(', ') || 'details'}`}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {diff.length > 12 && <div className="text-[11px] text-slate-500">+{diff.length - 12} more</div>}
+                </div>
               </div>
 
               <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">

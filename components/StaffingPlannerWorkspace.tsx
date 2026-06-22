@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, GraduationCap, Menu, Plus,
+  AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, GraduationCap, Menu, Plus,
   Trash2, UserPlus, Users, Layers, Target,
 } from 'lucide-react';
 import type { AppSettings } from '../types';
@@ -197,13 +197,13 @@ export const StaffingPlannerWorkspace: React.FC<StaffingPlannerWorkspaceProps> =
           </button>
         </div>
 
-        {/* Summary strip */}
+        {/* Summary strip — every number drills into the rows that produced it */}
         {summary && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <SummaryStat label="Teachers settled" value={`${summary.teachersComplete}/${summary.teacherCount}`} done={summary.teacherCount > 0 && summary.teachersComplete === summary.teacherCount} />
-            <SummaryStat label="Classes staffed" value={`${summary.classesComplete}/${summary.classCount}`} done={summary.classCount > 0 && summary.classesComplete === summary.classCount} />
-            <SummaryStat label="Hours assigned" value={`${summary.totalAssignedHours}/${summary.totalRequiredHours}`} />
-            <SummaryStat label="Hours to hire" value={`${summary.totalMissingHours}`} warn={summary.totalMissingHours > 0} />
+            <SummaryStat label="Teachers settled" value={`${summary.teachersComplete}/${summary.teacherCount}`} done={summary.teacherCount > 0 && summary.teachersComplete === summary.teacherCount} explain="See teachers" onClick={() => setTab('TEACHERS')} />
+            <SummaryStat label="Classes staffed" value={`${summary.classesComplete}/${summary.classCount}`} done={summary.classCount > 0 && summary.classesComplete === summary.classCount} explain="See classes" onClick={() => setTab('CLASSES')} />
+            <SummaryStat label="Hours assigned" value={`${summary.totalAssignedHours}/${summary.totalRequiredHours}`} explain="See teachers" onClick={() => setTab('TEACHERS')} />
+            <SummaryStat label="Hours to hire" value={`${summary.totalMissingHours}`} warn={summary.totalMissingHours > 0} explain={summary.totalMissingHours > 0 ? 'See the gaps' : undefined} onClick={() => setTab('RECRUITMENT')} />
           </div>
         )}
 
@@ -272,12 +272,24 @@ const PlannerShell: React.FC<{
   </div>
 );
 
-const SummaryStat: React.FC<{ label: string; value: string; done?: boolean; warn?: boolean }> = ({ label, value, done, warn }) => (
-  <div className={`rounded-lg border p-3 ${done ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30' : warn ? 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'}`}>
-    <div className="text-xl font-bold flex items-center gap-1.5">{done && <CheckCircle2 size={18} className="text-emerald-600" />}{value}</div>
-    <div className="text-xs text-slate-500">{label}</div>
-  </div>
-);
+const SummaryStat: React.FC<{ label: string; value: string; done?: boolean; warn?: boolean; explain?: string; onClick?: () => void }> = ({ label, value, done, warn, explain, onClick }) => {
+  const tone = done ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30' : warn ? 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900';
+  const content = (
+    <>
+      <div className="text-xl font-bold flex items-center gap-1.5">{done && <CheckCircle2 size={18} className="text-emerald-600" />}{value}</div>
+      <div className="text-xs text-slate-500 flex items-center justify-between gap-1">
+        <span>{label}</span>
+        {explain && <span className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-600 dark:text-indigo-300 font-semibold flex items-center gap-0.5">{explain}<ChevronRight size={12} /></span>}
+      </div>
+    </>
+  );
+  if (!onClick) return <div className={`rounded-lg border p-3 ${tone}`}>{content}</div>;
+  return (
+    <button type="button" onClick={onClick} className={`group text-start rounded-lg border p-3 transition-shadow hover:shadow-cadenza-soft hover:border-indigo-300 dark:hover:border-indigo-700 ${tone}`}>
+      {content}
+    </button>
+  );
+};
 
 // ─── Teachers tab ───────────────────────────────────────────────────────────
 const TeachersTab: React.FC<{
