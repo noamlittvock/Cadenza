@@ -6,6 +6,7 @@ import type { Adjustment, AgreementAcceptance, AgreementTemplate, BalanceSnapsho
 import { BLUEPRINT_COLLECTIONS } from './types/blueprint';
 import type { CalendarSidebarTab } from './types/calendarFilters';
 import type { Scenario, ScenarioDelta } from './types/scenario';
+import type { StaffingAssignment, StaffingClass, StaffingPlan, StaffingTeacherQuota } from './types/staffing';
 import { INITIAL_TEACHERS, INITIAL_ROOMS, INITIAL_EVENTS, INITIAL_GANTT, INITIAL_SETTINGS, TRANSLATIONS, migrateTeacher, generateId } from './constants';
 
 const t = (key: string) => {
@@ -38,6 +39,7 @@ import { ReportsWorkspace, buildReportSourceRows, type ReportSourceRow } from '.
 import { OnboardingChecklist } from './components/OnboardingChecklist';
 import { ScenarioPlanningWorkspace } from './components/ScenarioPlanningWorkspace';
 import { SandboxWorkspace } from './components/SandboxWorkspace';
+import { StaffingPlannerWorkspace } from './components/StaffingPlannerWorkspace';
 
 import { TeacherHoursForm } from './components/TeacherHoursForm';
 import { PublicRegistrationForm } from './components/PublicRegistrationForm';
@@ -66,6 +68,7 @@ const initialViewFromUrl = (): ViewState => {
   if (section === 'analytics' || section === 'reports') return 'ANALYTICS';
   if (section === 'scenarios') return 'SCENARIOS';
   if (section === 'sandbox') return 'SANDBOX';
+  if (section === 'staffing') return 'STAFFING';
   const tab = new URLSearchParams(window.location.search).get('tab');
   return tab && MANAGE_TABS.has(tab) ? 'MANAGE' : 'CALENDAR';
 };
@@ -172,6 +175,10 @@ function AppContent() {
   const [adminInboxItems, setAdminInboxItems] = useSupabaseSync<AdminInboxItem>('adminInboxItems', []);
   const [scenarios, setScenarios] = useSupabaseSync<Scenario>('scenarios', []);
   const [scenarioDeltas, setScenarioDeltas] = useSupabaseSync<ScenarioDelta>('scenarioDeltas', []);
+  const [staffingPlans, setStaffingPlans] = useSupabaseSync<StaffingPlan>('staffingPlans', []);
+  const [staffingQuotas, setStaffingQuotas] = useSupabaseSync<StaffingTeacherQuota>('staffingQuotas', []);
+  const [staffingClasses, setStaffingClasses] = useSupabaseSync<StaffingClass>('staffingClasses', []);
+  const [staffingAssignments, setStaffingAssignments] = useSupabaseSync<StaffingAssignment>('staffingAssignments', []);
   // Seed initial language from localStorage so first render matches the persisted state
   // and the useEffect below doesn't flip <html lang/dir> away from what index.tsx pre-applied.
   // useSupabaseSettings reads its initial value once at mount, so a plain inline call is enough.
@@ -861,6 +868,23 @@ function AppContent() {
           />
         );
       }
+      case 'STAFFING':
+        return (
+          <StaffingPlannerWorkspace
+            plans={staffingPlans}
+            setPlans={setStaffingPlans}
+            quotas={staffingQuotas}
+            setQuotas={setStaffingQuotas}
+            classes={staffingClasses}
+            setClasses={setStaffingClasses}
+            assignments={staffingAssignments}
+            setAssignments={setStaffingAssignments}
+            staff={staffMembersV2}
+            settings={settings}
+            orgId={orgId}
+            onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+          />
+        );
       case 'STAFF_MEMBERS':
       case 'MANAGE':
         return (

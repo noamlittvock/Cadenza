@@ -22,6 +22,7 @@ const ALL_VIEWS: ViewState[] = [
   'ANALYTICS',
   'SCENARIOS',
   'SANDBOX',
+  'STAFFING',
 ];
 
 // Views deliberately NOT routed today (fall through to `app.not_found`). INVENTORY
@@ -86,6 +87,11 @@ describe('routing: routed-views allowlist', () => {
     expect(ROUTED_VIEWS.has('SANDBOX')).toBe(true);
     expect(isPaletteVisible('SCENARIOS')).toBe(true);
     expect(isPaletteVisible('SANDBOX')).toBe(true);
+  });
+
+  it('routes the standalone staffing-load planner', () => {
+    expect(ROUTED_VIEWS.has('STAFFING')).toBe(true);
+    expect(isPaletteVisible('STAFFING')).toBe(true);
   });
 });
 

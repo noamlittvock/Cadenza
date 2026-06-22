@@ -40,6 +40,7 @@ const NAV_ICONS: Record<ViewState, React.ReactNode> = {
   ANALYTICS: <LayoutGrid className="h-4 w-4" />,
   SCENARIOS: <FlaskConical className="h-4 w-4" />,
   SANDBOX: <FlaskConical className="h-4 w-4" />,
+  STAFFING: <GraduationCap className="h-4 w-4" />,
   SETTINGS: <Cog className="h-4 w-4" />,
   SUPER_ADMIN: <Shield className="h-4 w-4" />,
 };
@@ -58,6 +59,7 @@ const NAV_KEY_BY_VIEW: Record<ViewState, string> = {
   ANALYTICS: 'nav.analytics',
   SCENARIOS: 'nav.scenarios',
   SANDBOX: 'nav.sandbox',
+  STAFFING: 'nav.staffing',
   SETTINGS: 'bl01_palette.action.settings',
   SUPER_ADMIN: 'bl01_palette.action.super_admin',
 };

@@ -244,6 +244,14 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 collapsed={isCollapsed}
               />
 
+              <NavItem
+                active={currentView === 'STAFFING'}
+                onClick={() => { setView('STAFFING'); setIsMobileMenuOpen(false); }}
+                icon={GraduationCap}
+                label={t('nav.staffing')}
+                collapsed={isCollapsed}
+              />
+
               {!isMobile && (
                 <NavItem
                   active={currentView === 'MANAGE' || currentView === 'STAFF_MEMBERS'}

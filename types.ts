@@ -384,7 +384,8 @@ export type ViewState =
   | 'PAYROLL'
   | 'ANALYTICS'
   | 'SCENARIOS'
-  | 'SANDBOX';
+  | 'SANDBOX'
+  | 'STAFFING';
 
 // ─── v2.0 Type Re-exports ────────────────────────────────────────────────────
 // Canonical v2.0 types from the Cadenza v2.0 Final spec (Section 05).

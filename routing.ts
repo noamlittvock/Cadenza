@@ -28,6 +28,7 @@ export const ROUTED_VIEWS: ReadonlySet<ViewState> = new Set<ViewState>([
   'ANALYTICS',
   'SCENARIOS',
   'SANDBOX',
+  'STAFFING',
   'SUPER_ADMIN',
   'SETTINGS',
 ]);
