@@ -4,12 +4,10 @@
 // Impact panel, and draft-only teachers/rooms. Seeds localStorage, injects an
 // on-screen caption bar (subtitles) and a fake cursor, then drives the features.
 const { chromium } = require('playwright');
-const { execFileSync } = require('child_process');
 const fs = require('fs');
 
 const OUT_DIR = '/tmp/cadenza-demo';
 const EXEC = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
-const FFMPEG = '/opt/pw-browsers/ffmpeg-1011/ffmpeg-linux';
 const ORG = 'demo';
 const BASE = 'http://localhost:3000';
 const W = 1280, H = 800;
@@ -89,7 +87,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   // helpers
   const caption = async (t) => { await page.evaluate((txt) => { const c = document.getElementById('demo-cap'); if (c) { c.textContent = txt; c.style.opacity = '1'; } }, t); };
   const moveTo = async (x, y) => { await page.evaluate(({ x, y }) => { const c = document.getElementById('demo-cur'); if (c) c.style.transform = `translate(${x}px,${y}px)`; }, { x, y }); await page.mouse.move(x, y); };
-  const center = async (loc) => { const b = await loc.boundingBox(); if (!b) throw new Error('no box'); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
+  const center = async (loc) => { const b = await loc.boundingBox({ timeout: 1500 }); if (!b) throw new Error('no box'); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
   // Tolerant interactions — a selector miss skips the step but never aborts the timeline.
   const hover = async (loc) => { try { const p = await center(loc); await moveTo(p.x, p.y); await sleep(320); } catch (e) { console.warn('hover skip:', e.message); } };
   const click = async (loc) => { try { await hover(loc); await loc.click({ timeout: 2500 }); await sleep(220); } catch (e) { console.warn('click skip:', e.message); } };
@@ -169,14 +167,10 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   await ctx.close();
   await browser.close();
 
-  const webm = OUT_DIR + '/' + fs.readdirSync(OUT_DIR).find(x => x.endsWith('.webm'));
+  const raw = OUT_DIR + '/' + fs.readdirSync(OUT_DIR).find(x => x.endsWith('.webm'));
+  // Stable, friendly filename. Subtitles are burned into the frames, so the
+  // webm is self-contained and plays in any modern browser/player.
+  const webm = OUT_DIR + '/cadenza-demo.webm';
+  fs.copyFileSync(raw, webm);
   console.log('WEBM:', webm, fs.statSync(webm).size, 'bytes');
-  // Transcode to a widely-playable mp4 (subtitles are burned into the frames).
-  const mp4 = OUT_DIR + '/cadenza-demo.mp4';
-  try {
-    execFileSync(FFMPEG, ['-y', '-i', webm, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-r', '30', mp4], { stdio: 'inherit' });
-    console.log('MP4:', mp4, fs.statSync(mp4).size, 'bytes');
-  } catch (e) {
-    console.warn('mp4 transcode failed, webm still available:', e.message);
-  }
 })().catch(e => { console.error('DEMO ERROR:', e.message); process.exit(1); });
