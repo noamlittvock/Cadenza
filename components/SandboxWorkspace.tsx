@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { AlertTriangle, ArrowLeft, CalendarDays, Clock, DoorOpen, FlaskConical, GitBranch, LayoutGrid, Menu, PanelRightClose, Plus, Save, Table2, Trash2, TrendingUp, X } from 'lucide-react';
 import type { AppSettings, CalendarEvent, Room } from '../types';
 import type { ActivityV2, StaffMemberV2 } from '../types/v2';
-import type { Scenario, ScenarioDelta } from '../types/scenario';
+import type { Scenario, ScenarioDelta, ScenarioEventMeta } from '../types/scenario';
 import { generateId } from '../constants';
 import {
   buildSandboxEventSet,
@@ -33,6 +33,19 @@ interface SandboxWorkspaceProps {
   onBackToPlanning: () => void;
   onMobileMenuOpen: () => void;
 }
+
+// Where each event came from — distinct from "what you changed". Every item carries a source label.
+const eventProvenance = (meta?: ScenarioEventMeta): { label: string; cls: string } => {
+  if (meta?.delta?.operation === 'create') return { label: 'Draft-only', cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200' };
+  if (meta?.lockedContext) return { label: 'Reference', cls: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' };
+  if (meta?.changed) return { label: 'Live · edited', cls: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200' };
+  return { label: 'Live', cls: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200' };
+};
+
+const SourceChip: React.FC<{ meta?: ScenarioEventMeta }> = ({ meta }) => {
+  const p = eventProvenance(meta);
+  return <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold leading-none ${p.cls}`} title="Where this event comes from">{p.label}</span>;
+};
 
 const toDateInput = (iso: string) => new Date(iso).toISOString().slice(0, 10);
 const toTimeInput = (iso: string) => {
@@ -452,7 +465,10 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                                       {hasConflict && <AlertTriangle size={12} className="text-red-600 shrink-0" />}
                                       <span className="truncate">{item.event.name}</span>
                                     </div>
-                                    <div className="text-[11px] text-slate-500 truncate">{roomName(item.event.roomId)}</div>
+                                    <div className="text-[11px] text-slate-500 truncate flex items-center gap-1">
+                                      <SourceChip meta={meta} />
+                                      <span className="truncate">{roomName(item.event.roomId)}</span>
+                                    </div>
                                     <div className="mt-1 grid grid-cols-2 gap-1">
                                       <input
                                         type="time"
@@ -523,7 +539,10 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                                 {hasConflict && <AlertTriangle size={14} className="text-red-600" />}
                                 <span className="truncate">{event.name}</span>
                               </div>
-                              <div className="text-xs text-slate-500 truncate">{roomName(liveById.get(event.id)?.roomId)} (now)</div>
+                              <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+                                <SourceChip meta={meta} />
+                                {liveById.has(event.id) && <span className="truncate">{roomName(liveById.get(event.id)?.roomId)} now</span>}
+                              </div>
                             </td>
                             <td className="px-3 py-2">
                               <input
@@ -583,9 +602,8 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                               <div className="flex flex-wrap gap-1">
                                 {changed && <span className="rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200 px-1.5 py-0.5 text-[11px] font-semibold">changed</span>}
                                 {staffChanged && <span className="rounded bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-200 px-1.5 py-0.5 text-[11px] font-semibold">staff</span>}
-                                {meta?.delta?.operation === 'create' && <span className="rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 px-1.5 py-0.5 text-[11px] font-semibold">created</span>}
-                                {locked && <span className="rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 text-[11px] font-semibold">read-only</span>}
                                 {hasConflict && <span className="rounded bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 px-1.5 py-0.5 text-[11px] font-semibold">clash</span>}
+                                {!changed && !staffChanged && !hasConflict && <span className="text-[11px] text-slate-400">—</span>}
                               </div>
                             </td>
                             <td className="px-3 py-2">

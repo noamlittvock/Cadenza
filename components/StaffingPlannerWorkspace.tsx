@@ -308,6 +308,12 @@ const TeachersTab: React.FC<{
 
   return (
     <div className="space-y-4">
+      <p className="text-xs text-slate-500 flex flex-wrap items-center gap-1.5">
+        <span className="rounded bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-200 px-1.5 py-0.5 font-semibold">Staff directory</span>
+        Teachers are pulled from your staff list.
+        <span className="rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 font-semibold">Set here</span>
+        Required hours are planning targets you enter for this plan — not payroll contracts.
+      </p>
       <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex flex-wrap items-end gap-2">
         <label className="text-sm">
           <span className="block text-xs font-semibold text-slate-500 mb-1">Add teacher</span>
@@ -404,6 +410,10 @@ const ClassesTab: React.FC<{
 
   return (
     <div className="space-y-4">
+      <p className="text-xs text-slate-500 flex flex-wrap items-center gap-1.5">
+        <span className="rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 font-semibold">Added here</span>
+        Classes and the subjects they need are entered for this plan — they aren't linked to the live calendar yet.
+      </p>
       <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex flex-wrap items-end gap-2">
         <label className="text-sm">
           <span className="block text-xs font-semibold text-slate-500 mb-1">Class name</span>
