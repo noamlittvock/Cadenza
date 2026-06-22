@@ -100,12 +100,12 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   await page.keyboard.press('Escape').catch(() => {});
   await sleep(450);
   await caption('Staffing Planner — plan next year’s teaching load');
-  await sleep(1500);
+  await sleep(2200);
 
   // Source labels in staffing — where the data comes from
   await caption('Source labels show where every figure comes from');
   await hover(page.getByText('Staff directory').first());
-  await sleep(1900);
+  await sleep(2400);
 
   // Explainable numbers — the summary stats are clickable
   await caption('Every summary number is clickable');
@@ -158,10 +158,10 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   await sleep(1500);
   await caption('“+Nh scheduled”, traced to the exact events that changed');
   await hover(page.getByText('What changed').first());
-  await sleep(2400);
+  await sleep(3000);
 
   await caption('Play, plan, and see the impact — before it’s real');
-  await sleep(2000);
+  await sleep(3600);
 
   await page.waitForTimeout(300);
   await ctx.close();
