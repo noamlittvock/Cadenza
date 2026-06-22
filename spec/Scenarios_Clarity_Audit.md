@@ -1,5 +1,8 @@
 # Staffing & What-if — Clarity / Density Audit (build-agent-ready)
 
+> **Status:** ✅ All 7 findings implemented in `StaffingPlannerWorkspace.tsx`
+> and `SandboxWorkspace.tsx`. This doc is retained as the rationale of record.
+
 **Surfaces audited:** Staffing Load Planner (`StaffingPlannerWorkspace.tsx`) and the
 What-if **Draft** editor (`SandboxWorkspace.tsx`).
 **Lens:** not vocabulary (the `Scenarios_Usability_Audit_and_Redesign.md` pass) and

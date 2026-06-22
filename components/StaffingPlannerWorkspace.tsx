@@ -197,6 +197,51 @@ export const StaffingPlannerWorkspace: React.FC<StaffingPlannerWorkspaceProps> =
           </button>
         </div>
 
+        {/* The one thing to do next — lead with the task, not the dashboard */}
+        {summary && (() => {
+          const gapClasses = new Set(shortages.map(s => s.className)).size;
+          if (summary.totalMissingHours > 0) {
+            return (
+              <div className="rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Target size={22} className="text-amber-600 shrink-0" />
+                  <p className="text-sm sm:text-base font-semibold text-amber-900 dark:text-amber-100">
+                    You have {summary.totalMissingHours} unstaffed hour{summary.totalMissingHours === 1 ? '' : 's'} across {gapClasses} class{gapClasses === 1 ? '' : 'es'}.
+                  </p>
+                </div>
+                <button onClick={() => setTab('RECRUITMENT')} className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 shrink-0">
+                  See the gaps <ChevronRight size={16} />
+                </button>
+              </div>
+            );
+          }
+          const teachersLeft = summary.teacherCount - summary.teachersComplete;
+          if (summary.teacherCount > 0 && teachersLeft > 0) {
+            return (
+              <div className="rounded-xl border border-indigo-300 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/30 p-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Users size={22} className="text-indigo-600 shrink-0" />
+                  <p className="text-sm sm:text-base font-semibold text-indigo-900 dark:text-indigo-100">
+                    Every class is staffed. {teachersLeft} teacher{teachersLeft === 1 ? '' : 's'} still {teachersLeft === 1 ? 'has' : 'have'} hours left to assign.
+                  </p>
+                </div>
+                <button onClick={() => setTab('TEACHERS')} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 shrink-0">
+                  Review teachers <ChevronRight size={16} />
+                </button>
+              </div>
+            );
+          }
+          if (summary.classCount > 0 || summary.teacherCount > 0) {
+            return (
+              <div className="rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 p-4 flex items-center gap-3">
+                <CheckCircle2 size={22} className="text-emerald-600 shrink-0" />
+                <p className="text-sm sm:text-base font-semibold text-emerald-800 dark:text-emerald-200">Every class is fully staffed and every teacher is settled — nothing to do here.</p>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
         {/* Summary strip — every number drills into the rows that produced it */}
         {summary && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -279,7 +324,7 @@ const SummaryStat: React.FC<{ label: string; value: string; done?: boolean; warn
       <div className="text-xl font-bold flex items-center gap-1.5">{done && <CheckCircle2 size={18} className="text-emerald-600" />}{value}</div>
       <div className="text-xs text-slate-500 flex items-center justify-between gap-1">
         <span>{label}</span>
-        {explain && <span className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-600 dark:text-indigo-300 font-semibold flex items-center gap-0.5">{explain}<ChevronRight size={12} /></span>}
+        {explain && <span className="text-indigo-600 dark:text-indigo-300 font-semibold flex items-center gap-0.5">{explain}<ChevronRight size={12} /></span>}
       </div>
     </>
   );
@@ -302,18 +347,14 @@ const TeachersTab: React.FC<{
 }> = ({ balances, quotas, staff, assignedStaffIds, addQuota, updateQuota, removeQuota, setTrackMin }) => {
   const [newStaffId, setNewStaffId] = useState('');
   const [newHours, setNewHours] = useState(22);
+  const [showHours, setShowHours] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const available = staff.filter(s => !assignedStaffIds.has(s.id));
   const quotaById = new Map<string, StaffingTeacherQuota>(quotas.map(q => [q.id, q]));
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-slate-500 flex flex-wrap items-center gap-1.5">
-        <span className="rounded bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-200 px-1.5 py-0.5 font-semibold">Staff directory</span>
-        Teachers are pulled from your staff list.
-        <span className="rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 font-semibold">Set here</span>
-        Required hours are planning targets you enter for this plan — not payroll contracts.
-      </p>
+      <p className="text-xs text-slate-500">Teachers come from your staff list. Pick one and add them — you can fine-tune their hours target any time.</p>
       <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex flex-wrap items-end gap-2">
         <label className="text-sm">
           <span className="block text-xs font-semibold text-slate-500 mb-1">Add teacher</span>
@@ -322,14 +363,20 @@ const TeachersTab: React.FC<{
             {available.map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
           </select>
         </label>
-        <label className="text-sm">
-          <span className="block text-xs font-semibold text-slate-500 mb-1">Required hours</span>
-          <input type="number" min={0} value={newHours} onChange={e => setNewHours(Number(e.target.value))} className="w-28 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm" />
-        </label>
         <button onClick={() => { if (newStaffId) { addQuota(newStaffId, newHours); setNewStaffId(''); } }}
           disabled={!newStaffId} className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:text-slate-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5">
           <UserPlus size={16} /> Add
         </button>
+        {showHours ? (
+          <label className="text-sm" title="A planning target for this plan — not a payroll contract. You can change it later.">
+            <span className="block text-xs font-semibold text-slate-500 mb-1">Hours target</span>
+            <input type="number" min={0} value={newHours} onChange={e => setNewHours(Number(e.target.value))} className="w-24 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm" />
+          </label>
+        ) : (
+          <button type="button" onClick={() => setShowHours(true)} className="text-xs text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-300 pb-2.5">
+            Target: {newHours}h · Adjust
+          </button>
+        )}
         {available.length === 0 && staff.length > 0 && <span className="text-xs text-slate-500">All staff added.</span>}
       </div>
 

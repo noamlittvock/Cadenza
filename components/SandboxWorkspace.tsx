@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle, ArrowLeft, CalendarDays, Clock, DoorOpen, FlaskConical, GitBranch, LayoutGrid, Menu, PanelRightClose, Plus, Save, Table2, Trash2, TrendingUp, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CalendarDays, Clock, DoorOpen, GitBranch, LayoutGrid, Menu, PanelRightClose, Plus, Save, Table2, Trash2, TrendingUp, X } from 'lucide-react';
 import type { AppSettings, CalendarEvent, Room } from '../types';
 import type { ActivityV2, StaffMemberV2 } from '../types/v2';
 import type { Scenario, ScenarioDelta, ScenarioDraftEntity, ScenarioEventMeta } from '../types/scenario';
@@ -35,17 +35,18 @@ interface SandboxWorkspaceProps {
   onMobileMenuOpen: () => void;
 }
 
-// Where each event came from — distinct from "what you changed". Every item carries a source label.
-const eventProvenance = (meta?: ScenarioEventMeta): { label: string; cls: string } => {
-  if (meta?.delta?.operation === 'create') return { label: 'Draft-only', cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200' };
-  if (meta?.lockedContext) return { label: 'Reference', cls: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' };
-  if (meta?.changed) return { label: 'Live · edited', cls: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200' };
-  return { label: 'Live', cls: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200' };
+// Where each event came from — verification info, demoted to a quiet dot so it
+// doesn't shout. The label is available on hover for the few who go looking.
+const eventProvenance = (meta?: ScenarioEventMeta): { label: string; dot: string } => {
+  if (meta?.delta?.operation === 'create') return { label: 'Draft-only', dot: 'bg-emerald-500' };
+  if (meta?.lockedContext) return { label: 'Reference (read-only)', dot: 'bg-slate-400' };
+  if (meta?.changed) return { label: 'Edited in this draft', dot: 'bg-amber-500' };
+  return { label: 'From the live schedule', dot: 'bg-blue-400' };
 };
 
 const SourceChip: React.FC<{ meta?: ScenarioEventMeta }> = ({ meta }) => {
   const p = eventProvenance(meta);
-  return <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold leading-none ${p.cls}`} title="Where this event comes from">{p.label}</span>;
+  return <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${p.dot}`} title={p.label} aria-label={p.label} />;
 };
 
 const toDateInput = (iso: string) => new Date(iso).toISOString().slice(0, 10);
@@ -61,6 +62,33 @@ const combineDateAndTime = (sourceIso: string, nextDate: string, nextTime: strin
   next.setHours(hour, minute, 0, 0);
   if (Number.isNaN(next.getTime())) return sourceIso;
   return next.toISOString();
+};
+
+// Human phrases for raw event field keys — a scheduler should never see camelCase.
+const FIELD_LABELS: Record<string, string> = {
+  staffMemberIds: 'teacher',
+  start: 'start time',
+  end: 'end time',
+  roomId: 'room',
+  name: 'name',
+  recurrenceRule: 'repeat pattern',
+  activityId: 'activity',
+  description: 'description',
+  isCanceled: 'cancellation',
+  isHidden: 'visibility',
+};
+
+/** Turn raw changed-field keys into one plain sentence, e.g. "Teacher and start time changed." */
+const describeChangedFields = (fields: string[]): string => {
+  const labels = [...new Set(fields.map(field => FIELD_LABELS[field]).filter(Boolean))] as string[];
+  if (labels.length === 0) return 'Details changed.';
+  const [first, ...rest] = labels;
+  const head = first.charAt(0).toUpperCase() + first.slice(1);
+  if (rest.length === 0) return `${head} changed.`;
+  const last = rest[rest.length - 1];
+  const middle = rest.slice(0, -1);
+  const phrase = middle.length > 0 ? `${head}, ${middle.join(', ')} and ${last}` : `${head} and ${last}`;
+  return `${phrase} changed.`;
 };
 
 // Draft-only entities slot into the real shapes so existing pickers/engine resolve them by id + name.
@@ -115,6 +143,7 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
   });
   const [surface, setSurface] = useState<'table' | 'grid'>('table');
   const [panelOpen, setPanelOpen] = useState(false);
+  const [showDraftEntities, setShowDraftEntities] = useState(false);
   const [gridMode, setGridMode] = useState<ScenarioCalendarMode>('WEEK');
   const [gridDate, setGridDate] = useState(scenario.lens.dateRange.start);
   const [draggingEventId, setDraggingEventId] = useState<string | null>(null);
@@ -267,14 +296,6 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
   return (
     <div className="h-full overflow-hidden bg-amber-50/40 dark:bg-slate-950 text-slate-900 dark:text-slate-100 border-[6px] border-amber-500/70">
       <div className="h-full flex">
-        <aside className="w-[76px] shrink-0 bg-amber-600 text-white flex flex-col items-center py-4 gap-4 shadow-cadenza-deep">
-          <div className="h-12 w-12 rounded-lg border border-white/30 flex items-center justify-center">
-            <FlaskConical size={24} />
-          </div>
-          <div className="[writing-mode:vertical-rl] rotate-180 text-xs font-black tracking-[0.28em]">DRAFT</div>
-          <div className="mt-auto [writing-mode:vertical-rl] rotate-180 text-[10px] uppercase tracking-[0.22em] opacity-80">Not live</div>
-        </aside>
-
         <main className="flex-1 min-w-0 flex flex-col">
           <div className="shrink-0 bg-white dark:bg-slate-900 border-b-2 border-amber-500 px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -282,25 +303,12 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                 <button className="lg:hidden p-2 -ms-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800" onClick={onMobileMenuOpen}>
                   <Menu size={20} />
                 </button>
-                <div className="rounded bg-amber-600 text-white px-2 py-1 text-[11px] font-black tracking-widest">DRAFT</div>
                 <div className="min-w-0">
                   <h2 className="text-lg font-bold truncate">{scenario.name}</h2>
                   <p className="text-xs text-slate-500">Copied from the live schedule on {formatStamp}</p>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-1.5 bg-slate-50 dark:bg-slate-950">{eventSet.events.length} events</span>
-                <span className={`rounded-lg border px-3 py-1.5 ${conflicts.length > 0 ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300' : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950'}`}>
-                  {conflicts.length} clashes
-                </span>
-                <span className={`rounded-lg border px-3 py-1.5 ${drift.length > 0 ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950'}`}>
-                  {drift.length} out of date
-                </span>
-                {impact.estimatedScheduledHoursDelta !== 0 && (
-                  <span className={`rounded-lg border px-3 py-1.5 font-semibold ${impact.estimatedScheduledHoursDelta > 0 ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300' : 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300'}`}>
-                    {impact.estimatedScheduledHoursDelta > 0 ? '+' : ''}{impact.estimatedScheduledHoursDelta}h est.
-                  </span>
-                )}
                 <button
                   onClick={() => setPanelOpen(open => !open)}
                   aria-pressed={panelOpen}
@@ -318,12 +326,9 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
             </div>
           </div>
 
-          <div className="shrink-0 px-4 py-2 bg-amber-100 dark:bg-amber-950/30 border-b border-amber-300 dark:border-amber-800 flex flex-wrap items-center gap-3 text-xs text-amber-900 dark:text-amber-100">
-            <span className="font-bold">You're editing a draft</span>
-            <span>Changes here don't affect the real calendar.</span>
-            <span>{diff.length} changes</span>
-            <span>{eventSet.lockedContextEventIds.length} read-only events</span>
-            {eventSet.hiddenBaseEventIds.length > 0 && <span>{eventSet.hiddenBaseEventIds.length} hidden</span>}
+          <div className="shrink-0 px-4 py-2 bg-amber-100 dark:bg-amber-950/30 border-b border-amber-300 dark:border-amber-800 flex flex-wrap items-center gap-2 text-xs text-amber-900 dark:text-amber-100">
+            <span className="font-bold">Draft of {scenario.name}</span>
+            <span>— nothing here touches the real calendar.</span>
           </div>
 
           {drift.length > 0 && (
@@ -335,10 +340,25 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
 
           <div className={`flex-1 overflow-hidden grid grid-cols-1 ${panelOpen ? 'xl:grid-cols-[minmax(0,1fr)_360px]' : ''}`}>
             <section className="overflow-auto custom-scrollbar p-4">
+              {!showDraftEntities && (
+                <button
+                  onClick={() => setShowDraftEntities(true)}
+                  className="mb-4 inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 px-3 py-1.5 text-sm font-semibold"
+                >
+                  <Plus size={15} /> Add draft-only teacher or room
+                  {(draftStaffEntities.length + draftRoomEntities.length) > 0 && (
+                    <span className="ms-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold leading-none px-1.5 py-0.5">{draftStaffEntities.length + draftRoomEntities.length}</span>
+                  )}
+                </button>
+              )}
+              {showDraftEntities && (
               <div className="rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20 p-3 mb-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="font-bold">Draft-only people & rooms</h3>
-                  <span className="rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold">Draft-only</span>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold">Draft-only people & rooms</h3>
+                    <span className="rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold">Draft-only</span>
+                  </div>
+                  <button onClick={() => setShowDraftEntities(false)} className="p-1 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-slate-500" title="Done"><X size={16} /></button>
                 </div>
                 <p className="text-xs text-slate-500 mb-3">Invent a teacher or room that doesn't exist yet — assign it to events here to test an idea. It lives only in this draft and never touches the live directory.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -388,6 +408,7 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                   </div>
                 </div>
               </div>
+              )}
               <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
                   <div>
@@ -791,7 +812,7 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                       <div className="min-w-0">
                         <div className="font-semibold truncate">{item.title}</div>
                         <div className="text-slate-500">
-                          {item.changeType === 'created' ? 'Added in this draft' : item.changeType === 'deleted' ? 'Removed in this draft' : `Changed: ${item.changedFields.join(', ') || 'details'}`}
+                          {item.changeType === 'created' ? 'Added in this draft' : item.changeType === 'deleted' ? 'Removed in this draft' : describeChangedFields(item.changedFields)}
                         </div>
                       </div>
                     </div>
