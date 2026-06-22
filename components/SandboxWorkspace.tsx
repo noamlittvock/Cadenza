@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle, ArrowLeft, CalendarDays, Clock, DoorOpen, FlaskConical, GitBranch, LayoutGrid, Menu, Plus, Save, Table2, Trash2, TrendingUp } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CalendarDays, Clock, DoorOpen, FlaskConical, GitBranch, LayoutGrid, Menu, PanelRightClose, Plus, Save, Table2, Trash2, TrendingUp, X } from 'lucide-react';
 import type { AppSettings, CalendarEvent, Room } from '../types';
 import type { ActivityV2, StaffMemberV2 } from '../types/v2';
 import type { Scenario, ScenarioDelta } from '../types/scenario';
@@ -69,6 +69,7 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
     roomId: rooms[0]?.id ?? '',
   });
   const [surface, setSurface] = useState<'table' | 'grid'>('table');
+  const [panelOpen, setPanelOpen] = useState(false);
   const [gridMode, setGridMode] = useState<ScenarioCalendarMode>('WEEK');
   const [gridDate, setGridDate] = useState(scenario.lens.dateRange.start);
   const [draggingEventId, setDraggingEventId] = useState<string | null>(null);
@@ -250,6 +251,21 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                 <span className={`rounded-lg border px-3 py-1.5 ${drift.length > 0 ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950'}`}>
                   {drift.length} out of date
                 </span>
+                {impact.estimatedScheduledHoursDelta !== 0 && (
+                  <span className={`rounded-lg border px-3 py-1.5 font-semibold ${impact.estimatedScheduledHoursDelta > 0 ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300' : 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300'}`}>
+                    {impact.estimatedScheduledHoursDelta > 0 ? '+' : ''}{impact.estimatedScheduledHoursDelta}h est.
+                  </span>
+                )}
+                <button
+                  onClick={() => setPanelOpen(open => !open)}
+                  aria-pressed={panelOpen}
+                  className={`relative px-3 py-2 rounded-lg border flex items-center gap-2 ${panelOpen ? 'border-indigo-400 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-200' : 'border-slate-300 dark:border-slate-700'}`}
+                >
+                  <TrendingUp size={16} /> Impact
+                  {!panelOpen && diff.length > 0 && (
+                    <span className="ms-0.5 rounded-full bg-indigo-600 text-white text-[10px] font-bold leading-none px-1.5 py-0.5">{diff.length}</span>
+                  )}
+                </button>
                 <button onClick={onBackToPlanning} className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 flex items-center gap-2">
                   <ArrowLeft size={16} /> Back to plan
                 </button>
@@ -272,7 +288,7 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
             </div>
           )}
 
-          <div className="flex-1 overflow-hidden grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <div className={`flex-1 overflow-hidden grid grid-cols-1 ${panelOpen ? 'xl:grid-cols-[minmax(0,1fr)_360px]' : ''}`}>
             <section className="overflow-auto custom-scrollbar p-4">
               <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
@@ -596,7 +612,18 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
               </div>
             </section>
 
+            {panelOpen && (
             <aside className="border-s border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 overflow-y-auto custom-scrollbar p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><PanelRightClose size={14} /> Impact &amp; plan</span>
+                <button
+                  onClick={() => setPanelOpen(false)}
+                  className="p-1.5 -me-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  title="Hide panel"
+                >
+                  <X size={16} />
+                </button>
+              </div>
               {/* Live impact — consequences come to you, no navigation (estimate only). */}
               <div className="rounded-lg border border-indigo-200 dark:border-indigo-900 bg-indigo-50/60 dark:bg-indigo-950/30 p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -683,6 +710,7 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
                 </div>
               </div>
             </aside>
+            )}
           </div>
         </main>
       </div>
