@@ -226,6 +226,33 @@ Anything projected from derived data is an **estimate** and must be labelled so
 (the engine already stamps `estimateOnly: true`). The playground previews
 *consequences*; it never silently writes a charge or a paystub.
 
+### Keeping the Impact panel intuitive (acceptance criteria)
+An inline readout becomes clunk the moment it reads like a dashboard. The panel
+must obey these to stay usable by a non-technical manager:
+
+1. **Sentences, not metrics.** *"Dana now teaches 1.5 more hours this week (about
+   +₪420)"* — never `Δhours +1.5`.
+2. **One headline, details on demand.** Always-visible plain summary
+   (*"3 changes · 1 double-booking · about +₪420 this month"*); breakdowns
+   collapsed behind a disclosure.
+3. **Show only non-zero.** No grids of zeros; empty state teaches
+   (*"No changes yet — move a lesson to see what happens"*).
+4. **Tie consequence to action.** Editing an event highlights the affected
+   teacher/room line; the changed value is what animates. Causality must be visible.
+5. **Calm live updates.** Debounce; never reflow/jump the layout; gently highlight
+   the changed value and let it settle.
+6. **Neutral by default.** Red reserved for double-bookings only; direction shown
+   with a quiet ↑/↓. More hours is not "bad."
+7. **Soft, honest estimates.** *"about ₪420,"* never false-precise; keep the
+   `estimate` tag (`estimateOnly: true`).
+8. **Safety in reach.** Undo and Reset-to-live adjacent to the panel.
+9. **Reuse existing components** (chips, dialogs, type) — familiarity over novelty.
+
+**Clunk test (must all pass):** (a) a manager can read the headline aloud with no
+unknown words; (b) after one edit it's obvious which number changed and why;
+(c) nothing on screen shows `0`/irrelevant data; (d) the last move undoes in one
+click; (e) nothing flashes, jumps, or re-sorts under the cursor while editing.
+
 ---
 
 ## 5. Open questions for product
