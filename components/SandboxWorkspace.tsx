@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { AlertTriangle, ArrowLeft, CalendarDays, Clock, DoorOpen, FlaskConical, GitBranch, LayoutGrid, Menu, PanelRightClose, Plus, Save, Table2, Trash2, TrendingUp, X } from 'lucide-react';
 import type { AppSettings, CalendarEvent, Room } from '../types';
 import type { ActivityV2, StaffMemberV2 } from '../types/v2';
-import type { Scenario, ScenarioDelta, ScenarioEventMeta } from '../types/scenario';
+import type { Scenario, ScenarioDelta, ScenarioDraftEntity, ScenarioEventMeta } from '../types/scenario';
 import { generateId } from '../constants';
 import {
   buildSandboxEventSet,
@@ -23,6 +23,7 @@ import { ScenarioStaffPicker } from './ScenarioStaffPicker';
 
 interface SandboxWorkspaceProps {
   scenario: Scenario;
+  setScenarios: (data: Scenario[] | ((prev: Scenario[]) => Scenario[])) => Promise<void>;
   scenarioDeltas: ScenarioDelta[];
   setScenarioDeltas: (data: ScenarioDelta[] | ((prev: ScenarioDelta[]) => ScenarioDelta[])) => Promise<void>;
   events: CalendarEvent[];
@@ -62,18 +63,49 @@ const combineDateAndTime = (sourceIso: string, nextDate: string, nextTime: strin
   return next.toISOString();
 };
 
+// Draft-only entities slot into the real shapes so existing pickers/engine resolve them by id + name.
+const draftToRoom = (entity: ScenarioDraftEntity): Room => ({ id: entity.id, name: `${entity.name} · draft`, itinerary: '' });
+const draftToStaff = (entity: ScenarioDraftEntity): StaffMemberV2 =>
+  ({ id: entity.id, fullName: `${entity.name} · draft` } as unknown as StaffMemberV2);
+
 export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
   scenario,
+  setScenarios,
   scenarioDeltas,
   setScenarioDeltas,
   events,
-  rooms,
+  rooms: liveRooms,
   activities,
-  staff,
+  staff: liveStaff,
   settings,
   onBackToPlanning,
   onMobileMenuOpen,
 }) => {
+  const draftStaffEntities = useMemo(() => scenario.draftStaff ?? [], [scenario.draftStaff]);
+  const draftRoomEntities = useMemo(() => scenario.draftRooms ?? [], [scenario.draftRooms]);
+  // Real records + anything invented in this draft. Used everywhere a picker or lookup needs them.
+  const staff = useMemo(() => [...liveStaff, ...draftStaffEntities.map(draftToStaff)], [liveStaff, draftStaffEntities]);
+  const rooms = useMemo(() => [...liveRooms, ...draftRoomEntities.map(draftToRoom)], [liveRooms, draftRoomEntities]);
+  const [draftStaffName, setDraftStaffName] = useState('');
+  const [draftRoomName, setDraftRoomName] = useState('');
+
+  const patchScenario = (patch: Partial<Scenario>) =>
+    void setScenarios(prev => prev.map(s => (s.id === scenario.id ? { ...s, ...patch, updatedAt: new Date().toISOString() } : s)));
+  const addDraftStaff = () => {
+    const name = draftStaffName.trim();
+    if (!name) return;
+    patchScenario({ draftStaff: [...draftStaffEntities, { id: generateId(), name }] });
+    setDraftStaffName('');
+  };
+  const removeDraftStaff = (id: string) => patchScenario({ draftStaff: draftStaffEntities.filter(entity => entity.id !== id) });
+  const addDraftRoom = () => {
+    const name = draftRoomName.trim();
+    if (!name) return;
+    patchScenario({ draftRooms: [...draftRoomEntities, { id: generateId(), name }] });
+    setDraftRoomName('');
+  };
+  const removeDraftRoom = (id: string) => patchScenario({ draftRooms: draftRoomEntities.filter(entity => entity.id !== id) });
+
   const [createForm, setCreateForm] = useState({
     name: '',
     date: scenario.lens.dateRange.start,
@@ -303,6 +335,59 @@ export const SandboxWorkspace: React.FC<SandboxWorkspaceProps> = ({
 
           <div className={`flex-1 overflow-hidden grid grid-cols-1 ${panelOpen ? 'xl:grid-cols-[minmax(0,1fr)_360px]' : ''}`}>
             <section className="overflow-auto custom-scrollbar p-4">
+              <div className="rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20 p-3 mb-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-bold">Draft-only people & rooms</h3>
+                  <span className="rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold">Draft-only</span>
+                </div>
+                <p className="text-xs text-slate-500 mb-3">Invent a teacher or room that doesn't exist yet — assign it to events here to test an idea. It lives only in this draft and never touches the live directory.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <div className="flex gap-2">
+                      <input
+                        value={draftStaffName}
+                        onChange={e => setDraftStaffName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') addDraftStaff(); }}
+                        placeholder="New teacher name"
+                        className="min-w-0 flex-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-sm"
+                      />
+                      <button onClick={addDraftStaff} disabled={!draftStaffName.trim()} className="rounded bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:text-slate-500 text-white px-2.5 py-1.5 text-sm font-semibold flex items-center gap-1"><Plus size={15} /> Teacher</button>
+                    </div>
+                    {draftStaffEntities.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {draftStaffEntities.map(entity => (
+                          <span key={entity.id} className="flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200">
+                            {entity.name}
+                            <button onClick={() => removeDraftStaff(entity.id)} className="hover:text-red-500" title="Remove draft teacher"><X size={12} /></button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="flex gap-2">
+                      <input
+                        value={draftRoomName}
+                        onChange={e => setDraftRoomName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') addDraftRoom(); }}
+                        placeholder="New room name"
+                        className="min-w-0 flex-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-sm"
+                      />
+                      <button onClick={addDraftRoom} disabled={!draftRoomName.trim()} className="rounded bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:text-slate-500 text-white px-2.5 py-1.5 text-sm font-semibold flex items-center gap-1"><Plus size={15} /> Room</button>
+                    </div>
+                    {draftRoomEntities.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {draftRoomEntities.map(entity => (
+                          <span key={entity.id} className="flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200">
+                            {entity.name}
+                            <button onClick={() => removeDraftRoom(entity.id)} className="hover:text-red-500" title="Remove draft room"><X size={12} /></button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
               <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
                   <div>

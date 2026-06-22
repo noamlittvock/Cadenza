@@ -25,6 +25,12 @@ export interface ScenarioLens {
   referenceOnlyCollections: ScenarioReferenceCollection[];
 }
 
+/** Made-up teacher/room that exists only inside a draft, for free experimentation. */
+export interface ScenarioDraftEntity {
+  id: string;
+  name: string;
+}
+
 export interface Scenario {
   id: string;
   orgId?: string;
@@ -35,6 +41,10 @@ export interface Scenario {
   baseSnapshotAt: string;
   lens: ScenarioLens;
   status: 'DRAFT' | 'SAVED' | 'ARCHIVED';
+  /** Draft-only people invented in this scenario — never touch the live directory. */
+  draftStaff?: ScenarioDraftEntity[];
+  /** Draft-only rooms invented in this scenario — never touch the live rooms. */
+  draftRooms?: ScenarioDraftEntity[];
 }
 
 export interface ScenarioDelta {

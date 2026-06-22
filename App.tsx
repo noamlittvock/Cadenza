@@ -856,6 +856,7 @@ function AppContent() {
         return (
           <SandboxWorkspace
             scenario={sandboxScenario}
+            setScenarios={setScenarios}
             scenarioDeltas={scenarioDeltas}
             setScenarioDeltas={setScenarioDeltas}
             events={events}
