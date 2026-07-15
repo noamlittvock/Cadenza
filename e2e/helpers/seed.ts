@@ -1,4 +1,5 @@
 import { Page } from '@playwright/test';
+import { gotoDevTools } from './navigate';
 
 /** Known template IDs from utils/testTemplates.ts */
 export const TEMPLATE_IDS = {
@@ -25,8 +26,8 @@ export async function applyTestTemplate(
   templateId: string,
   waitMs = 3_000
 ): Promise<void> {
-  // Navigate to Super Admin
-  await page.getByRole('button', { name: 'Super Admin' }).click();
+  // Navigate to the Developer Tools tab inside Super Admin.
+  await gotoDevTools(page);
 
   // Wait for templates section
   await page.getByText('Test Templates').waitFor({ state: 'visible', timeout: 10_000 });

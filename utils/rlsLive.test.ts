@@ -238,7 +238,7 @@ if (!liveRlsEnv.ready) {
         is_archived: false,
       });
       expectRlsDenied(teacherInsertError, 'teacher/member should not insert family rows');
-    });
+    }, LIVE_RLS_TIMEOUT_MS);
 
     it('enforces scoped roster/program source reads for admin and assigned teachers only', async (ctx) => {
       const ownActivityId = h.id('ensemble_own');

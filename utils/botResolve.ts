@@ -54,13 +54,17 @@ interface BestMatch<T> {
 
 function bestMatch<T>(query: string, items: T[], nameOf: (item: T) => string): BestMatch<T> | null {
   let best: BestMatch<T> | null = null;
+  let tied = false;
   for (const item of items) {
     const s = scoreName(query, nameOf(item));
     if (s >= MIN_SCORE && (!best || s > best.score)) {
       best = { item, score: s };
+      tied = false;
+    } else if (best && s === best.score) {
+      tied = true;
     }
   }
-  return best;
+  return tied ? null : best;
 }
 
 export interface ResolveContext {

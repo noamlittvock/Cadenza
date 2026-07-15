@@ -29,14 +29,28 @@ export interface AskBotResult {
 interface DistillResponse { intent: QueryIntent; }
 interface WrapResponse { answer: string; }
 
-function inferTime(question: string): QueryIntent['timeRange'] {
+export function inferTime(question: string): QueryIntent['timeRange'] {
   const q = question.toLowerCase();
-  if (q.includes('tomorrow')) return { relativeHint: 'tomorrow' };
-  if (q.includes('next week')) return { relativeHint: 'next_week' };
-  if (q.includes('week')) return { relativeHint: 'this_week' };
-  if (q.includes('month')) return { relativeHint: 'this_month' };
-  const time = q.match(/\b([01]?\d|2[0-3])(?::([0-5]\d))?\b/);
-  return { relativeHint: 'today', timeOfDay: time ? `${time[1].padStart(2, '0')}:${time[2] ?? '00'}` : undefined };
+  const relativeHint = q.includes('tomorrow') ? 'tomorrow'
+    : q.includes('next week') ? 'next_week'
+    : q.includes('week') ? 'this_week'
+    : q.includes('month') ? 'this_month'
+    : 'today';
+
+  const meridiem = q.match(/\b(?:at\s+)?(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(am|pm)\b/);
+  const clock = q.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+  const atHour = q.match(/\bat\s+([01]?\d|2[0-3])\b/);
+  let timeOfDay: string | undefined;
+  if (meridiem) {
+    const rawHour = Number(meridiem[1]);
+    const hour = (rawHour % 12) + (meridiem[3] === 'pm' ? 12 : 0);
+    timeOfDay = `${String(hour).padStart(2, '0')}:${meridiem[2] ?? '00'}`;
+  } else if (clock) {
+    timeOfDay = `${clock[1].padStart(2, '0')}:${clock[2]}`;
+  } else if (atHour) {
+    timeOfDay = `${atHour[1].padStart(2, '0')}:00`;
+  }
+  return { relativeHint, timeOfDay };
 }
 
 function fallbackDistill(question: string): QueryIntent {
@@ -53,10 +67,15 @@ function fallbackDistill(question: string): QueryIntent {
   return { intent, entityRefs: {}, timeRange: inferTime(question) };
 }
 
-function fallbackWrap(result: QueryResult): string {
+export function fallbackWrap(result: QueryResult): string {
   if (result.kind === 'name_not_found') return `I could not find that ${result.missingEntity}.`;
   if (result.kind === 'no_results') return result.message || 'I did not find anything for that request.';
-  if (result.kind === 'count') return `${result.count ?? 0} event${result.count === 1 ? '' : 's'}${result.windowLabel ? ` in ${result.windowLabel}` : ''}.`;
+  if (result.kind === 'count') {
+    const label = result.windowLabel;
+    const relative = label && /^(today|tomorrow|this\b|next\b)/i.test(label);
+    const windowPhrase = label ? `${relative ? ' ' : ' in '}${label}` : '';
+    return `${result.count ?? 0} event${result.count === 1 ? '' : 's'}${windowPhrase}.`;
+  }
   if (result.kind === 'room_availability') {
     const free = (result.rooms || []).filter(r => r.isFree).map(r => r.roomName);
     return free.length ? `Free rooms: ${free.join(', ')}.` : 'No rooms are free for that time.';

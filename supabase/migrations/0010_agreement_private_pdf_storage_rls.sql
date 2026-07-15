@@ -27,8 +27,5 @@ create policy documents_agreements_read on storage.objects
     and public.app_is_org_admin((storage.foldername(name))[1])
   );
 
-comment on policy documents_read on storage.objects is
-  'General document reads remain org-member scoped except signed agreement PDFs under {orgId}/agreements/..., which are protected by documents_agreements_read.';
-
-comment on policy documents_agreements_read on storage.objects is
-  'Signed agreement/PDF direct storage reads are admin/super_admin only. Public signer file access must use an exact scoped AGREEMENT_ACCEPTANCE token path, not broad object SELECT.';
+-- Supabase owns storage.objects. The migration role may manage its policies,
+-- but COMMENT ON those policies fails with SQLSTATE 42501.

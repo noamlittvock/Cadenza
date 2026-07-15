@@ -19,9 +19,9 @@ test.describe('Admin Inbox — UI structure', () => {
     await expect(page.getByRole('button', { name: 'Notifications' })).toBeVisible();
   });
 
-  test('Tasks tab shows empty state when no tasks exist', async ({ page }) => {
-    // Default tab is Tasks; with no data, the empty state renders
-    await expect(page.getByText('No open tasks')).toBeVisible({ timeout: 5_000 });
+  test('empty inbox shows request and notification empty states', async ({ page }) => {
+    await expect(page.getByText('No operational requests yet')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText('No notifications')).toBeVisible({ timeout: 5_000 });
   });
 
   test('switching to Notifications tab works', async ({ page }) => {
@@ -31,9 +31,8 @@ test.describe('Admin Inbox — UI structure', () => {
     await expect(page.getByText('Something went wrong')).not.toBeVisible();
   });
 
-  test('Show Completed toggle appears on Tasks tab', async ({ page }) => {
-    // The show/hide completed toggle is visible even with no tasks
-    const toggle = page.getByText(/Show Completed|Hide Completed/);
+  test('Show resolved toggle appears for notifications', async ({ page }) => {
+    const toggle = page.getByText(/Show resolved|Hide resolved/);
     await expect(toggle).toBeVisible();
   });
 

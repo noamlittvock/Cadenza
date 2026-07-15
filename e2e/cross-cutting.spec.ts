@@ -58,7 +58,7 @@ test('#72 sidebar nav and main content buttons are not obscured by invisible ove
 
   // ── Check 1: sidebar nav button is at the top of the z-stack at its position ──
 
-  const navButton = page.getByRole('button', { name: 'Smart Calendar' });
+  const navButton = page.locator('nav').first().getByRole('button', { name: 'Smart Calendar' });
   await expect(navButton).toBeVisible({ timeout: 10_000 });
   const navBox = await navButton.boundingBox();
   expect(navBox, 'Smart Calendar nav button has no bounding box').not.toBeNull();
@@ -90,7 +90,7 @@ test('#72 sidebar nav and main content buttons are not obscured by invisible ove
   await gotoView(page, 'CALENDAR');
   await page.waitForTimeout(300);
 
-  const dayButton = page.getByRole('button', { name: 'DAY' });
+  const dayButton = page.getByRole('button', { name: 'DAY', exact: true });
   await expect(dayButton).toBeVisible({ timeout: 8_000 });
   const dayBox = await dayButton.boundingBox();
   expect(dayBox, 'DAY button has no bounding box').not.toBeNull();

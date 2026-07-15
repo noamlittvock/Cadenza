@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loadApp, gotoView } from './helpers/navigate';
+import { loadApp, gotoDevTools } from './helpers/navigate';
 
 /**
  * DevTools — Granular Regen (#59)
@@ -13,7 +13,7 @@ import { loadApp, gotoView } from './helpers/navigate';
 test.describe('DevTools — Granular Regen / section structure', () => {
   test.beforeEach(async ({ page }) => {
     await loadApp(page);
-    await gotoView(page, 'SUPER_ADMIN');
+    await gotoDevTools(page);
     await page.getByText('Date Simulator').waitFor({ state: 'visible', timeout: 8_000 });
   });
 

@@ -155,8 +155,5 @@ create policy documents_assessments_read on storage.objects
     and public.app_is_org_admin((storage.foldername(name))[1])
   );
 
-comment on policy documents_read on storage.objects is
-  'General document reads remain org-member scoped except private agreement and assessment/certificate/report-card prefixes.';
-
-comment on policy documents_assessments_read on storage.objects is
-  'Assessment, certificate, and report-card direct storage reads are admin/super_admin only. D-22 guardian delivery remains private and explicitly released.';
+-- Supabase owns storage.objects. The migration role may manage its policies,
+-- but COMMENT ON those policies fails with SQLSTATE 42501.

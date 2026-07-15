@@ -28,6 +28,13 @@ export async function gotoView(page: Page, view: string): Promise<void> {
   await page.waitForTimeout(200);
 }
 
+/** Open the Developer Tools tab inside the Super Admin console. */
+export async function gotoDevTools(page: Page): Promise<void> {
+  await gotoView(page, 'SUPER_ADMIN');
+  await page.getByRole('button', { name: 'Developer Tools' }).click();
+  await page.waitForTimeout(200);
+}
+
 /** Load the app at the test org URL and wait for the main layout to appear. */
 export async function loadApp(page: Page): Promise<void> {
   // Use relative URL so Playwright uses the project's baseURL (3000 for ui, 3001 for firebase)

@@ -32,6 +32,10 @@ export default defineConfig({
       env: {
         VITE_E2E_AUTH_BYPASS: 'true',
         VITE_LOCAL_MODE: 'true',
+        // Keep the deterministic local suite isolated even when a developer has
+        // a live Supabase project configured in .env.local.
+        VITE_SUPABASE_URL: '',
+        VITE_SUPABASE_ANON_KEY: '',
       },
     },
   ],

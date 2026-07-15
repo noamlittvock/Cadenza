@@ -79,8 +79,5 @@ create policy documents_concert_programs_read on storage.objects
     and public.app_is_org_admin((storage.foldername(name))[1])
   );
 
-comment on policy documents_read on storage.objects is
-  'General document reads remain org-member scoped except private agreement, assessment/certificate/report-card, and concert-program export prefixes.';
-
-comment on policy documents_concert_programs_read on storage.objects is
-  'Private concert-program export reads are admin/super_admin only. D-23 public program files remain disabled until explicit release policy is accepted.';
+-- Supabase owns storage.objects. The migration role may manage its policies,
+-- but COMMENT ON those policies fails with SQLSTATE 42501.

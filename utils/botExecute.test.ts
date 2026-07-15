@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { executeIntent, resolveWindow, type ExecuteContext } from './botExecute';
 import { resolveIntent } from './botResolve';
+import { fallbackWrap, inferTime } from './botClient';
 import type { CalendarEvent, Teacher, Room, Student } from '../types';
 import type { ActivityV2 } from '../types/v2';
 import { fromDateTimestamp } from './appTimestamp';
@@ -83,6 +84,23 @@ describe('resolveWindow', () => {
     expect(w.start.getDay()).toBe(0);
     expect(w.end.getDay()).toBe(6);
   });
+  it('uses local midnight for date-only values and expands a date-only end', () => {
+    const w = resolveWindow(
+      { intent: 'list_for_day', entityRefs: {}, timeRange: { start: '2026-03-12', end: '2026-03-12' } },
+      NOW,
+    );
+    expect([w.start.getFullYear(), w.start.getMonth(), w.start.getDate(), w.start.getHours()]).toEqual([2026, 2, 12, 0]);
+    expect([w.end.getDate(), w.end.getHours(), w.end.getMinutes()]).toEqual([12, 23, 59]);
+  });
+  it('honors a partial explicit window instead of defaulting to today', () => {
+    const w = resolveWindow(
+      { intent: 'list_for_day', entityRefs: {}, timeRange: { start: '2026-03-14' } },
+      NOW,
+    );
+    expect(w.start.getDate()).toBe(14);
+    expect(w.end.getDate()).toBe(14);
+    expect(w.end.getHours()).toBe(23);
+  });
 });
 
 describe('resolveIntent', () => {
@@ -97,6 +115,27 @@ describe('resolveIntent', () => {
   it('matches a room by exact name', () => {
     const refs = resolveIntent({ intent: 'who_is_where', entityRefs: { roomName: 'Studio A' } }, resolveCtx);
     expect(refs.roomId).toBe('r1');
+  });
+  it('does not guess when a partial name has equally good matches', () => {
+    const refs = resolveIntent(
+      { intent: 'lookup_schedule', entityRefs: { teacherName: 'Sarah' } },
+      { ...resolveCtx, teachers: [...teachers, { ...teachers[1], id: 't4', fullName: 'Sarah Gold' }] },
+    );
+    expect(refs.teacherId).toBeUndefined();
+    expect(refs.unresolved).toContain('teacher');
+  });
+});
+
+describe('local bot fallback', () => {
+  it('does not infer a time from an unrelated quantity', () => {
+    expect(inferTime('Find a room for 18 people today').timeOfDay).toBeUndefined();
+  });
+  it('keeps both a relative day and an explicit time', () => {
+    expect(inferTime('Find a room tomorrow at 3pm')).toEqual({ relativeHint: 'tomorrow', timeOfDay: '15:00' });
+  });
+  it('uses natural grammar for relative count windows', () => {
+    expect(fallbackWrap({ kind: 'count', count: 0, windowLabel: 'today' })).toBe('0 events today.');
+    expect(fallbackWrap({ kind: 'count', count: 2, windowLabel: 'this week (Mar 8–14)' })).toBe('2 events this week (Mar 8–14).');
   });
 });
 

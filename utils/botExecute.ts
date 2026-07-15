@@ -55,6 +55,14 @@ function formatRange(start: Date, end: Date): string {
   return `${fmt.format(start)}–${fmt.format(end)}`;
 }
 
+function parseWindowDate(value: string): Date | null {
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const parsed = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+    : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 /**
  * Resolve `intent.timeRange` into an absolute [start, end] window. If the
  * intent doesn't specify a window, default to "today" — most queries imply
@@ -62,10 +70,17 @@ function formatRange(start: Date, end: Date): string {
  */
 export function resolveWindow(intent: QueryIntent, now: Date): Window {
   const t = intent.timeRange;
-  if (t?.start && t.end) {
-    const start = new Date(t.start);
-    const end = new Date(t.end);
-    return { start, end, label: formatRange(start, end) };
+  if (t?.start || t?.end) {
+    const parsedStart = t.start ? parseWindowDate(t.start) : null;
+    const parsedEnd = t.end ? parseWindowDate(t.end) : null;
+    if (parsedStart || parsedEnd) {
+      const anchor = parsedStart ?? parsedEnd!;
+      const start = parsedStart ?? startOfDay(anchor);
+      const end = parsedEnd
+        ? (/^\d{4}-\d{2}-\d{2}$/.test(t.end!) ? endOfDay(parsedEnd) : parsedEnd)
+        : endOfDay(anchor);
+      return { start, end, label: formatRange(start, end) };
+    }
   }
   switch (t?.relativeHint) {
     case 'tomorrow': {
